@@ -32,6 +32,9 @@ python3 -m venv .venv
 # Required baseline/ablation suite and effect-cost-gap budget curve.
 .venv/bin/bridgetree sweep --budget 32 --budget 64 --limit 10
 
+# One-click training-free configuration search with periodic validation.
+./scripts/train.sh
+
 .venv/bin/pytest
 ```
 
@@ -61,6 +64,25 @@ The requested default API key is present in `configs/default.yaml`. `BRIDGETREE_
 Every BridgeTree prediction records the real tree, all probe branches, reachability, bridge lift, innovation norm, greedy margins, unseen bounds, per-step epsilon, `Epost`, ANN calls, visited nodes, certificate status, budget status, and cluster radii. Summary files report certified-stop rate, budget-truncation rate, posterior gap, cost, and latency.
 
 PersonaMem-v1 does not provide gold memory IDs. `Recall@k` and `Bridge Recall@k` are therefore only computed when `--bridge-gold` supplies independent annotations in the schema described in [data/README.md](data/README.md). The implementation never defines gold bridge memories using its own bridge-lift score.
+
+## One-click training and module diagnostics
+
+BridgeTree has no model-weight training stage. `./scripts/train.sh` performs the design-compatible equivalent: deterministic retrieval-configuration search. It splits PersonaMem by persona (70% train, 15% validation, 15% test), runs a small validation probe every 50 train queries, selects the configuration only on full validation metrics, and evaluates the held-out test personas once at the end. Edit `configs/train.yaml` to change the search space, evaluation frequency, query limits, or objective.
+
+The dataset is self-contained in this repository, not under the sibling `datacenter` project:
+
+- raw input: `data/raw/personamem-v1`
+- normalized data: `data/processed/personamem-v1/32k`
+
+Each run creates `outputs/training/train_<timestamp>/`. `events.jsonl` and `metrics.csv` contain train-progress, validation-probe, validation, and final-test metrics. `modules/*.jsonl` separates encoding, coarse retrieval, clustering, path construction, innovation, selection, search, outcome, and timing metrics. `module_effects.jsonl` reports full BridgeTree minus each ablation, while `best_config.json` and `final_summary.json` contain the selected configuration and final results. Generator calls remain disabled unless `final_generate: true`; hyperparameter search itself never calls the generator.
+
+Equivalent explicit command:
+
+```bash
+.venv/bin/bridgetree train \
+  --config configs/default.yaml \
+  --training-config configs/train.yaml
+```
 
 ## Ascend 910B transfer
 

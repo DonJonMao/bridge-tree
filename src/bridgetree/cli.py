@@ -13,6 +13,7 @@ from .clients import build_embedder
 from .config import load_config
 from .experiment import METHODS, run_personamem_experiment
 from .personamem import PERSONAMEM_REPO, PERSONAMEM_REVISION, prepare_split
+from .training import load_training_config, run_training_experiment
 
 
 def _download(url: str, destination: Path) -> None:
@@ -72,6 +73,15 @@ def build_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--bridge-gold")
     sweep.add_argument("--output-dir")
 
+    train = subparsers.add_parser(
+        "train",
+        help="Run training-free retrieval configuration search with periodic validation",
+    )
+    train.add_argument("--config", default="configs/default.yaml")
+    train.add_argument("--override-config")
+    train.add_argument("--training-config", default="configs/train.yaml")
+    train.add_argument("--output-dir")
+
     check = subparsers.add_parser("check-ascend", help="Report Ascend/PyTorch runtime availability")
     check.add_argument("--strict", action="store_true")
     return parser
@@ -127,6 +137,18 @@ def main(argv: list[str] | None = None) -> int:
             json.dump(manifest, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
         print(json.dumps({"sweep_dir": str(sweep_root), **manifest}, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "train":
+        config = load_config(args.config, args.override_config)
+        training_config = load_training_config(args.training_config)
+        embedder = build_embedder(config.models.embedding, device=config.runtime.device)
+        result = run_training_experiment(
+            config,
+            training_config,
+            embedder,
+            output_dir=args.output_dir,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.command == "check-ascend":
         status = {"torch": False, "torch_npu": False, "npu_available": False}

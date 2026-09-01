@@ -1,0 +1,38 @@
+# "Training" is a training-free search over retrieval configurations. It never
+# updates embedding or generator model weights.
+seed: 42
+
+# Personas, rather than individual questions, are split to prevent leakage.
+split:
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  test_ratio: 0.15
+
+schedule:
+  periodic_eval_every: 50
+  periodic_eval_queries: 8
+  max_train_queries: null
+  max_validation_queries: null
+  max_test_queries: null
+
+search_space:
+  first_hop_width: [8, 12]
+  branch_width: [4, 8]
+  search_budget: [64]
+
+# BridgeTree plus one isolated ablation for every algorithmic module.
+diagnostic_methods:
+  - bridgetree
+  - ablation_no_cluster
+  - ablation_bfs
+  - ablation_fixed_depth
+  - ablation_topk
+  - ablation_rho_dpp
+  - ablation_direct_path
+
+objective_metric: selection.logdet_value
+objective_mode: max
+bridge_gold_path: null
+final_generate: false
+keep_example_metrics: true
+output_dir: outputs/training

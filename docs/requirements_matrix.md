@@ -18,6 +18,8 @@
 | Zero retrieval LLM calls | retriever only accepts vectors; experiment reports call counts | architecture inspection/tests |
 | PersonaMem main experiment | pinned downloader, normalized split, experiment runner | `test_personamem.py`, data manifest |
 | Required baselines/ablations | `baselines.py`, `experiment.METHODS` | `test_baselines.py` |
+| One-click training-free search and periodic validation | `training.py`, `configs/train.yaml`, `scripts/train.sh` | `test_training.py` |
+| Decoupled module metrics and ablation deltas | `module_metrics.py`, per-module JSONL outputs | `test_training.py` |
 | Answer, recall, bridge, innovation, cost, certificate and gap metrics | `metrics.py`, experiment summaries | `test_metrics.py` |
 | Independent gold bridge definition | optional external annotations + direct-rank partition | `test_metrics.py` |
 | Code/data separation and 910B portability | project layout, config overlay, dependency files | `README.md`, `check-ascend`, `scripts/run_ascend.sh` |
