@@ -1,0 +1,14 @@
+# Portable override for an Ascend 910B host. Endpoints may remain remote, or
+# embedding.backend can be changed to local after installing torch_npu and a
+# local sentence-transformers checkpoint.
+runtime:
+  device: npu:0
+  cache_dir: /data/bridgetree/cache
+  output_dir: /data/bridgetree/outputs
+data:
+  raw_dir: /data/bridgetree/datasets/personamem-v1
+  processed_dir: /data/bridgetree/processed/personamem-v1
+models:
+  embedding:
+    backend: remote
+

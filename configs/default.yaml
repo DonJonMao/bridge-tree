@@ -1,0 +1,37 @@
+seed: 42
+retrieval:
+  first_hop_width: 12
+  branch_width: 8
+  context_size: 5
+  search_budget: 64
+  index_backend: exact
+  tie_tolerance: 1.0e-12
+models:
+  embedding:
+    backend: remote
+    endpoint: http://111.19.156.74:8001/v1/embeddings
+    model: qwen3-embedding-8b
+    query_instruction: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+    batch_size: 32
+    timeout_seconds: 60
+  reranker:
+    endpoint: http://111.19.156.74:8002/rerank
+    model: ""
+    timeout_seconds: 60
+  generator:
+    endpoint: http://111.19.156.30:8006/v1/chat/completions
+    model: deepseek-v4-flash
+    api_key: Aa@11111
+    api_key_env: BRIDGETREE_CHAT_API_KEY
+    timeout_seconds: 120
+    temperature: 0.0
+    max_tokens: 512
+data:
+  raw_dir: data/raw/personamem-v1
+  processed_dir: data/processed/personamem-v1
+  split: 32k
+  include_system_persona: true
+runtime:
+  device: cpu
+  cache_dir: outputs/cache
+  output_dir: outputs/runs

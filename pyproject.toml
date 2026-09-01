@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bridgetree-preference-rag"
+version = "0.1.0"
+description = "Bridge-aware path-conditioned temporary memory tree retrieval for Preference-RAG"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.24,<3",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4", "ruff>=0.6"]
+faiss = ["faiss-cpu>=1.8"]
+local-models = ["sentence-transformers>=3.0"]
+
+[project.scripts]
+bridgetree = "bridgetree.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "SIM"]
