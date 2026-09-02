@@ -1,37 +1,137 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Mapping
 
 import yaml
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class RetrievalConfig:
-    first_hop_width: int = 12
+    """One runtime configuration for every BridgeTree module combination.
+
+    ``first_hop_width`` remains an accepted constructor keyword for source
+    compatibility, but ``initial_width`` is the canonical serialized name.
+    """
+
+    initial_width: int = 12
     branch_width: int = 8
     context_size: int = 5
     search_budget: int = 64
+    max_ann_calls: int | None = None
+    max_candidate_exposure: int | None = None
+    max_depth: int = 2
+    cluster_mode: str = "fixed"
+    cluster_count: int = 4
+    max_clusters: int = 8
+    min_cluster_size: int = 1
+    search_order: str = "best_first"
+    feature_mode: str = "rho"
+    selection_mode: str = "rho_logdet"
+    stop_mode: str = "budget"
+    diagnostic_level: str = "light"
+    root_anchor_weight: float = 0.0
+    mmr_lambda: float = 0.7
     index_backend: str = "exact"
+    faiss_exclusion_margin: int = 32
     tie_tolerance: float = 1e-12
 
+    def __init__(
+        self,
+        initial_width: int = 12,
+        branch_width: int = 8,
+        context_size: int = 5,
+        search_budget: int = 64,
+        max_ann_calls: int | None = None,
+        max_candidate_exposure: int | None = None,
+        max_depth: int = 2,
+        cluster_mode: str = "fixed",
+        cluster_count: int = 4,
+        max_clusters: int = 8,
+        min_cluster_size: int = 1,
+        search_order: str = "best_first",
+        feature_mode: str = "rho",
+        selection_mode: str = "rho_logdet",
+        stop_mode: str = "budget",
+        diagnostic_level: str = "light",
+        root_anchor_weight: float = 0.0,
+        mmr_lambda: float = 0.7,
+        index_backend: str = "exact",
+        faiss_exclusion_margin: int = 32,
+        tie_tolerance: float = 1e-12,
+        first_hop_width: int | None = None,
+    ):
+        if first_hop_width is not None:
+            if initial_width != 12 and initial_width != first_hop_width:
+                raise ValueError("initial_width and legacy first_hop_width disagree")
+            initial_width = first_hop_width
+        values = locals()
+        for name in self.__dataclass_fields__:
+            object.__setattr__(self, name, values[name])
+
+    @property
+    def first_hop_width(self) -> int:
+        """Deprecated read-only alias for older integrations."""
+        return self.initial_width
+
     def validate(self) -> None:
-        values = {
-            "first_hop_width": self.first_hop_width,
+        positive = {
+            "initial_width": self.initial_width,
             "branch_width": self.branch_width,
             "context_size": self.context_size,
             "search_budget": self.search_budget,
+            "max_depth": self.max_depth,
+            "cluster_count": self.cluster_count,
+            "max_clusters": self.max_clusters,
+            "min_cluster_size": self.min_cluster_size,
+            "faiss_exclusion_margin": self.faiss_exclusion_margin,
         }
-        for name, value in values.items():
+        for name, value in positive.items():
             if value <= 0:
                 raise ValueError(f"retrieval.{name} must be positive")
-        if self.search_budget < self.first_hop_width:
-            raise ValueError("retrieval.search_budget must be >= retrieval.first_hop_width")
-        if self.index_backend not in {"exact", "faiss"}:
-            raise ValueError("retrieval.index_backend must be exact or faiss")
+        if self.max_ann_calls is not None and self.max_ann_calls <= 0:
+            raise ValueError("retrieval.max_ann_calls must be positive when set")
+        if self.max_candidate_exposure is not None and self.max_candidate_exposure <= 0:
+            raise ValueError("retrieval.max_candidate_exposure must be positive when set")
+        if self.initial_width > self.search_budget:
+            raise ValueError("retrieval.initial_width must be <= retrieval.search_budget")
+        if self.context_size > self.search_budget:
+            raise ValueError("retrieval.context_size must be <= retrieval.search_budget")
+        if self.max_candidate_exposure is not None and self.context_size > self.max_candidate_exposure:
+            raise ValueError("retrieval.context_size must be <= retrieval.max_candidate_exposure")
+        choices = {
+            "cluster_mode": (self.cluster_mode, {"none", "fixed", "effective_rank"}),
+            "search_order": (self.search_order, {"best_first", "bfs"}),
+            "feature_mode": (self.feature_mode, {"rho", "path_conditioned"}),
+            "selection_mode": (
+                self.selection_mode,
+                {"rho_topk", "mmr", "rho_logdet", "path_logdet"},
+            ),
+            "stop_mode": (self.stop_mode, {"budget", "certificate_or_budget"}),
+            "diagnostic_level": (self.diagnostic_level, {"off", "light", "full"}),
+            "index_backend": (self.index_backend, {"exact", "faiss"}),
+        }
+        for name, (value, allowed) in choices.items():
+            if value not in allowed:
+                raise ValueError(f"retrieval.{name} must be one of {sorted(allowed)}")
+        if self.selection_mode == "path_logdet" and self.feature_mode != "path_conditioned":
+            raise ValueError("retrieval.path_logdet requires feature_mode=path_conditioned")
+        if self.selection_mode == "rho_logdet" and self.feature_mode != "rho":
+            raise ValueError("retrieval.rho_logdet requires feature_mode=rho")
+        if self.stop_mode == "certificate_or_budget" and self.selection_mode not in {
+            "rho_logdet",
+            "path_logdet",
+        }:
+            raise ValueError("retrieval.certificate_or_budget requires a logdet selection mode")
+        if not 0.0 <= self.root_anchor_weight <= 1.0:
+            raise ValueError("retrieval.root_anchor_weight must be in [0, 1]")
+        if not 0.0 <= self.mmr_lambda <= 1.0:
+            raise ValueError("retrieval.mmr_lambda must be in [0, 1]")
 
 
 @dataclass(frozen=True)
@@ -75,6 +175,7 @@ class DataConfig:
     processed_dir: str = "data/processed/personamem-v1"
     split: str = "32k"
     include_system_persona: bool = True
+    memory_granularity: str = "user_assistant_pair"
 
 
 @dataclass(frozen=True)
@@ -98,6 +199,15 @@ class AppConfig:
             raise ValueError("models.embedding.backend must be remote or local")
         if self.data.split not in {"32k", "128k", "1M"}:
             raise ValueError("data.split must be one of 32k, 128k, 1M")
+        if self.data.memory_granularity not in {"user_only", "user_assistant_pair"}:
+            raise ValueError("data.memory_granularity must be user_only or user_assistant_pair")
+
+    def resolved_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    def config_hash(self) -> str:
+        payload = json.dumps(self.resolved_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -118,12 +228,21 @@ def _read_yaml(path: Path) -> Dict[str, Any]:
     return loaded
 
 
+def _retrieval_from_mapping(raw: Mapping[str, Any]) -> RetrievalConfig:
+    values = dict(raw)
+    if "first_hop_width" in values:
+        if "initial_width" in values and values["initial_width"] != values["first_hop_width"]:
+            raise ValueError("retrieval.initial_width and first_hop_width disagree")
+        values["initial_width"] = values.pop("first_hop_width")
+    return RetrievalConfig(**values)
+
+
 def load_config(path: str | Path, override_path: str | Path | None = None) -> AppConfig:
     raw = _read_yaml(Path(path))
     if override_path is not None:
         raw = _deep_merge(raw, _read_yaml(Path(override_path)))
 
-    retrieval = RetrievalConfig(**raw.get("retrieval", {}))
+    retrieval = _retrieval_from_mapping(raw.get("retrieval", {}))
     models_raw = raw.get("models", {})
     embedding = EmbeddingConfig(**models_raw.get("embedding", {}))
     reranker = EndpointConfig(**models_raw.get("reranker", {}))
@@ -137,3 +256,23 @@ def load_config(path: str | Path, override_path: str | Path | None = None) -> Ap
     )
     config.validate()
     return config
+
+
+def apply_runtime_overrides(config: AppConfig, overrides: Mapping[str, Any]) -> AppConfig:
+    """Apply explicit CLI/script values after YAML resolution."""
+    retrieval_fields = set(RetrievalConfig.__dataclass_fields__)
+    retrieval_values = {key: value for key, value in overrides.items() if key in retrieval_fields and value is not None}
+    current = config
+    if retrieval_values:
+        current = replace(current, retrieval=replace(current.retrieval, **retrieval_values))
+    if overrides.get("seed") is not None:
+        current = replace(current, seed=int(overrides["seed"]))
+    data_values = {
+        key: overrides[key]
+        for key in ("memory_granularity", "include_system_persona")
+        if overrides.get(key) is not None
+    }
+    if data_values:
+        current = replace(current, data=replace(current.data, **data_values))
+    current.validate()
+    return current

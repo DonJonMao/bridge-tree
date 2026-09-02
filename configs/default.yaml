@@ -1,9 +1,22 @@
 seed: 42
 retrieval:
-  first_hop_width: 12
+  initial_width: 12
   branch_width: 8
   context_size: 5
   search_budget: 64
+  max_ann_calls: null
+  max_candidate_exposure: null
+  max_depth: 2
+  cluster_mode: fixed
+  cluster_count: 4
+  max_clusters: 8
+  min_cluster_size: 1
+  search_order: best_first
+  feature_mode: rho
+  selection_mode: rho_logdet
+  stop_mode: budget
+  diagnostic_level: light
+  root_anchor_weight: 0.0
   index_backend: exact
   tie_tolerance: 1.0e-12
 models:
@@ -31,6 +44,7 @@ data:
   processed_dir: data/processed/personamem-v1
   split: 32k
   include_system_persona: true
+  memory_granularity: user_assistant_pair
 runtime:
   device: cpu
   cache_dir: outputs/cache

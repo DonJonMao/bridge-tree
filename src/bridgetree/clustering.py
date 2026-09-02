@@ -27,7 +27,7 @@ def _initial_centers(vectors: np.ndarray, count: int) -> np.ndarray:
 
 
 def spherical_kmeans(vectors: np.ndarray, count: int, max_iterations: int = 100) -> np.ndarray:
-    vectors = np.asarray(vectors, dtype=np.float64)
+    vectors = np.asarray(vectors, dtype=np.float32)
     if count < 1 or count > len(vectors):
         raise ValueError("cluster count must be in [1, number of vectors]")
     if count == 1:
@@ -39,14 +39,24 @@ def spherical_kmeans(vectors: np.ndarray, count: int, max_iterations: int = 100)
         if np.array_equal(labels, new_labels):
             break
         labels = new_labels
+        empty_clusters = [index for index in range(count) if not np.any(labels == index)]
+        if empty_clusters:
+            assigned_similarity = np.max(np.dot(vectors, centers.T), axis=1)
+            candidate_order = sorted(range(len(vectors)), key=lambda index: (assigned_similarity[index], index))
+            claimed: set[int] = set()
+            for cluster_index in empty_clusters:
+                eligible = [
+                    index
+                    for index in candidate_order
+                    if index not in claimed and np.count_nonzero(labels == labels[index]) > 1
+                ]
+                if not eligible:
+                    eligible = [index for index in candidate_order if index not in claimed]
+                replacement = eligible[0]
+                claimed.add(replacement)
+                labels[replacement] = cluster_index
         for cluster_index in range(count):
             positions = np.flatnonzero(labels == cluster_index)
-            if len(positions) == 0:
-                similarity = np.dot(vectors, centers.T)
-                nearest_distance = 1.0 - np.max(similarity, axis=1)
-                replacement = int(np.argmax(nearest_distance))
-                labels[replacement] = cluster_index
-                positions = np.asarray([replacement])
             summed = vectors[positions].sum(axis=0)
             if np.linalg.norm(summed) <= 1e-12:
                 centers[cluster_index] = vectors[int(positions[0])]
@@ -58,12 +68,27 @@ def spherical_kmeans(vectors: np.ndarray, count: int, max_iterations: int = 100)
 def cluster_siblings(
     vectors: np.ndarray,
     reachabilities: Sequence[float],
-    disable_compression: bool = False,
+    mode: str = "effective_rank",
+    fixed_count: int = 4,
+    max_clusters: int = 8,
+    min_cluster_size: int = 1,
+    disable_compression: bool | None = None,
 ) -> List[ClusterResult]:
-    vectors = np.asarray(vectors, dtype=np.float64)
+    """Cluster sibling directions under one of the runtime-selectable modes."""
+    vectors = np.asarray(vectors, dtype=np.float32)
     if len(vectors) == 0:
         return []
-    count = len(vectors) if disable_compression else min(len(vectors), max(1, int(ceil(effective_rank(vectors)))))
+    if disable_compression is not None:  # compatibility with the pre-runtime API
+        mode = "none" if disable_compression else "effective_rank"
+    if mode not in {"none", "fixed", "effective_rank"}:
+        raise ValueError("cluster mode must be none, fixed, or effective_rank")
+    capacity = max(1, len(vectors) // max(1, min_cluster_size))
+    if mode == "none":
+        count = len(vectors)
+    elif mode == "fixed":
+        count = min(len(vectors), capacity, fixed_count)
+    else:
+        count = min(len(vectors), capacity, max_clusters, max(1, int(ceil(effective_rank(vectors)))))
     labels = spherical_kmeans(vectors, count)
     results: List[ClusterResult] = []
     weights = np.asarray(reachabilities, dtype=np.float64)

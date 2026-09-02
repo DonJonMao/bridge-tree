@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
@@ -13,7 +14,7 @@ from .clients import Embedder, GeneratorClient, RerankerClient
 from .config import AppConfig
 from .metrics import answer_accuracy, bridge_recall_at_k, direct_ranks, path_innovation_gain, recall_at_k
 from .personamem import PersonaMemExample, iter_examples, messages_to_memories
-from .retriever import AlgorithmOptions, BridgeTreeRetriever
+from .retriever import BridgeTreeRetriever
 from .types import Memory, RetrievalResult
 
 METHODS = (
@@ -34,15 +35,21 @@ METHODS = (
 
 
 ABLATION_OPTIONS = {
-    "bridgetree": AlgorithmOptions(),
-    "ablation_no_cluster": AlgorithmOptions(cluster_mode="none"),
-    "ablation_bfs": AlgorithmOptions(frontier_mode="bfs"),
-    "ablation_fixed_depth": AlgorithmOptions(stopping_mode="fixed_depth", max_depth=3),
-    "ablation_topk": AlgorithmOptions(selection_mode="reachability", stopping_mode="budget_only"),
-    "ablation_rho_dpp": AlgorithmOptions(feature_mode="rho_weighted"),
-    # Direct scores do not obey descendant path monotonicity, so the exact
-    # certificate is deliberately disabled for this diagnostic ablation.
-    "ablation_direct_path": AlgorithmOptions(reachability_mode="direct", stopping_mode="budget_only"),
+    "bridgetree": {},
+    "ablation_no_cluster": {"cluster_mode": "none"},
+    "ablation_bfs": {"search_order": "bfs"},
+    "ablation_fixed_depth": {"max_depth": 3, "stop_mode": "budget"},
+    "ablation_topk": {"selection_mode": "rho_topk", "stop_mode": "budget"},
+    "ablation_rho_dpp": {
+        "feature_mode": "rho",
+        "selection_mode": "rho_logdet",
+        "stop_mode": "budget",
+    },
+    "ablation_direct_path": {
+        "feature_mode": "rho",
+        "selection_mode": "rho_topk",
+        "stop_mode": "budget",
+    },
 }
 
 
@@ -101,7 +108,9 @@ def retrieve_method(
     k = config.retrieval.context_size
 
     if method in ABLATION_OPTIONS:
-        bridge_result = BridgeTreeRetriever(config.retrieval, ABLATION_OPTIONS[method]).retrieve(
+        retrieval_config = replace(config.retrieval, **ABLATION_OPTIONS[method])
+        retrieval_config.validate()
+        bridge_result = BridgeTreeRetriever(retrieval_config).retrieve(
             example.query, query_vector, memories, memory_vectors
         )
         diagnostics = bridge_result.to_dict(include_text=False)

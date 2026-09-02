@@ -47,7 +47,13 @@ def test_path_innovation_is_norm_bounded_and_marginal_bound_holds():
 
 def test_full_visit_clears_unknown_bound_and_certifies_each_selection():
     vectors = np.eye(5)
-    config = RetrievalConfig(first_hop_width=5, branch_width=2, context_size=3, search_budget=5)
+    config = RetrievalConfig(
+        first_hop_width=5,
+        branch_width=2,
+        context_size=3,
+        search_budget=5,
+        stop_mode="certificate_or_budget",
+    )
     result = BridgeTreeRetriever(config).retrieve("query", np.ones(5), _memories(5), vectors)
     assert result.certified
     assert all(step.unseen_upper_bound == 0.0 and step.epsilon == 0.0 for step in result.selection_steps)
@@ -56,7 +62,7 @@ def test_full_visit_clears_unknown_bound_and_certifies_each_selection():
 def test_budget_freeze_records_nonnegative_gaps_and_weighted_total():
     rng = np.random.default_rng(11)
     vectors = rng.normal(size=(12, 5))
-    config = RetrievalConfig(first_hop_width=3, branch_width=2, context_size=4, search_budget=3)
+    config = RetrievalConfig(first_hop_width=3, branch_width=2, context_size=3, search_budget=3)
     result = BridgeTreeRetriever(config).retrieve("query", rng.normal(size=5), _memories(12), vectors)
     assert result.budget_frozen
     assert all(step.epsilon >= 0.0 for step in result.selection_steps)
