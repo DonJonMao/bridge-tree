@@ -23,7 +23,14 @@ from .clients import (
 )
 from .config import AppConfig, RetrievalConfig
 from .experiment import ABLATION_OPTIONS, METHODS, EmbeddingCache, IndexCache, load_bridge_gold, retrieve_method
-from .metrics import answer_accuracy, answer_parse_failed, bridge_recall_at_k, direct_ranks, recall_at_k
+from .metrics import (
+    answer_accuracy,
+    answer_parse_failed,
+    bridge_recall_at_k,
+    direct_ranks,
+    paired_bootstrap_interval,
+    recall_at_k,
+)
 from .module_metrics import (
     MODULE_NAMES,
     aggregate_module_metrics,
@@ -140,6 +147,8 @@ class TrainingExperimentConfig:
             raise ValueError("tuning objective must be auto or an external outcome metric")
         if self.objective_metric == "outcome.answer_accuracy" and not self.validation_generate:
             raise ValueError("answer-accuracy tuning requires validation_generate=true")
+        if self.validation_generate and not self.final_generate:
+            raise ValueError("validation_generate=true requires final_generate=true")
         if self.objective_metric in {"outcome.recall_at_k", "outcome.bridge_recall_at_k"} and not self.bridge_gold_path:
             raise ValueError("recall tuning requires bridge_gold_path")
 
@@ -359,6 +368,7 @@ class TrainingEvaluator:
             app_config.runtime.cache_dir,
             embedder,
             app_config.models.embedding.model,
+            asdict(app_config.models.embedding),
         )
         self.writer = writer
         self.bridge_gold = bridge_gold
@@ -483,7 +493,9 @@ class TrainingEvaluator:
                 "visited_nodes": float(tracker.cost_unique_count),
             }
             metrics["cost"] = {
-                key: float(value) for key, value in tracker.snapshot().to_dict().items() if key != "stop_reason"
+                key: float(value)
+                for key, value in tracker.snapshot().to_dict().items()
+                if key != "stop_reason" and isinstance(value, (int, float))
             }
             metrics["outcome"] = {}
             if accuracy is not None:
@@ -516,15 +528,31 @@ class TrainingEvaluator:
         context: Mapping[str, Any],
     ) -> Dict[str, Any]:
         records = []
+        successful_question_ids = []
         for example in examples:
             try:
                 records.append(self.evaluate_one(example, method, generate, context))
+                successful_question_ids.append(example.question_id)
             except Exception as exc:
                 self.writer.write_failure(
                     {**context, "method": method, "question_id": example.question_id},
                     exc,
                 )
-        return aggregate_module_metrics(records)
+        summary = aggregate_module_metrics(records)
+        outcome_names = sorted({name for record in records for name in record.get("outcome", {})})
+        summary["outcome_values"] = {
+            name: [float(record["outcome"][name]) for record in records if name in record.get("outcome", {})]
+            for name in outcome_names
+        }
+        summary["outcome_by_question"] = {
+            name: {
+                question_id: float(record["outcome"][name])
+                for question_id, record in zip(successful_question_ids, records)
+                if name in record.get("outcome", {})
+            }
+            for name in outcome_names
+        }
+        return summary
 
 
 def _read_examples(app_config: AppConfig) -> list[PersonaMemExample]:
@@ -587,9 +615,20 @@ def _is_better(
     best_score: float | None,
     best_cost: tuple[float, ...] | None,
     mode: str,
+    values: Sequence[float] = (),
+    best_values: Sequence[float] = (),
 ) -> bool:
     if best_score is None:
         return True
+    if len(values) == len(best_values) and len(values) >= 2:
+        interval = paired_bootstrap_interval(values, best_values, resamples=1000)
+        if mode == "max" and interval["ci_low"] > 0.0:
+            return True
+        if mode == "min" and interval["ci_high"] < 0.0:
+            return True
+        if (mode == "max" and interval["ci_high"] < 0.0) or (mode == "min" and interval["ci_low"] > 0.0):
+            return False
+        return best_cost is None or cost < best_cost
     if (mode == "max" and score > best_score + 1e-12) or (mode == "min" and score < best_score - 1e-12):
         return True
     return abs(score - best_score) <= 1e-12 and (best_cost is None or cost < best_cost)
@@ -652,6 +691,7 @@ def run_training_experiment(
     combined_config = {
         "app": app_config.resolved_dict(),
         "tuning": asdict(training_config),
+        "execution": {"output_dir": str(output_dir or training_config.output_dir)},
     }
     combined_payload = json.dumps(combined_config, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     writer.write_json(
@@ -694,6 +734,7 @@ def run_training_experiment(
     best_app_config = None
     best_train_metrics = None
     best_validation_metrics = None
+    best_objective_by_question: Dict[str, float] = {}
 
     for trial_index, retrieval_config in enumerate(trials, start=1):
         current_app = replace(app_config, retrieval=retrieval_config)
@@ -770,6 +811,13 @@ def run_training_experiment(
                 retrieval_config,
             )
         objective = _optional_metric(validation_by_method["bridgetree"], objective_metric)
+        objective_name = objective_metric.split(".", 1)[1] if objective_metric else ""
+        objective_by_question = (
+            validation_by_method["bridgetree"].get("outcome_by_question", {}).get(objective_name, {})
+        )
+        paired_questions = sorted(set(objective_by_question) & set(best_objective_by_question))
+        objective_values = [objective_by_question[question_id] for question_id in paired_questions]
+        best_objective_values = [best_objective_by_question[question_id] for question_id in paired_questions]
         cost = _cost_tuple(validation_by_method["bridgetree"])
         train_summary = aggregate_module_metrics(train_records)
         trial_summary = {
@@ -793,6 +841,8 @@ def run_training_experiment(
             best_score,
             best_cost,
             training_config.objective_mode,
+            objective_values,
+            best_objective_values,
         ):
             best_trial = trial_index
             best_score = objective
@@ -800,6 +850,7 @@ def run_training_experiment(
             best_app_config = current_app
             best_train_metrics = train_summary
             best_validation_metrics = validation_by_method
+            best_objective_by_question = objective_by_question
         writer.write_json("trials.json", trial_summaries)
 
     pareto_frontier = _cost_pareto_frontier(trial_summaries)
@@ -820,7 +871,7 @@ def run_training_experiment(
         final_summary = {
             "optimization_kind": "training_free_configuration_tuning",
             "run_dir": str(root),
-            "selection_status": "unselected_no_external_validation_outcome",
+            "selection_status": "unselected_no_observed_external_validation_outcome",
             "best_trial": None,
             "best_retrieval_config": None,
             "objective_metric": objective_metric,

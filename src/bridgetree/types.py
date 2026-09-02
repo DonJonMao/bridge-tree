@@ -150,6 +150,7 @@ class RetrievalResult:
                 self.cost.duplicate_proposals / self.cost.proposal_count if self.cost.proposal_count else 0.0
             ),
             "new_unique_candidates_per_ann": self.cost.new_unique_candidates_per_ann,
+            "new_unique_candidates_by_ann": list(self.cost.new_unique_candidates_by_ann),
             "actual_cluster_count": len(self.cluster_member_counts),
             "cluster_member_counts": self.cluster_member_counts,
             "clustering_ms": self.clustering_ms,

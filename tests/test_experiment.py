@@ -136,7 +136,8 @@ def test_offline_run_saves_resolved_config_manifest_and_layered_metrics(tmp_path
     resolved = json.loads((run_dir / "resolved_config.json").read_text())
     manifest = json.loads((run_dir / "run_manifest.json").read_text())
     prediction = json.loads((run_dir / "predictions.jsonl").read_text())
-    assert resolved["config_hash"] == config.config_hash()
+    assert resolved["app_config_hash"] == config.config_hash()
+    assert resolved["config"]["execution"]["generate"] is False
     assert manifest["seed"] == 17
     assert manifest["prompt_hash"]
     assert (run_dir / "failures.jsonl").read_text() == ""

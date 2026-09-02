@@ -65,6 +65,33 @@ def spherical_kmeans(vectors: np.ndarray, count: int, max_iterations: int = 100)
     return labels
 
 
+def _merge_small_clusters(vectors: np.ndarray, labels: np.ndarray, min_cluster_size: int) -> np.ndarray:
+    if min_cluster_size <= 1:
+        return labels
+    counts = {int(label): int(np.count_nonzero(labels == label)) for label in np.unique(labels)}
+    valid = [label for label, count in counts.items() if count >= min_cluster_size]
+    if not valid:
+        return np.zeros(len(labels), dtype=np.int64)
+    centers = {}
+    for label in valid:
+        positions = np.flatnonzero(labels == label)
+        summed = vectors[positions].sum(axis=0)
+        centers[label] = normalize(summed) if np.linalg.norm(summed) > 1e-12 else vectors[int(positions[0])]
+    merged = labels.copy()
+    for label in sorted(set(counts) - set(valid)):
+        positions = np.flatnonzero(merged == label)
+        target = min(
+            valid,
+            key=lambda candidate: (
+                -float(np.mean(np.dot(vectors[positions], centers[candidate]))),
+                candidate,
+            ),
+        )
+        merged[positions] = target
+    relabel = {label: index for index, label in enumerate(sorted(int(value) for value in np.unique(merged)))}
+    return np.asarray([relabel[int(label)] for label in merged], dtype=np.int64)
+
+
 def cluster_siblings(
     vectors: np.ndarray,
     reachabilities: Sequence[float],
@@ -90,9 +117,10 @@ def cluster_siblings(
     else:
         count = min(len(vectors), capacity, max_clusters, max(1, int(ceil(effective_rank(vectors)))))
     labels = spherical_kmeans(vectors, count)
+    labels = _merge_small_clusters(vectors, labels, min_cluster_size)
     results: List[ClusterResult] = []
     weights = np.asarray(reachabilities, dtype=np.float64)
-    for cluster_index in range(count):
+    for cluster_index in sorted(int(value) for value in np.unique(labels)):
         positions = np.flatnonzero(labels == cluster_index)
         cluster_vectors = vectors[positions]
         weighted_sum = (weights[positions, None] * cluster_vectors).sum(axis=0)

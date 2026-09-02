@@ -53,6 +53,7 @@ class CostSnapshot:
     duplicate_proposals: int = 0
     proposal_count: int = 0
     new_unique_candidates_per_ann: float = 0.0
+    new_unique_candidates_by_ann: tuple[int, ...] = ()
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -109,9 +110,15 @@ class CostTracker:
         if top_k <= 0:
             return []
         started = time.perf_counter()
-        hits = index.search(query, top_k, exclude=exclude)
+        hits = index.search(
+            query,
+            top_k,
+            exclude=exclude,
+            max_backend_calls=self.remaining_ann_calls,
+        )
         self.retrieval_core_ms += (time.perf_counter() - started) * 1000.0
-        self.ann_calls_core += 1
+        backend_calls = len(index.last_search_stats.backend_request_sizes)
+        self.ann_calls_core += backend_calls
         self.candidates_returned += len(hits)
         ids = [memory_id for memory_id, _score in hits]
         duplicate_count = sum(memory_id in self._visited for memory_id in ids)
@@ -119,7 +126,8 @@ class CostTracker:
         self.duplicate_proposals += duplicate_count
         self.proposal_count += len(ids)
         self._visited.update(ids)
-        self._expansion_yields.append(len(new_ids))
+        if backend_calls:
+            self._expansion_yields.extend([len(new_ids)] + [0] * (backend_calls - 1))
         return hits
 
     def search_diagnostic(self, index, query: np.ndarray, top_k: int, exclude: Iterable[str] = ()):
@@ -128,7 +136,7 @@ class CostTracker:
         started = time.perf_counter()
         hits = index.search(query, top_k, exclude=exclude)
         self.diagnostic_ms += (time.perf_counter() - started) * 1000.0
-        self.ann_calls_diagnostic += 1
+        self.ann_calls_diagnostic += len(index.last_search_stats.backend_request_sizes)
         self.candidates_returned_diagnostic += len(hits)
         return hits
 
@@ -158,4 +166,5 @@ class CostTracker:
             duplicate_proposals=self.duplicate_proposals,
             proposal_count=self.proposal_count,
             new_unique_candidates_per_ann=mean_yield,
+            new_unique_candidates_by_ann=tuple(self._expansion_yields),
         )

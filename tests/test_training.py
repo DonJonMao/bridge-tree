@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from bridgetree.config import (
     AppConfig,
@@ -95,6 +96,11 @@ def test_persona_split_is_deterministic_and_disjoint():
     assert set.union(*persona_sets) == {example.persona_id for example in examples}
 
 
+def test_internal_diagnostic_cannot_be_a_tuning_objective():
+    with pytest.raises(ValueError, match="external outcome"):
+        TrainingExperimentConfig(objective_metric="selection.logdet_value").validate()
+
+
 def test_training_run_writes_periodic_and_decoupled_metrics(tmp_path):
     gold_path = tmp_path / "bridge_gold.jsonl"
     gold_path.write_text(
@@ -167,3 +173,33 @@ def test_tuning_without_external_outcome_does_not_select_or_read_test(tmp_path):
     assert "validation_probe" in phases
     assert "validation" in phases
     assert "test" not in phases
+
+
+def test_selected_tuning_generates_for_every_final_main_table_method(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_answer(self, query, memories, answer_options=""):
+        calls.append((query, tuple(memory.memory_id for memory in memories), answer_options))
+        return "(a)"
+
+    monkeypatch.setattr("bridgetree.training.GeneratorClient.answer", fake_answer)
+    config = TrainingExperimentConfig(
+        seed=11,
+        schedule=TrainingSchedule(periodic_eval_every=2, periodic_eval_queries=1),
+        search_space=SearchSpace(initial_width=(2,), branch_width=(2,), search_budget=(5,)),
+        diagnostic_methods=("bridgetree", "ablation_no_cluster"),
+        main_table_methods=("dense", "bridgetree"),
+        validation_generate=True,
+        final_generate=True,
+        output_dir=str(tmp_path / "training"),
+    )
+    summary = run_training_experiment(
+        _app_config(tmp_path),
+        config,
+        DeterministicEmbedder(),
+        examples=_examples(),
+    )
+    for method in config.main_table_methods:
+        assert metric_value(summary["test_metrics"][method], "outcome.answer_accuracy") == 1.0
+        assert metric_value(summary["test_metrics"][method], "outcome.parse_failure_rate") == 0.0
+    assert len(calls) >= len(config.main_table_methods)

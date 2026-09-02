@@ -2,7 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from bridgetree.cli import _resolved_config, build_parser
+from bridgetree.cli import _resolved_config, _resolved_tuning_config, build_parser
 
 
 def test_explicit_cli_values_override_yaml():
@@ -20,6 +20,23 @@ def test_explicit_cli_values_override_yaml():
     config = _resolved_config(args)
     assert config.retrieval.initial_width == 7
     assert config.retrieval.cluster_mode == "effective_rank"
+
+
+def test_tune_has_a_legacy_train_alias():
+    parser = build_parser()
+    assert parser.parse_args(["tune"]).command == "tune"
+    assert parser.parse_args(["train"]).command == "train"
+
+
+def test_tune_cli_pins_search_space_and_seed_over_tuning_yaml():
+    args = build_parser().parse_args(
+        ["tune", "--initial-width", "7", "--branch-width", "3", "--search-budget", "20", "--seed", "9"]
+    )
+    tuning = _resolved_tuning_config(args)
+    assert tuning.search_space.initial_width == (7,)
+    assert tuning.search_space.branch_width == (3,)
+    assert tuning.search_space.search_budget == (20,)
+    assert tuning.seed == 9
 
 
 def test_script_environment_is_forwarded_and_trailing_cli_wins():
@@ -45,6 +62,19 @@ def test_script_environment_is_forwarded_and_trailing_cli_wins():
 
 def test_ablation_script_is_a_parameter_matrix_not_python_profiles():
     script = Path("scripts/ablation.sh").read_text(encoding="utf-8")
-    for label in ("core", "path", "certificate", "full_current", "no_cluster", "bfs", "depth1", "depth2", "depth3"):
+    for label in (
+        "core",
+        "path",
+        "certificate",
+        "full_current",
+        "no_cluster",
+        "effective_rank",
+        "bfs",
+        "rho_topk",
+        "mmr",
+        "depth1",
+        "depth2",
+        "depth3",
+    ):
         assert f'run_config "{label}"' in script
     assert "BridgeTreeMVP" not in script

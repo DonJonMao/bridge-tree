@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from bridgetree.baselines import cluster_prf, rfmem, rfmem_recollection
-from bridgetree.budget import SearchBudget
+from bridgetree.budget import CostTracker, SearchBudget
 from bridgetree.config import RetrievalConfig
 from bridgetree.index import ExactInnerProductIndex, FaissInnerProductIndex
 from bridgetree.retriever import BridgeTreeRetriever
@@ -40,6 +40,7 @@ def test_every_dynamic_method_obeys_the_same_ann_and_candidate_budget():
     costs = [result.cost for result in results] + [bridge.cost]
     assert all(cost.ann_calls_core <= 2 for cost in costs)
     assert all(cost.candidates_returned <= 6 for cost in costs)
+    assert all(len(cost.new_unique_candidates_by_ann) == cost.ann_calls_core for cost in costs)
 
 
 def test_light_diagnostics_never_issue_an_extra_ann_call():
@@ -85,3 +86,10 @@ def test_faiss_matches_exact_without_requesting_the_full_bank(monkeypatch):
     excluded = {"m000", "m001"}
     assert faiss.search(query, 3, exclude=excluded) == exact.search(query, 3, exclude=excluded)
     assert max(faiss.last_search_stats.backend_request_sizes) < len(ids)
+
+    top_ids = {memory_id for memory_id, _score in exact.search(query, 5)}
+    budgeted_faiss = FaissInnerProductIndex(ids, vectors, exclusion_margin=1)
+    tracker = CostTracker(SearchBudget(max_unique_nodes=20, max_ann_calls=2))
+    tracker.search_core(budgeted_faiss, query, 3, exclude=top_ids)
+    assert tracker.ann_calls_core == 2
+    assert tracker.ann_calls_core <= tracker.budget.max_ann_calls

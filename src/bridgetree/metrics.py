@@ -160,7 +160,9 @@ def summarize_bridge_results(results: Sequence[RetrievalResult]) -> Dict[str, fl
             "budget_truncation_rate": 0.0,
             "mean_posterior_error": 0.0,
             "mean_visited_nodes": 0.0,
-            "mean_ann_calls": 0.0,
+            "mean_ann_calls_core": 0.0,
+            "mean_ann_calls_diagnostic": 0.0,
+            "mean_candidates_returned": 0.0,
         }
     count = len(results)
     return {
@@ -169,7 +171,9 @@ def summarize_bridge_results(results: Sequence[RetrievalResult]) -> Dict[str, fl
         "budget_truncation_rate": sum(result.budget_frozen for result in results) / count,
         "mean_posterior_error": sum(result.posterior_error for result in results) / count,
         "mean_visited_nodes": sum(result.visited_nodes for result in results) / count,
-        "mean_ann_calls": sum(result.ann_calls for result in results) / count,
+        "mean_ann_calls_core": sum(result.cost.ann_calls_core for result in results) / count,
+        "mean_ann_calls_diagnostic": sum(result.cost.ann_calls_diagnostic for result in results) / count,
+        "mean_candidates_returned": sum(result.cost.candidates_returned for result in results) / count,
         "mean_cluster_radius_radians": (
             sum(sum(result.cluster_radii) for result in results)
             / max(1, sum(len(result.cluster_radii) for result in results))

@@ -39,3 +39,5 @@ def test_fixed_and_effective_rank_modes_honor_cluster_limits():
     effective = cluster_siblings(vectors, [1.0] * 6, mode="effective_rank", max_clusters=2)
     assert len(fixed) == 3
     assert len(effective) == 2
+    minimum = cluster_siblings(vectors, [1.0] * 6, mode="fixed", fixed_count=3, min_cluster_size=2)
+    assert all(len(cluster.member_positions) >= 2 for cluster in minimum)

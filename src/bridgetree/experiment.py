@@ -73,19 +73,27 @@ ABLATION_OPTIONS = {
 
 
 class EmbeddingCache:
-    def __init__(self, root: str | Path, embedder: Embedder, model_name: str):
+    def __init__(
+        self,
+        root: str | Path,
+        embedder: Embedder,
+        model_name: str,
+        embedding_identity: Mapping[str, Any] | None = None,
+    ):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.embedder = embedder
         self.model_name = model_name
+        self.embedding_identity = dict(embedding_identity or {"model": model_name})
 
     @property
     def fingerprint(self) -> str:
-        return hashlib.sha256(self.model_name.encode("utf-8")).hexdigest()
+        payload = json.dumps(self.embedding_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def _cached(self, texts: Sequence[str], purpose: str, encode) -> np.ndarray:
         payload = json.dumps(
-            {"model": self.model_name, "purpose": purpose, "texts": list(texts)},
+            {"embedding": self.embedding_identity, "purpose": purpose, "texts": list(texts)},
             ensure_ascii=False,
             sort_keys=True,
         )
@@ -233,7 +241,9 @@ def retrieve_method(
             budget=current_budget,
             cost_tracker=tracker,
         )
+        rerank_started = time.perf_counter()
         items = reranker.rerank(example.query, [memory_by_id[item].text for item in initial.selected_ids], k)
+        tracker.retrieval_core_ms += (time.perf_counter() - rerank_started) * 1000.0
         baseline = BaselineResult([initial.selected_ids[item.index] for item in items], tracker)
     elif method == "rfmem_familiarity":
         raw = dense_retrieval(
@@ -333,17 +343,40 @@ def run_personamem_experiment(
     label = re.sub(r"[^a-zA-Z0-9_.-]+", "_", run_label or method).strip("._") or method
     run_root = Path(output_dir or config.runtime.output_dir) / f"{label}_{time.time_ns()}"
     run_root.mkdir(parents=True, exist_ok=False)
-    cache = EmbeddingCache(config.runtime.cache_dir, embedder, config.models.embedding.model)
+    cache = EmbeddingCache(
+        config.runtime.cache_dir,
+        embedder,
+        config.models.embedding.model,
+        asdict(config.models.embedding),
+    )
     index_cache = IndexCache()
     generator = GeneratorClient(config.models.generator) if generate else None
     reranker = RerankerClient(config.models.reranker) if method == "dense_rerank" else None
     bridge_gold = load_bridge_gold(bridge_gold_path)
 
-    resolved = config.resolved_dict()
-    config_hash = config.config_hash()
+    resolved = {
+        "app": config.resolved_dict(),
+        "execution": {
+            "method": method,
+            "limit": limit,
+            "generate": generate,
+            "bridge_gold_path": str(bridge_gold_path) if bridge_gold_path is not None else None,
+            "run_label": label,
+        },
+    }
+    resolved_payload = json.dumps(resolved, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    config_hash = hashlib.sha256(resolved_payload.encode("utf-8")).hexdigest()
     with (run_root / "resolved_config.json").open("w", encoding="utf-8") as handle:
         json.dump(
-            {"config_hash": config_hash, "config": resolved}, handle, ensure_ascii=False, indent=2, sort_keys=True
+            {
+                "config_hash": config_hash,
+                "app_config_hash": config.config_hash(),
+                "config": resolved,
+            },
+            handle,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
         )
         handle.write("\n")
     repository_root = Path(__file__).resolve().parents[2]
@@ -366,6 +399,8 @@ def run_personamem_experiment(
         "generator_model": asdict(config.models.generator),
         "prompt_hash": generation_prompt_hash(),
         "seed": config.seed,
+        "generate": generate,
+        "limit": limit,
     }
     with (run_root / "run_manifest.json").open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)

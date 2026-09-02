@@ -75,6 +75,23 @@ def _resolved_config(args: argparse.Namespace):
     return apply_runtime_overrides(load_config(args.config, args.override_config), vars(args))
 
 
+def _resolved_tuning_config(args: argparse.Namespace):
+    tuning = load_tuning_config(args.tuning_config)
+    search_changes = {}
+    if args.initial_width is not None:
+        search_changes["initial_width"] = (args.initial_width,)
+    if args.branch_width is not None:
+        search_changes["branch_width"] = (args.branch_width,)
+    if args.search_budget is not None:
+        search_changes["search_budget"] = (args.search_budget,)
+    if search_changes:
+        tuning = replace(tuning, search_space=replace(tuning.search_space, **search_changes))
+    if args.seed is not None:
+        tuning = replace(tuning, seed=args.seed)
+    tuning.validate()
+    return tuning
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="bridgetree")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -225,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "train":
             print("warning: `bridgetree train` is deprecated; use `bridgetree tune`", file=sys.stderr)
         config = _resolved_config(args)
-        training_config = load_tuning_config(args.tuning_config)
+        training_config = _resolved_tuning_config(args)
         embedder = build_embedder(config.models.embedding, device=config.runtime.device)
         result = run_tuning_experiment(
             config,

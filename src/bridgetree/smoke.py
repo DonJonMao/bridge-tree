@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 import numpy as np
 
+from .clients import context_token_count
 from .config import RetrievalConfig
 from .retriever import BridgeTreeRetriever
 from .types import Memory
@@ -64,6 +65,8 @@ def run_synthetic_smoke(output_dir: str | Path = "outputs/smoke") -> Dict[str, A
     runs = {}
     for label, config in configurations.items():
         result = BridgeTreeRetriever(config).retrieve("synthetic q->m1->m2", query, memories, vectors)
+        result.cost_tracker.final_context_count = len(result.selected)
+        result.cost_tracker.final_context_tokens = context_token_count(result.selected)
         runs[label] = {
             "config": asdict(config),
             "selected": result.selected_in_greedy_order,

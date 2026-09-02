@@ -36,7 +36,7 @@ Invalid combinations fail before retrieval: `path_logdet` requires `path_conditi
 
 ## Cost matching
 
-`SearchBudget` has three independent limits: unique nodes, core ANN calls and returned candidates. `CostTracker` reports core and diagnostic ANN separately. Dynamic methods consume the same object. Dense and Dense+rerank are evaluated once at their actual one-search retrieval cost.
+`SearchBudget` has three independent limits: unique nodes, core ANN calls and returned candidates. `CostTracker` reports core and diagnostic ANN separately; every adaptive FAISS over-fetch pass counts as an actual backend ANN call. Dynamic methods consume the same object. Dense and Dense+rerank are evaluated once at their actual one-search retrieval cost.
 
 ```bash
 bridgetree sweep --budget-protocol matched_ann_calls --budget 4 --budget 8
@@ -53,7 +53,7 @@ The following runs all required main-table methods for seeds 41, 42 and 43, enab
 SEEDS="41 42 43" ./scripts/main_table.sh
 ```
 
-The parameter-matrix ablation uses the same three seeds. Generation is off unless explicitly requested:
+The parameter-matrix ablation uses the same three seeds and covers no/fixed/effective-rank clustering, BFS/Best-first, depth 1/2/3, rho-Top-k/MMR/rho-logdet, path-conditioned selection, and budget/certificate stopping. Generation is off unless explicitly requested:
 
 ```bash
 GENERATE=true SEEDS="41 42 43" ./scripts/ablation.sh
@@ -63,7 +63,7 @@ Both scripts write individual run directories and one `aggregate_summary.json`. 
 
 ## Tuning safeguards
 
-`bridgetree tune` supports only external objectives. `objective_metric: auto` resolves to answer accuracy when validation generation is enabled, independent recall when a gold file is supplied, and no objective otherwise. Without an external objective it writes trials and a cost Pareto frontier but deliberately writes no best config and never evaluates test.
+`bridgetree tune` supports only external objectives. `objective_metric: auto` resolves to answer accuracy when validation generation is enabled, independent recall when a gold file is supplied, and no objective otherwise. Query-paired bootstrap intervals are used when comparing observed validation outcomes; overlapping intervals are broken lexicographically by core ANN calls, candidate exposure, then retrieval time—never by a weighted reward. Without an external objective it writes trials and a cost Pareto frontier but deliberately writes no best config and never evaluates test.
 
 `bridgetree train` is a deprecated compatibility alias. Neither command updates model weights.
 

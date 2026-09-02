@@ -37,6 +37,7 @@ class ExactInnerProductIndex:
         query: np.ndarray,
         top_k: int,
         exclude: Iterable[str] = (),
+        max_backend_calls: int | None = None,
     ) -> List[Tuple[str, float]]:
         if top_k <= 0:
             self.last_search_stats = SearchStats(top_k, 0, ())
@@ -84,7 +85,13 @@ class FaissInnerProductIndex(ExactInnerProductIndex):
         self._faiss = faiss.IndexFlatIP(self.vectors.shape[1])
         self._faiss.add(self.vectors)
 
-    def search(self, query: np.ndarray, top_k: int, exclude: Iterable[str] = ()) -> List[Tuple[str, float]]:
+    def search(
+        self,
+        query: np.ndarray,
+        top_k: int,
+        exclude: Iterable[str] = (),
+        max_backend_calls: int | None = None,
+    ) -> List[Tuple[str, float]]:
         if top_k <= 0:
             self.last_search_stats = SearchStats(top_k, 0, ())
             return []
@@ -116,7 +123,8 @@ class FaissInnerProductIndex(ExactInnerProductIndex):
                 kth_score = ranked[target - 1][1]
                 last_backend_score = float(scores[0][-1])
                 tie_may_be_truncated = np.isclose(kth_score, last_backend_score, atol=1e-7, rtol=0.0)
-            if (enough and not tie_may_be_truncated) or request_size == len(self.ids):
+            call_limit_reached = max_backend_calls is not None and len(request_sizes) >= max_backend_calls
+            if (enough and not tie_may_be_truncated) or request_size == len(self.ids) or call_limit_reached:
                 results = ranked[:target]
                 break
             request_size = min(len(self.ids), max(request_size + 1, request_size * 2))
