@@ -1,6 +1,6 @@
 import numpy as np
 
-from bridgetree.clustering import cluster_siblings
+from bridgetree.clustering import cluster_siblings, spherical_kmeans
 from bridgetree.math_utils import effective_rank
 
 
@@ -25,3 +25,17 @@ def test_no_compression_produces_one_probe_per_memory():
     clusters = cluster_siblings(vectors, [1.0, 0.8, 0.7], disable_compression=True)
     assert len(clusters) == 3
     assert all(len(cluster.member_positions) == 1 for cluster in clusters)
+
+
+def test_empty_cluster_reseeding_uses_distinct_samples():
+    vectors = np.asarray([[1.0, 0.0]] * 4)
+    labels = spherical_kmeans(vectors, count=4, max_iterations=2)
+    assert set(labels) == {0, 1, 2, 3}
+
+
+def test_fixed_and_effective_rank_modes_honor_cluster_limits():
+    vectors = np.eye(6)
+    fixed = cluster_siblings(vectors, [1.0] * 6, mode="fixed", fixed_count=3)
+    effective = cluster_siblings(vectors, [1.0] * 6, mode="effective_rank", max_clusters=2)
+    assert len(fixed) == 3
+    assert len(effective) == 2

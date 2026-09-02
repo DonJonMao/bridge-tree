@@ -105,3 +105,24 @@ def test_branch_upper_bounds_every_discovered_descendant_and_bridge_lift_is_real
             assert step.discovered_best_margin + config.tie_tolerance >= step.unseen_upper_bound
         else:
             assert np.isclose(step.epsilon, max(0.0, step.unseen_upper_bound - step.discovered_best_margin))
+
+
+def test_depth_two_discovers_the_synthetic_bridge_and_first_arrival_is_reproducible():
+    vectors = np.asarray(
+        [
+            [0.8, 0.6],  # m1: direct first hop
+            [0.0, 1.0],  # m2: weak direct score, strong m1 edge
+            [0.7, -0.714],
+        ]
+    )
+    query = np.asarray([1.0, 0.0])
+    depth_one = RetrievalConfig(initial_width=1, branch_width=1, context_size=1, search_budget=3, max_depth=1)
+    depth_two = RetrievalConfig(initial_width=1, branch_width=1, context_size=1, search_budget=3, max_depth=2)
+    shallow = BridgeTreeRetriever(depth_one).retrieve("q", query, _memories(3), vectors)
+    deep_first = BridgeTreeRetriever(depth_two).retrieve("q", query, _memories(3), vectors)
+    deep_second = BridgeTreeRetriever(depth_two).retrieve("q", query, _memories(3), vectors)
+    assert "m1" not in shallow.nodes
+    assert "m1" in deep_first.nodes
+    assert deep_first.edges == deep_second.edges
+    assert deep_first.first_arrival_semantics == "deterministic_first_arrival"
+    assert len({child for _parent, child in deep_first.edges}) == len(deep_first.edges)

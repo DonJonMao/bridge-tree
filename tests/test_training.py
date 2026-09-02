@@ -96,11 +96,22 @@ def test_persona_split_is_deterministic_and_disjoint():
 
 
 def test_training_run_writes_periodic_and_decoupled_metrics(tmp_path):
+    gold_path = tmp_path / "bridge_gold.jsonl"
+    gold_path.write_text(
+        "".join(
+            json.dumps({"question_id": f"q{index}", "gold_memory_ids": [f"q{index}:m00001"]}) + "\n"
+            for index in range(6)
+        ),
+        encoding="utf-8",
+    )
     training_config = TrainingExperimentConfig(
         seed=11,
         schedule=TrainingSchedule(periodic_eval_every=2, periodic_eval_queries=1),
-        search_space=SearchSpace(first_hop_width=(2,), branch_width=(2,), search_budget=(5,)),
+        search_space=SearchSpace(initial_width=(2,), branch_width=(2,), search_budget=(5,)),
         diagnostic_methods=("bridgetree", "ablation_no_cluster"),
+        main_table_methods=("bridgetree", "ablation_no_cluster"),
+        objective_metric="outcome.recall_at_k",
+        bridge_gold_path=str(gold_path),
         output_dir=str(tmp_path / "training"),
     )
     summary = run_training_experiment(
@@ -111,7 +122,8 @@ def test_training_run_writes_periodic_and_decoupled_metrics(tmp_path):
     )
 
     run_dir = Path(summary["run_dir"])
-    assert summary["optimization_kind"] == "training_free_hyperparameter_search"
+    assert summary["optimization_kind"] == "training_free_configuration_tuning"
+    assert summary["selection_status"] == "selected_on_external_validation_outcome"
     assert summary["trial_count"] == 1
     assert (run_dir / "best_config.json").is_file()
     assert (run_dir / "final_summary.json").is_file()
@@ -129,3 +141,29 @@ def test_training_run_writes_periodic_and_decoupled_metrics(tmp_path):
     assert metric_value(test_metrics["bridgetree"], "selection.selected_count") > 0
     delta = module_metric_delta(test_metrics["bridgetree"], test_metrics["ablation_no_cluster"])
     assert set(delta) == set(MODULE_NAMES)
+
+
+def test_tuning_without_external_outcome_does_not_select_or_read_test(tmp_path):
+    config = TrainingExperimentConfig(
+        seed=11,
+        schedule=TrainingSchedule(periodic_eval_every=2, periodic_eval_queries=1),
+        search_space=SearchSpace(initial_width=(2,), branch_width=(2,), search_budget=(5,)),
+        diagnostic_methods=("bridgetree",),
+        main_table_methods=("bridgetree",),
+        output_dir=str(tmp_path / "training"),
+    )
+    summary = run_training_experiment(
+        _app_config(tmp_path),
+        config,
+        DeterministicEmbedder(),
+        examples=_examples(),
+    )
+    run_dir = Path(summary["run_dir"])
+    assert summary["best_trial"] is None
+    assert summary["test_metrics"] == {}
+    assert not (run_dir / "best_config.json").exists()
+    assert (run_dir / "pareto_frontier.json").is_file()
+    phases = {json.loads(line)["phase"] for line in (run_dir / "events.jsonl").read_text().splitlines()}
+    assert "validation_probe" in phases
+    assert "validation" in phases
+    assert "test" not in phases

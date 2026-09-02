@@ -16,7 +16,7 @@ schedule:
   max_test_queries: null
 
 search_space:
-  first_hop_width: [8, 12]
+  initial_width: [8, 12]
   branch_width: [4, 8]
   search_budget: [64]
 
@@ -30,9 +30,23 @@ diagnostic_methods:
   - ablation_rho_dpp
   - ablation_direct_path
 
-objective_metric: selection.logdet_value
+# Main-table methods all use the same segmentation, k, prompt, generator and
+# token budget on final test after an externally justified selection exists.
+main_table_methods:
+  - dense
+  - dense_rerank
+  - rfmem_familiarity
+  - rfmem_recollection
+  - rfmem
+  - cluster_prf
+  - bridgetree
+
+# auto resolves to validation answer accuracy when validation_generate=true,
+# independent recall when bridge_gold_path is set, and no selection otherwise.
+objective_metric: auto
 objective_mode: max
 bridge_gold_path: null
+validation_generate: false
 final_generate: false
 keep_example_metrics: true
 output_dir: outputs/training

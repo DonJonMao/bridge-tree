@@ -23,7 +23,14 @@ from .clients import (
 )
 from .config import AppConfig
 from .index import ExactInnerProductIndex, build_index
-from .metrics import answer_accuracy, bridge_recall_at_k, direct_ranks, path_innovation_gain, recall_at_k
+from .metrics import (
+    answer_accuracy,
+    answer_parse_failed,
+    bridge_recall_at_k,
+    direct_ranks,
+    path_objective_advantage,
+    recall_at_k,
+)
 from .personamem import PERSONAMEM_REVISION, PersonaMemExample, iter_examples, messages_to_memories
 from .retriever import BridgeTreeRetriever
 from .types import Memory, RetrievalResult
@@ -188,7 +195,7 @@ def retrieve_method(
             cost_tracker=tracker,
         )
         diagnostics = bridge_result.to_dict(include_text=False)
-        diagnostics["path_innovation_gain"] = path_innovation_gain(bridge_result, k)
+        diagnostics["path_objective_advantage"] = path_objective_advantage(bridge_result, k)
         diagnostics["_cost_tracker"] = tracker
         return (
             bridge_result.selected_in_greedy_order,
@@ -364,12 +371,15 @@ def run_personamem_experiment(
     attempted = 0
     failures = 0
     accuracy_sum = 0.0
+    parse_failure_sum = 0.0
     recall_sum = 0.0
     bridge_recall_sum = 0.0
     annotated = 0
+    bridge_annotated = 0
     bridge_results: List[RetrievalResult] = []
     latencies: List[float] = []
     cost_records: List[Dict[str, Any]] = []
+    outcome_records: List[Dict[str, Any]] = []
     with (
         output_path.open("w", encoding="utf-8") as output,
         failure_path.open("w", encoding="utf-8") as failure_output,
@@ -430,8 +440,11 @@ def run_personamem_experiment(
                 latency = time.perf_counter() - started
                 latencies.append(latency)
                 accuracy = answer_accuracy(response, example.correct_answer) if generator else None
+                parse_failure = answer_parse_failed(response) if generator else None
                 if accuracy is not None:
                     accuracy_sum += accuracy
+                if parse_failure is not None:
+                    parse_failure_sum += parse_failure
                 gold_ids = bridge_gold.get(example.question_id, [])
                 recall = None
                 bridge_recall = None
@@ -448,10 +461,11 @@ def run_personamem_experiment(
                     recall_sum += recall
                     if bridge_recall is not None:
                         bridge_recall_sum += bridge_recall
+                        bridge_annotated += 1
                 if bridge_result is not None:
                     bridge_results.append(bridge_result)
                     diagnostics = bridge_result.to_dict(include_text=False)
-                    diagnostics["path_innovation_gain"] = path_innovation_gain(
+                    diagnostics["path_objective_advantage"] = path_objective_advantage(
                         bridge_result, config.retrieval.context_size
                     )
                 else:
@@ -461,9 +475,20 @@ def run_personamem_experiment(
                 cost_records.append(cost)
                 outcome = {
                     "answer_accuracy": accuracy,
+                    "parse_failure_rate": parse_failure,
                     "recall_at_k": recall,
                     "bridge_recall_at_k": bridge_recall,
                 }
+                outcome_records.append(
+                    {
+                        **outcome,
+                        "question_type": example.question_type,
+                        "topic": example.topic,
+                        "memory_scale": (
+                            "small" if len(memories) < 16 else "medium" if len(memories) < 64 else "large"
+                        ),
+                    }
+                )
                 record = {
                     "persona_id": example.persona_id,
                     "question_id": example.question_id,
@@ -523,6 +548,18 @@ def run_personamem_experiment(
         for reason in sorted({str(record["stop_reason"]) for record in cost_records})
     }
 
+    def stratify(field: str) -> Dict[str, Any]:
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for record in outcome_records:
+            groups.setdefault(str(record[field]), []).append(record)
+        result: Dict[str, Any] = {}
+        for name, records in sorted(groups.items()):
+            result[name] = {"queries": len(records)}
+            for metric in ("answer_accuracy", "parse_failure_rate", "recall_at_k", "bridge_recall_at_k"):
+                values = [float(record[metric]) for record in records if record[metric] is not None]
+                result[name][metric] = sum(values) / len(values) if values else None
+        return result
+
     summary: Dict[str, Any] = {
         "method": method,
         "split": split,
@@ -531,10 +568,17 @@ def run_personamem_experiment(
         "failed_queries": failures,
         "generated": generate,
         "answer_accuracy": accuracy_sum / total if generate and total else None,
+        "parse_failure_rate": parse_failure_sum / total if generate and total else None,
         "annotated_queries": annotated,
         "recall_at_k": recall_sum / annotated if annotated else None,
-        "bridge_recall_at_k": bridge_recall_sum / annotated if annotated else None,
+        "bridge_annotated_queries": bridge_annotated,
+        "bridge_recall_at_k": bridge_recall_sum / bridge_annotated if bridge_annotated else None,
         "cost": {"mean": mean_cost, "stop_reason_counts": stop_reasons},
+        "stratified": {
+            "question_type": stratify("question_type"),
+            "topic": stratify("topic"),
+            "memory_scale": stratify("memory_scale"),
+        },
         "mean_retrieval_and_generation_latency_seconds": sum(latencies) / len(latencies) if latencies else 0.0,
         "model_calls_per_query": {"retrieval_llm": 0, "generator": int(generate)},
     }

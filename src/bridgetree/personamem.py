@@ -89,7 +89,7 @@ def messages_to_memories(
             continue
         if role == "assistant" and memory_granularity == "user_only":
             continue
-        if normalized and normalized[-1]["role"] == role:
+        if memory_granularity == "user_assistant_pair" and normalized and normalized[-1]["role"] == role:
             normalized[-1]["content"] += "\n\n" + content
             normalized[-1]["indices"].append(index)
         else:

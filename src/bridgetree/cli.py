@@ -13,7 +13,7 @@ from .clients import build_embedder
 from .config import apply_runtime_overrides, load_config
 from .experiment import METHODS, run_personamem_experiment
 from .personamem import PERSONAMEM_REPO, PERSONAMEM_REVISION, prepare_split
-from .training import load_training_config, run_training_experiment
+from .training import load_tuning_config, run_tuning_experiment
 
 
 def _download(url: str, destination: Path) -> None:
@@ -120,7 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     tune.add_argument("--config", default="configs/default.yaml")
     tune.add_argument("--override-config")
-    tune.add_argument("--training-config", default="configs/train.yaml")
+    tune.add_argument("--tuning-config", "--training-config", dest="tuning_config", default="configs/train.yaml")
     tune.add_argument("--output-dir")
     _add_runtime_arguments(tune)
 
@@ -214,9 +214,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "train":
             print("warning: `bridgetree train` is deprecated; use `bridgetree tune`", file=sys.stderr)
         config = _resolved_config(args)
-        training_config = load_training_config(args.training_config)
+        training_config = load_tuning_config(args.tuning_config)
         embedder = build_embedder(config.models.embedding, device=config.runtime.device)
-        result = run_training_experiment(
+        result = run_tuning_experiment(
             config,
             training_config,
             embedder,

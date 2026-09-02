@@ -17,6 +17,13 @@ def test_message_segmentation_preserves_source_indices_and_system_persona():
     assert memories[1].metadata["roles"] == ["user", "assistant"]
     assert memories[1].metadata["source_message_indices"] == [1, 2]
     assert memories[2].timestamp > memories[1].timestamp
+    user_only = messages_to_memories(
+        messages,
+        "q1",
+        include_system_persona=False,
+        memory_granularity="user_only",
+    )
+    assert [memory.metadata["roles"] for memory in user_only] == [["user"], ["user"]]
 
 
 def test_prepare_and_iter_respect_end_index(tmp_path):

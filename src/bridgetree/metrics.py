@@ -10,16 +10,29 @@ from .index import ExactInnerProductIndex
 from .math_utils import logdet_marginal, logdet_value
 from .types import Branch, RetrievalResult, TreeNode
 
-_OPTION_PATTERN = re.compile(r"\(([a-zA-Z])\)")
+_OPTION_PATTERNS = (
+    re.compile(r"\(([a-z])\)", re.IGNORECASE),
+    re.compile(r"\boption\s*([a-z])\b", re.IGNORECASE),
+    re.compile(r"选\s*([a-z])", re.IGNORECASE),
+    re.compile(r"\banswer\s*(?:is|:)\s*([a-z])\b", re.IGNORECASE),
+    re.compile(r"^\s*([a-z])(?:\s*$|[.):]\s*)", re.IGNORECASE),
+)
 
 
 def extract_option_label(text: str) -> str:
-    match = _OPTION_PATTERN.search(text or "")
-    return f"({match.group(1).lower()})" if match else ""
+    for pattern in _OPTION_PATTERNS:
+        match = pattern.search(text or "")
+        if match:
+            return f"({match.group(1).lower()})"
+    return ""
 
 
 def answer_accuracy(response: str, gold: str) -> float:
     return float(extract_option_label(response) == extract_option_label(gold) and bool(extract_option_label(gold)))
+
+
+def answer_parse_failed(response: str) -> float:
+    return float(not bool(extract_option_label(response)))
 
 
 def recall_at_k(selected_ids: Sequence[str], gold_ids: Iterable[str], k: int) -> float:
@@ -34,11 +47,16 @@ def direct_ranks(query_vector: np.ndarray, ids: Sequence[str], vectors: np.ndarr
     return {memory_id: rank for rank, (memory_id, _score) in enumerate(index.search(query_vector, len(ids)), start=1)}
 
 
-def bridge_recall_at_k(selected_ids: Sequence[str], gold_ids: Iterable[str], ranks: Mapping[str, int], k: int) -> float:
+def bridge_recall_at_k(
+    selected_ids: Sequence[str],
+    gold_ids: Iterable[str],
+    ranks: Mapping[str, int],
+    k: int,
+) -> float | None:
     # Gold is externally annotated. Direct rank only partitions that gold set;
     # bridge lift is never used to define relevance.
     bridge_gold = {memory_id for memory_id in gold_ids if ranks.get(memory_id, 0) > k}
-    return recall_at_k(selected_ids, bridge_gold, k) if bridge_gold else 0.0
+    return recall_at_k(selected_ids, bridge_gold, k) if bridge_gold else None
 
 
 def greedy_ids(nodes: Mapping[str, TreeNode], feature_kind: str, k: int) -> List[str]:
@@ -63,13 +81,39 @@ def greedy_ids(nodes: Mapping[str, TreeNode], feature_kind: str, k: int) -> List
     return selected
 
 
-def path_innovation_gain(result: RetrievalResult, k: int) -> float:
-    """Fixed-candidate gain over rho-weighted DPP, evaluated by Eq. (39)."""
+def path_objective_advantage(result: RetrievalResult, k: int) -> float:
+    """Internal fixed-candidate path objective advantage; never a tuning target."""
     path_ids = greedy_ids(result.nodes, "path_conditioned", k)
     rho_ids = greedy_ids(result.nodes, "rho_weighted", k)
     path_value = logdet_value([result.nodes[memory_id].innovation for memory_id in path_ids])
     rho_set_on_path_geometry = logdet_value([result.nodes[memory_id].innovation for memory_id in rho_ids])
     return float(path_value - rho_set_on_path_geometry)
+
+
+def paired_bootstrap_interval(
+    left: Sequence[float],
+    right: Sequence[float],
+    *,
+    seed: int = 42,
+    resamples: int = 2000,
+    confidence: float = 0.95,
+) -> Dict[str, float]:
+    if len(left) != len(right) or not left:
+        raise ValueError("paired bootstrap requires equally sized non-empty samples")
+    if resamples <= 0 or not 0.0 < confidence < 1.0:
+        raise ValueError("invalid bootstrap settings")
+    differences = np.asarray(left, dtype=np.float64) - np.asarray(right, dtype=np.float64)
+    rng = np.random.default_rng(seed)
+    sample_positions = rng.integers(0, len(differences), size=(resamples, len(differences)))
+    estimates = differences[sample_positions].mean(axis=1)
+    alpha = (1.0 - confidence) / 2.0
+    return {
+        "mean_difference": float(differences.mean()),
+        "ci_low": float(np.quantile(estimates, alpha)),
+        "ci_high": float(np.quantile(estimates, 1.0 - alpha)),
+        "confidence": confidence,
+        "resamples": float(resamples),
+    }
 
 
 def branch_ranking_stability(
