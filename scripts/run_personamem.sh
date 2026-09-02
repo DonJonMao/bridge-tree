@@ -10,6 +10,7 @@ if [[ ! -x "$python_bin" ]]; then
 fi
 
 CONFIG="${CONFIG:-configs/default.yaml}"
+OVERRIDE_CONFIG="${OVERRIDE_CONFIG:-}"
 METHOD="${METHOD:-bridgetree}"
 INITIAL_WIDTH="${INITIAL_WIDTH:-12}"
 BRANCH_WIDTH="${BRANCH_WIDTH:-8}"
@@ -31,15 +32,24 @@ ROOT_ANCHOR_WEIGHT="${ROOT_ANCHOR_WEIGHT:-0}"
 SEED="${SEED:-42}"
 MEMORY_GRANULARITY="${MEMORY_GRANULARITY:-user_assistant_pair}"
 INCLUDE_SYSTEM_PERSONA="${INCLUDE_SYSTEM_PERSONA:-true}"
+GENERATE="${GENERATE:-false}"
 
 system_flag="--include-system-persona"
 if [[ "$INCLUDE_SYSTEM_PERSONA" != "true" ]]; then
   system_flag="--no-include-system-persona"
 fi
+generate_flag="--no-generate"
+if [[ "$GENERATE" == "true" ]]; then
+  generate_flag="--generate"
+fi
+config_args=(--config "$CONFIG")
+if [[ -n "$OVERRIDE_CONFIG" ]]; then
+  config_args+=(--override-config "$OVERRIDE_CONFIG")
+fi
 
 export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
 exec "$python_bin" -m bridgetree.cli run \
-  --config "$CONFIG" \
+  "${config_args[@]}" \
   --method "$METHOD" \
   --initial-width "$INITIAL_WIDTH" \
   --branch-width "$BRANCH_WIDTH" \
@@ -61,4 +71,5 @@ exec "$python_bin" -m bridgetree.cli run \
   --seed "$SEED" \
   --memory-granularity "$MEMORY_GRANULARITY" \
   "$system_flag" \
+  "$generate_flag" \
   "$@"

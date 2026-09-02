@@ -4,7 +4,7 @@ Data is deliberately separate from source code:
 
 ```text
 data/
-  raw/personamem-v1/          # official immutable downloads, git-ignored
+  raw/personamem-v1/          # official immutable downloads
   processed/personamem-v1/    # normalized JSONL + checksummed manifest
 ```
 
@@ -19,4 +19,3 @@ PersonaMem does not ship evidence-memory annotations. Independent bridge annotat
 ```
 
 Annotators or a separate answer-supported evidence process must create these IDs. Evaluation defines the bridge subset as annotated gold memories whose direct query rank exceeds `k`; it never uses BridgeTree's `bridge_lift` as gold.
-

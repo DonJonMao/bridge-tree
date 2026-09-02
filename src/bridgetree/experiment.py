@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 import time
+from copy import copy
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
@@ -128,7 +129,6 @@ class IndexCache:
                 "context": context_key,
                 "embedding": embedding_fingerprint,
                 "backend": backend,
-                "ids": list(ids),
                 "vectors": vector_fingerprint,
                 "exclusion_margin": exclusion_margin,
             },
@@ -136,7 +136,13 @@ class IndexCache:
         )
         key = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         if key in self._indexes:
-            return self._indexes[key], 0.0, True
+            cached = self._indexes[key]
+            if cached.ids == list(ids):
+                return cached, 0.0, True
+            aliased = copy(cached)
+            aliased.ids = list(ids)
+            aliased.position = {memory_id: index for index, memory_id in enumerate(ids)}
+            return aliased, 0.0, True
         started = time.perf_counter()
         index = build_index(backend, ids, vectors, exclusion_margin=exclusion_margin)
         build_ms = (time.perf_counter() - started) * 1000.0
@@ -465,6 +471,7 @@ def run_personamem_experiment(
                 if bridge_result is not None:
                     bridge_results.append(bridge_result)
                     diagnostics = bridge_result.to_dict(include_text=False)
+                    diagnostics["diagnostic"] = bridge_result.diagnostic_summary(list(gold_ids) if gold_ids else None)
                     diagnostics["path_objective_advantage"] = path_objective_advantage(
                         bridge_result, config.retrieval.context_size
                     )

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 
 from bridgetree.config import RetrievalConfig
@@ -126,3 +128,37 @@ def test_depth_two_discovers_the_synthetic_bridge_and_first_arrival_is_reproduci
     assert deep_first.edges == deep_second.edges
     assert deep_first.first_arrival_semantics == "deterministic_first_arrival"
     assert len({child for _parent, child in deep_first.edges}) == len(deep_first.edges)
+
+
+def test_core_path_certificate_and_full_are_runtime_combinations_of_one_implementation():
+    rng = np.random.default_rng(101)
+    vectors = rng.normal(size=(12, 6))
+    query = rng.normal(size=6)
+    core = RetrievalConfig(
+        initial_width=4,
+        branch_width=2,
+        context_size=3,
+        search_budget=9,
+        max_depth=2,
+        cluster_mode="fixed",
+        feature_mode="rho",
+        selection_mode="rho_logdet",
+        stop_mode="budget",
+    )
+    path = replace(core, feature_mode="path_conditioned", selection_mode="path_logdet")
+    certificate = replace(path, stop_mode="certificate_or_budget")
+    full = replace(certificate, cluster_mode="effective_rank", max_depth=3)
+    results = [
+        BridgeTreeRetriever(config).retrieve("q", query, _memories(12), vectors)
+        for config in (core, path, certificate, full)
+    ]
+    assert all(type(result) is type(results[0]) for result in results)
+    assert set(results[0].nodes) == set(results[1].nodes)
+    assert results[0].edges == results[1].edges
+    assert any(
+        not np.allclose(results[0].nodes[memory_id].innovation, results[1].nodes[memory_id].innovation)
+        for memory_id in results[0].nodes
+        if results[0].nodes[memory_id].depth > 1
+    )
+    assert results[2].cost.ann_calls_core <= results[1].cost.ann_calls_core
+    assert results[3].first_arrival_semantics == "deterministic_first_arrival"

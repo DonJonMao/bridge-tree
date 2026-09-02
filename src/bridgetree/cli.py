@@ -9,10 +9,12 @@ import urllib.request
 from dataclasses import replace
 from pathlib import Path
 
+from .aggregation import aggregate_runs
 from .clients import build_embedder
 from .config import apply_runtime_overrides, load_config
 from .experiment import METHODS, run_personamem_experiment
 from .personamem import PERSONAMEM_REPO, PERSONAMEM_REVISION, prepare_split
+from .smoke import run_synthetic_smoke
 from .training import load_tuning_config, run_tuning_experiment
 
 
@@ -91,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--override-config")
     run.add_argument("--method", choices=METHODS, default="bridgetree")
     run.add_argument("--limit", type=int)
-    run.add_argument("--generate", action="store_true")
+    run.add_argument("--generate", action=argparse.BooleanOptionalAction, default=False)
     run.add_argument("--bridge-gold", help="Independent JSONL gold memory annotations")
     run.add_argument("--output-dir")
     run.add_argument("--run-label")
@@ -108,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="matched_candidate_exposure",
     )
     sweep.add_argument("--limit", type=int)
-    sweep.add_argument("--generate", action="store_true")
+    sweep.add_argument("--generate", action=argparse.BooleanOptionalAction, default=False)
     sweep.add_argument("--bridge-gold")
     sweep.add_argument("--output-dir")
     _add_runtime_arguments(sweep)
@@ -126,6 +128,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     check = subparsers.add_parser("check-ascend", help="Report Ascend/PyTorch runtime availability")
     check.add_argument("--strict", action="store_true")
+
+    synthetic = subparsers.add_parser("smoke-synthetic", help="Run an offline q-to-m1-to-m2 retrieval smoke test")
+    synthetic.add_argument("--output-dir", default="outputs/smoke")
+
+    aggregate = subparsers.add_parser("aggregate", help="Aggregate multi-seed runs with paired bootstrap CIs")
+    aggregate.add_argument("--input-dir", required=True)
+    aggregate.add_argument("--reference-label", default="core")
+    aggregate.add_argument("--bootstrap-seed", type=int, default=42)
+    aggregate.add_argument("--bootstrap-resamples", type=int, default=2000)
     return parser
 
 
@@ -241,6 +252,18 @@ def main(argv: list[str] | None = None) -> int:
             pass
         print(json.dumps(status, indent=2))
         return int(args.strict and not status["npu_available"])
+    if args.command == "smoke-synthetic":
+        print(json.dumps(run_synthetic_smoke(args.output_dir), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "aggregate":
+        result = aggregate_runs(
+            args.input_dir,
+            reference_label=args.reference_label,
+            bootstrap_seed=args.bootstrap_seed,
+            bootstrap_resamples=args.bootstrap_resamples,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     return 2
 
 

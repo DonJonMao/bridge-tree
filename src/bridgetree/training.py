@@ -285,6 +285,8 @@ class TrainingMetricsWriter:
         retrieval_config: RetrievalConfig,
     ) -> Dict[str, Any]:
         self.event_id += 1
+        retrieval = asdict(retrieval_config)
+        retrieval_payload = json.dumps(retrieval, sort_keys=True, separators=(",", ":"))
         event = {
             "event_id": self.event_id,
             "timestamp": time.time(),
@@ -292,7 +294,8 @@ class TrainingMetricsWriter:
             "trial": trial,
             "step": step,
             "method": method,
-            "retrieval": asdict(retrieval_config),
+            "retrieval": retrieval,
+            "retrieval_config_hash": hashlib.sha256(retrieval_payload.encode("utf-8")).hexdigest(),
             "metrics": summary,
         }
         with (self.root / "events.jsonl").open("a", encoding="utf-8") as handle:

@@ -7,8 +7,7 @@ cd "${project_dir}"
 
 python_bin="${BRIDGETREE_PYTHON:-python3}"
 "${python_bin}" -m bridgetree.cli check-ascend --strict
-"${python_bin}" -m bridgetree.cli run \
-  --config configs/default.yaml \
-  --override-config configs/ascend910b.yaml \
-  "$@"
-
+BRIDGETREE_PYTHON="$python_bin" \
+CONFIG="configs/default.yaml" \
+OVERRIDE_CONFIG="configs/ascend910b.yaml" \
+  "$script_dir/run_personamem.sh" "$@"

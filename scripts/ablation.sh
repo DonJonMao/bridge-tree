@@ -4,6 +4,8 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 runner="$repo_dir/scripts/run_personamem.sh"
 seeds="${SEEDS:-41 42 43}"
+group_dir="${OUTPUT_DIR:-$repo_dir/outputs/ablations/ablation_$(date +%Y%m%d_%H%M%S)}"
+mkdir -p "$group_dir"
 
 run_config() {
   local label="$1"
@@ -23,7 +25,7 @@ run_config() {
     STOP_MODE="$stop_mode" \
     MAX_DEPTH="$max_depth" \
     SEED="$seed" \
-      "$runner" --run-label "${label}_seed${seed}" "$@"
+      "$runner" --output-dir "$group_dir" --run-label "${label}_seed${seed}" "$@"
   done
 }
 
@@ -36,3 +38,10 @@ run_config "bfs" fixed bfs rho rho_logdet budget 2 "$@"
 run_config "depth1" fixed best_first rho rho_logdet budget 1 "$@"
 run_config "depth2" fixed best_first rho rho_logdet budget 2 "$@"
 run_config "depth3" fixed best_first rho rho_logdet budget 3 "$@"
+
+python_bin="${BRIDGETREE_PYTHON:-$repo_dir/.venv/bin/python}"
+if [[ ! -x "$python_bin" ]]; then
+  python_bin="python3"
+fi
+PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}" \
+  "$python_bin" -m bridgetree.cli aggregate --input-dir "$group_dir" --reference-label core

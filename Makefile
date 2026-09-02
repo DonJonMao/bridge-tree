@@ -1,4 +1,4 @@
-.PHONY: install test lint data run ablation tune smoke
+.PHONY: install test lint data run main-table ablation tune smoke
 
 install:
 	python3 -m pip install -e '.[test]'
@@ -19,8 +19,11 @@ run:
 ablation:
 	./scripts/ablation.sh
 
+main-table:
+	./scripts/main_table.sh
+
 tune:
 	./scripts/train.sh
 
 smoke:
-	bridgetree run --method bridgetree --limit 1
+	./scripts/smoke_synthetic.sh

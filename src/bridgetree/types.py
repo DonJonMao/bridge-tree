@@ -109,6 +109,52 @@ class RetrievalResult:
     def stop_reason(self) -> str:
         return self.cost.stop_reason
 
+    def diagnostic_summary(self, gold_ids: List[str] | None = None) -> Dict[str, Any]:
+        depth: Dict[str, Dict[str, float]] = {}
+        independent_gold = set(gold_ids or ())
+        for level in sorted({node.depth for node in self.nodes.values()}):
+            nodes = [node for node in self.nodes.values() if node.depth == level]
+            root_cosines = [node.direct_score for node in nodes]
+            values = {
+                "nodes": float(len(nodes)),
+                "mean_root_cosine": float(np.mean(root_cosines)),
+                "min_root_cosine": float(min(root_cosines)),
+            }
+            if gold_ids is not None:
+                values["gold_rate"] = sum(node.memory.memory_id in independent_gold for node in nodes) / len(nodes)
+            depth[str(level)] = values
+        parent_child = [
+            float(np.dot(node.vector, self.nodes[node.parent_id].vector))
+            for node in self.nodes.values()
+            if node.parent_id is not None
+        ]
+        selected = set(self.selected_in_greedy_order)
+        navigation_parents = set()
+        for memory_id in selected:
+            parent_id = self.nodes[memory_id].parent_id
+            while parent_id is not None:
+                navigation_parents.add(parent_id)
+                parent_id = self.nodes[parent_id].parent_id
+        navigation_only = navigation_parents - selected
+        selected_deep = sum(self.nodes[memory_id].depth > 1 for memory_id in selected)
+        return {
+            "tree_semantics": self.first_arrival_semantics,
+            "depth": depth,
+            "mean_parent_child_cosine": float(np.mean(parent_child)) if parent_child else None,
+            "min_parent_child_cosine": float(min(parent_child)) if parent_child else None,
+            "selected_deep_node_rate": selected_deep / len(selected) if selected else 0.0,
+            "navigation_only_parent_rate": (
+                len(navigation_only) / len(navigation_parents) if navigation_parents else 0.0
+            ),
+            "duplicate_proposal_rate": (
+                self.cost.duplicate_proposals / self.cost.proposal_count if self.cost.proposal_count else 0.0
+            ),
+            "new_unique_candidates_per_ann": self.cost.new_unique_candidates_per_ann,
+            "actual_cluster_count": len(self.cluster_member_counts),
+            "cluster_member_counts": self.cluster_member_counts,
+            "clustering_ms": self.clustering_ms,
+        }
+
     @property
     def certified(self) -> bool:
         return bool(self.selection_steps) and all(step.certified for step in self.selection_steps)
@@ -150,6 +196,7 @@ class RetrievalResult:
             "cluster_member_counts": self.cluster_member_counts,
             "clustering_ms": self.clustering_ms,
             "tree_semantics": self.first_arrival_semantics,
+            "diagnostic": self.diagnostic_summary(),
         }
 
 
