@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import heapq
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+import time
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from .budget import CostTracker, SearchBudget
 from .clustering import cluster_siblings
 from .config import RetrievalConfig
 from .index import ExactInnerProductIndex, build_index
@@ -13,7 +15,7 @@ from .types import Branch, Memory, RetrievalResult, SelectionStep, TreeNode
 
 
 class BridgeTreeRetriever:
-    """Algorithm 1 from the BridgeTree design, including its certificates."""
+    """One deterministic first-arrival implementation controlled by runtime config."""
 
     def __init__(self, config: RetrievalConfig):
         config.validate()
@@ -29,19 +31,38 @@ class BridgeTreeRetriever:
         query_vector: np.ndarray,
         memories: Sequence[Memory],
         memory_vectors: np.ndarray,
+        *,
+        index: ExactInnerProductIndex | None = None,
+        budget: SearchBudget | None = None,
+        cost_tracker: CostTracker | None = None,
+        index_build_ms: float = 0.0,
     ) -> RetrievalResult:
-        if not memories:
-            return RetrievalResult(query, [], [], {}, [], [], [], [], 0, 0, False, [], [])
         if len(memories) != len(memory_vectors):
             raise ValueError("memories and memory_vectors must have equal length")
+        search_budget = budget or SearchBudget.from_config(self.config)
+        tracker = cost_tracker or CostTracker(search_budget)
+        tracker.index_build_ms += index_build_ms
+        if not memories:
+            tracker.set_stop_reason("insufficient_candidates")
+            return RetrievalResult(query, [], [], {}, [], [], [], [], tracker, False, [], [])
 
-        query_vector = normalize(query_vector)
-        memory_vectors = normalize_rows(memory_vectors)
+        query_vector = normalize(query_vector).astype(np.float32)
+        memory_vectors = normalize_rows(memory_vectors).astype(np.float32)
         ids = [memory.memory_id for memory in memories]
         if len(set(ids)) != len(ids):
             raise ValueError("memory ids must be unique")
         memory_by_id = {memory.memory_id: memory for memory in memories}
-        index = build_index(self.config.index_backend, ids, memory_vectors)
+        if index is None:
+            index_started = time.perf_counter()
+            index = build_index(
+                self.config.index_backend,
+                ids,
+                memory_vectors,
+                exclusion_margin=self.config.faiss_exclusion_margin,
+            )
+            tracker.index_build_ms += (time.perf_counter() - index_started) * 1000.0
+
+        core_started = time.perf_counter()
         direct_scores: Dict[str, float] = {}
 
         def direct_score(memory_id: str) -> float:
@@ -49,16 +70,16 @@ class BridgeTreeRetriever:
                 direct_scores[memory_id] = nonnegative_cosine(query_vector, index.vector(memory_id))
             return direct_scores[memory_id]
 
-        first_width = min(self.config.initial_width, self.config.search_budget, len(memories))
-        first_hits = index.search(query_vector, first_width)
+        first_width = min(self.config.initial_width, search_budget.max_unique_nodes, len(memories))
+        first_hits = tracker.search_core(index, query_vector, first_width)
         nodes: Dict[str, TreeNode] = {}
         edges: List[Tuple[Optional[str], str]] = []
-        discovery_order = 0
-        for memory_id, _score in first_hits:
+        for discovery_order, (memory_id, _score) in enumerate(first_hits):
             score = direct_score(memory_id)
             reachability = self._anchor_reachability(score, score)
             vector = index.vector(memory_id)
-            innovation = reachability * vector
+            unit_vector = np.asarray(vector, dtype=np.float64)
+            unit_vector /= max(1.0, float(np.linalg.norm(unit_vector)))
             nodes[memory_id] = TreeNode(
                 memory=memory_by_id[memory_id],
                 vector=vector,
@@ -66,25 +87,28 @@ class BridgeTreeRetriever:
                 depth=1,
                 direct_score=score,
                 reachability=reachability,
-                innovation=innovation,
+                innovation=reachability * unit_vector,
                 bridge_lift=0.0,
                 discovery_order=discovery_order,
             )
-            discovery_order += 1
             edges.append((None, memory_id))
 
         frontier: List[Tuple[Tuple[float, ...], str, Branch]] = []
         all_branches: List[Branch] = []
-        branch_counter = 0
         cluster_radii: List[float] = []
+        cluster_member_counts: List[int] = []
+        branch_audit_candidates: Dict[str, List[str]] = {}
+        branch_counter = 0
+        clustering_ms = 0.0
 
         def push_sibling_branches(sibling_ids: Sequence[str], depth: int) -> None:
-            nonlocal branch_counter
+            nonlocal branch_counter, clustering_ms
             if not sibling_ids:
                 return
             ordered = sorted(sibling_ids)
             sibling_vectors = np.vstack([nodes[memory_id].vector for memory_id in ordered])
             reaches = [nodes[memory_id].reachability for memory_id in ordered]
+            clustering_started = time.perf_counter()
             clusters = cluster_siblings(
                 sibling_vectors,
                 reaches,
@@ -93,6 +117,7 @@ class BridgeTreeRetriever:
                 max_clusters=self.config.max_clusters,
                 min_cluster_size=self.config.min_cluster_size,
             )
+            clustering_ms += (time.perf_counter() - clustering_started) * 1000.0
             for cluster in clusters:
                 member_ids = tuple(ordered[position] for position in cluster.member_positions)
                 path_upper = max(nodes[memory_id].reachability for memory_id in member_ids)
@@ -108,6 +133,7 @@ class BridgeTreeRetriever:
                 )
                 branch_counter += 1
                 cluster_radii.append(cluster.radius_radians)
+                cluster_member_counts.append(len(member_ids))
                 all_branches.append(branch)
                 if self.config.search_order == "best_first":
                     priority = (-branch.path_upper_bound, float(branch.creation_order))
@@ -118,19 +144,16 @@ class BridgeTreeRetriever:
         push_sibling_branches(list(nodes), depth=1)
         selected_ids: List[str] = []
         selection_steps: List[SelectionStep] = []
-        ann_calls = 1
         frozen = False
-        budget_frozen = False
-        branch_audit_candidates: Dict[str, List[str]] = {}
+        stopped_by_budget = False
+        stopped_by_depth = False
+        target_count = min(self.config.context_size, len(memories))
 
-        while len(selected_ids) < min(self.config.context_size, len(memories)):
+        while len(selected_ids) < target_count:
             available = [memory_id for memory_id in nodes if memory_id not in selected_ids]
             if not available:
-                if len(nodes) >= min(self.config.search_budget, len(memories)):
-                    budget_frozen = len(nodes) < len(memories)
-                    break
                 if frontier and not frozen:
-                    made_ann_call = self._expand_one(
+                    expanded = self._expand_one(
                         frontier,
                         index,
                         query_vector,
@@ -139,41 +162,41 @@ class BridgeTreeRetriever:
                         nodes,
                         edges,
                         push_sibling_branches,
-                        discovery_order,
+                        len(nodes),
                         branch_audit_candidates,
+                        search_budget,
+                        tracker,
                     )
-                    ann_calls += int(made_ann_call)
-                    discovery_order = len(nodes)
-                    continue
+                    if expanded:
+                        continue
                 break
 
             selected_nodes = [nodes[memory_id] for memory_id in selected_ids]
             margins = {memory_id: self._selection_score(nodes[memory_id], selected_nodes) for memory_id in available}
             best_id = min(available, key=lambda memory_id: (-margins[memory_id], memory_id))
             best_margin = margins[best_id]
-            # A queued probe has no unknown descendants after the entire finite
-            # memory bank has been visited; its formal path bound then applies
-            # to an empty set and must not create a spurious posterior gap.
             if len(nodes) == len(memories):
                 frontier.clear()
             unseen_upper = max((item[2].marginal_upper_bound for item in frontier), default=0.0)
-
             certificate_allowed = self.config.stop_mode == "certificate_or_budget" and self.config.selection_mode in {
                 "rho_logdet",
                 "path_logdet",
             }
             certified = certificate_allowed and best_margin + self.config.tie_tolerance >= unseen_upper
-
             if certified:
                 selected_ids.append(best_id)
                 selection_steps.append(SelectionStep(len(selected_ids), best_id, best_margin, unseen_upper, 0.0, True))
                 continue
 
-            budget_reached = len(nodes) >= min(self.config.search_budget, len(memories))
-            max_depth_done = not any(item[2].depth < self.config.max_depth for item in frontier)
-            if frozen or budget_reached or max_depth_done or not frontier:
+            node_budget_reached = len(nodes) >= min(search_budget.max_unique_nodes, len(memories))
+            core_search_blocked = not tracker.can_search_core()
+            expandable = any(item[2].depth < self.config.max_depth for item in frontier)
+            if frozen or node_budget_reached or core_search_blocked or not expandable or not frontier:
                 frozen = True
-                budget_frozen = budget_frozen or budget_reached
+                stopped_by_budget = stopped_by_budget or (
+                    len(nodes) < len(memories) and (node_budget_reached or core_search_blocked)
+                )
+                stopped_by_depth = stopped_by_depth or (bool(frontier) and not expandable)
                 epsilon = max(0.0, unseen_upper - best_margin)
                 selected_ids.append(best_id)
                 selection_steps.append(
@@ -181,7 +204,7 @@ class BridgeTreeRetriever:
                 )
                 continue
 
-            made_ann_call = self._expand_one(
+            self._expand_one(
                 frontier,
                 index,
                 query_vector,
@@ -190,18 +213,25 @@ class BridgeTreeRetriever:
                 nodes,
                 edges,
                 push_sibling_branches,
-                discovery_order,
+                len(nodes),
                 branch_audit_candidates,
+                search_budget,
+                tracker,
             )
-            ann_calls += int(made_ann_call)
-            discovery_order = len(nodes)
 
-        chronological_ids = sorted(
-            selected_ids,
-            key=lambda memory_id: (nodes[memory_id].memory.timestamp, memory_id),
-        )
-        remaining = [item[2] for item in sorted(frontier)]
-        # The metric is diagnostic only and does not issue extra ANN calls.
+        tracker.retrieval_core_ms = (time.perf_counter() - core_started) * 1000.0
+        if len(selected_ids) < target_count:
+            tracker.set_stop_reason("insufficient_candidates")
+        elif selection_steps and all(step.certified for step in selection_steps):
+            tracker.set_stop_reason("certificate")
+        elif stopped_by_budget:
+            tracker.set_stop_reason("search_budget")
+        elif stopped_by_depth:
+            tracker.set_stop_reason("max_depth")
+        else:
+            tracker.set_stop_reason("frontier_empty")
+
+        diagnostic_started = time.perf_counter()
         from .metrics import branch_ranking_stability
 
         cluster_stabilities = []
@@ -212,10 +242,18 @@ class BridgeTreeRetriever:
                     cluster_stabilities.append(branch_ranking_stability(branch, index, candidates))
         elif self.config.diagnostic_level == "full":
             for branch in all_branches:
-                audit_candidates = [
-                    memory_id for memory_id, _score in index.search(branch.probe, min(32, len(memories)))
-                ]
-                cluster_stabilities.append(branch_ranking_stability(branch, index, audit_candidates))
+                hits = tracker.search_diagnostic(index, branch.probe, min(32, len(memories)))
+                cluster_stabilities.append(
+                    branch_ranking_stability(branch, index, [memory_id for memory_id, _score in hits])
+                )
+        if self.config.diagnostic_level != "off":
+            tracker.diagnostic_ms = (time.perf_counter() - diagnostic_started) * 1000.0
+
+        chronological_ids = sorted(
+            selected_ids,
+            key=lambda memory_id: (nodes[memory_id].memory.timestamp, memory_id),
+        )
+        remaining = [item[2] for item in sorted(frontier)]
         return RetrievalResult(
             query=query,
             selected=[memory_by_id[memory_id] for memory_id in chronological_ids],
@@ -225,11 +263,12 @@ class BridgeTreeRetriever:
             all_branches=all_branches,
             remaining_branches=remaining,
             selection_steps=selection_steps,
-            ann_calls=ann_calls,
-            visited_nodes=len(nodes),
-            budget_frozen=budget_frozen,
+            cost_tracker=tracker,
+            budget_frozen=stopped_by_budget,
             cluster_radii=cluster_radii,
             cluster_stabilities=cluster_stabilities,
+            cluster_member_counts=cluster_member_counts,
+            clustering_ms=clustering_ms,
         )
 
     def _selection_score(self, node: TreeNode, selected_nodes: Sequence[TreeNode]) -> float:
@@ -248,24 +287,28 @@ class BridgeTreeRetriever:
         frontier: List[Tuple[Tuple[float, ...], str, Branch]],
         index: ExactInnerProductIndex,
         query_vector: np.ndarray,
-        memory_by_id: Mapping[str, Memory],
+        memory_by_id: Dict[str, Memory],
         direct_scores: Dict[str, float],
         nodes: Dict[str, TreeNode],
         edges: List[Tuple[Optional[str], str]],
         push_sibling_branches,
         discovery_order: int,
         branch_audit_candidates: Dict[str, List[str]],
+        budget: SearchBudget,
+        tracker: CostTracker,
     ) -> bool:
         _priority, _branch_id, branch = heapq.heappop(frontier)
-        if branch.depth >= self.config.max_depth:
+        if branch.depth >= self.config.max_depth or not tracker.can_search_core():
             return False
-        capacity = min(self.config.branch_width, self.config.search_budget - len(nodes))
+        capacity = min(self.config.branch_width, budget.max_unique_nodes - len(nodes))
         if capacity <= 0:
             return False
-        candidates = index.search(branch.probe, capacity, exclude=nodes)
+        candidates = tracker.search_core(index, branch.probe, capacity, exclude=nodes)
         branch_audit_candidates[branch.branch_id] = [memory_id for memory_id, _score in candidates]
         children_by_parent: Dict[str, List[str]] = {}
         for offset, (candidate_id, _probe_score) in enumerate(candidates):
+            if candidate_id in nodes:
+                continue
             parent_id = min(
                 branch.member_ids,
                 key=lambda memory_id: (
@@ -278,10 +321,10 @@ class BridgeTreeRetriever:
             )
             edge_similarity = nonnegative_cosine(nodes[parent_id].vector, index.vector(candidate_id))
             raw_reachability = min(nodes[parent_id].reachability, edge_similarity)
-            candidate_direct_score = direct_scores.get(candidate_id)
-            if candidate_direct_score is None:
-                candidate_direct_score = nonnegative_cosine(query_vector, index.vector(candidate_id))
-                direct_scores[candidate_id] = candidate_direct_score
+            candidate_direct_score = direct_scores.setdefault(
+                candidate_id,
+                nonnegative_cosine(query_vector, index.vector(candidate_id)),
+            )
             reachability = self._anchor_reachability(raw_reachability, candidate_direct_score)
             ancestor_vectors = []
             current: Optional[str] = parent_id
@@ -294,7 +337,9 @@ class BridgeTreeRetriever:
             if self.config.feature_mode == "path_conditioned":
                 innovation = path_conditioned_innovation(vector, reachability, ancestor_vectors)
             else:
-                innovation = reachability * vector
+                unit_vector = np.asarray(vector, dtype=np.float64)
+                unit_vector /= max(1.0, float(np.linalg.norm(unit_vector)))
+                innovation = reachability * unit_vector
             nodes[candidate_id] = TreeNode(
                 memory=memory_by_id[candidate_id],
                 vector=vector,
@@ -310,4 +355,4 @@ class BridgeTreeRetriever:
             children_by_parent.setdefault(parent_id, []).append(candidate_id)
         for child_ids in children_by_parent.values():
             push_sibling_branches(child_ids, depth=nodes[child_ids[0]].depth)
-        return True
+        return bool(candidates)

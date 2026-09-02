@@ -104,6 +104,8 @@ class RetrievalConfig:
             raise ValueError("retrieval.context_size must be <= retrieval.search_budget")
         if self.max_candidate_exposure is not None and self.context_size > self.max_candidate_exposure:
             raise ValueError("retrieval.context_size must be <= retrieval.max_candidate_exposure")
+        if self.max_candidate_exposure is not None and self.initial_width > self.max_candidate_exposure:
+            raise ValueError("retrieval.initial_width must be <= retrieval.max_candidate_exposure")
         choices = {
             "cluster_mode": (self.cluster_mode, {"none", "fixed", "effective_rank"}),
             "search_order": (self.search_order, {"best_first", "bfs"}),
@@ -157,6 +159,7 @@ class GeneratorConfig(EndpointConfig):
     api_key_env: str = "BRIDGETREE_CHAT_API_KEY"
     temperature: float = 0.0
     max_tokens: int = 512
+    context_token_budget: int = 8192
 
     def resolved_api_key(self) -> str:
         return os.environ.get(self.api_key_env, self.api_key)
@@ -201,6 +204,8 @@ class AppConfig:
             raise ValueError("data.split must be one of 32k, 128k, 1M")
         if self.data.memory_granularity not in {"user_only", "user_assistant_pair"}:
             raise ValueError("data.memory_granularity must be user_only or user_assistant_pair")
+        if self.models.generator.max_tokens <= 0 or self.models.generator.context_token_budget <= 0:
+            raise ValueError("generator token budgets must be positive")
 
     def resolved_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -318,6 +318,7 @@ class TrainingEvaluator:
             example.messages,
             source_prefix=example.question_id,
             include_system_persona=self.app_config.data.include_system_persona,
+            memory_granularity=self.app_config.data.memory_granularity,
         )
         segmentation_seconds = time.perf_counter() - segment_started
         if not memories:

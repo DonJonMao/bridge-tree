@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -12,6 +14,63 @@ import numpy as np
 from .config import EmbeddingConfig, EndpointConfig, GeneratorConfig
 from .math_utils import normalize_rows
 from .types import Memory
+
+GENERATOR_SYSTEM_PROMPT = (
+    "Answer the user using only relevant personal memories. Respect the latest preference when "
+    "memories evolve. Do not mention retrieval internals."
+)
+GENERATOR_USER_TEMPLATE = (
+    "User query:\n{query}\n\nRetrieved personal memories (chronological):\n{context}"
+    "\n\nAnswer options:\n{answer_options}\nReturn the best option label and a concise answer."
+)
+
+
+def estimate_tokens(text: str) -> int:
+    """Deterministic tokenizer-independent accounting used for method matching."""
+    return len(re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE))
+
+
+def context_token_count(memories: Sequence[Memory]) -> int:
+    return sum(estimate_tokens(memory.text) for memory in memories)
+
+
+def fit_context_budget(memories: Sequence[Memory], token_budget: int) -> List[Memory]:
+    selected: List[Memory] = []
+    used = 0
+    for memory in memories:
+        tokens = estimate_tokens(memory.text)
+        if selected and used + tokens > token_budget:
+            continue
+        if not selected and tokens > token_budget:
+            continue
+        selected.append(memory)
+        used += tokens
+    return selected
+
+
+def build_generation_messages(
+    query: str,
+    memories: Sequence[Memory],
+    answer_options: str = "",
+) -> List[Dict[str, str]]:
+    context = "\n\n".join(
+        f"[Memory {index}; source={memory.source_id}; time={memory.timestamp}]\n{memory.text}"
+        for index, memory in enumerate(memories, start=1)
+    )
+    user_content = GENERATOR_USER_TEMPLATE.format(
+        query=query,
+        context=context,
+        answer_options=answer_options,
+    )
+    return [
+        {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+def generation_prompt_hash() -> str:
+    payload = GENERATOR_SYSTEM_PROMPT + "\n" + GENERATOR_USER_TEMPLATE
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class Embedder(Protocol):
@@ -140,25 +199,10 @@ class GeneratorClient:
         self.config = config
 
     def answer(self, query: str, memories: Sequence[Memory], answer_options: str = "") -> str:
-        context = "\n\n".join(
-            f"[Memory {index}; source={memory.source_id}; time={memory.timestamp}]\n{memory.text}"
-            for index, memory in enumerate(memories, start=1)
-        )
-        user_content = f"User query:\n{query}\n\nRetrieved personal memories (chronological):\n{context}"
-        if answer_options:
-            user_content += f"\n\nAnswer options:\n{answer_options}\nReturn the best option label and a concise answer."
+        memories = fit_context_budget(memories, self.config.context_token_budget)
         payload = {
             "model": self.config.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Answer the user using only relevant personal memories. Respect the latest preference when "
-                        "memories evolve. Do not mention retrieval internals."
-                    ),
-                },
-                {"role": "user", "content": user_content},
-            ],
+            "messages": build_generation_messages(query, memories, answer_options),
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
         }

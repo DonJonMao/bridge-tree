@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from .budget import CostSnapshot, CostTracker, SearchBudget
+
 
 @dataclass(frozen=True)
 class Memory:
@@ -83,11 +85,29 @@ class RetrievalResult:
     all_branches: List[Branch]
     remaining_branches: List[Branch]
     selection_steps: List[SelectionStep]
-    ann_calls: int
-    visited_nodes: int
+    cost_tracker: CostTracker
     budget_frozen: bool
     cluster_radii: List[float]
     cluster_stabilities: List[float]
+    cluster_member_counts: List[int] = field(default_factory=list)
+    clustering_ms: float = 0.0
+    first_arrival_semantics: str = "deterministic_first_arrival"
+
+    @property
+    def cost(self) -> CostSnapshot:
+        return self.cost_tracker.snapshot()
+
+    @property
+    def ann_calls(self) -> int:
+        return self.cost.ann_calls_core
+
+    @property
+    def visited_nodes(self) -> int:
+        return len(self.nodes)
+
+    @property
+    def stop_reason(self) -> str:
+        return self.cost.stop_reason
 
     @property
     def certified(self) -> bool:
@@ -117,10 +137,23 @@ class RetrievalResult:
             "remaining_branches": [branch.public_dict() for branch in self.remaining_branches],
             "selection_steps": [asdict(step) for step in self.selection_steps],
             "ann_calls": self.ann_calls,
+            "ann_calls_core": self.cost.ann_calls_core,
+            "ann_calls_diagnostic": self.cost.ann_calls_diagnostic,
             "visited_nodes": self.visited_nodes,
             "budget_frozen": self.budget_frozen,
+            "stop_reason": self.stop_reason,
+            "cost": self.cost.to_dict(),
             "certified": self.certified,
             "posterior_error": self.posterior_error,
             "cluster_radii": self.cluster_radii,
             "cluster_stabilities": self.cluster_stabilities,
+            "cluster_member_counts": self.cluster_member_counts,
+            "clustering_ms": self.clustering_ms,
+            "tree_semantics": self.first_arrival_semantics,
         }
+
+
+def empty_retrieval_result(query: str, budget: SearchBudget) -> RetrievalResult:
+    tracker = CostTracker(budget)
+    tracker.set_stop_reason("insufficient_candidates")
+    return RetrievalResult(query, [], [], {}, [], [], [], [], tracker, False, [], [])

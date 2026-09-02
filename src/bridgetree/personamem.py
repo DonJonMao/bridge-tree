@@ -71,6 +71,7 @@ def messages_to_memories(
     messages: Sequence[Mapping[str, Any]],
     source_prefix: str,
     include_system_persona: bool = True,
+    memory_granularity: str = "user_assistant_pair",
 ) -> List[Memory]:
     """Convert PersonaMem messages into independent, traceable memory turns.
 
@@ -78,11 +79,15 @@ def messages_to_memories(
     following assistant response form one memory, matching the official
     RF-Mem PersonaMem preprocessing while retaining source indices.
     """
+    if memory_granularity not in {"user_only", "user_assistant_pair"}:
+        raise ValueError("memory_granularity must be user_only or user_assistant_pair")
     normalized: List[Dict[str, Any]] = []
     for index, message in enumerate(messages):
         role = str(message.get("role", "unknown")).strip().lower()
         content = str(message.get("content", "")).strip()
         if not content or (role == "system" and not include_system_persona):
+            continue
+        if role == "assistant" and memory_granularity == "user_only":
             continue
         if normalized and normalized[-1]["role"] == role:
             normalized[-1]["content"] += "\n\n" + content
@@ -98,7 +103,12 @@ def messages_to_memories(
         roles = [current["role"]]
         indices = list(current["indices"])
         parts = [f"{current['role'].capitalize()}:\n{current['content']}"]
-        if current["role"] == "user" and cursor + 1 < len(normalized) and normalized[cursor + 1]["role"] == "assistant":
+        if (
+            memory_granularity == "user_assistant_pair"
+            and current["role"] == "user"
+            and cursor + 1 < len(normalized)
+            and normalized[cursor + 1]["role"] == "assistant"
+        ):
             following = normalized[cursor + 1]
             roles.append("assistant")
             indices.extend(following["indices"])

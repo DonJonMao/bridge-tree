@@ -102,6 +102,11 @@ def build_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--override-config")
     sweep.add_argument("--method", action="append", choices=METHODS, default=[])
     sweep.add_argument("--budget", action="append", type=int, default=[])
+    sweep.add_argument(
+        "--budget-protocol",
+        choices=("matched_ann_calls", "matched_candidate_exposure"),
+        default="matched_candidate_exposure",
+    )
     sweep.add_argument("--limit", type=int)
     sweep.add_argument("--generate", action="store_true")
     sweep.add_argument("--bridge-gold")
@@ -151,15 +156,31 @@ def main(argv: list[str] | None = None) -> int:
         config = _resolved_config(args)
         embedder = build_embedder(config.models.embedding, device=config.runtime.device)
         methods = args.method or list(METHODS)
-        budgets = args.budget or [config.retrieval.search_budget]
+        if args.budget:
+            budgets = args.budget
+        elif args.budget_protocol == "matched_ann_calls":
+            budgets = [config.retrieval.max_ann_calls or 1]
+        else:
+            budgets = [config.retrieval.max_candidate_exposure or config.retrieval.search_budget]
         sweep_root = Path(args.output_dir or config.runtime.output_dir) / f"sweep_{time.time_ns()}"
         sweep_root.mkdir(parents=True, exist_ok=False)
         runs = []
-        for budget in budgets:
-            if budget < config.retrieval.first_hop_width:
-                raise ValueError("every sweep budget must be >= first_hop_width")
-            current = replace(config, retrieval=replace(config.retrieval, search_budget=budget))
-            for method in methods:
+        static_methods = {"dense", "dense_rerank", "rfmem_familiarity"}
+        for method in methods:
+            method_budgets = [None] if method in static_methods else budgets
+            for budget in method_budgets:
+                current = config
+                if budget is not None and args.budget_protocol == "matched_ann_calls":
+                    if budget <= 0:
+                        raise ValueError("matched ANN-call budgets must be positive")
+                    current = replace(config, retrieval=replace(config.retrieval, max_ann_calls=budget))
+                elif budget is not None:
+                    if budget < max(config.retrieval.initial_width, config.retrieval.context_size):
+                        raise ValueError("candidate-exposure budgets must cover initial_width and context_size")
+                    current = replace(
+                        config,
+                        retrieval=replace(config.retrieval, max_candidate_exposure=budget),
+                    )
                 result = run_personamem_experiment(
                     current,
                     method,
@@ -169,8 +190,21 @@ def main(argv: list[str] | None = None) -> int:
                     bridge_gold_path=args.bridge_gold,
                     output_dir=sweep_root,
                 )
-                runs.append({"budget": budget, **result})
-        manifest = {"methods": methods, "budgets": budgets, "runs": runs}
+                actual_cost = result["summary"].get("cost", {}).get("mean", {})
+                runs.append(
+                    {
+                        "budget": budget,
+                        "budget_protocol": "actual_cost" if budget is None else args.budget_protocol,
+                        "actual_cost": actual_cost,
+                        **result,
+                    }
+                )
+        manifest = {
+            "methods": methods,
+            "budget_protocol": args.budget_protocol,
+            "budgets": budgets,
+            "runs": runs,
+        }
         with (sweep_root / "sweep_summary.json").open("w", encoding="utf-8") as handle:
             json.dump(manifest, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
