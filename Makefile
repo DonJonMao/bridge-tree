@@ -1,4 +1,4 @@
-.PHONY: install test lint data train smoke
+.PHONY: install test lint data run ablation tune smoke
 
 install:
 	python3 -m pip install -e '.[test]'
@@ -13,7 +13,13 @@ data:
 	bridgetree download-personamem --split 32k
 	bridgetree prepare-personamem --split 32k
 
-train:
+run:
+	./scripts/run_personamem.sh
+
+ablation:
+	./scripts/ablation.sh
+
+tune:
 	./scripts/train.sh
 
 smoke:

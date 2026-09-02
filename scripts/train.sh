@@ -13,4 +13,4 @@ else
 fi
 
 export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
-exec "$python_bin" -m bridgetree.cli train "$@"
+exec "$python_bin" -m bridgetree.cli tune "$@"

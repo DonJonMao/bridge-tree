@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -173,6 +174,7 @@ def run_personamem_experiment(
     generate: bool = False,
     bridge_gold_path: str | Path | None = None,
     output_dir: str | Path | None = None,
+    run_label: str | None = None,
 ) -> Dict[str, Any]:
     raw_root = Path(config.data.raw_dir)
     split = config.data.split
@@ -181,7 +183,8 @@ def run_personamem_experiment(
     if not question_path.exists() or not context_path.exists():
         raise FileNotFoundError("PersonaMem raw data is missing; run `bridgetree download-personamem` first")
 
-    run_root = Path(output_dir or config.runtime.output_dir) / f"{method}_{time.time_ns()}"
+    label = re.sub(r"[^a-zA-Z0-9_.-]+", "_", run_label or method).strip("._") or method
+    run_root = Path(output_dir or config.runtime.output_dir) / f"{label}_{time.time_ns()}"
     run_root.mkdir(parents=True, exist_ok=False)
     cache = EmbeddingCache(config.runtime.cache_dir, embedder, config.models.embedding.model)
     generator = GeneratorClient(config.models.generator) if generate else None

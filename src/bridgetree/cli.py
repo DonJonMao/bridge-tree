@@ -143,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             generate=args.generate,
             bridge_gold_path=args.bridge_gold,
             output_dir=args.output_dir,
+            run_label=args.run_label,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
