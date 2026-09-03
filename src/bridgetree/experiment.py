@@ -23,6 +23,7 @@ from .clients import (
     generation_prompt_hash,
 )
 from .config import AppConfig
+from .guided_retriever import RerankerGuidedBridgeRetriever, cached_rerank_all
 from .index import ExactInnerProductIndex, build_index
 from .metrics import (
     answer_accuracy,
@@ -33,6 +34,7 @@ from .metrics import (
     recall_at_k,
 )
 from .personamem import PERSONAMEM_REVISION, PersonaMemExample, iter_examples, messages_to_memories
+from .ranking import RerankCache, build_personamem_rank_query, format_memory_document, stable_union
 from .retriever import BridgeTreeRetriever
 from .types import Memory, RetrievalResult
 
@@ -40,6 +42,12 @@ METHODS = (
     "bridgetree",
     "dense",
     "dense_rerank",
+    "dense_rerank_20",
+    "dense_rerank_28",
+    "bridgetree_union_rerank",
+    "bridgetree_guided_rerank",
+    "bridgetree_guided_pathfilter",
+    "full_pool_rerank",
     "rfmem_familiarity",
     "rfmem_recollection",
     "rfmem",
@@ -51,6 +59,20 @@ METHODS = (
     "ablation_rho_dpp",
     "ablation_direct_path",
 )
+
+RERANK_METHODS = {
+    "dense_rerank",
+    "dense_rerank_20",
+    "dense_rerank_28",
+    "bridgetree_union_rerank",
+    "bridgetree_guided_rerank",
+    "bridgetree_guided_pathfilter",
+    "full_pool_rerank",
+}
+
+GUIDED_METHODS = {"bridgetree_guided_rerank", "bridgetree_guided_pathfilter"}
+BRIDGE_RERANK_METHODS = GUIDED_METHODS | {"bridgetree_union_rerank"}
+EFFECT_FIRST_METHODS = RERANK_METHODS - {"dense_rerank"}
 
 
 ABLATION_OPTIONS = {
@@ -91,9 +113,14 @@ class EmbeddingCache:
         payload = json.dumps(self.embedding_identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def _cached(self, texts: Sequence[str], purpose: str, encode) -> np.ndarray:
+    def _cached(self, texts: Sequence[str], purpose: str, encode, instruction: str | None = None) -> np.ndarray:
         payload = json.dumps(
-            {"embedding": self.embedding_identity, "purpose": purpose, "texts": list(texts)},
+            {
+                "embedding": self.embedding_identity,
+                "instruction": instruction,
+                "purpose": purpose,
+                "texts": list(texts),
+            },
             ensure_ascii=False,
             sort_keys=True,
         )
@@ -110,10 +137,26 @@ class EmbeddingCache:
     def encode_documents(self, texts: Sequence[str]) -> np.ndarray:
         return self._cached(texts, "document", lambda: self.embedder.encode(texts))
 
-    def encode_query(self, text: str) -> np.ndarray:
+    def encode_query(
+        self,
+        text: str,
+        instruction: str | None = None,
+        purpose: str = "query",
+    ) -> np.ndarray:
+        if instruction is not None:
+            return self.encode_queries([text], instruction=instruction, purpose=purpose)[0]
         method = getattr(self.embedder, "encode_query", None)
         encode = (lambda: np.asarray([method(text)])) if callable(method) else (lambda: self.embedder.encode([text]))
-        return self._cached([text], "query", encode)[0]
+        return self._cached([text], purpose, encode, instruction=None)[0]
+
+    def encode_queries(self, texts: Sequence[str], instruction: str, purpose: str) -> np.ndarray:
+        method = getattr(self.embedder, "encode_queries", None)
+        encode = (
+            (lambda: method(texts, instruction=instruction))
+            if callable(method)
+            else (lambda: self.embedder.encode([instruction + text for text in texts]))
+        )
+        return self._cached(texts, purpose, encode, instruction=instruction)
 
 
 class IndexCache:
@@ -165,6 +208,30 @@ def _selected_memories(ids: Iterable[str], memory_by_id: Mapping[str, Memory], c
     return selected
 
 
+def _refresh_rerank_selection_diagnostics(
+    diagnostics: Dict[str, Any],
+    selected_ids: Sequence[str],
+) -> None:
+    """Make selection diagnostics describe the token-budget-retained context."""
+    if "selected_source_by_id" not in diagnostics:
+        return
+    bridge_ids = set(diagnostics.get("bridge_kept_ids", ()))
+    source_by_id = diagnostics.get("selected_source_by_id", {})
+    diagnostics["selected_source_by_id"] = {
+        memory_id: source_by_id.get(memory_id, "bridge" if memory_id in bridge_ids else "dense")
+        for memory_id in selected_ids
+    }
+    selected_bridge_count = sum(memory_id in bridge_ids for memory_id in selected_ids)
+    diagnostics["selected_bridge_count"] = selected_bridge_count
+    diagnostics["selected_bridge_rate"] = selected_bridge_count / len(selected_ids) if selected_ids else 0.0
+    dense_top_ids = diagnostics.get("dense_rerank_top_ids")
+    if dense_top_ids is not None:
+        dense_top = set(dense_top_ids)
+        diagnostics["dense_rerank_top5_retention"] = (
+            sum(memory_id in dense_top for memory_id in selected_ids) / len(dense_top) if dense_top else 0.0
+        )
+
+
 def retrieve_method(
     method: str,
     config: AppConfig,
@@ -177,6 +244,8 @@ def retrieve_method(
     budget: SearchBudget | None = None,
     cost_tracker: CostTracker | None = None,
     index_build_ms: float = 0.0,
+    embedding_cache: EmbeddingCache | None = None,
+    rerank_cache: RerankCache | None = None,
 ) -> Tuple[List[str], List[Memory], Dict[str, Any], RetrievalResult | None]:
     if method not in METHODS:
         raise ValueError(f"unknown method {method}; choose from {METHODS}")
@@ -184,6 +253,35 @@ def retrieve_method(
     memory_by_id = {memory.memory_id: memory for memory in memories}
     k = config.retrieval.context_size
     current_budget = budget or SearchBudget.from_config(config.retrieval)
+    if method in RERANK_METHODS:
+        if not config.models.reranker.endpoint:
+            raise ValueError(f"{method} requires a configured reranker endpoint")
+        if method in BRIDGE_RERANK_METHODS and config.retrieval.stop_mode == "certificate_or_budget":
+            raise ValueError(f"{method} cannot use certificate_or_budget")
+        if method in {"dense_rerank", "dense_rerank_20"}:
+            required_nodes = config.bridge_rerank.dense_pool_width
+        elif method == "dense_rerank_28":
+            required_nodes = config.bridge_rerank.dense_pool_width + (
+                config.bridge_rerank.expand_branch_count * config.bridge_rerank.branch_keep_width
+            )
+        elif method == "bridgetree_union_rerank":
+            required_nodes = config.bridge_rerank.dense_pool_width + max(
+                0,
+                config.retrieval.search_budget - config.retrieval.initial_width,
+            )
+        elif method in GUIDED_METHODS:
+            required_nodes = config.bridge_rerank.dense_pool_width + (
+                config.bridge_rerank.expand_branch_count * config.bridge_rerank.branch_overfetch_width
+            )
+        else:
+            required_nodes = len(memories)
+        current_budget = SearchBudget(
+            max_unique_nodes=max(1, min(len(memories), required_nodes)),
+            max_ann_calls=current_budget.max_ann_calls,
+            max_candidate_exposure=current_budget.max_candidate_exposure,
+        )
+        if cost_tracker is not None and cost_tracker.cost_unique_count == 0 and cost_tracker.ann_calls_core == 0:
+            cost_tracker.budget = current_budget
     tracker = cost_tracker or CostTracker(current_budget)
     tracker.index_build_ms += index_build_ms
     if index is None:
@@ -228,10 +326,13 @@ def retrieve_method(
             budget=current_budget,
             cost_tracker=tracker,
         )
-    elif method == "dense_rerank":
+    elif method in {"dense_rerank", "dense_rerank_20", "dense_rerank_28"}:
         if reranker is None:
-            raise ValueError("dense_rerank requires a reranker client")
-        initial_k = min(len(memories), max(config.retrieval.initial_width, 4 * k))
+            raise ValueError(f"{method} requires a reranker client")
+        initial_k = config.bridge_rerank.dense_pool_width
+        if method == "dense_rerank_28":
+            initial_k += config.bridge_rerank.expand_branch_count * config.bridge_rerank.branch_keep_width
+        initial_k = min(len(memories), initial_k)
         initial = dense_retrieval(
             ids,
             memory_vectors,
@@ -241,10 +342,180 @@ def retrieve_method(
             budget=current_budget,
             cost_tracker=tracker,
         )
-        rerank_started = time.perf_counter()
-        items = reranker.rerank(example.query, [memory_by_id[item].text for item in initial.selected_ids], k)
-        tracker.retrieval_core_ms += (time.perf_counter() - rerank_started) * 1000.0
+        max_timestamp = max((memory.timestamp for memory in memories), default=0.0)
+        rank_query = build_personamem_rank_query(
+            example,
+            instruction=config.bridge_rerank.final_rerank_instruction,
+            use_answer_options=config.bridge_rerank.use_answer_options,
+        )
+        documents = [
+            format_memory_document(
+                memory_by_id[item],
+                max_timestamp,
+                include_time_metadata=config.bridge_rerank.include_time_metadata,
+            )
+            for item in initial.selected_ids
+        ]
+        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        items = ranking[:k]
         baseline = BaselineResult([initial.selected_ids[item.index] for item in items], tracker)
+        scores = {initial.selected_ids[item.index]: item.score for item in ranking}
+        baseline.diagnostics.update(
+            {
+                "dense_pool_ids": initial.selected_ids,
+                "anchor_ids": [],
+                "bridge_raw_ids": [],
+                "bridge_kept_ids": [],
+                "candidate_union_ids": initial.selected_ids,
+                "selected_source_by_id": {memory_id: "dense" for memory_id in baseline.selected_ids},
+                "selected_bridge_count": 0,
+                "selected_bridge_rate": 0.0,
+                "dense_rerank_top5_retention": 1.0,
+                "bridge_candidate_novelty": 0.0,
+                "dense_rerank_top_ids": [
+                    initial.selected_ids[item.index] for item in ranking[:k]
+                ],
+                "final_rerank_scores": scores,
+                "rerank_cache_hits": int(cache_hit),
+            }
+        )
+    elif method == "bridgetree_union_rerank":
+        if reranker is None:
+            raise ValueError("bridgetree_union_rerank requires a reranker client")
+        if config.retrieval.stop_mode == "certificate_or_budget":
+            raise ValueError("bridgetree_union_rerank cannot use certificate_or_budget")
+        dense_hits = tracker.search_core(
+            index,
+            query_vector,
+            min(config.bridge_rerank.dense_pool_width, len(memories)),
+        )
+        dense_ids = [memory_id for memory_id, _score in dense_hits]
+        bridge_result = BridgeTreeRetriever(config.retrieval).retrieve(
+            example.query,
+            query_vector,
+            memories,
+            memory_vectors,
+            index=index,
+            budget=tracker.budget,
+            cost_tracker=tracker,
+            initial_hits=dense_hits,
+            excluded_candidate_ids=dense_ids,
+        )
+        discovered_ids = list(bridge_result.nodes)
+        bridge_ids = [memory_id for memory_id in discovered_ids if memory_id not in set(dense_ids)]
+        candidate_ids = stable_union(dense_ids, discovered_ids)
+        max_timestamp = max((memory.timestamp for memory in memories), default=0.0)
+        rank_query = build_personamem_rank_query(
+            example,
+            instruction=config.bridge_rerank.final_rerank_instruction,
+            use_answer_options=config.bridge_rerank.use_answer_options,
+        )
+        documents = [
+            format_memory_document(
+                memory_by_id[memory_id],
+                max_timestamp,
+                include_time_metadata=config.bridge_rerank.include_time_metadata,
+            )
+            for memory_id in candidate_ids
+        ]
+        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        final_scores = {candidate_ids[item.index]: item.score for item in ranking}
+        selected_ids = [candidate_ids[item.index] for item in ranking[:k]]
+        selected = _selected_memories(selected_ids, memory_by_id, chronological=True)
+        dense_ranked = [candidate_ids[item.index] for item in ranking if candidate_ids[item.index] in set(dense_ids)]
+        dense_top5 = set(dense_ranked[:k])
+        bridge_set = set(bridge_ids)
+        selected_bridge_count = sum(memory_id in bridge_set for memory_id in selected_ids)
+        parent_by_bridge = {
+            memory_id: node.parent_id
+            for memory_id, node in bridge_result.nodes.items()
+            if memory_id in bridge_set and node.parent_id is not None
+        }
+        diagnostics = {
+            "dense_pool_ids": dense_ids,
+            "anchor_ids": [],
+            "bridge_raw_ids": bridge_ids,
+            "bridge_kept_ids": bridge_ids,
+            "candidate_union_ids": candidate_ids,
+            "parent_by_bridge_id": parent_by_bridge,
+            "selected_source_by_id": {
+                memory_id: "bridge" if memory_id in bridge_set else "dense" for memory_id in selected_ids
+            },
+            "selected_bridge_count": selected_bridge_count,
+            "selected_bridge_rate": selected_bridge_count / len(selected_ids) if selected_ids else 0.0,
+            "dense_rerank_top5_retention": (
+                sum(memory_id in dense_top5 for memory_id in selected_ids) / len(dense_top5) if dense_top5 else 0.0
+            ),
+            "bridge_candidate_novelty": len(bridge_set) / len(bridge_ids) if bridge_ids else 0.0,
+            "dense_rerank_top_ids": list(dense_top5),
+            "final_rerank_scores": final_scores,
+            "rerank_cache_hits": int(cache_hit),
+            "legacy_internal_selected_ids": list(bridge_result.selected_in_greedy_order),
+            "tree_diagnostic": bridge_result.diagnostic_summary(),
+            "cost": tracker.snapshot().to_dict(),
+            "_cost_tracker": tracker,
+        }
+        return selected_ids, selected, diagnostics, None
+    elif method in GUIDED_METHODS:
+        if reranker is None or embedding_cache is None:
+            raise ValueError(f"{method} requires reranker and embedding caches")
+        selected_ids, selected, pool = RerankerGuidedBridgeRetriever(config).retrieve(
+            example,
+            memories,
+            query_vector,
+            memory_vectors,
+            embed_query_batch=embedding_cache.encode_queries,
+            reranker=reranker,
+            rerank_cache=rerank_cache,
+            index=index,
+            cost_tracker=tracker,
+            mode=method,
+        )
+        return (
+            selected_ids,
+            selected,
+            {**pool.diagnostics, "cost": tracker.snapshot().to_dict(), "_cost_tracker": tracker},
+            None,
+        )
+    elif method == "full_pool_rerank":
+        if reranker is None:
+            raise ValueError("full_pool_rerank requires a reranker client")
+        tracker.mark_visited(ids)
+        max_timestamp = max((memory.timestamp for memory in memories), default=0.0)
+        rank_query = build_personamem_rank_query(
+            example,
+            instruction=config.bridge_rerank.final_rerank_instruction,
+            use_answer_options=config.bridge_rerank.use_answer_options,
+        )
+        documents = [
+            format_memory_document(
+                memory,
+                max_timestamp,
+                include_time_metadata=config.bridge_rerank.include_time_metadata,
+            )
+            for memory in memories
+        ]
+        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        selected_ids = [ids[item.index] for item in ranking[:k]]
+        selected = _selected_memories(selected_ids, memory_by_id, chronological=True)
+        tracker.set_stop_reason("frontier_empty")
+        diagnostics = {
+            "dense_pool_ids": [],
+            "anchor_ids": [],
+            "bridge_raw_ids": [],
+            "bridge_kept_ids": [],
+            "candidate_union_ids": ids,
+            "selected_source_by_id": {memory_id: "full_pool" for memory_id in selected_ids},
+            "selected_bridge_count": 0,
+            "selected_bridge_rate": 0.0,
+            "dense_rerank_top5_retention": 0.0,
+            "bridge_candidate_novelty": 0.0,
+            "final_rerank_scores": {ids[item.index]: item.score for item in ranking},
+            "rerank_cache_hits": int(cache_hit),
+            "cost": tracker.snapshot().to_dict(),
+            "_cost_tracker": tracker,
+        }
+        return selected_ids, selected, diagnostics, None
     elif method == "rfmem_familiarity":
         raw = dense_retrieval(
             ids,
@@ -333,6 +604,10 @@ def run_personamem_experiment(
     run_label: str | None = None,
 ) -> Dict[str, Any]:
     """Run one method under a fully resolved, recorded evaluation protocol."""
+    if method in RERANK_METHODS and not config.models.reranker.endpoint:
+        raise ValueError(f"{method} requires a configured reranker endpoint")
+    if method in BRIDGE_RERANK_METHODS and config.retrieval.stop_mode == "certificate_or_budget":
+        raise ValueError(f"{method} cannot use certificate_or_budget")
     raw_root = Path(config.data.raw_dir)
     split = config.data.split
     question_path = raw_root / f"questions_{split}.csv"
@@ -351,7 +626,16 @@ def run_personamem_experiment(
     )
     index_cache = IndexCache()
     generator = GeneratorClient(config.models.generator) if generate else None
-    reranker = RerankerClient(config.models.reranker) if method == "dense_rerank" else None
+    reranker = RerankerClient(config.models.reranker) if method in RERANK_METHODS else None
+    rerank_cache = (
+        RerankCache(
+            getattr(config.models.reranker, "cache_dir", "outputs/rerank_cache"),
+            endpoint=config.models.reranker.endpoint,
+            model=config.models.reranker.model,
+        )
+        if method in RERANK_METHODS
+        else None
+    )
     bridge_gold = load_bridge_gold(bridge_gold_path)
 
     resolved = {
@@ -466,11 +750,14 @@ def run_personamem_experiment(
                     budget=tracker.budget,
                     cost_tracker=tracker,
                     index_build_ms=index_build_ms,
+                    embedding_cache=cache,
+                    rerank_cache=rerank_cache,
                 )
                 tracker = diagnostics.pop("_cost_tracker")
                 selected = fit_context_budget(selected, config.models.generator.context_token_budget)
                 retained_ids = {memory.memory_id for memory in selected}
                 selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
+                _refresh_rerank_selection_diagnostics(diagnostics, selected_ids)
                 tracker.final_context_count = len(selected)
                 tracker.final_context_tokens = context_token_count(selected)
                 response = ""
@@ -542,7 +829,43 @@ def run_personamem_experiment(
                     "response": response,
                     "outcome": outcome,
                     "cost": cost,
+                    **{
+                        name: cost[name]
+                        for name in (
+                            "rerank_calls",
+                            "rerank_documents",
+                            "rerank_ms",
+                            "bridge_embedding_calls",
+                            "bridge_embedding_queries",
+                            "bridge_embedding_ms",
+                        )
+                    },
                     "diagnostic": diagnostics,
+                    **{
+                        key: diagnostics.get(key)
+                        for key in (
+                            "dense_pool_ids",
+                            "anchor_ids",
+                            "bridge_raw_ids",
+                            "bridge_kept_ids",
+                            "candidate_union_ids",
+                            "selected_source_by_id",
+                            "selected_bridge_count",
+                            "selected_bridge_rate",
+                            "dense_rerank_top5_retention",
+                            "bridge_candidate_novelty",
+                            "dense_rerank_top_ids",
+                            "parent_by_bridge_id",
+                            "branch_by_bridge_id",
+                            "raw_bridge_ids_by_branch",
+                            "dense_rerank_scores",
+                            "bridge_ann_scores",
+                            "path_filter_scores",
+                            "final_rerank_scores",
+                            "rerank_cache_hits",
+                        )
+                        if key in diagnostics
+                    },
                     # Compatibility fields for existing result readers.
                     "accuracy": accuracy,
                     "recall_at_k": recall,
@@ -574,6 +897,12 @@ def run_personamem_experiment(
         "index_build_ms",
         "retrieval_core_ms",
         "diagnostic_ms",
+        "rerank_calls",
+        "rerank_documents",
+        "rerank_ms",
+        "bridge_embedding_calls",
+        "bridge_embedding_queries",
+        "bridge_embedding_ms",
         "generation_ms",
         "final_context_count",
         "final_context_tokens",

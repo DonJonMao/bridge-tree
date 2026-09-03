@@ -2,7 +2,8 @@
 
 This directory is a self-contained, portable implementation of the 2026-09-01 design **“BridgeTree: 面向 Preference-RAG 的桥接感知路径条件临时记忆树检索方法”**. It keeps source code, immutable raw data, normalized data, caches, and run artifacts in separate directories so the directory can be copied to an Ascend 910B host without depending on the parent `datacenter` package.
 
-The full-current runtime combination is:
+The repository now contains two deliberately separate retrieval families. The
+legacy, certificate-oriented BridgeTree path remains available unchanged:
 
 ```text
 coarse ANN -> effective-rank spherical clustering -> centroid probe
@@ -11,6 +12,18 @@ coarse ANN -> effective-rank spherical clustering -> centroid probe
 ```
 
 Centroids are never inserted as memories. Retrieval makes zero LLM calls. A generator is called exactly once only when `--generate` is enabled. There is one `BridgeTreeRetriever`; Core, +Path, +Certificate and Full-current are runtime parameter combinations, not separate classes or code profiles. The project intentionally has no distillation, RL, online Judge, retrieval LLM, or model-weight training stage.
+
+The accuracy-first path uses BridgeTree only for candidate discovery:
+
+```text
+Dense Top-W -> task rerank anchors -> anchor clusters
+-> batched query+anchor bridge retrieval -> optional per-path rerank
+-> stable Dense/bridge union -> task rerank Top-k -> one generator call
+```
+
+It does not mix dense, path, recency, and reranker scores into a new weighted
+objective. Reranker scores never overwrite tree reachability, and certificate
+stopping is rejected for the new reranker-selected BridgeTree methods.
 
 ## Quick start
 
@@ -33,8 +46,11 @@ python3 -m venv .venv
 ./scripts/main_table.sh --limit 10
 ./scripts/ablation.sh --limit 10
 
-# Configuration tuning with periodic validation (never updates model weights).
-./scripts/train.sh
+# One-command full 32K tuning: bootstrap, verify, preflight services, then run.
+./scripts/train_32k.sh
+
+# Validation-only accuracy-first comparison; does not evaluate the known test split.
+./scripts/run_effect_first_validation.sh
 
 .venv/bin/pytest
 ```
@@ -47,9 +63,11 @@ The default model services match the parent `datacenter` project:
 | Rerank comparison baseline | `http://111.19.156.74:8002/rerank` |
 | Final generator | `deepseek-v4-flash`, `http://111.19.156.30:8006/v1/chat/completions` |
 
-Query embeddings use the same Qwen retrieval instruction as datacenter's `EmbeddingClient.embed_query`; memory documents are encoded without that prefix.
+Dense query embeddings use a PersonaMem retrieval instruction; memory documents
+are encoded without that prefix. Bridge queries use a separate explicit
+query+anchor instruction, which is included in the embedding-cache identity.
 
-The requested default API key is present in `configs/default.yaml`. `BRIDGETREE_CHAT_API_KEY` overrides it without editing files on another server. The reranker is confined to `dense_rerank`; inserting it into BridgeTree would change the certified proxy objective.
+The requested default API key is present in `configs/default.yaml`. `BRIDGETREE_CHAT_API_KEY` overrides it without editing files on another server. Legacy BridgeTree still uses its original proxy objective; the new `*_rerank` methods form a separate, non-certified family whose final selection is owned by the common task-aware reranker.
 
 ## One implementation, runtime-controlled modules
 
@@ -83,7 +101,9 @@ See [docs/runtime_experiments.md](docs/runtime_experiments.md) for every argumen
 - `bridgetree`
 - `ablation_no_cluster`, `ablation_bfs`, `ablation_fixed_depth`
 - `ablation_topk`, `ablation_rho_dpp`, `ablation_direct_path`
-- `dense_rerank` additionally exercises the datacenter reranker endpoint
+- `dense_rerank` remains the compatibility alias for `dense_rerank_20`
+- `dense_rerank_20`, `dense_rerank_28`, `bridgetree_union_rerank`
+- `bridgetree_guided_rerank`, `bridgetree_guided_pathfilter`, `full_pool_rerank`
 
 Every prediction is split into `outcome`, `cost`, and `diagnostic`. Cost includes core/diagnostic ANN calls, candidate exposure, unique nodes, index/retrieval/diagnostic/generation time, final context count/tokens and stop reason. BridgeTree diagnostics include the deterministic first-arrival tree, depth drift, parent-child cosine, bridge lift, navigation-only parents, duplicate proposals, clustering statistics, certificate gaps and `Epost`. `diagnostic_level=light` is the formal default and makes zero diagnostic ANN calls.
 
@@ -101,34 +121,106 @@ Matched-cost sweeps are directly runnable:
 
 PersonaMem-v1 does not provide gold memory IDs. `Recall@k` and `Bridge Recall@k` are therefore only computed when `--bridge-gold` supplies independent annotations in the schema described in [data/README.md](data/README.md). The implementation never defines gold bridge memories using its own bridge-lift score.
 
+## Accuracy-first reranker-guided validation
+
+The prior formal 32K run showed Dense+rerank at 51/73 (69.86%) and legacy
+BridgeTree at 41/73 (56.16%). Legacy BridgeTree discovered eight second-hop
+nodes in a 20-node pool, while 71.78% of its final context came from the second
+hop. The effect-first experiment therefore tests candidate discovery separately
+from final selection instead of treating path reachability as answer utility.
+
+Run the six-method, persona-disjoint validation matrix with one command:
+
+```bash
+./scripts/run_effect_first_validation.sh
+```
+
+It evaluates only the validation personas and records `test_queries_read: 0`.
+The matrix contains Dense-Rerank-20, the candidate-count control
+Dense-Rerank-28, union reranking over legacy BridgeTree discoveries, two guided
+versions, and a full-memory-pool diagnostic ceiling. Method selection uses the
+validation accuracy point estimate; cost breaks only an exact accuracy tie.
+Paired bootstrap intervals are report-only.
+
+Every prediction preserves Dense, anchor, raw bridge, kept bridge, and final
+union IDs; real parent/branch provenance; ANN, path-filter, and final reranker
+scores; and separate ANN, reranker, bridge-embedding, and generation costs.
+Complete rankings are cached by endpoint, model, query, and ordered documents.
+Cache hits still count logical reranker documents for fair algorithm-cost
+comparison, while cached wall time is reported as zero.
+
+Width and protocol settings can be changed without editing source:
+
+```bash
+DENSE_POOL_WIDTH=20 ANCHOR_WIDTH=12 \
+EXPAND_BRANCH_COUNT=2 BRANCH_OVERFETCH_WIDTH=8 BRANCH_KEEP_WIDTH=4 \
+PATH_FILTER=true ./scripts/run_effect_first_validation.sh
+```
+
+See [docs/effect_first_reranker.md](docs/effect_first_reranker.md) for the old
+result diagnosis, exact method definitions, artifacts, and interpretation rules.
+
 ## Configuration tuning and module diagnostics
 
-`./scripts/train.sh` invokes `bridgetree tune` (`train` remains a deprecated alias). It uses a persona-disjoint 70/15/15 split and a small validation probe every 50 train queries. Internal log-det, path-objective and certificate metrics are never tuning objectives:
+`./scripts/train_32k.sh` is the portable formal entrypoint. It installs the editable project and test tools, validates the pinned 32K data checksums, runs tests/Ruff/offline smoke, checks embedding/generator/reranker services, invokes `bridgetree tune`, and then independently audits the persisted run before returning success. It also repairs an unusable copied `.venv`; all Python tools are called with `python -m ...`, so stale console-script shebangs cannot redirect execution to the old server path.
+
+The formal configuration uses a persona-disjoint 70/15/15 split. Each of the 16 retrieval configurations is evaluated exactly once on the complete validation partition. The train partition is reserved but not traversed: configurations are fixed and no model or retrieval parameter is updated during a train pass. Internal log-det, path-objective and certificate metrics are never tuning objectives:
 
 - with generated validation answers, `outcome.answer_accuracy` is used;
 - with independent memory gold, validation recall is used;
-- with neither, all trials and a cost Pareto report are written, but there is no `best_config.json` and test is not read.
+- with neither, all trials and a cost Pareto report are written, but there is no `best_config.json` and test is not evaluated.
 
-When a best configuration is externally justified, every final main-table method uses the same generator, prompt, segmentation, chronological serialization, final `k`, context token budget and output token budget. Edit `configs/train.yaml` to enable `validation_generate`, `final_generate`, or `bridge_gold_path`.
+`configs/train.yaml` is the full 32K answer-accuracy protocol: widths `8/12`, branch widths `4/8`, node budgets `20/28/36/44`, generation enabled on validation and test, and strict zero-failure evaluation. Any query exception aborts selection after it is recorded in `failures.jsonl`; a method can never improve its score by failing on difficult questions. When a best configuration is externally justified, every final main-table method uses the same generator, prompt, segmentation, chronological serialization, final `k`, context token budget and output token budget.
 
 The dataset is self-contained in this repository, not under the sibling `datacenter` project:
 
 - raw input: `data/raw/personamem-v1`
 - normalized data: `data/processed/personamem-v1/32k`
 
-Each tuning run creates `outputs/training/tune_<timestamp>/`. `events.jsonl` and `metrics.csv` contain progress and validation events; `modules/*.jsonl` separates encoding, coarse retrieval, clustering, path, innovation, selection, search, cost, outcome and timing. `pareto_frontier.json`, `trials.json`, `resolved_config.json`, `run_manifest.json`, `failures.jsonl` and `final_summary.json` are always retained. `best_config.json` and test events exist only after valid external-outcome selection.
+Each tuning run creates `outputs/tuning-32k/tune_<timestamp>/`. `run_status.json` records `running`, `failed`, or `completed`; `progress.json` is atomically refreshed on query 1, every 10 queries, at the end of each evaluation set, and with a terminal `completed` or `failed` state. `events.jsonl` and `metrics.csv` contain validation/test events; every summary records attempted/successful/failed query counts and question-set hashes. `modules/*.jsonl` separates encoding, coarse retrieval, clustering, path, innovation, selection, search, cost, outcome and timing. `pareto_frontier.json`, `trials.json`, `resolved_config.json`, `run_manifest.json`, `failures.jsonl`, `final_summary.json`, and the post-run `completion_audit.json` are retained. `best_config.json` and test events exist only after valid external-outcome selection.
 
 Equivalent explicit command:
 
 ```bash
 .venv/bin/bridgetree tune \
   --config configs/default.yaml \
-  --tuning-config configs/train.yaml
+  --tuning-config configs/train.yaml \
+  --audit-full-32k
 ```
+
+To validate a copied server without starting the expensive run:
+
+```bash
+PREFLIGHT_ONLY=true ./scripts/train_32k.sh
+```
+
+To exercise the complete 16-trial/84-validation/73-test/seven-method scheduler without contacting model services:
+
+```bash
+./scripts/validate_full_32k_offline.sh
+```
+
+This command uses conspicuously named deterministic fake clients and writes `OFFLINE_VALIDATION_REPORT.json`; its answer scores are never experiment results. It exists solely to validate full-size scheduling, strict failure accounting, common question sets, checkpoints, and the same independent completion audit used by the formal launcher.
+
+The current pinned data produces 84 validation and 73 test questions. The 16-trial, seven-method protocol therefore estimates 1,855 generator calls. See [docs/full_32k_tuning.md](docs/full_32k_tuning.md) for launcher controls and artifact-level success checks.
 
 ## Ascend 910B transfer
 
-Copy this directory and mount data/cache locations separately. Install the CANN-matched `torch` and `torch_npu` wheels from the target image, then:
+Build a checked server archive from the current worktree (including uncommitted fixes and pinned 32K data):
+
+```bash
+./scripts/package_server.sh
+```
+
+The command writes `dist/server/*.tar.gz` plus a transport `.sha256` sidecar, verifies every bundled file against an embedded SHA-256/permission manifest, extracts it into a fresh temporary path, and runs the offline launcher preflight there. It excludes `.git`, `.venv`, outputs, caches, and build products.
+
+Copy and extract that archive on the server. With remote embedding/generation services, enter the extracted `bridgetree_preference_rag` directory and run one command:
+
+```bash
+./scripts/train_32k.sh
+```
+
+For local NPU-hosted embeddings, install the CANN-matched `torch` and `torch_npu` wheels from the target image, then:
 
 ```bash
 pip install -r requirements-ascend910b.txt

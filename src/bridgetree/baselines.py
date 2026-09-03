@@ -232,11 +232,18 @@ def rfmem(
     probe = tracker.search_core(index, query_vector, min(10, current_budget.max_unique_nodes, len(ids)))
     mode, diagnostics = rfmem_route([score for _, score in probe], entropy_threshold)
     if mode == "fast":
-        if tracker.can_search_core():
-            hits = tracker.search_core(index, query_vector, min(top_k, current_budget.max_unique_nodes))
-        else:
-            hits = probe[:top_k]
-        selected = [memory_id for memory_id, score in hits if score >= 0.3]
+        hits = list(probe[:top_k])
+        if len(hits) < min(top_k, len(ids)) and tracker.can_search_core():
+            seen_probe = {memory_id for memory_id, _score in probe}
+            hits.extend(
+                tracker.search_core(
+                    index,
+                    query_vector,
+                    top_k - len(hits),
+                    exclude=seen_probe,
+                )
+            )
+        selected = [memory_id for memory_id, score in hits[:top_k] if score >= 0.3]
     else:
         selected = _recollection_search(
             ids,

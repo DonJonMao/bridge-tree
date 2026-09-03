@@ -149,8 +149,13 @@ class EmbeddingConfig(EndpointConfig):
     batch_size: int = 32
     local_model_path: str = ""
     query_instruction: str = (
-        "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+        "Instruct: Retrieve past personal interactions that help answer the current request\nQuery: "
     )
+
+
+@dataclass(frozen=True)
+class RerankerConfig(EndpointConfig):
+    cache_dir: str = "outputs/rerank_cache"
 
 
 @dataclass(frozen=True)
@@ -168,8 +173,63 @@ class GeneratorConfig(EndpointConfig):
 @dataclass(frozen=True)
 class ModelsConfig:
     embedding: EmbeddingConfig
-    reranker: EndpointConfig
+    reranker: RerankerConfig
     generator: GeneratorConfig
+
+
+@dataclass(frozen=True)
+class BridgeRerankConfig:
+    """Effect-first candidate discovery followed by task-aware reranking."""
+
+    dense_pool_width: int = 20
+    anchor_width: int = 12
+    expand_branch_count: int = 2
+    branch_overfetch_width: int = 8
+    branch_keep_width: int = 4
+    probe_mode: str = "query_anchor"
+    path_filter: bool = True
+    use_answer_options: bool = True
+    include_time_metadata: bool = True
+    bridge_query_instruction: str = (
+        "Instruct: Retrieve a distinct past personal interaction that complements an anchor "
+        "for answering the current request\nQuery: "
+    )
+    final_rerank_instruction: str = (
+        "Rank past user interactions by how useful they are for selecting the best personalized answer. "
+        "Prioritize explicit user preferences, constraints, experiences, and the latest state when preferences "
+        "evolve. A passage that is merely topically related but cannot distinguish the answer choices should "
+        "rank low."
+    )
+    path_filter_instruction: str = (
+        "Rank candidate interactions by whether they add distinct, independently usable personal evidence "
+        "beyond the anchor for answering the current request. Avoid anchor paraphrases and merely topical "
+        "passages."
+    )
+
+    def validate(self, retrieval: RetrievalConfig) -> None:
+        positive = {
+            "dense_pool_width": self.dense_pool_width,
+            "anchor_width": self.anchor_width,
+            "expand_branch_count": self.expand_branch_count,
+            "branch_overfetch_width": self.branch_overfetch_width,
+            "branch_keep_width": self.branch_keep_width,
+        }
+        for name, value in positive.items():
+            if value <= 0:
+                raise ValueError(f"bridge_rerank.{name} must be positive")
+        if retrieval.context_size > self.dense_pool_width:
+            raise ValueError("retrieval.context_size must be <= bridge_rerank.dense_pool_width")
+        if self.anchor_width > self.dense_pool_width:
+            raise ValueError("bridge_rerank.anchor_width must be <= bridge_rerank.dense_pool_width")
+        if self.branch_keep_width > self.branch_overfetch_width:
+            raise ValueError("bridge_rerank.branch_keep_width must be <= bridge_rerank.branch_overfetch_width")
+        if self.expand_branch_count > retrieval.cluster_count:
+            raise ValueError("bridge_rerank.expand_branch_count must be <= retrieval.cluster_count")
+        if self.probe_mode not in {"centroid", "query_anchor"}:
+            raise ValueError("bridge_rerank.probe_mode must be centroid or query_anchor")
+        for name in ("bridge_query_instruction", "final_rerank_instruction", "path_filter_instruction"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"bridge_rerank.{name} cannot be empty")
 
 
 @dataclass(frozen=True)
@@ -193,11 +253,13 @@ class AppConfig:
     seed: int
     retrieval: RetrievalConfig
     models: ModelsConfig
+    bridge_rerank: BridgeRerankConfig = field(default_factory=BridgeRerankConfig)
     data: DataConfig = field(default_factory=DataConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
 
     def validate(self) -> None:
         self.retrieval.validate()
+        self.bridge_rerank.validate(self.retrieval)
         if self.models.embedding.backend not in {"remote", "local"}:
             raise ValueError("models.embedding.backend must be remote or local")
         if self.data.split not in {"32k", "128k", "1M"}:
@@ -250,12 +312,13 @@ def load_config(path: str | Path, override_path: str | Path | None = None) -> Ap
     retrieval = _retrieval_from_mapping(raw.get("retrieval", {}))
     models_raw = raw.get("models", {})
     embedding = EmbeddingConfig(**models_raw.get("embedding", {}))
-    reranker = EndpointConfig(**models_raw.get("reranker", {}))
+    reranker = RerankerConfig(**models_raw.get("reranker", {}))
     generator = GeneratorConfig(**models_raw.get("generator", {}))
     config = AppConfig(
         seed=int(raw.get("seed", 42)),
         retrieval=retrieval,
         models=ModelsConfig(embedding=embedding, reranker=reranker, generator=generator),
+        bridge_rerank=BridgeRerankConfig(**raw.get("bridge_rerank", {})),
         data=DataConfig(**raw.get("data", {})),
         runtime=RuntimeConfig(**raw.get("runtime", {})),
     )
@@ -270,6 +333,10 @@ def apply_runtime_overrides(config: AppConfig, overrides: Mapping[str, Any]) -> 
     current = config
     if retrieval_values:
         current = replace(current, retrieval=replace(current.retrieval, **retrieval_values))
+    bridge_fields = set(BridgeRerankConfig.__dataclass_fields__)
+    bridge_values = {key: value for key, value in overrides.items() if key in bridge_fields and value is not None}
+    if bridge_values:
+        current = replace(current, bridge_rerank=replace(current.bridge_rerank, **bridge_values))
     if overrides.get("seed") is not None:
         current = replace(current, seed=int(overrides["seed"]))
     data_values = {

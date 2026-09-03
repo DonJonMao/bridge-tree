@@ -13,9 +13,18 @@ from .aggregation import aggregate_runs
 from .clients import build_embedder
 from .config import apply_runtime_overrides, load_config
 from .experiment import METHODS, run_personamem_experiment
+from .offline_validation import validate_full_32k_offline
 from .personamem import PERSONAMEM_REPO, PERSONAMEM_REVISION, prepare_split
+from .run_audit import audit_tuning_run
+from .server_bundle import build_server_bundle, verify_bundle_offline_launcher
 from .smoke import run_synthetic_smoke
-from .training import load_tuning_config, run_tuning_experiment
+from .training import (
+    EFFECT_FIRST_VALIDATION_METHODS,
+    load_tuning_config,
+    preflight_tuning,
+    run_effect_first_validation,
+    run_tuning_experiment,
+)
 
 
 def _download(url: str, destination: Path) -> None:
@@ -61,6 +70,28 @@ def _add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--stop-mode", choices=("budget", "certificate_or_budget"))
     parser.add_argument("--diagnostic-level", choices=("off", "light", "full"))
     parser.add_argument("--root-anchor-weight", type=float)
+    parser.add_argument("--dense-pool-width", type=int)
+    parser.add_argument("--anchor-width", type=int)
+    parser.add_argument("--expand-branch-count", type=int)
+    parser.add_argument("--branch-overfetch-width", type=int)
+    parser.add_argument("--branch-keep-width", type=int)
+    parser.add_argument("--probe-mode", choices=("centroid", "query_anchor"))
+    parser.add_argument("--path-filter", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument(
+        "--rerank-use-options",
+        dest="use_answer_options",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--rerank-include-time",
+        dest="include_time_metadata",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument("--bridge-query-instruction")
+    parser.add_argument("--final-rerank-instruction")
+    parser.add_argument("--path-filter-instruction")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--index-backend", choices=("exact", "faiss"))
     parser.add_argument("--memory-granularity", choices=("user_only", "user_assistant_pair"))
@@ -105,6 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--processed-dir", default="data/processed/personamem-v1")
     prepare.add_argument("--split", choices=("32k", "128k", "1M"), default="32k")
 
+    configured_data = subparsers.add_parser(
+        "prepare-configured-data",
+        help="Download, pinned-checksum, and prepare formal PersonaMem 32K data from app config",
+    )
+    configured_data.add_argument("--config", default="configs/default.yaml")
+    configured_data.add_argument("--override-config")
+    configured_data.add_argument("--download-missing", action=argparse.BooleanOptionalAction, default=True)
+
     run = subparsers.add_parser("run", help="Run a PersonaMem retrieval/e2e experiment")
     run.add_argument("--config", default="configs/default.yaml")
     run.add_argument("--override-config")
@@ -141,7 +180,24 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--override-config")
     tune.add_argument("--tuning-config", "--training-config", dest="tuning_config", default="configs/train.yaml")
     tune.add_argument("--output-dir")
+    tune.add_argument(
+        "--audit-full-32k",
+        action="store_true",
+        help="Require the persisted run to pass the independent formal 32K completion audit",
+    )
+    tune.add_argument("--max-parse-failure-rate", type=float, default=0.05)
     _add_runtime_arguments(tune)
+
+    preflight = subparsers.add_parser(
+        "preflight-tuning",
+        help="Validate tuning data, protocol, search space, and model services",
+    )
+    preflight.add_argument("--config", default="configs/default.yaml")
+    preflight.add_argument("--override-config")
+    preflight.add_argument("--tuning-config", "--training-config", dest="tuning_config", default="configs/train.yaml")
+    preflight.add_argument("--check-services", action=argparse.BooleanOptionalAction, default=False)
+    preflight.add_argument("--require-full-32k", action="store_true")
+    _add_runtime_arguments(preflight)
 
     check = subparsers.add_parser("check-ascend", help="Report Ascend/PyTorch runtime availability")
     check.add_argument("--strict", action="store_true")
@@ -154,6 +210,45 @@ def build_parser() -> argparse.ArgumentParser:
     aggregate.add_argument("--reference-label", default="core")
     aggregate.add_argument("--bootstrap-seed", type=int, default=42)
     aggregate.add_argument("--bootstrap-resamples", type=int, default=2000)
+
+    package = subparsers.add_parser(
+        "package-server",
+        help="Build and verify a portable server bundle containing formal 32K data",
+    )
+    package.add_argument("--output-dir", default="dist/server")
+    package.add_argument(
+        "--verify-offline-launcher",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
+    offline_full = subparsers.add_parser(
+        "validate-full-32k-offline",
+        help="Run the complete 32K scheduler with explicit fake local clients",
+    )
+    offline_full.add_argument("--config", default="configs/default.yaml")
+    offline_full.add_argument("--tuning-config", default="configs/train.yaml")
+    offline_full.add_argument("--output-dir", default="outputs/offline-full-32k-validation")
+
+    effect = subparsers.add_parser(
+        "validate-effect-first",
+        help="Run the predefined reranker-guided method matrix on validation personas only",
+    )
+    effect.add_argument("--config", default="configs/default.yaml")
+    effect.add_argument("--override-config", default="configs/personamem32k_effect_first.yaml")
+    effect.add_argument("--method", action="append", choices=EFFECT_FIRST_VALIDATION_METHODS, default=[])
+    effect.add_argument("--output-dir", default="outputs/effect-first-validation")
+    effect.add_argument("--limit", type=int)
+    effect.add_argument("--generate", action=argparse.BooleanOptionalAction, default=True)
+    _add_runtime_arguments(effect)
+
+    audit = subparsers.add_parser(
+        "audit-tuning-run",
+        help="Independently validate a completed tuning run from its persisted artifacts",
+    )
+    audit.add_argument("--run-dir", required=True)
+    audit.add_argument("--require-full-32k", action="store_true")
+    audit.add_argument("--max-parse-failure-rate", type=float, default=0.05)
     return parser
 
 
@@ -164,6 +259,28 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "prepare-personamem":
         print(json.dumps(prepare_split(args.raw_dir, args.processed_dir, args.split), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "prepare-configured-data":
+        config = load_config(args.config, args.override_config)
+        split = config.data.split
+        if split != "32k":
+            raise ValueError("prepare-configured-data is the pinned formal 32K data gate")
+        raw_root = Path(config.data.raw_dir)
+        source_paths = (
+            raw_root / f"questions_{split}.csv",
+            raw_root / f"shared_contexts_{split}.jsonl",
+        )
+        if any(not path.is_file() or path.stat().st_size <= 0 for path in source_paths):
+            if not args.download_missing:
+                raise FileNotFoundError(f"PersonaMem {split} source is missing and download is disabled")
+            download_personamem(raw_root, [split])
+        result = prepare_split(
+            raw_root,
+            config.data.processed_dir,
+            split,
+            verify_pinned_source=True,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.command == "run":
         config = _resolved_config(args)
@@ -193,7 +310,14 @@ def main(argv: list[str] | None = None) -> int:
         sweep_root = Path(args.output_dir or config.runtime.output_dir) / f"sweep_{time.time_ns()}"
         sweep_root.mkdir(parents=True, exist_ok=False)
         runs = []
-        static_methods = {"dense", "dense_rerank", "rfmem_familiarity"}
+        static_methods = {
+            "dense",
+            "dense_rerank",
+            "dense_rerank_20",
+            "dense_rerank_28",
+            "full_pool_rerank",
+            "rfmem_familiarity",
+        }
         for method in methods:
             method_budgets = [None] if method in static_methods else budgets
             for budget in method_budgets:
@@ -250,6 +374,29 @@ def main(argv: list[str] | None = None) -> int:
             embedder,
             output_dir=args.output_dir,
         )
+        if args.audit_full_32k:
+            completion_audit = audit_tuning_run(
+                result["run_dir"],
+                require_full_32k=True,
+                max_parse_failure_rate=args.max_parse_failure_rate,
+                raise_on_error=True,
+            )
+            result = {**result, "completion_audit": completion_audit}
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "preflight-tuning":
+        config = _resolved_config(args)
+        training_config = _resolved_tuning_config(args)
+        embedder = (
+            build_embedder(config.models.embedding, device=config.runtime.device) if args.check_services else None
+        )
+        result = preflight_tuning(
+            config,
+            training_config,
+            embedder=embedder,
+            check_services=args.check_services,
+            require_full_32k=args.require_full_32k,
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.command == "check-ascend":
@@ -278,6 +425,43 @@ def main(argv: list[str] | None = None) -> int:
             reference_label=args.reference_label,
             bootstrap_seed=args.bootstrap_seed,
             bootstrap_resamples=args.bootstrap_resamples,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "package-server":
+        repository_root = Path(__file__).resolve().parents[2]
+        result = build_server_bundle(repository_root, args.output_dir)
+        if args.verify_offline_launcher:
+            result.update(verify_bundle_offline_launcher(result["archive"], sys.executable))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "validate-full-32k-offline":
+        result = validate_full_32k_offline(
+            config_path=args.config,
+            tuning_config_path=args.tuning_config,
+            output_dir=args.output_dir,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "validate-effect-first":
+        config = _resolved_config(args)
+        embedder = build_embedder(config.models.embedding, device=config.runtime.device)
+        result = run_effect_first_validation(
+            config,
+            embedder,
+            methods=args.method or EFFECT_FIRST_VALIDATION_METHODS,
+            output_dir=args.output_dir,
+            limit=args.limit,
+            generate=args.generate,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "audit-tuning-run":
+        result = audit_tuning_run(
+            args.run_dir,
+            require_full_32k=args.require_full_32k,
+            max_parse_failure_rate=args.max_parse_failure_rate,
+            raise_on_error=True,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

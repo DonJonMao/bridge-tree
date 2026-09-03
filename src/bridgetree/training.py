@@ -10,6 +10,7 @@ from itertools import product
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence
 
+import numpy as np
 import yaml
 
 from .budget import CostTracker, SearchBudget
@@ -22,7 +23,17 @@ from .clients import (
     generation_prompt_hash,
 )
 from .config import AppConfig, RetrievalConfig
-from .experiment import ABLATION_OPTIONS, METHODS, EmbeddingCache, IndexCache, load_bridge_gold, retrieve_method
+from .experiment import (
+    ABLATION_OPTIONS,
+    BRIDGE_RERANK_METHODS,
+    METHODS,
+    RERANK_METHODS,
+    EmbeddingCache,
+    IndexCache,
+    _refresh_rerank_selection_diagnostics,
+    load_bridge_gold,
+    retrieve_method,
+)
 from .metrics import (
     answer_accuracy,
     answer_parse_failed,
@@ -39,7 +50,15 @@ from .module_metrics import (
     module_metric_delta,
 )
 from .module_metrics import collect_module_metrics as collect_metrics
-from .personamem import PERSONAMEM_REVISION, PersonaMemExample, iter_examples, messages_to_memories
+from .personamem import (
+    PERSONAMEM_REVISION,
+    PERSONAMEM_SOURCE_SHA256,
+    PersonaMemExample,
+    file_sha256,
+    iter_examples,
+    messages_to_memories,
+)
+from .ranking import RerankCache
 
 DEFAULT_DIAGNOSTIC_METHODS = (
     "bridgetree",
@@ -71,9 +90,6 @@ class SplitProtocol:
 
 @dataclass(frozen=True)
 class TrainingSchedule:
-    periodic_eval_every: int = 50
-    periodic_eval_queries: int = 8
-    max_train_queries: int | None = None
     max_validation_queries: int | None = None
     max_test_queries: int | None = None
 
@@ -83,6 +99,24 @@ class SearchSpace:
     initial_width: tuple[int, ...] = (8, 12)
     branch_width: tuple[int, ...] = (4, 8)
     search_budget: tuple[int, ...] = (64,)
+
+
+FORMAL_32K_SEED = 42
+FORMAL_32K_SPLIT = SplitProtocol()
+FORMAL_32K_SEARCH_SPACE = SearchSpace(
+    initial_width=(8, 12),
+    branch_width=(4, 8),
+    search_budget=(20, 28, 36, 44),
+)
+FORMAL_32K_PARTITION_QUERIES = {"train": 432, "validation": 84, "test": 73}
+EFFECT_FIRST_VALIDATION_METHODS = (
+    "dense_rerank_20",
+    "dense_rerank_28",
+    "bridgetree_union_rerank",
+    "bridgetree_guided_rerank",
+    "bridgetree_guided_pathfilter",
+    "full_pool_rerank",
+)
 
 
 @dataclass(frozen=True)
@@ -98,6 +132,7 @@ class TrainingExperimentConfig:
     bridge_gold_path: str | None = None
     validation_generate: bool = False
     final_generate: bool = False
+    fail_on_evaluation_error: bool = True
     keep_example_metrics: bool = True
     output_dir: str = "outputs/training"
 
@@ -105,9 +140,7 @@ class TrainingExperimentConfig:
         ratios = (self.split.train_ratio, self.split.validation_ratio, self.split.test_ratio)
         if any(value <= 0.0 for value in ratios) or abs(sum(ratios) - 1.0) > 1e-9:
             raise ValueError("train/validation/test ratios must be positive and sum to 1")
-        if self.schedule.periodic_eval_every <= 0 or self.schedule.periodic_eval_queries <= 0:
-            raise ValueError("periodic_eval_every and periodic_eval_queries must be positive")
-        for name in ("max_train_queries", "max_validation_queries", "max_test_queries"):
+        for name in ("max_validation_queries", "max_test_queries"):
             value = getattr(self.schedule, name)
             if value is not None and value <= 0:
                 raise ValueError(f"{name} must be positive when set")
@@ -151,6 +184,11 @@ class TrainingExperimentConfig:
             raise ValueError("validation_generate=true requires final_generate=true")
         if self.objective_metric in {"outcome.recall_at_k", "outcome.bridge_recall_at_k"} and not self.bridge_gold_path:
             raise ValueError("recall tuning requires bridge_gold_path")
+        has_external_objective = (
+            self.objective_metric != "auto" or self.validation_generate or self.bridge_gold_path is not None
+        )
+        if has_external_objective and not self.fail_on_evaluation_error:
+            raise ValueError("external-outcome tuning requires fail_on_evaluation_error=true")
 
 
 @dataclass(frozen=True)
@@ -193,6 +231,7 @@ def load_training_config(path: str | Path) -> TrainingExperimentConfig:
         bridge_gold_path=raw.get("bridge_gold_path"),
         validation_generate=bool(raw.get("validation_generate", False)),
         final_generate=bool(raw.get("final_generate", False)),
+        fail_on_evaluation_error=bool(raw.get("fail_on_evaluation_error", True)),
         keep_example_metrics=bool(raw.get("keep_example_metrics", True)),
         output_dir=str(raw.get("output_dir", "outputs/training")),
     )
@@ -243,6 +282,10 @@ def _limited(examples: Sequence[PersonaMemExample], limit: int | None) -> tuple[
     return tuple(examples[:limit]) if limit is not None else tuple(examples)
 
 
+def _question_id_sha256(question_ids: Sequence[str]) -> str:
+    return hashlib.sha256("\n".join(question_ids).encode("utf-8")).hexdigest()
+
+
 def build_retrieval_trials(base: RetrievalConfig, search_space: SearchSpace) -> list[RetrievalConfig]:
     trials = []
     for first_hop, branch_width, budget in product(
@@ -265,6 +308,8 @@ class TrainingMetricsWriter:
     def __init__(self, root: Path, keep_examples: bool):
         self.root = root
         self.keep_examples = keep_examples
+        self.started_at = time.time()
+        self.failure_count = 0
         self.root.mkdir(parents=True, exist_ok=False)
         (self.root / "modules").mkdir()
         self.event_id = 0
@@ -274,9 +319,28 @@ class TrainingMetricsWriter:
             )
 
     def write_json(self, name: str, value: Any) -> None:
-        with (self.root / name).open("w", encoding="utf-8") as handle:
+        destination = self.root / name
+        temporary = destination.with_name(destination.name + ".tmp")
+        with temporary.open("w", encoding="utf-8") as handle:
             json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
             handle.write("\n")
+        temporary.replace(destination)
+
+    def write_progress(self, value: Mapping[str, Any], *, status: str = "running") -> None:
+        progress = {**value, "status": status, "updated_at": time.time()}
+        self.write_json("progress.json", progress)
+
+    def write_run_status(self, status: str, **values: Any) -> None:
+        self.write_json(
+            "run_status.json",
+            {
+                "status": status,
+                "started_at": self.started_at,
+                "updated_at": time.time(),
+                "failure_count": self.failure_count,
+                **values,
+            },
+        )
 
     def write_example(self, context: Mapping[str, Any], metrics: Mapping[str, Any]) -> None:
         if not self.keep_examples:
@@ -341,18 +405,16 @@ class TrainingMetricsWriter:
             handle.write(json.dumps({**context, "full_minus_ablation": value}, ensure_ascii=False) + "\n")
 
     def write_failure(self, context: Mapping[str, Any], exc: Exception) -> None:
+        self.failure_count += 1
+        failure = {
+            **context,
+            "error_type": type(exc).__name__,
+            "message": str(exc),
+        }
         with (self.root / "failures.jsonl").open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(
-                    {
-                        **context,
-                        "error_type": type(exc).__name__,
-                        "message": str(exc),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
+            handle.write(json.dumps(failure, ensure_ascii=False) + "\n")
+        self.write_progress({**context, "failure_count": self.failure_count, "last_failure": failure}, status="failed")
+        self.write_run_status("failed", last_failure=failure)
 
 
 class TrainingEvaluator:
@@ -374,7 +436,17 @@ class TrainingEvaluator:
         self.bridge_gold = bridge_gold
         self.generator = GeneratorClient(app_config.models.generator)
         self.reranker = RerankerClient(app_config.models.reranker)
+        self.rerank_cache = RerankCache(
+            getattr(
+                app_config.models.reranker,
+                "cache_dir",
+                str(Path(app_config.runtime.cache_dir) / "rerank"),
+            ),
+            endpoint=app_config.models.reranker.endpoint,
+            model=app_config.models.reranker.model,
+        )
         self.index_cache = IndexCache()
+        self.example_artifacts: List[Dict[str, Any]] = []
 
     def evaluate_one(
         self,
@@ -422,17 +494,20 @@ class TrainingEvaluator:
             memories,
             query_vector,
             memory_vectors,
-            reranker=self.reranker if method == "dense_rerank" else None,
+            reranker=self.reranker if method in RERANK_METHODS else None,
             index=index,
             budget=tracker.budget,
             cost_tracker=tracker,
             index_build_ms=index_build_ms,
+            embedding_cache=self.cache,
+            rerank_cache=self.rerank_cache if method in RERANK_METHODS else None,
         )
         retrieval_seconds = time.perf_counter() - retrieval_started
         tracker = diagnostics.pop("_cost_tracker")
         selected = fit_context_budget(selected, self.app_config.models.generator.context_token_budget)
         retained_ids = {memory.memory_id for memory in selected}
         selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
+        _refresh_rerank_selection_diagnostics(diagnostics, selected_ids)
         tracker.final_context_count = len(selected)
         tracker.final_context_tokens = context_token_count(selected)
 
@@ -488,6 +563,43 @@ class TrainingEvaluator:
                 "embedding_dimension": float(memory_vectors.shape[1]),
             }
             metrics["selection"] = {"selected_count": float(len(selected_ids))}
+            if "selected_bridge_count" in diagnostics:
+                metrics["selection"].update(
+                    {
+                        "selected_bridge_count": float(diagnostics["selected_bridge_count"]),
+                        "selected_bridge_rate": float(diagnostics["selected_bridge_rate"]),
+                        "dense_top5_retention": float(diagnostics["dense_rerank_top5_retention"]),
+                        "mean_final_rerank_score": (
+                            sum(
+                                float(diagnostics["final_rerank_scores"][memory_id])
+                                for memory_id in selected_ids
+                                if memory_id in diagnostics.get("final_rerank_scores", {})
+                            )
+                            / max(
+                                1,
+                                sum(
+                                    memory_id in diagnostics.get("final_rerank_scores", {})
+                                    for memory_id in selected_ids
+                                ),
+                            )
+                            if diagnostics.get("final_rerank_scores") and selected_ids
+                            else 0.0
+                        ),
+                    }
+                )
+            if "candidate" in metrics and "candidate_union_ids" in diagnostics:
+                dense_ids = diagnostics.get("dense_pool_ids", [])
+                bridge_raw = diagnostics.get("bridge_raw_ids", [])
+                bridge_kept = diagnostics.get("bridge_kept_ids", [])
+                union_ids = diagnostics.get("candidate_union_ids", [])
+                metrics["candidate"] = {
+                    "dense_pool_count": float(len(dense_ids)),
+                    "anchor_count": float(len(diagnostics.get("anchor_ids", []))),
+                    "bridge_raw_count": float(len(bridge_raw)),
+                    "bridge_kept_count": float(len(bridge_kept)),
+                    "union_count": float(len(union_ids)),
+                    "bridge_novelty_rate": float(diagnostics.get("bridge_candidate_novelty", 0.0)),
+                }
             metrics["search"] = {
                 "ann_calls": float(tracker.ann_calls_core),
                 "visited_nodes": float(tracker.cost_unique_count),
@@ -515,8 +627,59 @@ class TrainingEvaluator:
                 "question_id": example.question_id,
                 "selected_memory_ids": selected_ids,
                 "response": response,
+                "retrieval_diagnostics": diagnostics,
             },
             metrics,
+        )
+        cost_snapshot = tracker.snapshot().to_dict()
+        self.example_artifacts.append(
+            {
+                **context,
+                "method": method,
+                "persona_id": example.persona_id,
+                "question_id": example.question_id,
+                "selected_memory_ids": list(selected_ids),
+                "candidate_union_ids": list(diagnostics.get("candidate_union_ids", selected_ids)),
+                "outcome": dict(metrics.get("outcome", {})),
+                "cost": cost_snapshot,
+                **{
+                    name: cost_snapshot[name]
+                    for name in (
+                        "rerank_calls",
+                        "rerank_documents",
+                        "rerank_ms",
+                        "bridge_embedding_calls",
+                        "bridge_embedding_queries",
+                        "bridge_embedding_ms",
+                    )
+                },
+                "response": response,
+                "retrieval_diagnostics": diagnostics,
+                **{
+                    key: diagnostics[key]
+                    for key in (
+                        "dense_pool_ids",
+                        "anchor_ids",
+                        "bridge_raw_ids",
+                        "bridge_kept_ids",
+                        "selected_source_by_id",
+                        "selected_bridge_count",
+                        "selected_bridge_rate",
+                        "dense_rerank_top5_retention",
+                        "bridge_candidate_novelty",
+                        "dense_rerank_top_ids",
+                        "parent_by_bridge_id",
+                        "branch_by_bridge_id",
+                        "raw_bridge_ids_by_branch",
+                        "dense_rerank_scores",
+                        "bridge_ann_scores",
+                        "path_filter_scores",
+                        "final_rerank_scores",
+                        "rerank_cache_hits",
+                    )
+                    if key in diagnostics
+                },
+            }
         )
         return metrics
 
@@ -526,19 +689,70 @@ class TrainingEvaluator:
         method: str,
         generate: bool,
         context: Mapping[str, Any],
+        *,
+        fail_on_error: bool,
     ) -> Dict[str, Any]:
         records = []
+        artifact_start = len(self.example_artifacts)
+        attempted_question_ids = []
         successful_question_ids = []
-        for example in examples:
+        for evaluation_index, example in enumerate(examples, start=1):
+            attempted_question_ids.append(example.question_id)
             try:
                 records.append(self.evaluate_one(example, method, generate, context))
                 successful_question_ids.append(example.question_id)
             except Exception as exc:
                 self.writer.write_failure(
-                    {**context, "method": method, "question_id": example.question_id},
+                    {
+                        **context,
+                        "method": method,
+                        "question_id": example.question_id,
+                        "evaluation_index": len(attempted_question_ids),
+                        "evaluation_queries": len(examples),
+                        "successful_queries": len(successful_question_ids),
+                        "failed_queries": len(attempted_question_ids) - len(successful_question_ids),
+                        "last_question_id": example.question_id,
+                        "successful_queries_before_failure": len(successful_question_ids),
+                    },
                     exc,
                 )
+                if fail_on_error:
+                    raise RuntimeError(
+                        f"{method} failed on evaluation query {example.question_id} "
+                        f"({len(attempted_question_ids)}/{len(examples)} attempted); "
+                        "formal tuning requires zero failed queries"
+                    ) from exc
+            if evaluation_index == 1 or evaluation_index % 10 == 0 or evaluation_index == len(examples):
+                progress = {
+                    **context,
+                    "method": method,
+                    "evaluation_index": evaluation_index,
+                    "evaluation_queries": len(examples),
+                    "successful_queries": len(successful_question_ids),
+                    "failed_queries": evaluation_index - len(successful_question_ids),
+                    "last_question_id": example.question_id,
+                }
+                self.writer.write_progress(progress)
+                print(
+                    f"[BridgeTree tune] progress phase={context.get('phase')} "
+                    f"trial={context.get('trial')} method={method} "
+                    f"queries={evaluation_index}/{len(examples)} failures={progress['failed_queries']}",
+                    flush=True,
+                )
         summary = aggregate_module_metrics(records)
+        attempted_queries = len(attempted_question_ids)
+        successful_queries = len(successful_question_ids)
+        failed_queries = attempted_queries - successful_queries
+        summary.update(
+            {
+                "attempted_queries": attempted_queries,
+                "successful_queries": successful_queries,
+                "failed_queries": failed_queries,
+                "failure_rate": failed_queries / attempted_queries if attempted_queries else 0.0,
+                "attempted_question_id_sha256": _question_id_sha256(attempted_question_ids),
+                "successful_question_id_sha256": _question_id_sha256(successful_question_ids),
+            }
+        )
         outcome_names = sorted({name for record in records for name in record.get("outcome", {})})
         summary["outcome_values"] = {
             name: [float(record["outcome"][name]) for record in records if name in record.get("outcome", {})]
@@ -551,6 +765,13 @@ class TrainingEvaluator:
                 if name in record.get("outcome", {})
             }
             for name in outcome_names
+        }
+        artifacts = self.example_artifacts[artifact_start:]
+        summary["selected_ids_by_question"] = {
+            str(record["question_id"]): list(record["selected_memory_ids"]) for record in artifacts
+        }
+        summary["candidate_union_ids_by_question"] = {
+            str(record["question_id"]): list(record["candidate_union_ids"]) for record in artifacts
         }
         return summary
 
@@ -570,7 +791,7 @@ def _split_manifest(splits: ExampleSplits, seed: int) -> Dict[str, Any]:
         return {
             "queries": len(ids),
             "personas": list(personas),
-            "question_id_sha256": hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest(),
+            "question_id_sha256": _question_id_sha256(ids),
         }
 
     return {
@@ -618,17 +839,14 @@ def _is_better(
     values: Sequence[float] = (),
     best_values: Sequence[float] = (),
 ) -> bool:
+    """Select by the validation point estimate; use cost only for an exact tie.
+
+    Per-query values remain accepted for compatibility with older callers, but
+    bootstrap uncertainty is report-only and must not alter the incumbent.
+    """
+    del values, best_values
     if best_score is None:
         return True
-    if len(values) == len(best_values) and len(values) >= 2:
-        interval = paired_bootstrap_interval(values, best_values, resamples=1000)
-        if mode == "max" and interval["ci_low"] > 0.0:
-            return True
-        if mode == "min" and interval["ci_high"] < 0.0:
-            return True
-        if (mode == "max" and interval["ci_high"] < 0.0) or (mode == "min" and interval["ci_low"] > 0.0):
-            return False
-        return best_cost is None or cost < best_cost
     if (mode == "max" and score > best_score + 1e-12) or (mode == "min" and score < best_score - 1e-12):
         return True
     return abs(score - best_score) <= 1e-12 and (best_cost is None or cost < best_cost)
@@ -662,6 +880,195 @@ def _cost_pareto_frontier(trials: Sequence[Mapping[str, Any]]) -> List[Dict[str,
     return frontier
 
 
+def preflight_tuning(
+    app_config: AppConfig,
+    training_config: TrainingExperimentConfig,
+    *,
+    embedder: Embedder | None = None,
+    check_services: bool = False,
+    require_full_32k: bool = False,
+) -> Dict[str, Any]:
+    """Validate data, protocol, search space, and optionally every required service."""
+    app_config.validate()
+    training_config.validate()
+    objective_metric = _resolved_objective(training_config)
+    if objective_metric is None:
+        raise ValueError("tuning preflight requires an external validation objective")
+
+    if require_full_32k:
+        if app_config.data.split != "32k":
+            raise ValueError("full 32K tuning requires data.split=32k")
+        if not app_config.data.include_system_persona:
+            raise ValueError("full 32K tuning requires include_system_persona=true")
+        if app_config.data.memory_granularity != "user_assistant_pair":
+            raise ValueError("full 32K tuning requires memory_granularity=user_assistant_pair")
+        if app_config.seed != FORMAL_32K_SEED or training_config.seed != FORMAL_32K_SEED:
+            raise ValueError(f"full 32K tuning requires app and tuning seed={FORMAL_32K_SEED}")
+        if training_config.split != FORMAL_32K_SPLIT:
+            raise ValueError("full 32K tuning requires the pinned 70/15/15 persona split")
+        if training_config.search_space != FORMAL_32K_SEARCH_SPACE:
+            raise ValueError("full 32K tuning requires the pinned 2x2x4 search space")
+        if training_config.schedule.max_validation_queries is not None:
+            raise ValueError("full 32K tuning requires max_validation_queries=null")
+        if training_config.schedule.max_test_queries is not None:
+            raise ValueError("full 32K tuning requires max_test_queries=null")
+        if objective_metric != "outcome.answer_accuracy":
+            raise ValueError("full 32K tuning requires outcome.answer_accuracy")
+        if not training_config.validation_generate or not training_config.final_generate:
+            raise ValueError("full 32K answer tuning requires validation_generate=true and final_generate=true")
+        if not training_config.fail_on_evaluation_error:
+            raise ValueError("full 32K tuning requires fail_on_evaluation_error=true")
+        if not training_config.keep_example_metrics:
+            raise ValueError("full 32K tuning requires keep_example_metrics=true for completion auditing")
+        if training_config.diagnostic_methods != ("bridgetree",):
+            raise ValueError("full 32K tuning must isolate diagnostics to bridgetree during search")
+        if training_config.main_table_methods != DEFAULT_MAIN_TABLE_METHODS:
+            raise ValueError("full 32K tuning requires all seven main-table methods in the pinned order")
+        formal_retrieval = asdict(RetrievalConfig())
+        actual_retrieval = asdict(app_config.retrieval)
+        for tuned_name in ("initial_width", "branch_width", "search_budget"):
+            formal_retrieval.pop(tuned_name)
+            actual_retrieval.pop(tuned_name)
+        if actual_retrieval != formal_retrieval:
+            raise ValueError("full 32K tuning requires the pinned retrieval protocol outside the search axes")
+
+    raw_root = Path(app_config.data.raw_dir)
+    split = app_config.data.split
+    question_path = raw_root / f"questions_{split}.csv"
+    context_path = raw_root / f"shared_contexts_{split}.jsonl"
+    for path in (question_path, context_path):
+        if not path.is_file() or path.stat().st_size <= 0:
+            raise FileNotFoundError(f"PersonaMem source file is missing or empty: {path}")
+
+    manifest_path = Path(app_config.data.processed_dir) / split / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"prepared PersonaMem manifest is missing: {manifest_path}; run `bridgetree prepare-personamem`"
+        )
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        data_manifest = json.load(handle)
+    if data_manifest.get("revision") != PERSONAMEM_REVISION or data_manifest.get("split") != split:
+        raise ValueError("prepared PersonaMem manifest revision/split does not match the pinned protocol")
+    source_hashes = data_manifest.get("source_sha256", {})
+    actual_source_hashes = {
+        question_path.name: file_sha256(question_path),
+        context_path.name: file_sha256(context_path),
+    }
+    if require_full_32k and actual_source_hashes != PERSONAMEM_SOURCE_SHA256["32k"]:
+        raise ValueError("PersonaMem 32K source does not match the pinned official checksums")
+    for filename, actual_hash in actual_source_hashes.items():
+        if source_hashes.get(filename) != actual_hash:
+            raise ValueError(f"PersonaMem source checksum mismatch: {filename}")
+
+    all_examples = _read_examples(app_config)
+    if len(all_examples) != int(data_manifest.get("questions", -1)):
+        raise ValueError("PersonaMem parsed question count does not match the prepared manifest")
+    splits = split_examples_by_persona(all_examples, training_config.split, training_config.seed)
+    validation_examples = _limited(splits.validation, training_config.schedule.max_validation_queries)
+    test_examples = _limited(splits.test, training_config.schedule.max_test_queries)
+    if not splits.train or not validation_examples or not test_examples:
+        raise ValueError("persona-disjoint train, validation, and test partitions must all be non-empty")
+    trials = build_retrieval_trials(app_config.retrieval, training_config.search_space)
+    if require_full_32k:
+        observed_counts = {
+            "train": len(splits.train),
+            "validation": len(validation_examples),
+            "test": len(test_examples),
+        }
+        if len(all_examples) != sum(FORMAL_32K_PARTITION_QUERIES.values()):
+            raise ValueError("full 32K tuning requires exactly 589 parsed questions")
+        if observed_counts != FORMAL_32K_PARTITION_QUERIES:
+            raise ValueError(
+                f"full 32K tuning partition counts changed: expected {FORMAL_32K_PARTITION_QUERIES}, "
+                f"observed {observed_counts}"
+            )
+
+    service_report: Dict[str, Any] = {"checked": False}
+    if check_services:
+        if embedder is None:
+            raise ValueError("check_services=true requires an embedder")
+        example = validation_examples[0]
+        memories = messages_to_memories(
+            example.messages,
+            source_prefix=example.question_id,
+            include_system_persona=app_config.data.include_system_persona,
+            memory_granularity=app_config.data.memory_granularity,
+        )
+        if not memories:
+            raise ValueError("preflight example has no retrievable memories")
+        query_vector = np.asarray(embedder.encode_query(example.query), dtype=np.float64)
+        document_vectors = np.asarray(embedder.encode([memories[0].text]), dtype=np.float64)
+        if query_vector.ndim != 1 or document_vectors.ndim != 2 or len(document_vectors) != 1:
+            raise ValueError("embedding service returned invalid query/document shapes")
+        if document_vectors.shape[1] != query_vector.shape[0]:
+            raise ValueError("embedding service returned mismatched query/document dimensions")
+        if not np.all(np.isfinite(query_vector)) or not np.all(np.isfinite(document_vectors)):
+            raise ValueError("embedding service returned non-finite values")
+        if np.linalg.norm(query_vector) <= 0.0 or np.linalg.norm(document_vectors[0]) <= 0.0:
+            raise ValueError("embedding service returned a zero vector")
+
+        response = GeneratorClient(app_config.models.generator).answer(
+            example.query,
+            memories[:1],
+            example.all_options,
+        )
+        if not response:
+            raise ValueError("generator service returned an empty response")
+        if answer_parse_failed(response):
+            raise ValueError("generator preflight response does not contain a parseable answer option")
+
+        reranker_checked = False
+        if "dense_rerank" in training_config.main_table_methods:
+            items = RerankerClient(app_config.models.reranker).rerank(
+                example.query,
+                [memory.text for memory in memories[:2]],
+                1,
+            )
+            if not items:
+                raise ValueError("reranker service returned no results")
+            reranker_checked = True
+        service_report = {
+            "checked": True,
+            "embedding_dimension": int(query_vector.shape[0]),
+            "generator_answer_parseable": True,
+            "reranker_checked": reranker_checked,
+        }
+
+    split_report = _split_manifest(splits, training_config.seed)
+    validation_count = len(validation_examples)
+    test_count = len(test_examples)
+    estimated_generator_calls = (
+        validation_count * len(trials) if training_config.validation_generate else 0
+    ) + (test_count * len(training_config.main_table_methods) if training_config.final_generate else 0)
+    return {
+        "status": "ready",
+        "data": {
+            "dataset_revision": PERSONAMEM_REVISION,
+            "split": split,
+            "questions": len(all_examples),
+            "source_sha256": actual_source_hashes,
+            "manifest": str(manifest_path),
+        },
+        "partitions": {
+            **split_report,
+            "evaluated_validation_queries": validation_count,
+            "evaluated_test_queries": test_count,
+        },
+        "tuning": {
+            "objective_metric": objective_metric,
+            "trial_count": len(trials),
+            "initial_width": list(training_config.search_space.initial_width),
+            "branch_width": list(training_config.search_space.branch_width),
+            "search_budget": list(training_config.search_space.search_budget),
+            "diagnostic_methods": list(training_config.diagnostic_methods),
+            "main_table_methods": list(training_config.main_table_methods),
+            "fail_on_evaluation_error": training_config.fail_on_evaluation_error,
+            "estimated_generator_calls": estimated_generator_calls,
+        },
+        "services": service_report,
+    }
+
+
 def run_training_experiment(
     app_config: AppConfig,
     training_config: TrainingExperimentConfig,
@@ -669,7 +1076,7 @@ def run_training_experiment(
     examples: Sequence[PersonaMemExample] | None = None,
     output_dir: str | Path | None = None,
 ) -> Dict[str, Any]:
-    """Tune retrieval configuration with periodic validation and no weight updates.
+    """Tune retrieval configuration once per candidate on external validation outcomes.
 
     Internal diagnostics are never eligible selection objectives. If neither
     generated validation outcomes nor independent gold are available, trials
@@ -678,15 +1085,14 @@ def run_training_experiment(
     training_config.validate()
     all_examples = list(examples) if examples is not None else _read_examples(app_config)
     splits = split_examples_by_persona(all_examples, training_config.split, training_config.seed)
-    train_examples = _limited(splits.train, training_config.schedule.max_train_queries)
     validation_examples = _limited(splits.validation, training_config.schedule.max_validation_queries)
     test_examples = _limited(splits.test, training_config.schedule.max_test_queries)
-    probe_examples = validation_examples[: training_config.schedule.periodic_eval_queries]
-    if not train_examples or not validation_examples or not test_examples or not probe_examples:
-        raise ValueError("training, validation, test, and periodic validation probe must all be non-empty")
+    if not splits.train or not validation_examples or not test_examples:
+        raise ValueError("persona-disjoint train, validation, and test partitions must all be non-empty")
 
     root = Path(output_dir or training_config.output_dir) / f"tune_{time.time_ns()}"
     writer = TrainingMetricsWriter(root, training_config.keep_example_metrics)
+    writer.write_run_status("running", run_dir=str(root), phase="initializing")
     writer.write_json("training_config.json", asdict(training_config))
     combined_config = {
         "app": app_config.resolved_dict(),
@@ -709,12 +1115,27 @@ def run_training_experiment(
         capture_output=True,
         text=True,
     ).stdout.strip()
+    raw_root = Path(app_config.data.raw_dir)
+    source_paths = (
+        raw_root / f"questions_{app_config.data.split}.csv",
+        raw_root / f"shared_contexts_{app_config.data.split}.jsonl",
+    )
+    source_sha256 = {path.name: file_sha256(path) for path in source_paths if path.is_file()}
     writer.write_json(
         "run_manifest.json",
         {
             "command": "tune",
+            "optimization_kind": "training_free_configuration_tuning",
             "git_commit": git_commit or None,
             "data_revision": PERSONAMEM_REVISION,
+            "data_split": app_config.data.split,
+            "source_sha256": source_sha256,
+            "dataset_queries": len(all_examples),
+            "train_queries_reserved": len(splits.train),
+            "validation_queries": len(validation_examples),
+            "test_queries": len(test_examples),
+            "trial_count": len(build_retrieval_trials(app_config.retrieval, training_config.search_space)),
+            "fail_on_evaluation_error": training_config.fail_on_evaluation_error,
             "embedding_model": app_config.models.embedding.model,
             "generator_model": app_config.models.generator.model,
             "prompt_hash": generation_prompt_hash(),
@@ -722,93 +1143,54 @@ def run_training_experiment(
         },
     )
     (root / "failures.jsonl").touch()
-    writer.write_json("split_manifest.json", _split_manifest(splits, training_config.seed))
+    split_manifest = _split_manifest(splits, training_config.seed)
+    writer.write_json("split_manifest.json", split_manifest)
     bridge_gold = load_bridge_gold(training_config.bridge_gold_path)
     trials = build_retrieval_trials(app_config.retrieval, training_config.search_space)
     objective_metric = _resolved_objective(training_config)
+    expected_validation_hash = _question_id_sha256([example.question_id for example in validation_examples])
 
     trial_summaries = []
     best_trial = None
     best_score = None
     best_cost: tuple[float, ...] | None = None
     best_app_config = None
-    best_train_metrics = None
     best_validation_metrics = None
     best_objective_by_question: Dict[str, float] = {}
 
     for trial_index, retrieval_config in enumerate(trials, start=1):
         current_app = replace(app_config, retrieval=retrieval_config)
         evaluator = TrainingEvaluator(current_app, embedder, writer, bridge_gold)
-        train_records: List[Mapping[str, Mapping[str, float]]] = []
-        latest_probe_by_method: Dict[str, Any] = {}
-        for step, example in enumerate(train_examples, start=1):
-            try:
-                train_records.append(
-                    evaluator.evaluate_one(
-                        example,
-                        "bridgetree",
-                        False,
-                        {"phase": "train", "trial": trial_index, "step": step},
-                    )
-                )
-            except Exception as exc:
-                writer.write_failure(
-                    {
-                        "phase": "train",
-                        "trial": trial_index,
-                        "step": step,
-                        "method": "bridgetree",
-                        "question_id": example.question_id,
-                    },
-                    exc,
-                )
-            should_probe = step % training_config.schedule.periodic_eval_every == 0 or step == len(train_examples)
-            if not should_probe:
-                continue
-            train_summary = aggregate_module_metrics(train_records)
-            writer.write_event("train_progress", trial_index, step, "bridgetree", train_summary, retrieval_config)
-            latest_probe_by_method = {}
-            for method in training_config.diagnostic_methods:
-                probe_summary = evaluator.evaluate_set(
-                    probe_examples,
-                    method,
-                    training_config.validation_generate,
-                    {"phase": "validation_probe", "trial": trial_index, "step": step},
-                )
-                latest_probe_by_method[method] = probe_summary
-                writer.write_event(
-                    "validation_probe",
-                    trial_index,
-                    step,
-                    method,
-                    probe_summary,
-                    retrieval_config,
-                )
-            full_probe = latest_probe_by_method["bridgetree"]
-            for method, probe_summary in latest_probe_by_method.items():
-                if method == "bridgetree":
-                    continue
-                writer.write_comparison(
-                    {"phase": "validation_probe", "trial": trial_index, "step": step, "ablation": method},
-                    module_metric_delta(full_probe, probe_summary),
-                )
-
         validation_by_method: Dict[str, Any] = {}
         for method in training_config.diagnostic_methods:
             validation_summary = evaluator.evaluate_set(
                 validation_examples,
                 method,
                 training_config.validation_generate,
-                {"phase": "validation", "trial": trial_index, "step": len(train_examples)},
+                {"phase": "validation", "trial": trial_index, "step": 0},
+                fail_on_error=training_config.fail_on_evaluation_error,
             )
+            if training_config.fail_on_evaluation_error and (
+                validation_summary["successful_queries"] != len(validation_examples)
+                or validation_summary["successful_question_id_sha256"] != expected_validation_hash
+            ):
+                raise RuntimeError(f"validation method {method} did not evaluate the complete common question set")
             validation_by_method[method] = validation_summary
             writer.write_event(
                 "validation",
                 trial_index,
-                len(train_examples),
+                0,
                 method,
                 validation_summary,
                 retrieval_config,
+            )
+        full_validation = validation_by_method["bridgetree"]
+        for method, validation_summary in validation_by_method.items():
+            if method == "bridgetree":
+                continue
+            writer.write_comparison(
+                {"phase": "validation", "trial": trial_index, "step": 0, "ablation": method},
+                module_metric_delta(full_validation, validation_summary),
             )
         objective = _optional_metric(validation_by_method["bridgetree"], objective_metric)
         objective_name = objective_metric.split(".", 1)[1] if objective_metric else ""
@@ -819,7 +1201,6 @@ def run_training_experiment(
         objective_values = [objective_by_question[question_id] for question_id in paired_questions]
         best_objective_values = [best_objective_by_question[question_id] for question_id in paired_questions]
         cost = _cost_tuple(validation_by_method["bridgetree"])
-        train_summary = aggregate_module_metrics(train_records)
         trial_summary = {
             "trial": trial_index,
             "retrieval": asdict(retrieval_config),
@@ -830,9 +1211,7 @@ def run_training_experiment(
                 "candidates_returned": cost[1],
                 "retrieval_core_ms": cost[2],
             },
-            "train": train_summary,
             "validation": validation_by_method,
-            "last_periodic_probe": latest_probe_by_method,
         }
         trial_summaries.append(trial_summary)
         if objective is not None and _is_better(
@@ -848,7 +1227,6 @@ def run_training_experiment(
             best_score = objective
             best_cost = cost
             best_app_config = current_app
-            best_train_metrics = train_summary
             best_validation_metrics = validation_by_method
             best_objective_by_question = objective_by_question
         writer.write_json("trials.json", trial_summaries)
@@ -877,24 +1255,49 @@ def run_training_experiment(
             "objective_metric": objective_metric,
             "test_metrics": {},
             "trial_count": len(trials),
+            "evaluated_validation_queries": len(validation_examples),
+            "evaluated_test_queries": 0,
             "pareto_frontier": pareto_frontier,
         }
         writer.write_json("final_summary.json", final_summary)
+        writer.write_progress(
+            {
+                "phase": "completed",
+                "run_dir": str(root),
+                "selection_status": final_summary["selection_status"],
+                "best_trial": None,
+                "trial_count": len(trials),
+            },
+            status="completed",
+        )
+        writer.write_run_status(
+            "completed",
+            run_dir=str(root),
+            selection_status=final_summary["selection_status"],
+            best_trial=None,
+        )
         return final_summary
     final_evaluator = TrainingEvaluator(best_app_config, embedder, writer, bridge_gold)
     final_test_by_method: Dict[str, Any] = {}
+    expected_test_hash = _question_id_sha256([example.question_id for example in test_examples])
     for method in training_config.main_table_methods:
         test_summary = final_evaluator.evaluate_set(
             test_examples,
             method,
             training_config.final_generate,
-            {"phase": "test", "trial": best_trial, "step": len(train_examples)},
+            {"phase": "test", "trial": best_trial, "step": 0},
+            fail_on_error=training_config.fail_on_evaluation_error,
         )
+        if training_config.fail_on_evaluation_error and (
+            test_summary["successful_queries"] != len(test_examples)
+            or test_summary["successful_question_id_sha256"] != expected_test_hash
+        ):
+            raise RuntimeError(f"test method {method} did not evaluate the complete common question set")
         final_test_by_method[method] = test_summary
         writer.write_event(
             "test",
             best_trial,
-            len(train_examples),
+            0,
             method,
             test_summary,
             best_app_config.retrieval,
@@ -914,17 +1317,283 @@ def run_training_experiment(
         "objective_metric": objective_metric,
         "objective_mode": training_config.objective_mode,
         "best_validation_objective": best_score,
-        "train_metrics": best_train_metrics,
         "validation_metrics": best_validation_metrics,
         "test_metrics": final_test_by_method,
         "test_module_effects_full_minus_ablation": effects,
         "trial_count": len(trials),
+        "evaluated_validation_queries": len(validation_examples),
+        "evaluated_test_queries": len(test_examples),
+        "common_test_question_id_sha256": expected_test_hash,
         "pareto_frontier": pareto_frontier,
         "selection_status": "selected_on_external_validation_outcome",
     }
     writer.write_json("final_summary.json", final_summary)
     writer.write_json("best_config.json", {"retrieval": asdict(best_app_config.retrieval)})
+    writer.write_progress(
+        {
+            "phase": "completed",
+            "run_dir": str(root),
+            "selection_status": final_summary["selection_status"],
+            "best_trial": best_trial,
+            "trial_count": len(trials),
+        },
+        status="completed",
+    )
+    writer.write_run_status(
+        "completed",
+        run_dir=str(root),
+        selection_status=final_summary["selection_status"],
+        best_trial=best_trial,
+    )
     return final_summary
+
+
+def run_effect_first_validation(
+    app_config: AppConfig,
+    embedder: Embedder,
+    *,
+    examples: Sequence[PersonaMemExample] | None = None,
+    methods: Sequence[str] = EFFECT_FIRST_VALIDATION_METHODS,
+    output_dir: str | Path = "outputs/effect-first-validation",
+    limit: int | None = None,
+    generate: bool = True,
+) -> Dict[str, Any]:
+    """Evaluate the predefined effect-first matrix on validation personas only.
+
+    Accuracy point estimates select the reported method. Paired bootstrap is
+    descriptive evidence and never changes the selection order.
+    """
+    unsupported = set(methods) - set(EFFECT_FIRST_VALIDATION_METHODS)
+    if unsupported:
+        raise ValueError(f"unsupported effect-first methods: {sorted(unsupported)}")
+    if not methods:
+        raise ValueError("effect-first validation requires at least one method")
+    if limit is not None and limit <= 0:
+        raise ValueError("effect-first validation limit must be positive")
+    if not app_config.models.reranker.endpoint:
+        raise ValueError("effect-first validation requires a configured reranker endpoint")
+    if (
+        app_config.retrieval.stop_mode == "certificate_or_budget"
+        and set(methods) & BRIDGE_RERANK_METHODS
+    ):
+        raise ValueError("effect-first BridgeTree rerank methods cannot use certificate_or_budget")
+    app_config.validate()
+    all_examples = list(examples) if examples is not None else _read_examples(app_config)
+    split = split_examples_by_persona(all_examples, SplitProtocol(), app_config.seed)
+    validation_examples = list(split.validation[:limit] if limit is not None else split.validation)
+    if not validation_examples:
+        raise ValueError("effect-first validation partition is empty")
+
+    root = Path(output_dir) / f"effect_validation_{time.time_ns()}"
+    writer = TrainingMetricsWriter(root, keep_examples=True)
+    writer.write_run_status("running", run_dir=str(root), phase="validation")
+    writer.write_json(
+        "resolved_config.json",
+        {
+            "app": app_config.resolved_dict(),
+            "execution": {
+                "methods": list(methods),
+                "partition": "persona_disjoint_validation",
+                "validation_queries": len(validation_examples),
+                "limit": limit,
+                "generate": generate,
+            },
+        },
+    )
+    writer.write_json(
+        "run_manifest.json",
+        {
+            "command": "effect-first-validation",
+            "status": "running",
+            "seed": app_config.seed,
+            "data_revision": PERSONAMEM_REVISION,
+            "data_split": app_config.data.split,
+            "methods": list(methods),
+            "validation_queries": len(validation_examples),
+            "validation_question_id_sha256": _question_id_sha256(
+                [example.question_id for example in validation_examples]
+            ),
+            "test_queries_read": 0,
+            "evaluated_test_queries": 0,
+        },
+    )
+    evaluator = TrainingEvaluator(app_config, embedder, writer, {})
+    method_results: Dict[str, Any] = {}
+    expected_validation_hash = _question_id_sha256([example.question_id for example in validation_examples])
+    current_method = "initializing"
+    try:
+        for method_index, method in enumerate(methods, start=1):
+            current_method = method
+            summary = evaluator.evaluate_set(
+                validation_examples,
+                method,
+                generate,
+                {"phase": "validation", "trial": 1, "step": method_index, "run_label": method},
+                fail_on_error=True,
+            )
+            if (
+                summary["successful_queries"] != len(validation_examples)
+                or summary["successful_question_id_sha256"] != expected_validation_hash
+            ):
+                raise RuntimeError(f"effect-first method {method} did not evaluate the complete validation set")
+            method_results[method] = summary
+            writer.write_event("validation", 1, method_index, method, summary, app_config.retrieval)
+    except Exception as exc:
+        if writer.failure_count == 0:
+            writer.write_failure(
+                {"phase": "validation", "method": current_method, "run_label": current_method},
+                exc,
+            )
+        manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+        writer.write_json(
+            "run_manifest.json",
+            {**manifest, "status": "failed", "failure_count": writer.failure_count},
+        )
+        raise
+
+    reference_name = "dense_rerank_28" if "dense_rerank_28" in method_results else methods[0]
+    reference_outcomes = method_results[reference_name].get("outcome_by_question", {}).get(
+        "answer_accuracy", {}
+    )
+    paired: Dict[str, Any] = {}
+    corrections: Dict[str, Any] = {}
+    for method, summary in method_results.items():
+        outcomes = summary.get("outcome_by_question", {}).get("answer_accuracy", {})
+        common = sorted(set(outcomes) & set(reference_outcomes))
+        paired[method] = (
+            paired_bootstrap_interval(
+                [outcomes[question_id] for question_id in common],
+                [reference_outcomes[question_id] for question_id in common],
+                seed=app_config.seed,
+            )
+            if common
+            else None
+        )
+        if method.startswith("bridgetree") and common:
+            bridge_correct = sum(outcomes[question_id] > reference_outcomes[question_id] for question_id in common)
+            dense_correct = sum(outcomes[question_id] < reference_outcomes[question_id] for question_id in common)
+            corrections[method] = {
+                "reference": reference_name,
+                "paired_queries": len(common),
+                "bridge_correct_dense_wrong": bridge_correct,
+                "dense_correct_bridge_wrong": dense_correct,
+                "bridge_net_correction": bridge_correct - dense_correct,
+            }
+
+    full_pool_selected = method_results.get("full_pool_rerank", {}).get("selected_ids_by_question", {})
+    full_pool_recall: Dict[str, float | None] = {}
+    for method, summary in method_results.items():
+        candidate_by_question = summary.get("candidate_union_ids_by_question", {})
+        common = sorted(set(candidate_by_question) & set(full_pool_selected))
+        recalls = []
+        for question_id in common:
+            gold = set(full_pool_selected[question_id])
+            if gold:
+                recalls.append(len(gold & set(candidate_by_question[question_id])) / len(gold))
+        full_pool_recall[method] = sum(recalls) / len(recalls) if recalls else None
+
+    selectable = [method for method in methods if method != "full_pool_rerank"]
+    ranked_methods = []
+    for method in selectable:
+        summary = method_results[method]
+        try:
+            accuracy = metric_value(summary, "outcome.answer_accuracy")
+        except KeyError:
+            continue
+        cost = (
+            metric_value(summary, "cost.rerank_documents"),
+            metric_value(summary, "cost.ann_calls_core"),
+            metric_value(summary, "cost.retrieval_core_ms"),
+        )
+        ranked_methods.append((method, accuracy, cost))
+    ranked_methods.sort(key=lambda item: (-item[1], item[2], item[0]))
+    selected_method = ranked_methods[0][0] if ranked_methods else None
+    selected_accuracy = ranked_methods[0][1] if ranked_methods else None
+
+    final = {
+        "run_dir": str(root),
+        "status": "completed",
+        "partition": "persona_disjoint_validation",
+        "test_queries_read": 0,
+        "evaluated_test_queries": 0,
+        "validation_queries": len(validation_examples),
+        "methods": list(methods),
+        "selection_rule": "validation accuracy point estimate; exact ties broken by cost",
+        "selected_method": selected_method,
+        "selected_validation_accuracy": selected_accuracy,
+        "method_results": method_results,
+        "paired_vs_dense_rerank_28": paired,
+        "bridge_net_correction": corrections,
+        "full_pool_top5_recall": full_pool_recall,
+    }
+    with (root / "predictions.jsonl").open("w", encoding="utf-8") as handle:
+        for record in evaluator.example_artifacts:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    with (root / "effect_results.csv").open("w", encoding="utf-8", newline="") as handle:
+        fieldnames = (
+            "method",
+            "validation_queries",
+            "correct_answers",
+            "answer_accuracy",
+            "difference_vs_dense_rerank_28",
+            "ci_low",
+            "ci_high",
+            "bridge_correct_dense_wrong",
+            "dense_correct_bridge_wrong",
+            "bridge_net_correction",
+            "full_pool_top5_recall",
+            "rerank_calls",
+            "rerank_documents",
+            "ann_calls_core",
+        )
+        table = csv.DictWriter(handle, fieldnames=fieldnames)
+        table.writeheader()
+        for method in methods:
+            summary = method_results[method]
+            accuracy = _optional_metric(summary, "outcome.answer_accuracy")
+            interval = paired.get(method) or {}
+            correction = corrections.get(method, {})
+            table.writerow(
+                {
+                    "method": method,
+                    "validation_queries": len(validation_examples),
+                    "correct_answers": round(accuracy * len(validation_examples)) if accuracy is not None else "",
+                    "answer_accuracy": accuracy if accuracy is not None else "",
+                    "difference_vs_dense_rerank_28": interval.get("mean_difference", ""),
+                    "ci_low": interval.get("ci_low", ""),
+                    "ci_high": interval.get("ci_high", ""),
+                    "bridge_correct_dense_wrong": correction.get("bridge_correct_dense_wrong", ""),
+                    "dense_correct_bridge_wrong": correction.get("dense_correct_bridge_wrong", ""),
+                    "bridge_net_correction": correction.get("bridge_net_correction", ""),
+                    "full_pool_top5_recall": full_pool_recall.get(method, ""),
+                    "rerank_calls": _optional_metric(summary, "cost.rerank_calls") or 0.0,
+                    "rerank_documents": _optional_metric(summary, "cost.rerank_documents") or 0.0,
+                    "ann_calls_core": _optional_metric(summary, "cost.ann_calls_core") or 0.0,
+                }
+            )
+    writer.write_json("paired_results.json", {"paired": paired, "bridge_net_correction": corrections})
+    writer.write_json("effect_summary.json", final)
+    writer.write_progress(
+        {
+            "phase": "completed",
+            "run_dir": str(root),
+            "selected_method": selected_method,
+            "validation_queries": len(validation_examples),
+        },
+        status="completed",
+    )
+    writer.write_run_status(
+        "completed",
+        run_dir=str(root),
+        phase="completed",
+        selected_method=selected_method,
+    )
+    manifest = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+    writer.write_json(
+        "run_manifest.json",
+        {**manifest, "status": "completed", "failure_count": writer.failure_count},
+    )
+    return final
 
 
 # Public tuning names; legacy training names remain import-compatible.

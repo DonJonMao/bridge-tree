@@ -36,6 +36,8 @@ class BridgeTreeRetriever:
         budget: SearchBudget | None = None,
         cost_tracker: CostTracker | None = None,
         index_build_ms: float = 0.0,
+        initial_hits: Sequence[Tuple[str, float]] | None = None,
+        excluded_candidate_ids: Sequence[str] = (),
     ) -> RetrievalResult:
         if len(memories) != len(memory_vectors):
             raise ValueError("memories and memory_vectors must have equal length")
@@ -62,6 +64,7 @@ class BridgeTreeRetriever:
             )
             tracker.index_build_ms += (time.perf_counter() - index_started) * 1000.0
 
+        previous_core_ms = tracker.retrieval_core_ms
         core_started = time.perf_counter()
         direct_scores: Dict[str, float] = {}
 
@@ -71,7 +74,14 @@ class BridgeTreeRetriever:
             return direct_scores[memory_id]
 
         first_width = min(self.config.initial_width, search_budget.max_unique_nodes, len(memories))
-        first_hits = tracker.search_core(index, query_vector, first_width)
+        if initial_hits is None:
+            first_hits = tracker.search_core(index, query_vector, first_width)
+        else:
+            unknown = [memory_id for memory_id, _score in initial_hits if memory_id not in memory_by_id]
+            if unknown:
+                raise ValueError(f"initial_hits contain unknown memory ids: {unknown}")
+            first_hits = list(initial_hits[:first_width])
+            tracker.mark_visited(memory_id for memory_id, _score in initial_hits)
         nodes: Dict[str, TreeNode] = {}
         edges: List[Tuple[Optional[str], str]] = []
         for discovery_order, (memory_id, _score) in enumerate(first_hits):
@@ -166,6 +176,7 @@ class BridgeTreeRetriever:
                         branch_audit_candidates,
                         search_budget,
                         tracker,
+                        excluded_candidate_ids,
                     )
                     if expanded:
                         continue
@@ -217,9 +228,10 @@ class BridgeTreeRetriever:
                 branch_audit_candidates,
                 search_budget,
                 tracker,
+                excluded_candidate_ids,
             )
 
-        tracker.retrieval_core_ms = (time.perf_counter() - core_started) * 1000.0
+        tracker.retrieval_core_ms = previous_core_ms + (time.perf_counter() - core_started) * 1000.0
         if len(selected_ids) < target_count:
             tracker.set_stop_reason("insufficient_candidates")
         elif selection_steps and all(step.certified for step in selection_steps):
@@ -296,6 +308,7 @@ class BridgeTreeRetriever:
         branch_audit_candidates: Dict[str, List[str]],
         budget: SearchBudget,
         tracker: CostTracker,
+        excluded_candidate_ids: Sequence[str],
     ) -> bool:
         _priority, _branch_id, branch = heapq.heappop(frontier)
         if branch.depth >= self.config.max_depth or not tracker.can_search_core():
@@ -303,7 +316,12 @@ class BridgeTreeRetriever:
         capacity = min(self.config.branch_width, budget.max_unique_nodes - len(nodes))
         if capacity <= 0:
             return False
-        candidates = tracker.search_core(index, branch.probe, capacity, exclude=nodes)
+        candidates = tracker.search_core(
+            index,
+            branch.probe,
+            capacity,
+            exclude=set(nodes) | set(excluded_candidate_ids),
+        )
         branch_audit_candidates[branch.branch_id] = [memory_id for memory_id, _score in candidates]
         children_by_parent: Dict[str, List[str]] = {}
         for offset, (candidate_id, _probe_score) in enumerate(candidates):

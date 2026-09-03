@@ -201,6 +201,22 @@ class RetrievalResult:
         }
 
 
+@dataclass
+class GuidedCandidatePool:
+    """Traceable candidate support for reranker-guided BridgeTree methods."""
+
+    dense_ids: List[str]
+    anchor_ids: List[str]
+    bridge_raw_ids: List[str]
+    bridge_kept_ids: List[str]
+    candidate_ids: List[str]
+    parent_by_bridge_id: Dict[str, str]
+    branch_by_bridge_id: Dict[str, str]
+    rerank_scores: Dict[str, float]
+    tree_result: RetrievalResult | None = None
+    diagnostics: Dict[str, Any] = field(default_factory=dict)
+
+
 def empty_retrieval_result(query: str, budget: SearchBudget) -> RetrievalResult:
     tracker = CostTracker(budget)
     tracker.set_stop_reason("insufficient_candidates")

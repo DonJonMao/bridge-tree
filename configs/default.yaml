@@ -24,13 +24,14 @@ models:
     backend: remote
     endpoint: http://111.19.156.74:8001/v1/embeddings
     model: qwen3-embedding-8b
-    query_instruction: "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+    query_instruction: "Instruct: Retrieve past personal interactions that help answer the current request\nQuery: "
     batch_size: 32
     timeout_seconds: 60
   reranker:
     endpoint: http://111.19.156.74:8002/rerank
     model: ""
     timeout_seconds: 60
+    cache_dir: outputs/rerank_cache
   generator:
     endpoint: http://111.19.156.30:8006/v1/chat/completions
     model: deepseek-v4-flash
@@ -40,6 +41,19 @@ models:
     temperature: 0.0
     max_tokens: 512
     context_token_budget: 8192
+bridge_rerank:
+  dense_pool_width: 20
+  anchor_width: 12
+  expand_branch_count: 2
+  branch_overfetch_width: 8
+  branch_keep_width: 4
+  probe_mode: query_anchor
+  path_filter: true
+  use_answer_options: true
+  include_time_metadata: true
+  bridge_query_instruction: "Instruct: Retrieve a distinct past personal interaction that complements an anchor for answering the current request\nQuery: "
+  final_rerank_instruction: "Rank past user interactions by how useful they are for selecting the best personalized answer. Prioritize explicit user preferences, constraints, experiences, and the latest state when preferences evolve. A passage that is merely topically related but cannot distinguish the answer choices should rank low."
+  path_filter_instruction: "Rank candidate interactions by whether they add distinct, independently usable personal evidence beyond the anchor for answering the current request. Avoid anchor paraphrases and merely topical passages."
 data:
   raw_dir: data/raw/personamem-v1
   processed_dir: data/processed/personamem-v1

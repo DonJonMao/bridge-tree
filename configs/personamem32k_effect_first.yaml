@@ -1,0 +1,24 @@
+# Overlay for validation-only, accuracy-first reranker-guided BridgeTree experiments.
+# Load with configs/default.yaml as the base; do not use the already inspected
+# formal 73-query test partition for method selection.
+retrieval:
+  initial_width: 12
+  branch_width: 8
+  context_size: 5
+  search_budget: 20
+  max_depth: 2
+  cluster_mode: fixed
+  cluster_count: 4
+  diagnostic_level: light
+  stop_mode: budget
+
+bridge_rerank:
+  dense_pool_width: 20
+  anchor_width: 12
+  expand_branch_count: 2
+  branch_overfetch_width: 8
+  branch_keep_width: 4
+  probe_mode: query_anchor
+  path_filter: true
+  use_answer_options: true
+  include_time_metadata: true

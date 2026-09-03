@@ -12,6 +12,12 @@ from .types import Memory
 
 PERSONAMEM_REPO = "bowen-upenn/PersonaMem-v1"
 PERSONAMEM_REVISION = "fd7c30f071d5c2ee2a211506783be222d7b6002e"
+PERSONAMEM_SOURCE_SHA256 = {
+    "32k": {
+        "questions_32k.csv": "cccd34cf53e0bc4d9536c04cff5ca045156d9a4e227e83327112482840bbc93c",
+        "shared_contexts_32k.jsonl": "217247ebfec9e8442fc53570c795ab69f21aad08745f7de78d9beab51b122d4a",
+    }
+}
 
 
 @dataclass(frozen=True)
@@ -146,7 +152,13 @@ def file_sha256(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def prepare_split(raw_dir: str | Path, processed_dir: str | Path, split: str) -> Dict[str, Any]:
+def prepare_split(
+    raw_dir: str | Path,
+    processed_dir: str | Path,
+    split: str,
+    *,
+    verify_pinned_source: bool = False,
+) -> Dict[str, Any]:
     raw_root = Path(raw_dir)
     output_root = Path(processed_dir) / split
     output_root.mkdir(parents=True, exist_ok=True)
@@ -154,6 +166,17 @@ def prepare_split(raw_dir: str | Path, processed_dir: str | Path, split: str) ->
     contexts = raw_root / f"shared_contexts_{split}.jsonl"
     if not questions.exists() or not contexts.exists():
         raise FileNotFoundError(f"missing PersonaMem {split} files in {raw_root}")
+    source_hashes = {questions.name: file_sha256(questions), contexts.name: file_sha256(contexts)}
+    expected_hashes = PERSONAMEM_SOURCE_SHA256.get(split)
+    if verify_pinned_source and expected_hashes is None:
+        raise ValueError(f"no pinned source checksums are registered for PersonaMem {split}")
+    if verify_pinned_source and source_hashes != expected_hashes:
+        mismatched = sorted(
+            filename
+            for filename, expected_hash in expected_hashes.items()
+            if source_hashes.get(filename) != expected_hash
+        )
+        raise ValueError(f"PersonaMem {split} source checksum mismatch: {mismatched}")
 
     context_map = load_shared_contexts(contexts)
     context_output = output_root / "contexts.jsonl"
@@ -183,7 +206,7 @@ def prepare_split(raw_dir: str | Path, processed_dir: str | Path, split: str) ->
         "questions": query_count,
         "personas": len(persona_ids),
         "shared_contexts": len(context_map),
-        "source_sha256": {questions.name: file_sha256(questions), contexts.name: file_sha256(contexts)},
+        "source_sha256": source_hashes,
         "outputs": {context_output.name: file_sha256(context_output), query_output.name: file_sha256(query_output)},
     }
     manifest_path = output_root / "manifest.json"

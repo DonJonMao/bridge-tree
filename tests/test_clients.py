@@ -66,3 +66,29 @@ def test_http_client_retries_a_remote_disconnect(monkeypatch):
     with pytest.raises(RuntimeError, match="after 3 attempts"):
         _post_json("http://model", {"input": ["x"]}, 1)
     assert opener.calls == 3
+
+
+def test_explicit_embedding_instruction_is_not_double_prefixed_and_batches_queries(monkeypatch):
+    payloads = []
+
+    def fake_post(_url, payload, _timeout, headers=None):
+        payloads.append(payload)
+        return {
+            "data": [
+                {"index": index, "embedding": [1.0, float(index)]}
+                for index, _text in enumerate(payload["input"])
+            ]
+        }
+
+    monkeypatch.setattr("bridgetree.clients._post_json", fake_post)
+    client = RemoteEmbeddingClient(
+        EmbeddingConfig(endpoint="http://embedding", query_instruction="DEFAULT: ", batch_size=8)
+    )
+
+    client.encode_query("question", instruction="SPECIAL: ")
+    client.encode_queries(["bridge one", "bridge two"], instruction="BRIDGE: ")
+
+    assert payloads[0]["input"] == ["SPECIAL: question"]
+    assert "DEFAULT" not in payloads[0]["input"][0]
+    assert payloads[1]["input"] == ["BRIDGE: bridge one", "BRIDGE: bridge two"]
+    assert len(payloads) == 2

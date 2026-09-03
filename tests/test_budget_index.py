@@ -38,9 +38,42 @@ def test_every_dynamic_method_obeys_the_same_ann_and_candidate_budget():
     )
     bridge = BridgeTreeRetriever(bridge_config).retrieve("q", query, memories, vectors)
     costs = [result.cost for result in results] + [bridge.cost]
+    assert all(cost.unique_visited_nodes <= budget.max_unique_nodes for cost in costs)
     assert all(cost.ann_calls_core <= 2 for cost in costs)
     assert all(cost.candidates_returned <= 6 for cost in costs)
     assert all(len(cost.new_unique_candidates_by_ann) == cost.ann_calls_core for cost in costs)
+
+
+def test_cost_tracker_hard_caps_unique_nodes_across_searches():
+    ids, vectors, query, _memories = _bank(count=12)
+    index = ExactInnerProductIndex(ids, vectors)
+    tracker = CostTracker(SearchBudget(max_unique_nodes=5))
+
+    first = tracker.search_core(index, query, 4)
+    second = tracker.search_core(index, -query, 4)
+
+    assert len(first) == 4
+    assert len(second) <= 1
+    assert tracker.remaining_unique_nodes == 0
+    assert tracker.cost_unique_count == 5
+    assert not tracker.can_search_core()
+
+
+def test_rerank_and_bridge_embedding_costs_are_separate_from_ann_costs():
+    tracker = CostTracker(SearchBudget(max_unique_nodes=5))
+
+    tracker.record_rerank(20, 12.5)
+    tracker.record_bridge_embedding(2, 3.25)
+    snapshot = tracker.snapshot()
+
+    assert snapshot.ann_calls_core == 0
+    assert snapshot.retrieval_core_ms == 0.0
+    assert snapshot.rerank_calls == 1
+    assert snapshot.rerank_documents == 20
+    assert snapshot.rerank_ms == 12.5
+    assert snapshot.bridge_embedding_calls == 1
+    assert snapshot.bridge_embedding_queries == 2
+    assert snapshot.bridge_embedding_ms == 3.25
 
 
 def test_light_diagnostics_never_issue_an_extra_ann_call():

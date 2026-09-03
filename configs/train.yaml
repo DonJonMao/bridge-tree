@@ -1,36 +1,34 @@
-# Tuning searches retrieval configurations and never updates model weights.
+# Full PersonaMem-v1 32K retrieval-configuration tuning.
+# This is training-free hyperparameter selection: no model weights are updated.
 seed: 42
 
-# Personas, rather than individual questions, are split to prevent leakage.
+# Split by persona so no identity leaks across selection and final evaluation.
 split:
   train_ratio: 0.70
   validation_ratio: 0.15
   test_ratio: 0.15
 
+# Null means the complete persona-disjoint validation/test partition is used.
+# The train partition is reserved and never traversed because a fixed trial has
+# no parameter update that could learn from a train pass.
 schedule:
-  periodic_eval_every: 50
-  periodic_eval_queries: 8
-  max_train_queries: null
   max_validation_queries: null
   max_test_queries: null
 
+# Budgets below the depth-2 expansion ceiling make Best-first ordering
+# observable instead of allowing every first-level branch to expand.
 search_space:
   initial_width: [8, 12]
   branch_width: [4, 8]
-  search_budget: [64]
+  search_budget: [20, 28, 36, 44]
 
-# BridgeTree plus one isolated ablation for every algorithmic module.
+# Search only the complete BridgeTree method. Module ablations are run later by
+# scripts/ablation.sh and must not multiply every tuning trial.
 diagnostic_methods:
   - bridgetree
-  - ablation_no_cluster
-  - ablation_bfs
-  - ablation_fixed_depth
-  - ablation_topk
-  - ablation_rho_dpp
-  - ablation_direct_path
 
-# Main-table methods all use the same segmentation, k, prompt, generator and
-# token budget on final test after an externally justified selection exists.
+# All methods use the same selected config, test questions, generator, prompt,
+# final context size, and context/output token budgets.
 main_table_methods:
   - dense
   - dense_rerank
@@ -40,12 +38,13 @@ main_table_methods:
   - cluster_prf
   - bridgetree
 
-# auto resolves to validation answer accuracy when validation_generate=true,
-# independent recall when bridge_gold_path is set, and no selection otherwise.
-objective_metric: auto
+# PersonaMem has no official memory-ID gold, so generated answer accuracy is
+# the independent validation objective. A single failed query aborts the run.
+objective_metric: outcome.answer_accuracy
 objective_mode: max
 bridge_gold_path: null
-validation_generate: false
-final_generate: false
+validation_generate: true
+final_generate: true
+fail_on_evaluation_error: true
 keep_example_metrics: true
-output_dir: outputs/training
+output_dir: outputs/tuning-32k

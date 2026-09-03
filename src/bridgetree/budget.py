@@ -46,6 +46,12 @@ class CostSnapshot:
     index_build_ms: float = 0.0
     retrieval_core_ms: float = 0.0
     diagnostic_ms: float = 0.0
+    rerank_calls: int = 0
+    rerank_documents: int = 0
+    rerank_ms: float = 0.0
+    bridge_embedding_calls: int = 0
+    bridge_embedding_queries: int = 0
+    bridge_embedding_ms: float = 0.0
     generation_ms: float = 0.0
     final_context_count: int = 0
     final_context_tokens: int = 0
@@ -69,6 +75,12 @@ class CostTracker:
     index_build_ms: float = 0.0
     retrieval_core_ms: float = 0.0
     diagnostic_ms: float = 0.0
+    rerank_calls: int = 0
+    rerank_documents: int = 0
+    rerank_ms: float = 0.0
+    bridge_embedding_calls: int = 0
+    bridge_embedding_queries: int = 0
+    bridge_embedding_ms: float = 0.0
     generation_ms: float = 0.0
     final_context_count: int = 0
     final_context_tokens: int = 0
@@ -88,6 +100,10 @@ class CostTracker:
         return max(0, self.budget.max_ann_calls - self.ann_calls_core)
 
     @property
+    def remaining_unique_nodes(self) -> int:
+        return max(0, self.budget.max_unique_nodes - len(self._visited))
+
+    @property
     def remaining_candidate_exposure(self) -> int | None:
         if self.budget.max_candidate_exposure is None:
             return None
@@ -98,13 +114,16 @@ class CostTracker:
         return len(self._visited)
 
     def can_search_core(self) -> bool:
-        return (self.remaining_ann_calls is None or self.remaining_ann_calls > 0) and (
-            self.remaining_candidate_exposure is None or self.remaining_candidate_exposure > 0
+        return (
+            self.remaining_unique_nodes > 0
+            and (self.remaining_ann_calls is None or self.remaining_ann_calls > 0)
+            and (self.remaining_candidate_exposure is None or self.remaining_candidate_exposure > 0)
         )
 
     def search_core(self, index, query: np.ndarray, top_k: int, exclude: Iterable[str] = ()):
         if not self.can_search_core() or top_k <= 0:
             return []
+        top_k = min(top_k, self.remaining_unique_nodes)
         if self.remaining_candidate_exposure is not None:
             top_k = min(top_k, self.remaining_candidate_exposure)
         if top_k <= 0:
@@ -143,6 +162,20 @@ class CostTracker:
     def mark_visited(self, ids: Iterable[str]) -> None:
         self._visited.update(ids)
 
+    def record_rerank(self, document_count: int, elapsed_ms: float) -> None:
+        if document_count < 0 or elapsed_ms < 0.0:
+            raise ValueError("rerank cost values cannot be negative")
+        self.rerank_calls += 1
+        self.rerank_documents += document_count
+        self.rerank_ms += elapsed_ms
+
+    def record_bridge_embedding(self, query_count: int, elapsed_ms: float) -> None:
+        if query_count < 0 or elapsed_ms < 0.0:
+            raise ValueError("bridge embedding cost values cannot be negative")
+        self.bridge_embedding_calls += 1
+        self.bridge_embedding_queries += query_count
+        self.bridge_embedding_ms += elapsed_ms
+
     def set_stop_reason(self, reason: str) -> None:
         if reason not in STOP_REASONS:
             raise ValueError(f"unsupported stop reason: {reason}")
@@ -159,6 +192,12 @@ class CostTracker:
             index_build_ms=self.index_build_ms,
             retrieval_core_ms=self.retrieval_core_ms,
             diagnostic_ms=self.diagnostic_ms,
+            rerank_calls=self.rerank_calls,
+            rerank_documents=self.rerank_documents,
+            rerank_ms=self.rerank_ms,
+            bridge_embedding_calls=self.bridge_embedding_calls,
+            bridge_embedding_queries=self.bridge_embedding_queries,
+            bridge_embedding_ms=self.bridge_embedding_ms,
             generation_ms=self.generation_ms,
             final_context_count=self.final_context_count,
             final_context_tokens=self.final_context_tokens,

@@ -29,10 +29,48 @@ Every run writes `resolved_config.json` with the canonical configuration and SHA
 | `--stop-mode` | `STOP_MODE` | `budget` or `certificate_or_budget` |
 | `--diagnostic-level` | `DIAGNOSTIC_LEVEL` | `off`, `light`, or `full` |
 | `--root-anchor-weight` | `ROOT_ANCHOR_WEIGHT` | Optional query anchor in `[0,1]`; default 0 |
+| `--dense-pool-width` | `DENSE_POOL_WIDTH` | Dense candidate floor for reranker-guided methods |
+| `--anchor-width` | `ANCHOR_WIDTH` | Task-reranked Dense anchors passed to clustering |
+| `--expand-branch-count` | `EXPAND_BRANCH_COUNT` | Number of distinct anchor clusters expanded |
+| `--branch-overfetch-width` | `BRANCH_OVERFETCH_WIDTH` | Raw ANN candidates retrieved per guided branch |
+| `--branch-keep-width` | `BRANCH_KEEP_WIDTH` | Per-branch candidates retained before final union |
+| `--probe-mode` | `PROBE_MODE` | `query_anchor` conditional embedding or diagnostic `centroid` probe |
+| `--path-filter/--no-path-filter` | `PATH_FILTER` | Enable per-branch task-aware novelty filtering |
+| `--rerank-use-options/--no-rerank-use-options` | `RERANK_USE_OPTIONS` | Include normalized answer options in every rerank query |
+| `--rerank-include-time/--no-rerank-include-time` | `RERANK_INCLUDE_TIME` | Expose numeric interaction index metadata to the reranker |
 | `--seed` | `SEED` | Experiment and deterministic tie seed |
 | `--memory-granularity` | `MEMORY_GRANULARITY` | `user_only` or `user_assistant_pair` |
 
 Invalid combinations fail before retrieval: `path_logdet` requires `path_conditioned`; `rho_logdet` requires `rho`; certificates require a log-det selection mode; initial width and context size must fit the node and candidate budgets.
+
+The new `bridgetree_union_rerank`, `bridgetree_guided_rerank`, and
+`bridgetree_guided_pathfilter` methods reject `certificate_or_budget`: their
+final objective is task reranking, so the legacy log-det certificate does not
+apply.
+
+## Effect-first validation protocol
+
+```bash
+./scripts/run_effect_first_validation.sh
+```
+
+The command uses `configs/personamem32k_effect_first.yaml` and evaluates six
+labels sequentially in one timestamped run root. Every event and prediction has
+its own method/run label, which preserves exact question pairing while allowing
+the embedding and full-ranking caches to be shared safely. It does not evaluate
+or use outcomes from the already inspected test partition; the manifest records
+this as `test_queries_read=0`.
+
+Accuracy point estimates determine the selected validation method. Only an
+exact tie is broken by, in order, logical reranked-document count, core ANN
+calls, and retrieval time. Paired bootstrap intervals, bidirectional correction
+counts, and `bridge_net_correction` are descriptive outputs and never change
+the selection order.
+
+`rerank_calls` and `rerank_documents` are logical algorithmic costs, including
+cache hits. `rerank_ms` is physical uncached service time. This prevents a warm
+cache from making one method appear algorithmically cheaper while still making
+reruns efficient.
 
 ## Cost matching
 
@@ -63,7 +101,9 @@ Both scripts write individual run directories and one `aggregate_summary.json`. 
 
 ## Tuning safeguards
 
-`bridgetree tune` supports only external objectives. `objective_metric: auto` resolves to answer accuracy when validation generation is enabled, independent recall when a gold file is supplied, and no objective otherwise. Query-paired bootstrap intervals are used when comparing observed validation outcomes; overlapping intervals are broken lexicographically by core ANN calls, candidate exposure, then retrieval time—never by a weighted reward. Without an external objective it writes trials and a cost Pareto frontier but deliberately writes no best config and never evaluates test.
+`bridgetree tune` supports only external objectives. `objective_metric: auto` resolves to answer accuracy when validation generation is enabled, independent recall when a gold file is supplied, and no objective otherwise. A fixed candidate configuration is evaluated once on validation; the persona-disjoint train partition is deliberately not traversed because no parameters are updated. The validation point estimate selects the configuration; core ANN calls, candidate exposure, and retrieval time are lexicographic tie-breakers only when point estimates are exactly equal. Bootstrap uncertainty is report-only and never changes the incumbent. External-outcome selection requires `fail_on_evaluation_error=true`, and every summary records attempted/successful/failed counts plus question-set hashes. Without an external objective it writes trials and a cost Pareto frontier but deliberately writes no best config and never evaluates test.
+
+`bridgetree preflight-tuning --require-full-32k --check-services` verifies the pinned source checksums, seed, complete persona split, exact search grid, retrieval protocol, external objective, zero-failure policy, and live embedding/generator/reranker response schemas before a formal run. `bridgetree tune --audit-full-32k` then re-reads the persisted artifacts and writes `completion_audit.json`; an audit failure makes the command fail even if the scheduler itself reached its final event.
 
 `bridgetree train` is a deprecated compatibility alias. Neither command updates model weights.
 

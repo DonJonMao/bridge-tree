@@ -76,7 +76,9 @@ def generation_prompt_hash() -> str:
 class Embedder(Protocol):
     def encode(self, texts: Sequence[str]) -> np.ndarray: ...
 
-    def encode_query(self, text: str) -> np.ndarray: ...
+    def encode_query(self, text: str, instruction: str | None = None) -> np.ndarray: ...
+
+    def encode_queries(self, texts: Sequence[str], instruction: str | None = None) -> np.ndarray: ...
 
 
 def _post_json(url: str, payload: Dict[str, Any], timeout: float, headers: Dict[str, str] | None = None) -> Any:
@@ -128,8 +130,12 @@ class RemoteEmbeddingClient:
             raise ValueError(f"embedding response count mismatch: expected {len(texts)}, got {len(rows)}")
         return normalize_rows(np.asarray(rows, dtype=np.float64))
 
-    def encode_query(self, text: str) -> np.ndarray:
-        return self.encode([self.config.query_instruction + text])[0]
+    def encode_queries(self, texts: Sequence[str], instruction: str | None = None) -> np.ndarray:
+        prefix = self.config.query_instruction if instruction is None else instruction
+        return self.encode([prefix + text for text in texts])
+
+    def encode_query(self, text: str, instruction: str | None = None) -> np.ndarray:
+        return self.encode_queries([text], instruction=instruction)[0]
 
 
 class LocalSentenceTransformerEmbedder:
@@ -147,8 +153,12 @@ class LocalSentenceTransformerEmbedder:
         vectors = self.model.encode(list(texts), convert_to_numpy=True, normalize_embeddings=True)
         return normalize_rows(np.asarray(vectors, dtype=np.float64))
 
-    def encode_query(self, text: str) -> np.ndarray:
-        return self.encode([self.query_instruction + text])[0]
+    def encode_queries(self, texts: Sequence[str], instruction: str | None = None) -> np.ndarray:
+        prefix = self.query_instruction if instruction is None else instruction
+        return self.encode([prefix + text for text in texts])
+
+    def encode_query(self, text: str, instruction: str | None = None) -> np.ndarray:
+        return self.encode_queries([text], instruction=instruction)[0]
 
 
 def build_embedder(config: EmbeddingConfig, device: str = "cpu") -> Embedder:
@@ -172,6 +182,8 @@ class RerankerClient:
         self.config = config
 
     def rerank(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
+        if not documents or top_n <= 0:
+            return []
         payload: Dict[str, Any] = {
             "query": query,
             "documents": list(documents),
@@ -192,6 +204,10 @@ class RerankerClient:
             for item in raw_results
         ]
         return sorted(items, key=lambda item: (-item.score, item.index))[:top_n]
+
+    def rerank_all(self, query: str, documents: Sequence[str]) -> List[RerankItem]:
+        """Return a complete deterministic ranking so callers can cache once and slice later."""
+        return self.rerank(query, documents, len(documents))
 
 
 class GeneratorClient:

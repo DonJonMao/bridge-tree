@@ -1,6 +1,7 @@
 import numpy as np
 
 from bridgetree.baselines import cluster_prf, dense_retrieval, rfmem, rfmem_recollection, rfmem_route
+from bridgetree.budget import SearchBudget
 
 
 def test_rfmem_router_matches_published_thresholds():
@@ -20,3 +21,21 @@ def test_required_vector_baselines_run_deterministically():
     assert len(recollection.selected_ids) <= 3
     assert len(routed.selected_ids) <= 3
     assert len(prf.selected_ids) == 3
+
+
+def test_rfmem_fast_route_reuses_its_probe():
+    ids = [f"m{i}" for i in range(12)]
+    query = np.asarray([1.0, 0.0])
+    vectors = np.asarray([[1.0, 0.0] for _ in ids])
+
+    result = rfmem(
+        ids,
+        vectors,
+        query,
+        top_k=5,
+        budget=SearchBudget(max_unique_nodes=12, max_ann_calls=1),
+    )
+
+    assert result.diagnostics["route"] == "fast"
+    assert result.selected_ids == sorted(ids)[:5]
+    assert result.cost.ann_calls_core == 1

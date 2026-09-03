@@ -18,16 +18,23 @@
 | Zero retrieval LLM calls | retriever only accepts vectors; experiment reports call counts | architecture inspection/tests |
 | PersonaMem main experiment | pinned protocol, configurable memory granularity, common prompt/token budget | `test_personamem.py`, `test_experiment.py` |
 | Required baselines/ablations | `baselines.py`, `experiment.METHODS` | `test_baselines.py` |
-| External-outcome-only tuning and periodic validation | `training.py`, `configs/train.yaml`, `scripts/train.sh` | `test_training.py` |
+| External-outcome-only, zero-failure tuning without an inert train loop | `training.py`, `configs/train.yaml` | `test_training.py` |
 | Decoupled module metrics and ablation deltas | `module_metrics.py`, per-module JSONL outputs | `test_training.py` |
 | Answer, recall, bridge, innovation, cost, certificate and gap metrics | `metrics.py`, experiment summaries | `test_metrics.py` |
 | Independent gold bridge definition | optional external annotations + direct-rank partition | `test_metrics.py` |
 | One runtime implementation and script-controlled module combinations | `config.py`, `retriever.py`, `run_personamem.sh`, `ablation.sh` | `test_cli.py`, `test_retriever.py` |
-| Matched ANN/candidate budgets and separate diagnostic cost | `budget.py`, dynamic baselines, `sweep` | `test_budget_index.py` |
+| Matched unique-node/ANN/candidate budgets and separate diagnostic cost | `budget.py`, dynamic baselines, `sweep` | `test_budget_index.py` |
 | Exact argpartition and adaptive FAISS over-fetch | `index.py` | `test_budget_index.py` |
 | Multi-seed paired bootstrap aggregation | `aggregation.py`, `main_table.sh`, `ablation.sh` | `test_aggregation.py` |
-| Resolved config/hash, commit, data/model/prompt provenance and failure log | `experiment.py`, `training.py` | `test_experiment.py`, `test_training.py` |
+| Resolved config/hash, source checksums, commit, data/model/prompt provenance and failure log | `experiment.py`, `training.py` | `test_experiment.py`, `test_training.py` |
 | Offline q→m1→m2 smoke | `smoke.py`, `smoke_synthetic.sh` | executed smoke + `test_retriever.py` |
-| Code/data separation and 910B portability | project layout, config overlay, dependency files | `README.md`, `check-ascend`, `scripts/run_ascend.sh` |
+| Hashed worktree bundle and one-command server portability | `server_bundle.py`, config overlay, dependency files | extracted-bundle test, `scripts/package_server.sh`, `scripts/train_32k.sh` |
+| Independent persisted-run audit for 16 trials, 23 events, 1,855 examples, common questions and budgets | `run_audit.py`, `offline_validation.py` | `audit-tuning-run`, `scripts/validate_full_32k_offline.sh`, `test_training.py` |
+| Shared leakage-safe PersonaMem rerank query and time-aware memory formatting | `ranking.py`; options are normalized and gold is never read | `test_ranking.py` |
+| Instruction-aware batched embedding cache | `clients.py`, `experiment.EmbeddingCache` | `test_clients.py`, `test_experiment.py` |
+| Dense floor, real-anchor guided bridge discovery, per-path filtering and final union rerank | `guided_retriever.py`, `GuidedCandidatePool` | `test_guided_retriever.py`, `test_experiment.py` |
+| No duplicate Dense ANN and no legacy rho/log-det final selection in effect-first methods | reusable `initial_hits`, candidate exclusions, reranker-owned final IDs | `test_experiment.py` |
+| Separate ANN/rerank/bridge-embedding accounting and traceable candidate provenance | `budget.py`, `module_metrics.py`, prediction artifacts | `test_budget_index.py`, `test_training.py` |
+| Validation-only six-method matrix, point-estimate selection, report-only paired bootstrap | `run_effect_first_validation`, effect-first config/script | `test_training.py`, `test_cli.py` |
 
 Scope is intentionally faithful to the paper boundary: mathematical claims apply to the deterministic induced tree and `F_q`; answer quality is evaluated separately and is not claimed to inherit the proxy certificate.

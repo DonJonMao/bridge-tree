@@ -12,6 +12,7 @@ from .types import RetrievalResult
 
 MODULE_NAMES = (
     "encoding",
+    "candidate",
     "coarse_retrieval",
     "clustering",
     "path",
@@ -114,6 +115,7 @@ def collect_module_metrics(
                 np.size(memories) - np.isfinite(memories).sum() + np.size(query) - np.isfinite(query).sum()
             ),
         },
+        "candidate": {},
         "coarse_retrieval": {
             "first_hop_count": float(len(first_hop_nodes)),
             "max_direct_similarity": _max(first_hop_scores),
@@ -178,6 +180,12 @@ def collect_module_metrics(
             "index_build_ms": result.cost.index_build_ms,
             "retrieval_core_ms": result.cost.retrieval_core_ms,
             "diagnostic_ms": result.cost.diagnostic_ms,
+            "rerank_calls": float(result.cost.rerank_calls),
+            "rerank_documents": float(result.cost.rerank_documents),
+            "rerank_ms": result.cost.rerank_ms,
+            "bridge_embedding_calls": float(result.cost.bridge_embedding_calls),
+            "bridge_embedding_queries": float(result.cost.bridge_embedding_queries),
+            "bridge_embedding_ms": result.cost.bridge_embedding_ms,
             "generation_ms": result.cost.generation_ms,
             "final_context_count": float(result.cost.final_context_count),
             "final_context_tokens": float(result.cost.final_context_tokens),

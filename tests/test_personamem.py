@@ -1,6 +1,8 @@
 import csv
 import json
 
+import pytest
+
 from bridgetree.personamem import iter_examples, messages_to_memories, prepare_split
 
 
@@ -77,3 +79,6 @@ def test_prepare_and_iter_respect_end_index(tmp_path):
     assert manifest["questions"] == 1
     assert len(example.messages) == 2
     assert all("future" not in message["content"] for message in example.messages)
+
+    with pytest.raises(ValueError, match="source checksum mismatch"):
+        prepare_split(raw, processed, "32k", verify_pinned_source=True)
