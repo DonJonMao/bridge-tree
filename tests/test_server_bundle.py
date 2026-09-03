@@ -18,6 +18,10 @@ def test_server_bundle_is_scoped_hashed_and_runs_after_extraction(tmp_path):
     assert "configs/train.yaml" in selected
     assert "configs/personamem32k_effect_first.yaml" in selected
     assert "scripts/run_effect_first_validation.sh" in selected
+    assert "scripts/background_entrypoint.py" in selected
+    assert "scripts/start_effect_first_background.sh" in selected
+    assert "scripts/start_train_32k_background.sh" in selected
+    assert "src/bridgetree/background.py" in selected
     assert "src/bridgetree/guided_retriever.py" in selected
     assert "data/raw/personamem-v1/questions_32k.csv" in selected
     assert not any(".venv" in path or "outputs/" in path or "__pycache__" in path for path in selected)

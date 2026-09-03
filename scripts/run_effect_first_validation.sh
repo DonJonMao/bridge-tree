@@ -56,6 +56,7 @@ if [[ "${RERANK_INCLUDE_TIME:-true}" == "true" ]]; then
 else
   args+=(--no-rerank-include-time)
 fi
+args+=("$@")
 
 export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
 exec "$python_bin" "${args[@]}"

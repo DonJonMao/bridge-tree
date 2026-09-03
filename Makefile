@@ -1,4 +1,4 @@
-.PHONY: install test lint data run main-table ablation effect-first tune tune-32k preflight-32k validate-32k-offline package-server smoke
+.PHONY: install test lint data run main-table ablation effect-first effect-first-background effect-first-status tune tune-32k train-32k-background train-32k-status preflight-32k validate-32k-offline package-server smoke
 
 install:
 	python3 -m pip install -e '.[test]'
@@ -22,6 +22,12 @@ ablation:
 effect-first:
 	./scripts/run_effect_first_validation.sh
 
+effect-first-background:
+	./scripts/start_effect_first_background.sh
+
+effect-first-status:
+	./scripts/start_effect_first_background.sh status
+
 main-table:
 	./scripts/main_table.sh
 
@@ -30,6 +36,12 @@ tune:
 
 tune-32k:
 	./scripts/train_32k.sh
+
+train-32k-background:
+	./scripts/start_train_32k_background.sh
+
+train-32k-status:
+	./scripts/start_train_32k_background.sh status
 
 preflight-32k:
 	PREFLIGHT_ONLY=true ./scripts/train_32k.sh

@@ -46,11 +46,11 @@ python3 -m venv .venv
 ./scripts/main_table.sh --limit 10
 ./scripts/ablation.sh --limit 10
 
-# One-command full 32K tuning: bootstrap, verify, preflight services, then run.
-./scripts/train_32k.sh
+# Detached one-command launch; safe to close SSH immediately afterwards.
+./scripts/start_train_32k_background.sh
 
-# Validation-only accuracy-first comparison; does not evaluate the known test split.
-./scripts/run_effect_first_validation.sh
+# Detached validation-only accuracy-first comparison.
+./scripts/start_effect_first_background.sh
 
 .venv/bin/pytest
 ```
@@ -132,8 +132,33 @@ from final selection instead of treating path reachability as answer utility.
 Run the six-method, persona-disjoint validation matrix with one command:
 
 ```bash
-./scripts/run_effect_first_validation.sh
+./scripts/start_effect_first_background.sh
 ```
+
+The command returns immediately and the job continues after SSH disconnects.
+No `tmux`, `nohup`, redirection, PID command, or manual `jq` pipeline is needed.
+Its fixed files are under `outputs/background/`:
+
+```text
+effect_first.log                 complete stdout + stderr
+effect_first.status.json         running/completed/failed, PID, timestamps, duration, exit code
+effect_first.exit                numeric exit code after completion
+effect_first.run_dir             exact timestamped artifact directory
+effect_first.summary.json        copied final effect summary
+effect_first.results.csv         copied comparison table
+effect_first.paired_results.json copied paired analysis
+```
+
+Two short commands provide status and the latest 100 log lines:
+
+```bash
+./scripts/start_effect_first_background.sh status
+./scripts/start_effect_first_background.sh log
+```
+
+Starting again while it is live reports `already_running`. Starting after it
+finishes moves the previous fixed files into `outputs/background/history/` and
+creates a fresh fixed set.
 
 It evaluates only the validation personas and records `test_queries_read: 0`.
 The matrix contains Dense-Rerank-20, the candidate-count control
@@ -159,6 +184,8 @@ PATH_FILTER=true ./scripts/run_effect_first_validation.sh
 
 See [docs/effect_first_reranker.md](docs/effect_first_reranker.md) for the old
 result diagnosis, exact method definitions, artifacts, and interpretation rules.
+See [docs/background_runs.md](docs/background_runs.md) for both detached launchers
+and every fixed output file.
 
 ## Configuration tuning and module diagnostics
 
@@ -214,10 +241,10 @@ Build a checked server archive from the current worktree (including uncommitted 
 
 The command writes `dist/server/*.tar.gz` plus a transport `.sha256` sidecar, verifies every bundled file against an embedded SHA-256/permission manifest, extracts it into a fresh temporary path, and runs the offline launcher preflight there. It excludes `.git`, `.venv`, outputs, caches, and build products.
 
-Copy and extract that archive on the server. With remote embedding/generation services, enter the extracted `bridgetree_preference_rag` directory and run one command:
+Copy and extract that archive on the server. With remote embedding/generation services, enter the extracted `bridgetree_preference_rag` directory and run one detached command:
 
 ```bash
-./scripts/train_32k.sh
+./scripts/start_train_32k_background.sh
 ```
 
 For local NPU-hosted embeddings, install the CANN-matched `torch` and `torch_npu` wheels from the target image, then:

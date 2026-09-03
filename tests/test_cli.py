@@ -172,6 +172,22 @@ def test_effect_first_script_runs_the_pinned_validation_matrix():
     assert "validate-effect-first" in script
 
 
+def test_background_launchers_have_fixed_logs_status_and_result_files():
+    effect = Path("scripts/start_effect_first_background.sh").read_text(encoding="utf-8")
+    training = Path("scripts/start_train_32k_background.sh").read_text(encoding="utf-8")
+
+    assert "scripts/background_entrypoint.py" in effect
+    assert '"$manager_script" start' in effect
+    assert "effect_first.summary.json" in effect
+    assert "effect_first.results.csv" in effect
+    assert "effect_first.log" in effect
+    assert "scripts/background_entrypoint.py" in training
+    assert '"$manager_script" start' in training
+    assert "train_32k.summary.json" in training
+    assert "train_32k.audit.json" in training
+    assert "train_32k.log" in training
+
+
 def test_full_32k_launcher_is_portable_and_runs_all_preflight_gates():
     script = Path("scripts/train_32k.sh").read_text(encoding="utf-8")
     assert "-m pip install" in script

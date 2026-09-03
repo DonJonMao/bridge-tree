@@ -51,7 +51,7 @@ apply.
 ## Effect-first validation protocol
 
 ```bash
-./scripts/run_effect_first_validation.sh
+./scripts/start_effect_first_background.sh
 ```
 
 The command uses `configs/personamem32k_effect_first.yaml` and evaluates six
@@ -71,6 +71,12 @@ the selection order.
 cache hits. `rerank_ms` is physical uncached service time. This prevents a warm
 cache from making one method appear algorithmically cheaper while still making
 reruns efficient.
+
+The detached launcher writes the complete stream to the fixed
+`outputs/background/effect_first.log`, lifecycle state to
+`effect_first.status.json`, and copies the final summary/table to fixed JSON/CSV
+paths. The timestamped scientific artifacts remain unchanged. The foreground
+`run_effect_first_validation.sh` is retained for CI and debugging.
 
 ## Cost matching
 

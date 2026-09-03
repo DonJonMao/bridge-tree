@@ -126,14 +126,34 @@ certificate 代码。新方法不宣称 certificate，并会拒绝
 
 ## 6. 运行与产物
 
-服务器项目根目录执行：
+服务器项目根目录只需执行：
 
 ```bash
-./scripts/run_effect_first_validation.sh > effect_first.log 2>&1
+./scripts/start_effect_first_background.sh
 ```
 
-需要脱离 SSH 时，在 tmux 内执行上述命令，然后按 `Ctrl-b`、松开、再按 `d`。
-验证入口只使用 persona-disjoint validation，不评估已经查看过的 73 题 test。
+命令立即返回，任务已创建独立 session，可直接关闭 SSH 或电脑；不再需要 tmux、
+`nohup`、重定向、PID 查询或手动写退出码。验证入口只使用 persona-disjoint
+validation，不评估已经查看过的 73 题 test。
+
+所有控制信息都有固定文件名：
+
+```text
+outputs/background/effect_first.log
+outputs/background/effect_first.status.json
+outputs/background/effect_first.exit
+outputs/background/effect_first.run_dir
+outputs/background/effect_first.summary.json
+outputs/background/effect_first.results.csv
+outputs/background/effect_first.paired_results.json
+```
+
+查看状态或最近日志也各自只有一条命令：
+
+```bash
+./scripts/start_effect_first_background.sh status
+./scripts/start_effect_first_background.sh log
+```
 
 输出目录为：
 

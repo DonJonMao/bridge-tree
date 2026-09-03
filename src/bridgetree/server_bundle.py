@@ -76,7 +76,11 @@ def server_bundle_files(repository_root: str | Path) -> list[Path]:
         root / "data" / "raw" / "personamem-v1" / "questions_32k.csv",
         root / "data" / "raw" / "personamem-v1" / "shared_contexts_32k.jsonl",
         root / "scripts" / "run_effect_first_validation.sh",
+        root / "scripts" / "background_entrypoint.py",
+        root / "scripts" / "start_effect_first_background.sh",
+        root / "scripts" / "start_train_32k_background.sh",
         root / "scripts" / "train_32k.sh",
+        root / "src" / "bridgetree" / "background.py",
         root / "src" / "bridgetree" / "guided_retriever.py",
         root / "src" / "bridgetree" / "ranking.py",
         root / "src" / "bridgetree" / "training.py",
@@ -207,9 +211,15 @@ def verify_server_bundle(archive_path: str | Path) -> Dict[str, Any]:
         launcher = members[f"{PROJECT_NAME}/scripts/train_32k.sh"]
         if not launcher.mode & 0o111:
             raise ValueError("server bundle launcher is not executable")
-        effect_launcher = members[f"{PROJECT_NAME}/scripts/run_effect_first_validation.sh"]
-        if not effect_launcher.mode & 0o111:
-            raise ValueError("effect-first server bundle launcher is not executable")
+        executable_launchers = (
+            "scripts/run_effect_first_validation.sh",
+            "scripts/start_effect_first_background.sh",
+            "scripts/start_train_32k_background.sh",
+        )
+        for launcher_name in executable_launchers:
+            launcher = members[f"{PROJECT_NAME}/{launcher_name}"]
+            if not launcher.mode & 0o111:
+                raise ValueError(f"server bundle launcher is not executable: {launcher_name}")
     return {
         "verified": True,
         "file_count": int(manifest["file_count"]),

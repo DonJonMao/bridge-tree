@@ -18,8 +18,15 @@ After copying or extracting the bundle on the server, run from the extracted pro
 sha256sum -c bridgetree_preference_rag_server_*.tar.gz.sha256
 tar -xzf bridgetree_preference_rag_server_*.tar.gz
 cd bridgetree_preference_rag
-./scripts/train_32k.sh
+./scripts/start_train_32k_background.sh
 ```
+
+The launcher returns immediately and survives SSH logout. All console output,
+state, PID, timestamps, duration, exit code, exact run directory, final summary,
+completion audit, and best configuration are exposed through fixed paths under
+`outputs/background/`. Use `./scripts/start_train_32k_background.sh status` or
+`./scripts/start_train_32k_background.sh log`; no `tmux`, redirection, or manual
+PID bookkeeping is required.
 
 The launcher performs these gates before tuning:
 
@@ -72,7 +79,9 @@ OUTPUT_DIR=/data/bridgetree/tuning-32k ./scripts/train_32k.sh
 
 `RUN_CHECKS=false`, `CHECK_SERVICES=false`, and `DOWNLOAD_DATA=false` are available for controlled debugging, but should not be disabled for a formal run. `APP_CONFIG` and `TUNING_CONFIG` replace their respective default paths.
 
-For a long SSH session, invoke the same one-command launcher inside the server's process supervisor, `tmux`, or `screen`; the launcher intentionally stays in the foreground so its exit status remains authoritative.
+`scripts/train_32k.sh` remains the foreground implementation used by CI and the
+bundle verifier. For normal server use, `scripts/start_train_32k_background.sh`
+runs it in a detached process group and persists the authoritative exit status.
 
 ## Full-size offline scheduler validation
 
