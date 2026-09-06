@@ -1060,6 +1060,7 @@ class SemanticFeatureProvider:
         path_mode: str = "posterior_expected_scatter",
         representation_mode: str = "cached_memory",
         scorer_fingerprint: str = "",
+        representation_fingerprint: str = "",
     ) -> None:
         self.graph = graph
         self.measure = measure
@@ -1084,6 +1085,7 @@ class SemanticFeatureProvider:
         if self.representation_mode not in {"cached_memory", "query_conditioned"}:
             raise ValueError(f"unsupported representation mode: {representation_mode}")
         self.scorer_fingerprint = str(scorer_fingerprint)
+        self.representation_fingerprint = str(representation_fingerprint)
         if isinstance(quality, Mapping):
             quality_input = quality
         else:
@@ -1118,6 +1120,7 @@ class SemanticFeatureProvider:
                 {
                     "mode": self.representation_mode,
                     "fingerprint": self.scorer_fingerprint,
+                    "representation_fingerprint": self.representation_fingerprint,
                     "query": query,
                     "graph_hash": graph.graph_hash,
                 },

@@ -364,7 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     semantic_matrix = subparsers.add_parser(
         "run-semantic-matrix",
-        help="Run the fixed S0/S1/S2/S3/S2-shuffle semantic matrix on shared frozen candidate pools",
+        help="Run the fixed L0/L1/S0/S1/S2/S3/S2-shuffle matrix on shared frozen candidate pools",
     )
     semantic_matrix.add_argument("--config", default="configs/default.yaml")
     semantic_matrix.add_argument("--override-config")

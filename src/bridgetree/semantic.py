@@ -55,6 +55,153 @@ from .types import (
 
 SEMANTIC_PROFILE = "semantic_path_v1"
 
+# The task-conditioned representation is a separately identified operator,
+# rather than an implicit variation of the cached memory embedding.  Keep the
+# instruction stable so it participates in both the embedding request and its
+# content-addressed cache key.
+SEMANTIC_QUERY_CONDITIONED_INSTRUCTION = (
+    "Encode the recorded personal evidence in the context of the current task. "
+    "Preserve distinctions between user statements and assistant suggestions, "
+    "and between historical and current evidence."
+)
+
+_SENSITIVE_METADATA_KEYS = {
+    "answer",
+    "correct_answer",
+    "gold",
+    "gold_answer",
+    "label",
+    "target",
+    "solution",
+    "oracle",
+}
+
+
+def _safe_semantic_metadata(value: Any, *, key: str = "") -> Any:
+    """Remove answer-bearing metadata before it reaches a representation.
+
+    PersonaMem's public question fields are already separated from the gold
+    answer, but programmatic callers may attach arbitrary metadata.  The
+    query-conditioned encoder must never receive a label/oracle field merely
+    because it happened to be nested in that metadata.
+    """
+
+    normalized_key = str(key).strip().lower().replace("-", "_")
+    if normalized_key in _SENSITIVE_METADATA_KEYS or any(
+        token in normalized_key for token in ("gold", "answer", "label", "target", "oracle")
+    ):
+        return "[redacted]"
+    if isinstance(value, Mapping):
+        return {
+            str(child_key): _safe_semantic_metadata(child_value, key=str(child_key))
+            for child_key, child_value in sorted(value.items(), key=lambda item: str(item[0]))
+            if str(child_key).strip().lower().replace("-", "_") not in _SENSITIVE_METADATA_KEYS
+        }
+    if isinstance(value, (list, tuple)):
+        return [_safe_semantic_metadata(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def build_query_conditioned_representation_text(
+    query: str,
+    answer_options: str,
+    memory: Memory,
+    *,
+    query_cutoff: Any = None,
+    query_metadata: Mapping[str, Any] | None = None,
+    embedding_model: str = "",
+    embedding_fingerprint: str = "",
+    instruction: str = SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
+    cache_schema: str = "semantic_query_conditioned_v1",
+) -> str:
+    """Build the frozen S3 representation input.
+
+    Every field that can change the task-conditioned vector is rendered in a
+    deterministic envelope: task/options, original memory text, role and time
+    provenance, cutoff, and model/instruction/cache identity.  The gold answer
+    is intentionally not an accepted argument and answer-bearing metadata is
+    redacted for defensive protocol hygiene.
+    """
+
+    if not isinstance(query, str) or not isinstance(answer_options, str):
+        raise ValueError("query and answer_options must be strings")
+    if not isinstance(memory, Memory):
+        raise ValueError("query-conditioned representation requires a Memory")
+    safe_query_metadata = _safe_semantic_metadata(dict(query_metadata or {}))
+    safe_memory_metadata = _safe_semantic_metadata(memory.metadata if isinstance(memory.metadata, Mapping) else {})
+    # ``_memory_mark`` validates the observation envelope used by the semantic
+    # path.  Reusing its public form keeps the representation and provenance
+    # schemas in lockstep.
+    time_mark = _memory_mark(memory).public_dict()
+    roles = safe_memory_metadata.get("roles", []) if isinstance(safe_memory_metadata, Mapping) else []
+    payload = {
+        "schema": str(cache_schema),
+        "embedding_model": str(embedding_model),
+        "embedding_fingerprint": str(embedding_fingerprint),
+        "instruction": str(instruction),
+        "query_cutoff": _safe_semantic_metadata(query_cutoff),
+        "query_metadata": safe_query_metadata,
+        "memory_id": str(memory.memory_id),
+        "source_id": str(memory.source_id),
+        "roles": roles,
+        "time": time_mark,
+    }
+    metadata_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    return (
+        f"[Representation protocol: {cache_schema}]\n"
+        f"[Embedding model: {embedding_model}]\n"
+        f"[Embedding fingerprint: {embedding_fingerprint}]\n"
+        f"[Representation instruction: {instruction}]\n"
+        f"[Representation metadata: {metadata_json}]\n\n"
+        f"Task:\n{query}\n\n"
+        f"Options:\n{answer_options}\n\n"
+        f"Memory:\n{memory.text}"
+    )
+
+
+def rho_squared_quality_records(
+    measure: Any,
+    *,
+    scorer_fingerprint: str = "legacy-rho2",
+) -> dict[str, QualityRecord]:
+    """Return the legacy ``rho²`` quality table for a frozen graph.
+
+    ``h_j`` is the graph's access quality.  Encoding ``r_j=h_j²`` in the
+    semantic quality contract makes ``sqrt(r_j)=h_j`` and therefore gives the
+    exact old rank-one scale for the no-path L0 control, without normalizing by
+    the candidate pool or silently conflating it with a reranker score.
+    """
+
+    graph = getattr(measure, "graph", None)
+    access = getattr(measure, "access_quality", None)
+    if graph is None or not isinstance(access, Mapping):
+        raise ValueError("rho² quality requires a frozen graph measure")
+    records: dict[str, QualityRecord] = {}
+    for raw_identifier in graph.memory_ids:
+        identifier = str(raw_identifier)
+        value = float(access.get(identifier, 0.0))
+        if not np.isfinite(value) or value < -1e-10 or value > 1.0 + 1e-10:
+            raise ValueError(f"graph access quality for {identifier} is outside [0, 1]")
+        h = min(1.0, max(0.0, value))
+        squared = h * h
+        input_hash = hashlib.sha256(
+            json.dumps(
+                {"graph_hash": graph.graph_hash, "memory_id": identifier, "access_quality": h},
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        records[identifier] = QualityRecord.from_raw(
+            identifier,
+            squared,
+            "unit_interval",
+            scorer_fingerprint=scorer_fingerprint,
+            input_hash=input_hash,
+        )
+    return records
+
 
 @dataclass(frozen=True)
 class ProposalExposure:
@@ -665,9 +812,32 @@ def discover_frozen_graph(
             "visible_ids": sorted(ids),
             "query_anchor_source": proposal_embedding_source,
             "query_anchor_instruction": str(proposal_query_instruction),
+            # Keep the complete paid exposure stream in the frozen graph
+            # metadata.  ``proposal_records`` is intentionally restricted to
+            # valid graph edges; these audit-only rows also retain candidates
+            # that lost the unique-node admission race.
+            "raw_anchor_exposures": [
+                [str(identifier), float(score)] for identifier, score in first_hits
+            ],
+            "raw_proposal_records": [
+                [item.parent_id, item.candidate_id, item.layer, item.rank, item.score]
+                for item in exposures
+            ],
+            "proposal_exposure_budget": tracker.budget.max_candidate_exposure,
+            "unique_node_budget": tracker.budget.max_unique_nodes,
         },
         domain_scope="proposal_domain",
     )
+    raw_rows = [
+        (str(identifier), float(score)) for identifier, score in first_hits
+    ] + [
+        (item.candidate_id, float(item.score)) for item in exposures
+    ]
+    unadmitted_raw_rows = [
+        row for row in raw_rows if row[0] not in admitted and row[0] not in excluded
+    ]
+    unadmitted_unique_ids = sorted({row[0] for row in unadmitted_raw_rows})
+    accepted_raw_rows = [row for row in raw_rows if row[0] in admitted]
     diagnostics = {
         "graph_hash": graph.graph_hash,
         "layers": [list(layer) for layer in graph.layers],
@@ -675,6 +845,15 @@ def discover_frozen_graph(
         "parent_sources": {candidate: list(parents) for candidate, parents in graph.parent_sources},
         "back_edge_exposures": back_edges,
         "raw_exposure": len(exposures) + len(first_hits),
+        "raw_exposure_count": len(raw_rows),
+        "raw_exposure_rows": [list(row) for row in raw_rows],
+        "accepted_raw_exposure_count": len(accepted_raw_rows),
+        "unadmitted_raw_row_count": len(unadmitted_raw_rows),
+        "unadmitted_unique_count": len(unadmitted_unique_ids),
+        "unadmitted_unique_ids": unadmitted_unique_ids,
+        "excluded_exposure_count": sum(1 for row in raw_rows if row[0] in excluded),
+        "proposal_exposure_budget": tracker.budget.max_candidate_exposure,
+        "unique_node_budget": tracker.budget.max_unique_nodes,
         "unique_admissions": len(graph.memory_ids),
         "duplicate_parent_edges": sum(max(0, len(parents) - 1) for parents in parent_sources.values()),
         "relation_representation": "observed_edges_sparse",
@@ -1130,6 +1309,7 @@ def semantic_retrieve(
     proposal_query_provider: Any = None,
     proposal_vectors: Mapping[str, np.ndarray] | None = None,
     proposal_query_instruction: str = "",
+    representation_fingerprint: str = "",
 ) -> RetrievalResult:
     """Run the frozen semantic-path chain and return auditable provenance."""
 
@@ -1245,7 +1425,16 @@ def semantic_retrieve(
             raise ValueError(
                 f"quality_mode={config.quality_mode!r} requires quality_records, quality_provider, or reranker"
             )
-        qualities = _fallback_direct_quality(normalize(query_vector), index, graph.memory_ids)
+        if config.quality_mode == "rho":
+            # ``rho`` is the legacy graph-access quality.  Keep it distinct
+            # from direct query cosine: L0/L1 use r_j=rho_j² so the semantic
+            # feature's sqrt scale is exactly the old rho scale.
+            qualities = rho_squared_quality_records(
+                measure,
+                scorer_fingerprint=config.scorer_fingerprint or "legacy-rho2",
+            )
+        else:
+            qualities = _fallback_direct_quality(normalize(query_vector), index, graph.memory_ids)
     representation_mode = "query_conditioned" if config.feature_mode in {"query_conditioned"} else "cached_memory"
     if representation_mode == "query_conditioned" and representation_provider is None:
         # Query-conditioned features are a distinct representation contract;
@@ -1273,6 +1462,7 @@ def semantic_retrieve(
         path_mode=config.path_mode,
         representation_mode=representation_mode,
         scorer_fingerprint=config.scorer_fingerprint,
+        representation_fingerprint=representation_fingerprint,
     )
     selection_mode = config.selection_mode
     if config.profile in {"semantic", SEMANTIC_PROFILE} and selection_mode not in {"pure_rerank", "frozen_listwise"}:
@@ -1448,6 +1638,7 @@ def semantic_retrieve(
     chronological_ids = sorted(selected_ids, key=lambda identifier: (memory_by_id[identifier].timestamp, identifier))
     selected = [memory_by_id[identifier] for identifier in chronological_ids]
     context_plan: ContextPlan | None = None
+    context_plan_error: dict[str, Any] | None = None
     try:
         context_plan = _make_context_plan(
             query,
@@ -1461,9 +1652,18 @@ def semantic_retrieve(
         tracker.final_context_count = len(context_plan.chronological_ids)
         tracker.final_context_tokens = context_plan.token_count
     except Exception as exc:
-        # Retrieval remains inspectable; generation callers receive an explicit
-        # context-plan failure instead of silently dropping selected memories.
-        graph_diagnostics["context_plan_error"] = {"type": type(exc).__name__, "message": str(exc)}
+        # A strict semantic run must not return a seemingly successful result
+        # whose eventual reader request contains a different context.  Keep a
+        # diagnostic for non-strict exploratory callers, but fail the main
+        # contract explicitly so matrix runners record a failed cell.
+        context_plan_error = {"type": type(exc).__name__, "message": str(exc)}
+        graph_diagnostics["context_plan_error"] = context_plan_error
+        if config.context_strict:
+            from .clients import ContextPlanError
+
+            if isinstance(exc, ContextPlanError):
+                raise
+            raise ContextPlanError(f"unable to build exact ContextPlan: {exc}") from exc
     diagnostics = {
         **graph_diagnostics,
         "graph": graph.public_dict(),
@@ -1493,6 +1693,13 @@ def semantic_retrieve(
         "path_hypotheses_truncated_ids": truncated_path_ids,
         "path_hypothesis_limit": path_hypothesis_limit,
         "context_plan": None if context_plan is None else context_plan.public_dict(),
+        "context_status": (
+            "within_budget"
+            if context_plan is not None and context_plan.budget_status == "within_budget"
+            else "over_budget"
+            if context_plan is not None
+            else "failed"
+        ),
     }
     return RetrievalResult(
         query=query,
@@ -1555,6 +1762,9 @@ SemanticRetriever = semantic_retrieve
 
 __all__ = [
     "SEMANTIC_PROFILE",
+    "SEMANTIC_QUERY_CONDITIONED_INSTRUCTION",
+    "build_query_conditioned_representation_text",
+    "rho_squared_quality_records",
     "ProposalExposure",
     "discover_frozen_graph",
     "build_proposal_graph",

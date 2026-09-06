@@ -448,13 +448,15 @@ def _build_manifest_from_legacy(
             if not matching:
                 raise ValueError(f"legacy {name} has no current examples for persisted personas")
             # Try every order that has been used by the legacy split code.
-            # A persisted hash makes the choice unambiguous; without a hash,
-            # source order is the only reproducible fallback and is accepted
-            # only when no alternative ordering is implied by the manifest.
+            # A persisted hash makes the choice unambiguous.  If a legacy
+            # manifest omitted the combined role's hash, prefer the historical
+            # split order (when available) instead of silently imposing a new
+            # source/lexicographic ordering.
             candidate_orders: list[list[str]] = [
                 [str(item.question_id) for item in matching],
                 [str(item.question_id) for item in sorted(matching, key=lambda item: str(item.question_id))],
             ]
+            historical_order: list[str] | None = None
             try:
                 legacy_splits = _legacy_split(loaded, int(value.get("seed", seed)))
                 phase_items = {
@@ -463,9 +465,10 @@ def _build_manifest_from_legacy(
                     "full": tuple(loaded),
                 }.get(phase_hint)
                 if phase_items is not None:
-                    candidate_orders.append(
-                        [str(item.question_id) for item in phase_items if str(item.persona_id) in set(personas)]
-                    )
+                    historical_order = [
+                        str(item.question_id) for item in phase_items if str(item.persona_id) in set(personas)
+                    ]
+                    candidate_orders.append(historical_order)
             except (TypeError, ValueError):
                 pass
             matching_orders = []
@@ -476,7 +479,8 @@ def _build_manifest_from_legacy(
                     matching_orders.append(order)
             # Remove duplicate candidate orders while preserving deterministic
             # order.  If a hash was supplied, require exactly one match; if it
-            # was absent, source order is the explicit documented fallback.
+            # was absent, use the historical phase order, falling back to
+            # source order only for a manifest that carries no split ordering.
             unique_orders = list(dict.fromkeys(tuple(order) for order in matching_orders))
             if expected_hash is not None:
                 if len(unique_orders) != 1:
@@ -485,7 +489,11 @@ def _build_manifest_from_legacy(
                     )
                 ids = list(unique_orders[0])
             else:
-                ids = list(candidate_orders[0])
+                # The phase order is appended after source and sorted above.
+                # ``full`` intentionally resolves to source order, while the
+                # development/confirmatory legacy roles retain their original
+                # split scheduler order.
+                ids = list(historical_order or (unique_orders[-1] if unique_orders else candidate_orders[0]))
 
         unknown_ids = [identifier for identifier in ids if identifier not in by_id]
         if unknown_ids:
@@ -1029,13 +1037,22 @@ def protocol_examples(
     raw_ids = role.get("question_ids", ())
     if isinstance(raw_ids, (str, bytes)) or not isinstance(raw_ids, Sequence):
         raise ValueError(f"protocol role {role_name} has invalid question_ids")
-    ids = set(str(item) for item in raw_ids)
-    selected = tuple(
-        sorted(
-            (item for item in examples if str(item.question_id) in ids),
-            key=lambda item: str(item.question_id),
-        )
-    )
+    ids = [str(item) for item in raw_ids]
+    if len(ids) != len(set(ids)):
+        raise ValueError(f"protocol role {role_name} has duplicate question_ids")
+    by_id: dict[str, PersonaMemExample] = {}
+    for item in examples:
+        identifier = str(item.question_id)
+        if identifier in by_id:
+            raise ValueError(f"examples contain duplicate question_id: {identifier}")
+        by_id[identifier] = item
+    missing = [identifier for identifier in ids if identifier not in by_id]
+    if missing:
+        raise ValueError(f"cannot confirm persisted {role_name} question set: missing {missing[:5]}")
+    # Preserve the persisted order.  The order is part of the manifest hash
+    # and is useful for reproducible batching; sorting here would silently
+    # change a legacy split while leaving its declared hash untouched.
+    selected = tuple(by_id[identifier] for identifier in ids)
     if len(selected) != len(ids):
         raise ValueError(f"cannot confirm persisted {role_name} question set")
     return selected

@@ -30,6 +30,7 @@ from .guided_retriever import RerankerGuidedBridgeRetriever, cached_rerank_all
 from .index import ExactInnerProductIndex, build_index
 from .information import StateBasisProvider
 from .math_utils import nonnegative_cosine
+from .measure import propagate_frozen_graph
 from .metrics import (
     answer_accuracy,
     answer_parse_failed,
@@ -48,7 +49,14 @@ from .personamem import (
 )
 from .ranking import RerankCache, build_personamem_rank_query, format_memory_document, stable_union
 from .retriever import BridgeTreeRetriever
-from .semantic import discover_frozen_graph, reranker_quality_records, semantic_retrieve
+from .semantic import (
+    SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
+    build_query_conditioned_representation_text,
+    discover_frozen_graph,
+    reranker_quality_records,
+    rho_squared_quality_records,
+    semantic_retrieve,
+)
 from .temporal import TransitionCache
 from .types import Memory, QualityRecord, RetrievalResult
 
@@ -147,57 +155,104 @@ METHODS = (
 SEMANTIC_METHODS = {"semantic_path", "pure_rerank", "frozen_listwise"}
 
 # Fixed-candidate semantic ablation matrix.  Every row is evaluated on the
-# same frozen proposal graph and pointwise quality table; only the selector's
-# path/representation operator changes.
+# same frozen proposal graph and original memory pool.  L0/L1 deliberately
+# use a separate, explicit legacy ``rho²`` quality source; the S rows share
+# one frozen pointwise scorer table.  Keeping the source in the row metadata
+# prevents an audit from pretending that all seven rows use one quality
+# contract.
 SEMANTIC_ABLATIONS: Dict[str, Dict[str, Any]] = {
-    "S0": {
-        "label": "Pure-Rerank",
+    "L0": {
+        "label": "Legacy-Rho2-Flat",
+        "quality_source": "rho2",
         "path_mode": "none",
         "feature_mode": "cached_memory",
+        "representation_mode": "cached_memory",
+        "selection_mode": "semantic_path_logdet",
+        "quality_mode": "rho",
+        "quality_score_space": "unit_interval",
+        "score_contract": "unit_interval",
+        "scorer_fingerprint": "legacy-rho2",
+        "representation_role": "memory",
+    },
+    "L1": {
+        "label": "Legacy-Rho2-SinglePath",
+        "quality_source": "rho2",
+        "path_mode": "single_path",
+        "feature_mode": "cached_memory",
+        "representation_mode": "cached_memory",
+        "selection_mode": "semantic_path_logdet",
+        "quality_mode": "rho",
+        "quality_score_space": "unit_interval",
+        "score_contract": "unit_interval",
+        "scorer_fingerprint": "legacy-rho2",
+        "representation_role": "memory",
+    },
+    "S0": {
+        "label": "Pure-Rerank",
+        "quality_source": "pointwise",
+        "path_mode": "none",
+        "feature_mode": "cached_memory",
+        "representation_role": "not_used",
         "selection_mode": "pure_rerank",
     },
     "S1": {
         "label": "Flat-LogDet",
+        "quality_source": "pointwise",
         "path_mode": "none",
         "feature_mode": "cached_memory",
+        "representation_role": "memory",
         "selection_mode": "semantic_path_logdet",
     },
     "S2": {
         "label": "Semantic-Path",
+        "quality_source": "pointwise",
         "path_mode": "posterior_expected_scatter",
         "feature_mode": "cached_memory",
+        "representation_role": "memory",
         "selection_mode": "semantic_path_logdet",
     },
     "S3": {
         "label": "Semantic-Path-QueryConditioned",
+        "quality_source": "pointwise",
         "path_mode": "posterior_expected_scatter",
         "feature_mode": "query_conditioned",
         "representation_mode": "query_conditioned",
+        "representation_role": "query_conditioned",
         "selection_mode": "semantic_path_logdet",
     },
     "S2-shuffle": {
         "label": "Semantic-Path-Shuffled",
+        "quality_source": "pointwise",
         "path_mode": "shuffle",
         "feature_mode": "cached_memory",
+        "representation_role": "memory",
         "selection_mode": "semantic_path_logdet",
     },
 }
 
+SEMANTIC_MATRIX_ARCHITECTURES = tuple(SEMANTIC_ABLATIONS)
+
 
 def semantic_matrix_configs(base: Any) -> Dict[str, RetrievalConfig]:
-    """Return the train-free S0/S1/S2/S3/S2-shuffle configurations."""
+    """Return the train-free L0/L1/S0/S1/S2/S3/S2-shuffle configurations."""
     retrieval = getattr(base, "retrieval", base)
     resolved: Dict[str, RetrievalConfig] = {}
     for label, changes in SEMANTIC_ABLATIONS.items():
-        values = {key: value for key, value in changes.items() if key != "label"}
-        candidate = replace(
-            retrieval,
-            profile="semantic_path_v1",
-            proposal_mode="real_member_query_anchor",
-            relation_mode="angular",
-            quality_mode="frozen_reranker",
-            **values,
-        )
+        # Row labels and quality-source metadata are recorded in the matrix
+        # manifest but are not RetrievalConfig constructor fields.
+        values = {
+            key: value
+            for key, value in changes.items()
+            if key in RetrievalConfig.__dataclass_fields__
+        }
+        defaults = {
+            "profile": "semantic_path_v1",
+            "proposal_mode": "real_member_query_anchor",
+            "relation_mode": "angular",
+            "quality_mode": "frozen_reranker",
+        }
+        defaults.update(values)
+        candidate = replace(retrieval, **defaults)
         # S0's pure rerank is still a semantic quality comparison and keeps
         # the same frozen profile/contract; it simply does not use path
         # geometry.
@@ -1253,7 +1308,7 @@ def run_personamem_experiment(
                     # ContextPlan is authoritative for the semantic path.  A
                     # plan failure is a protocol failure, not permission to
                     # silently drop selected memories after the selector.
-                    if bridge_result.context_plan is None:
+                    if bridge_result.context_plan is None or not bridge_result.context_plan.within_budget:
                         raise ValueError("semantic retrieval did not produce an exact ContextPlan")
                     selected = list(selected)
                     selected_ids = list(bridge_result.selected_in_greedy_order)
@@ -1721,7 +1776,7 @@ def run_tmic_matrix(
                 # missing plan means the selected set could not satisfy the
                 # declared request/budget contract; record an explicit row
                 # failure rather than silently dropping memories here.
-                if result.context_plan is None:
+                if result.context_plan is None or not result.context_plan.within_budget:
                     plan_error = result.diagnostics.get("context_plan_error", {})
                     detail = (
                         f": {plan_error.get('message')}"
@@ -1963,12 +2018,14 @@ def run_semantic_matrix(
     reranker: Any | None = None,
     quality_provider: Any | None = None,
 ) -> Dict[str, Any]:
-    """Run the fixed semantic S0--S2-shuffle matrix on shared frozen pools.
+    """Run the fixed L0/L1/S0--S2-shuffle matrix on shared frozen pools.
 
     Candidate discovery and pointwise quality are performed once per question;
-    each architecture receives the exact same frozen graph and quality table.
-    This makes a path-vs-flat comparison interpretable and keeps the command
-    usable with deterministic local clients in CI.
+    each architecture receives the exact same frozen graph and original memory
+    pool.  L0/L1 use an explicitly separate rho² table, while the S rows share
+    one pointwise quality table.  This makes both path-vs-flat and legacy-vs-
+    semantic comparisons interpretable and keeps the command usable with
+    deterministic local clients in CI.
     """
     from .information import validate_quality_records
     from .protocol import protocol_examples, protocol_gate
@@ -2010,6 +2067,17 @@ def run_semantic_matrix(
     accuracy_by_label: Dict[str, list[float]] = {label: [] for label in labels}
     failures: list[Dict[str, Any]] = []
     shared_costs_by_question: dict[str, dict[str, Any]] = {}
+    quality_source_by_label = {
+        label: str(SEMANTIC_ABLATIONS[label].get("quality_source", "pointwise"))
+        for label in labels
+    }
+    pointwise_runtime_source = (
+        "reranker"
+        if reranker is not None
+        else "provider"
+        if quality_provider is not None
+        else "offline-direct-cosine"
+    )
 
     for example in all_examples:
         try:
@@ -2056,9 +2124,21 @@ def run_semantic_matrix(
                 "discovery": shared_discovery_cost.to_dict(),
             }
             records = {memory.memory_id: memory for memory in memories if memory.memory_id in graph.memory_ids}
+            # L0/L1 are the explicit legacy controls.  Their quality is the
+            # frozen graph access probability squared, not the reranker table;
+            # this gives the exact ``sqrt(rho²)=rho`` scale while preserving a
+            # separate provenance identity from the S rows.
+            graph_measure = propagate_frozen_graph(graph)
+            rho_quality_started = time.perf_counter()
+            rho_qualities = rho_squared_quality_records(
+                graph_measure,
+                scorer_fingerprint=retrieval_configs["L0"].scorer_fingerprint or "legacy-rho2",
+            )
+            rho_quality_ms = (time.perf_counter() - rho_quality_started) * 1000.0
+
             quality_started = time.perf_counter()
             if reranker is not None:
-                qualities = reranker_quality_records(
+                pointwise_qualities = reranker_quality_records(
                     reranker,
                     example.query,
                     records,
@@ -2068,6 +2148,7 @@ def run_semantic_matrix(
                     query_cutoff=getattr(example, "query_time", None),
                     query_metadata=getattr(example, "metadata", None),
                 )
+                pointwise_source = "reranker"
             elif quality_provider is not None:
                 provider_method = getattr(quality_provider, "score_all", None)
                 if callable(provider_method):
@@ -2076,18 +2157,19 @@ def run_semantic_matrix(
                     provider_output = quality_provider(example.query, records)
                 else:
                     provider_output = quality_provider
-                qualities = validate_quality_records(
+                pointwise_qualities = validate_quality_records(
                     provider_output,
                     graph.memory_ids,
                     score_space=config.retrieval.quality_score_space,
                     scorer_fingerprint=config.retrieval.scorer_fingerprint,
                 )
+                pointwise_source = "provider"
             else:
                 # Explicit offline adapter for matrix smoke tests.  The run
                 # manifest marks this source so it cannot be confused with a
                 # frozen reranker experiment.
                 offline_space = str(config.retrieval.quality_score_space)
-                qualities = {
+                pointwise_qualities = {
                     identifier: QualityRecord.from_raw(
                         identifier,
                         (
@@ -2114,13 +2196,22 @@ def run_semantic_matrix(
                     )
                     for identifier in graph.memory_ids
                 }
+                pointwise_source = "offline-direct-cosine"
             shared_quality_ms = (time.perf_counter() - quality_started) * 1000.0
             shared_quality_documents = len(records) if reranker is not None else 0
             shared_costs_by_question[str(example.question_id)]["quality"] = {
                 "rerank_calls": 1 if reranker is not None else 0,
                 "rerank_documents": shared_quality_documents,
                 "elapsed_ms": shared_quality_ms,
+                "source": pointwise_source,
+                "rho2": {
+                    "source": "rho2",
+                    "elapsed_ms": rho_quality_ms,
+                    "documents": len(rho_qualities),
+                },
             }
+            quality_tables = {"rho2": rho_qualities, "pointwise": pointwise_qualities}
+            quality_runtime_sources = {"rho2": "rho2", "pointwise": pointwise_source}
 
             # Materialize query-conditioned representations once and share
             # them between the only row that needs them and any repeated run.
@@ -2129,10 +2220,15 @@ def run_semantic_matrix(
             shared_state_embedding_ms = 0.0
             if retrieval_configs["S3"].feature_mode == "query_conditioned":
                 state_texts = [
-                    (
-                        "Assess this personal memory for the current task.\n"
-                        f"Task: {example.query}\nOptions: {example.all_options}\n"
-                        f"Memory: {records[identifier].text}"
+                    build_query_conditioned_representation_text(
+                        example.query,
+                        example.all_options,
+                        records[identifier],
+                        query_cutoff=getattr(example, "query_time", None),
+                        query_metadata=getattr(example, "metadata", None),
+                        embedding_model=embedding_cache.model_name,
+                        embedding_fingerprint=embedding_cache.fingerprint,
+                        instruction=SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
                     )
                     for identifier in graph.memory_ids
                 ]
@@ -2140,7 +2236,7 @@ def run_semantic_matrix(
                     state_started = time.perf_counter()
                     state_vectors = embedding_cache.encode_queries(
                         state_texts,
-                        instruction="",
+                        instruction=SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
                         purpose="semantic_query_conditioned",
                     )
                     query_representations = {
@@ -2173,6 +2269,11 @@ def run_semantic_matrix(
             for label in labels:
                 try:
                     retrieval_config = retrieval_configs[label]
+                    quality_source_key = str(SEMANTIC_ABLATIONS[label].get("quality_source", "pointwise"))
+                    qualities = quality_tables["rho2" if quality_source_key == "rho2" else "pointwise"]
+                    runtime_quality_source = quality_runtime_sources[
+                        "rho2" if quality_source_key == "rho2" else "pointwise"
+                    ]
                     if label == "S3" and query_representation_error is not None:
                         raise RuntimeError(
                             "query-conditioned representation service failed: "
@@ -2185,7 +2286,7 @@ def run_semantic_matrix(
                         tracker.shared_state_embedding_calls = 1
                         tracker.shared_state_embedding_queries = len(graph.memory_ids)
                         tracker.shared_state_embedding_ms = shared_state_embedding_ms
-                    if reranker is not None:
+                    if reranker is not None and quality_source_key != "rho2":
                         tracker.shared_rerank_calls = 1
                         tracker.shared_rerank_documents = len(records)
                         tracker.shared_rerank_ms = shared_quality_ms
@@ -2212,7 +2313,10 @@ def run_semantic_matrix(
                         context_token_budget=config.models.generator.context_token_budget,
                         generator_config=config.models.generator,
                         frozen_graph=graph,
+                        representation_fingerprint=embedding_cache.fingerprint,
                     )
+                    if result.context_plan is None or not result.context_plan.within_budget:
+                        raise ValueError("semantic retrieval did not produce an exact ContextPlan")
                     response = ""
                     generation_hit = False
                     if generator is not None:
@@ -2239,14 +2343,35 @@ def run_semantic_matrix(
                         "generation_cache_hit": generation_hit,
                         "shared_graph_hash": graph.graph_hash,
                         "shared_quality": {identifier: value.public_dict() for identifier, value in qualities.items()},
+                        "quality_source": runtime_quality_source,
+                        "quality_source_declared": quality_source_key,
+                        "quality_digest": hashlib.sha256(
+                            json.dumps(
+                                {identifier: value.public_dict() for identifier, value in qualities.items()},
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ).encode("utf-8")
+                        ).hexdigest(),
                         "provenance": result.to_dict(include_text=False),
                         "index_cache_hit": index_hit,
                         "shared_discovery_cost": shared_discovery_cost.to_dict(),
-                        "shared_quality_cost": {
-                            "rerank_calls": 1 if reranker is not None else 0,
-                            "rerank_documents": shared_quality_documents,
-                            "elapsed_ms": shared_quality_ms,
-                        },
+                        "shared_quality_cost": (
+                            {
+                                "rerank_calls": 0,
+                                "rerank_documents": 0,
+                                "elapsed_ms": rho_quality_ms,
+                                "source": "rho2",
+                                "logical_documents": len(qualities),
+                            }
+                            if quality_source_key == "rho2"
+                            else {
+                                "rerank_calls": 1 if reranker is not None else 0,
+                                "rerank_documents": shared_quality_documents,
+                                "elapsed_ms": shared_quality_ms,
+                                "source": runtime_quality_source,
+                            }
+                        ),
                         "shared_state_embedding_cost": {
                             "calls": 1 if label == "S3" and query_representations is not None else 0,
                             "queries": len(graph.memory_ids)
@@ -2259,7 +2384,7 @@ def run_semantic_matrix(
                         "representation_status": (
                             "query_conditioned"
                             if label == "S3"
-                            else "cached_memory"
+                            else str(SEMANTIC_ABLATIONS[label].get("representation_role", "cached_memory"))
                         ),
                     }
                     predictions_by_label[label].append(record)
@@ -2325,6 +2450,7 @@ def run_semantic_matrix(
         "protocol": "confirmatory_v1" if protocol_manifest is not None else None,
         "phase": phase,
         "architectures": labels,
+        "architecture_order": labels,
         "semantic_ablation_definitions": SEMANTIC_ABLATIONS,
         "resolved_retrieval_configs": {label: asdict(value) for label, value in retrieval_configs.items()},
         "queries": len(all_examples),
@@ -2342,13 +2468,26 @@ def run_semantic_matrix(
         "git_commit": commit or None,
         "embedding_fingerprint": embedding_cache.fingerprint,
         "generation": generate,
-        "quality_source": (
-            "reranker"
-            if reranker is not None
-            else "provider"
-            if quality_provider is not None
-            else "offline-direct-cosine"
-        ),
+        # L0/L1 intentionally use rho² while all S rows share the pointwise
+        # source.  Keep both the declared row family and the runtime provider
+        # identity so an audit can distinguish a true reranker run from the
+        # offline deterministic adapter.
+        "quality_source": "mixed_by_architecture",
+        "quality_sources": {
+            label: "rho2" if quality_source_by_label[label] == "rho2" else pointwise_runtime_source
+            for label in labels
+        },
+        "quality_source_families": quality_source_by_label,
+        "quality_groups": {
+            "rho2": [label for label in labels if quality_source_by_label[label] == "rho2"],
+            "pointwise": [label for label in labels if quality_source_by_label[label] != "rho2"],
+        },
+        "query_conditioned_representation": {
+            "schema": "semantic_query_conditioned_v1",
+            "instruction": SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
+            "embedding_model": embedding_cache.model_name,
+            "embedding_fingerprint": embedding_cache.fingerprint,
+        },
         "shared_candidate_pool": True,
         "shared_costs_by_question": shared_costs_by_question,
         "failures": failures,

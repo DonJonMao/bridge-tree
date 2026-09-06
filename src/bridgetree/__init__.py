@@ -1,5 +1,6 @@
 """BridgeTree Preference-RAG reference implementation."""
 
+from .clients import ContextPlanError
 from .config import AppConfig, RetrievalConfig, load_config
 from .information import (
     InformationObjective,
@@ -18,7 +19,12 @@ from .measure import (
     propagate_mass,
 )
 from .retriever import BridgeTreeRetriever
-from .semantic import discover_frozen_graph, semantic_retrieve
+from .semantic import (
+    build_query_conditioned_representation_text,
+    discover_frozen_graph,
+    rho_squared_quality_records,
+    semantic_retrieve,
+)
 from .temporal import TimeMark, build_transition_matrix
 from .types import (
     ContextPlan,
@@ -54,6 +60,7 @@ __all__ = [
     "FrozenProposalGraph",
     "SemanticAtom",
     "ContextPlan",
+    "ContextPlanError",
     "context_plan_hash",
     "FrozenGraphMeasure",
     "angular_navigation_affinity",
@@ -63,5 +70,7 @@ __all__ = [
     "PureRerankSelector",
     "discover_frozen_graph",
     "semantic_retrieve",
+    "rho_squared_quality_records",
+    "build_query_conditioned_representation_text",
     "load_config",
 ]

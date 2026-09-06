@@ -71,6 +71,7 @@ class BridgeTreeRetriever:
         listwise_selector: Any | None = None,
         context_token_budget: int | None = None,
         generator_config: Any | None = None,
+        representation_fingerprint: str = "",
     ) -> RetrievalResult:
         # The revised named semantic profile has a separate frozen execution
         # chain.  Keeping the dispatch here makes legacy_core/legacy_path and
@@ -106,6 +107,7 @@ class BridgeTreeRetriever:
                 listwise_selector=listwise_selector,
                 context_token_budget=context_token_budget,
                 generator_config=generator_config,
+                representation_fingerprint=representation_fingerprint,
             )
         if len(memories) != len(memory_vectors):
             raise ValueError("memories and memory_vectors must have equal length")

@@ -461,7 +461,7 @@ def audit_semantic_run(
     *,
     raise_on_error: bool = False,
 ) -> Dict[str, Any]:
-    """Independently audit a persisted S0--S2-shuffle semantic matrix.
+    """Independently audit a persisted L0/L1/S0--S2-shuffle matrix.
 
     The audit is deliberately structural: it verifies shared frozen graph and
     quality identities, whitelist selection, exact context-plan hashes, and
@@ -495,14 +495,18 @@ def audit_semantic_run(
     manifest = _load_json(root, "run_manifest.json", errors, {})
     summary = _load_json(root, "summary.json", errors, {})
     failures = _load_jsonl(root, "failures.jsonl", errors)
-    expected = ("S0", "S1", "S2", "S3", "S2-shuffle")
+    expected = ("L0", "L1", "S0", "S1", "S2", "S3", "S2-shuffle")
 
     if not isinstance(manifest, Mapping):
         manifest = {}
     if not isinstance(summary, Mapping):
         summary = {}
     architectures = tuple(str(value) for value in manifest.get("architectures", ()))
-    _check(architectures == expected, "semantic architecture order is not S0/S1/S2/S3/S2-shuffle", errors)
+    _check(
+        architectures == expected,
+        "semantic architecture order is not L0/L1/S0/S1/S2/S3/S2-shuffle",
+        errors,
+    )
     _check(
         summary.get("shared_candidate_pool") is True,
         "semantic run does not declare a shared candidate pool",
@@ -557,6 +561,8 @@ def audit_semantic_run(
 
     records_by_label: dict[str, list[dict[str, Any]]] = {}
     record_keys: set[tuple[str, str]] = set()
+    quality_families = {"L0": "rho2", "L1": "rho2"}
+    quality_families.update({label: "pointwise" for label in ("S0", "S1", "S2", "S3", "S2-shuffle")})
 
     def _quality_digest(value: Any) -> str:
         return hashlib.sha256(
@@ -706,6 +712,23 @@ def audit_semantic_run(
             quality = record.get("shared_quality")
             if not isinstance(quality, Mapping) or not quality:
                 errors.append(f"{label}:{position}: shared quality table is missing")
+            declared_family = record.get("quality_source_declared")
+            if declared_family != quality_families.get(label):
+                errors.append(
+                    f"{label}:{position}: quality_source_declared must be {quality_families.get(label)!r}"
+                )
+            runtime_source = record.get("quality_source")
+            if not isinstance(runtime_source, str) or not runtime_source:
+                errors.append(f"{label}:{position}: quality_source is missing")
+            elif label in {"L0", "L1"} and runtime_source != "rho2":
+                errors.append(f"{label}:{position}: legacy rows must use rho2 quality")
+            elif label not in {"L0", "L1"} and runtime_source == "rho2":
+                errors.append(f"{label}:{position}: semantic rows must use pointwise quality")
+            if isinstance(quality, Mapping) and quality:
+                declared_digest = record.get("quality_digest")
+                actual_digest = _quality_digest(quality)
+                if declared_digest not in (None, actual_digest):
+                    errors.append(f"{label}:{position}: quality_digest mismatch")
 
     expected_set = set(manifest_question_ids)
     by_question: dict[str, dict[str, Mapping[str, Any]]] = defaultdict(dict)
@@ -725,12 +748,48 @@ def audit_semantic_run(
         graph_hashes.discard("")
         if len(graph_hashes) > 1:
             errors.append(f"{question_id}: architectures use different frozen graph hashes")
-        quality_hashes = {
-            _quality_digest(row.get("shared_quality", {}))
-            for row in rows.values()
-        }
-        if len(quality_hashes) > 1:
-            errors.append(f"{question_id}: architectures use different frozen quality tables")
+        # L0/L1 and the S rows are intentionally different quality families.
+        # Require identity only within each family; otherwise a legitimate
+        # rho²-vs-reranker comparison would be rejected as a protocol error.
+        for family, family_labels in (
+            ("rho2", ("L0", "L1")),
+            ("pointwise", ("S0", "S1", "S2", "S3", "S2-shuffle")),
+        ):
+            quality_hashes = {
+                _quality_digest(rows[label].get("shared_quality", {}))
+                for label in family_labels
+                if label in rows
+            }
+            if len(quality_hashes) > 1:
+                errors.append(f"{question_id}: {family} architectures use different frozen quality tables")
+            source_values = {
+                str(rows[label].get("quality_source", ""))
+                for label in family_labels
+                if label in rows
+            }
+            if len(source_values) > 1:
+                errors.append(f"{question_id}: {family} architectures use different quality sources")
+
+    manifest_families = manifest.get("quality_source_families")
+    if not isinstance(manifest_families, Mapping):
+        errors.append("semantic manifest quality_source_families is missing")
+    else:
+        for label, family in quality_families.items():
+            if str(manifest_families.get(label, "")) != family:
+                errors.append(f"manifest quality family mismatch for {label}")
+    manifest_sources = manifest.get("quality_sources")
+    if not isinstance(manifest_sources, Mapping):
+        errors.append("semantic manifest quality_sources is missing")
+    else:
+        for label in expected:
+            observed_sources = {
+                str(row.get("quality_source", ""))
+                for row in records_by_label.get(label, ())
+                if isinstance(row, Mapping)
+            }
+            declared_source = str(manifest_sources.get(label, ""))
+            if declared_source and observed_sources and observed_sources != {declared_source}:
+                errors.append(f"{label}: record quality source differs from manifest")
 
     # Failure rows must be exactly the complement of successful prediction
     # rows.  This catches a stale failures file left over from a rerun.
@@ -782,6 +841,7 @@ def audit_semantic_run(
             "failure_records": len(failures),
             "shared_candidate_pool": bool(summary.get("shared_candidate_pool")),
             "manifest_question_id_sha256": expected_manifest_hash,
+            "quality_families": quality_families,
         },
     }
     output_path = root / "semantic_audit.json"
