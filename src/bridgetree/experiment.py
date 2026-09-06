@@ -20,9 +20,8 @@ from .clients import (
     GeneratorClient,
     RerankerClient,
     StateEmbeddingCache,
+    build_context_plan,
     build_generation_messages,
-    context_token_count,
-    fit_context_budget,
     generation_prompt_hash,
 )
 from .config import AppConfig, RetrievalConfig
@@ -36,13 +35,15 @@ from .metrics import (
     answer_parse_failed,
     bridge_recall_at_k,
     direct_ranks,
+    gain_damage_net,
     path_objective_advantage,
+    persona_macro_accuracy,
+    question_micro_accuracy,
     recall_at_k,
 )
 from .personamem import (
     PERSONAMEM_REVISION,
     PersonaMemExample,
-    file_sha256,
     iter_examples,
     messages_to_memories,
     parse_options,
@@ -126,6 +127,42 @@ def _read_examples(app_config: AppConfig) -> list[PersonaMemExample]:
             "PersonaMem raw data is missing; run `bridgetree download-personamem` first"
         )
     return list(iter_examples(question_path, context_path))
+
+
+def _visible_memory_records(example: PersonaMemExample, memories: Sequence[Memory]) -> list[Memory]:
+    """Apply the question visibility envelope before any model/cache call."""
+
+    from .semantic import _visible_records
+
+    # ``_visible_records`` also validates alignment with vectors.  A tiny
+    # placeholder column lets runners reuse the same cutoff semantics while
+    # keeping future memory text out of the document-embedding request.
+    placeholder = np.empty((len(memories), 1), dtype=np.float32)
+    visible, _ = _visible_records(
+        memories,
+        placeholder,
+        getattr(example, "query_time", None),
+        query_metadata=getattr(example, "metadata", None) or None,
+    )
+    return visible
+
+
+def _runtime_provenance(raw_dir: str | Path, split: str) -> dict[str, Any]:
+    """Capture source/code/worktree identities without persisting secrets."""
+
+    # Reuse the protocol implementation so standalone runs and confirmatory
+    # manifests use exactly the same source/package hashing rules.
+    from .protocol import _source_package_snapshot, _source_snapshot, _worktree_snapshot
+
+    source_sha256, source_data_hash = _source_snapshot(raw_dir, split)
+    worktree_clean, uncommitted_diff_hash = _worktree_snapshot()
+    return {
+        "source_sha256": source_sha256,
+        "source_data_package_hash": source_data_hash,
+        "source_package_hash": _source_package_snapshot(),
+        "worktree_clean": worktree_clean,
+        "uncommitted_diff_hash": uncommitted_diff_hash,
+    }
 
 METHODS = (
     "bridgetree",
@@ -570,6 +607,33 @@ def _context_hash(query: str, memories: Sequence[Memory], answer_options: str = 
     ).hexdigest()
 
 
+def _exact_context_plan(
+    config: AppConfig,
+    example: PersonaMemExample,
+    selected_ids: Sequence[str],
+    selected: Sequence[Memory],
+):
+    """Freeze the reader request for every retrieval method.
+
+    Retrieval is cardinality-based: the selector's complete ID sequence is
+    preserved and the reader receives those same memories in chronological
+    order.  A token budget is a protocol constraint, not a post-selection
+    filter.  ``build_context_plan`` therefore raises on an over-budget
+    selection under the strict configuration, leaving the evaluation row as
+    an explicit failure instead of changing the selected set.
+    """
+
+    return build_context_plan(
+        example.query,
+        selected,
+        example.all_options,
+        token_budget=config.models.generator.context_token_budget,
+        strict=config.retrieval.context_strict,
+        selected_ids=selected_ids,
+        generator_config=config.models.generator,
+    )
+
+
 def _refresh_rerank_selection_diagnostics(
     diagnostics: Dict[str, Any],
     selected_ids: Sequence[str],
@@ -618,6 +682,27 @@ def retrieve_method(
 ) -> Tuple[List[str], List[Memory], Dict[str, Any], RetrievalResult | None]:
     if method not in METHODS:
         raise ValueError(f"unknown method {method}; choose from {METHODS}")
+    # Non-tree baselines do not pass through ``BridgeTreeRetriever`` and
+    # therefore need the same cutoff gate here.  Keep the ANN index only when
+    # its ID domain still exactly matches the visible bank.
+    query_cutoff = getattr(example, "query_time", None)
+    query_metadata = getattr(example, "metadata", None) or None
+    if query_cutoff is not None or query_metadata is not None:
+        from .semantic import _visible_records
+
+        visible_memories, visible_vectors = _visible_records(
+            memories,
+            memory_vectors,
+            query_cutoff,
+            query_metadata=query_metadata,
+        )
+        visible_ids = [str(memory.memory_id) for memory in visible_memories]
+        index_ids = list(getattr(index, "ids", ())) if index is not None else []
+        if index is not None and index_ids != visible_ids:
+            index = None
+            index_build_ms = 0.0
+        memories = visible_memories
+        memory_vectors = visible_vectors
     ids = [memory.memory_id for memory in memories]
     memory_by_id = {memory.memory_id: memory for memory in memories}
     k = config.retrieval.context_size
@@ -849,7 +934,20 @@ def retrieve_method(
             )
             for item in initial.selected_ids
         ]
-        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        ranking, cache_hit = cached_rerank_all(
+            reranker,
+            rerank_cache,
+            rank_query,
+            documents,
+            tracker,
+            records=[memory_by_id[memory_id] for memory_id in initial.selected_ids],
+            cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            answer_options=example.all_options,
+            include_time_metadata=config.bridge_rerank.include_time_metadata,
+            score_contract=getattr(reranker, "score_contract", None),
+            task_instruction=config.bridge_rerank.final_rerank_instruction,
+        )
         items = ranking[:k]
         baseline = BaselineResult([initial.selected_ids[item.index] for item in items], tracker)
         scores = {initial.selected_ids[item.index]: item.score for item in ranking}
@@ -918,7 +1016,20 @@ def retrieve_method(
             )
             for memory_id in candidate_ids
         ]
-        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        ranking, cache_hit = cached_rerank_all(
+            reranker,
+            rerank_cache,
+            rank_query,
+            documents,
+            tracker,
+            records=[memory_by_id[memory_id] for memory_id in candidate_ids],
+            cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            answer_options=example.all_options,
+            include_time_metadata=config.bridge_rerank.include_time_metadata,
+            score_contract=getattr(reranker, "score_contract", None),
+            task_instruction=config.bridge_rerank.final_rerank_instruction,
+        )
         final_scores = {candidate_ids[item.index]: item.score for item in ranking}
         selected_ids = [candidate_ids[item.index] for item in ranking[:k]]
         selected = _selected_memories(selected_ids, memory_by_id, chronological=True)
@@ -1002,7 +1113,20 @@ def retrieve_method(
             )
             for memory in memories
         ]
-        ranking, cache_hit = cached_rerank_all(reranker, rerank_cache, rank_query, documents, tracker)
+        ranking, cache_hit = cached_rerank_all(
+            reranker,
+            rerank_cache,
+            rank_query,
+            documents,
+            tracker,
+            records=list(memories),
+            cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            answer_options=example.all_options,
+            include_time_metadata=config.bridge_rerank.include_time_metadata,
+            score_contract=getattr(reranker, "score_contract", None),
+            task_instruction=config.bridge_rerank.final_rerank_instruction,
+        )
         selected_ids = [ids[item.index] for item in ranking[:k]]
         selected = _selected_memories(selected_ids, memory_by_id, chronological=True)
         tracker.set_stop_reason("frontier_empty")
@@ -1129,6 +1253,7 @@ def run_personamem_experiment(
     context_path = raw_root / f"shared_contexts_{split}.jsonl"
     if not question_path.exists() or not context_path.exists():
         raise FileNotFoundError("PersonaMem raw data is missing; run `bridgetree download-personamem` first")
+    runtime_provenance = _runtime_provenance(raw_root, split)
 
     label = re.sub(r"[^a-zA-Z0-9_.-]+", "_", run_label or method).strip("._") or method
     run_root = Path(output_dir or config.runtime.output_dir) / f"{label}_{time.time_ns()}"
@@ -1228,7 +1353,7 @@ def run_personamem_experiment(
             )
         },
         "cache_schema": {"embedding": 1, "transition": 1, "state": 1, "generation": 1},
-        "worktree_clean": None,
+        **runtime_provenance,
     }
     with (run_root / "run_manifest.json").open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)
@@ -1264,6 +1389,7 @@ def run_personamem_experiment(
                     include_system_persona=config.data.include_system_persona,
                     memory_granularity=config.data.memory_granularity,
                 )
+                memories = _visible_memory_records(example, memories)
                 if not memories:
                     raise ValueError("no memories after the configured PersonaMem segmentation")
                 query_vector = cache.encode_query(example.query)
@@ -1304,44 +1430,55 @@ def run_personamem_experiment(
                     bridge_result is not None
                     and bridge_result.first_arrival_semantics == "semantic_path_v1"
                 )
-                if semantic_result:
-                    # ContextPlan is authoritative for the semantic path.  A
-                    # plan failure is a protocol failure, not permission to
-                    # silently drop selected memories after the selector.
-                    if bridge_result.context_plan is None or not bridge_result.context_plan.within_budget:
-                        raise ValueError("semantic retrieval did not produce an exact ContextPlan")
-                    selected = list(selected)
-                    selected_ids = list(bridge_result.selected_in_greedy_order)
-                    context_hash = bridge_result.context_plan.context_hash
-                else:
-                    selected = fit_context_budget(selected, config.models.generator.context_token_budget)
-                    retained_ids = {memory.memory_id for memory in selected}
-                    selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
-                    context_hash = _context_hash(example.query, selected, example.all_options)
+                if semantic_result and (
+                    bridge_result.context_plan is None or not bridge_result.context_plan.within_budget
+                ):
+                    # The semantic executor normally freezes its plan before
+                    # returning. Keep that invariant explicit here, then
+                    # rebuild the same canonical plan below so legacy and
+                    # semantic methods share one evaluation contract.
+                    raise ValueError("semantic retrieval did not produce an exact ContextPlan")
+                # Freeze the exact request after every selector, including
+                # dense/rerank and the historical BridgeTree path. This is a
+                # hard cardinality boundary: an over-budget selection is a
+                # failed protocol row, never a reason to drop scored IDs.
+                context_plan = _exact_context_plan(config, example, selected_ids, selected)
+                if not context_plan.within_budget:
+                    raise ValueError(
+                        "selected context exceeds the configured generator token budget"
+                    )
+                memory_by_id = {str(memory.memory_id): memory for memory in memories}
+                selected_ids = list(context_plan.selected_ids)
+                selected = [memory_by_id[memory_id] for memory_id in context_plan.chronological_ids]
+                context_hash = context_plan.context_hash
+                if bridge_result is not None:
+                    bridge_result.context_plan = context_plan
+                    bridge_result.context_hash = context_hash
+                    bridge_result.selected_context = tuple(context_plan.chronological_ids)
+                    bridge_result.diagnostics["context_plan"] = context_plan.public_dict()
                 _refresh_rerank_selection_diagnostics(diagnostics, selected_ids)
                 diagnostics["context_hash"] = context_hash
-                tracker.final_context_count = len(selected)
-                tracker.final_context_tokens = context_token_count(selected)
+                diagnostics["context_plan"] = context_plan.public_dict()
+                tracker.final_context_count = len(context_plan.chronological_ids)
+                tracker.final_context_tokens = context_plan.token_count
                 response = ""
+                generation_hit = False
                 if generator:
                     generation_started = time.perf_counter()
-                    if semantic_result and bridge_result is not None and bridge_result.context_plan is not None:
-                        if shared_generation_cache is not None:
-                            response, generation_hit = shared_generation_cache.answer_plan(
-                                generator, bridge_result.context_plan
-                            )
-                        else:
-                            response = generator.answer_plan(bridge_result.context_plan)
-                            generation_hit = False
-                    elif shared_generation_cache is not None:
+                    if shared_generation_cache is not None:
+                        memory_by_id = {str(memory.memory_id): memory for memory in memories}
+                        greedy_memories = [memory_by_id[memory_id] for memory_id in selected_ids]
                         response, generation_hit = shared_generation_cache.answer(
-                            generator, example.query, selected, example.all_options
+                            generator,
+                            example.query,
+                            greedy_memories,
+                            example.all_options,
+                            selected_ids=selected_ids,
                         )
-                        if generation_hit:
-                            tracker.record_cache_hit()
                     else:
-                        response = generator.answer(example.query, selected, example.all_options)
-                        generation_hit = False
+                        response = generator.answer_plan(context_plan)
+                    if generation_hit:
+                        tracker.record_cache_hit()
                     tracker.generation_ms = (
                         (time.perf_counter() - generation_started) * 1000.0 if not generation_hit else 0.0
                     )
@@ -1409,6 +1546,7 @@ def run_personamem_experiment(
                     "query": example.query,
                     "correct_answer": example.correct_answer,
                     "selected_memory_ids": selected_ids,
+                    "context_plan": context_plan.public_dict(),
                     "response": response,
                     "outcome": outcome,
                     "cost": cost,
@@ -1707,6 +1845,7 @@ def run_tmic_matrix(
                 include_system_persona=config.data.include_system_persona,
                 memory_granularity=config.data.memory_granularity,
             )
+            memories = _visible_memory_records(example, memories)
             if not memories:
                 raise ValueError("no memories after segmentation")
             query_vector = embedding_cache.encode_query(example.query)
@@ -1882,30 +2021,9 @@ def run_tmic_matrix(
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repository_root, check=False, capture_output=True, text=True
     ).stdout.strip()
-    try:
-        dirty = bool(
-            subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=repository_root,
-                check=False,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-        )
-    except OSError:
-        dirty = None
+    runtime_provenance = _runtime_provenance(config.data.raw_dir, config.data.split)
     question_ids = [str(example.question_id) for example in all_examples]
     persona_ids = sorted({str(example.persona_id) for example in all_examples})
-    raw_root = Path(config.data.raw_dir)
-    source_paths = (
-        raw_root / f"questions_{config.data.split}.csv",
-        raw_root / f"shared_contexts_{config.data.split}.jsonl",
-    )
-    source_sha256 = {
-        path.name: file_sha256(path)
-        for path in source_paths
-        if path.is_file()
-    }
     resolved_matrix = {
         label: {
             **asdict(retrieval_configs[label]),
@@ -1963,9 +2081,8 @@ def run_tmic_matrix(
         "resolved_config": _public_app_config(config),
         "data_revision": PERSONAMEM_REVISION,
         "data_split": config.data.split,
-        "source_sha256": source_sha256,
+        **runtime_provenance,
         "git_commit": commit or None,
-        "worktree_clean": (not dirty) if dirty is not None else None,
         "budget": asdict(SearchBudget.from_config(config.retrieval)),
         "embedding_fingerprint": embedding_cache.fingerprint,
         "embedding_model": _public_service_identity(config.models.embedding),
@@ -2087,6 +2204,7 @@ def run_semantic_matrix(
                 include_system_persona=config.data.include_system_persona,
                 memory_granularity=config.data.memory_granularity,
             )
+            memories = _visible_memory_records(example, memories)
             if not memories:
                 raise ValueError("no memories after segmentation")
             query_vector = embedding_cache.encode_query(example.query)
@@ -2115,6 +2233,7 @@ def run_semantic_matrix(
                 relation_mode="angular",
                 proposal_mode="real_member_query_anchor",
                 cutoff=getattr(example, "query_time", None),
+                query_metadata=getattr(example, "metadata", None),
                 query_text=example.query,
                 proposal_query_provider=embedding_cache,
                 proposal_query_instruction=config.bridge_rerank.bridge_query_instruction,
@@ -2130,9 +2249,24 @@ def run_semantic_matrix(
             # separate provenance identity from the S rows.
             graph_measure = propagate_frozen_graph(graph)
             rho_quality_started = time.perf_counter()
-            rho_qualities = rho_squared_quality_records(
-                graph_measure,
-                scorer_fingerprint=retrieval_configs["L0"].scorer_fingerprint or "legacy-rho2",
+            legacy_trace_config = (
+                graph.proposal_config.get("legacy_trace")
+                if isinstance(graph.proposal_config, Mapping)
+                else None
+            )
+            explicit_legacy_rho = (
+                legacy_trace_config.get("rho")
+                if isinstance(legacy_trace_config, Mapping)
+                else None
+            )
+            rho_qualities = (
+                rho_squared_quality_records(
+                    graph_measure,
+                    legacy_rho=explicit_legacy_rho,
+                    scorer_fingerprint=retrieval_configs["L0"].scorer_fingerprint or "legacy-rho2",
+                )
+                if explicit_legacy_rho is not None
+                else {}
             )
             rho_quality_ms = (time.perf_counter() - rho_quality_started) * 1000.0
 
@@ -2206,6 +2340,7 @@ def run_semantic_matrix(
                 "source": pointwise_source,
                 "rho2": {
                     "source": "rho2",
+                    "trace_available": explicit_legacy_rho is not None,
                     "elapsed_ms": rho_quality_ms,
                     "documents": len(rho_qualities),
                 },
@@ -2279,6 +2414,11 @@ def run_semantic_matrix(
                             "query-conditioned representation service failed: "
                             + query_representation_error["message"]
                         )
+                    if quality_source_key == "rho2" and explicit_legacy_rho is None:
+                        raise RuntimeError(
+                            "original R1 row requires legacy executor trace; "
+                            "current multi-parent pool is retained for S rows"
+                        )
                     tracker = CostTracker(SearchBudget.from_config(retrieval_config))
                     tracker.index_build_ms = float(index_build_ms)
                     tracker.inherit_shared_cost(shared_discovery_cost)
@@ -2314,13 +2454,33 @@ def run_semantic_matrix(
                         generator_config=config.models.generator,
                         frozen_graph=graph,
                         representation_fingerprint=embedding_cache.fingerprint,
+                        legacy_rho=(
+                            legacy_trace_config.get("rho")
+                            if isinstance(legacy_trace_config, Mapping)
+                            else None
+                        ),
+                        legacy_parent_id=(
+                            legacy_trace_config.get("parent_id")
+                            if isinstance(legacy_trace_config, Mapping)
+                            else None
+                        ),
                     )
                     if result.context_plan is None or not result.context_plan.within_budget:
                         raise ValueError("semantic retrieval did not produce an exact ContextPlan")
                     response = ""
                     generation_hit = False
                     if generator is not None:
-                        response, generation_hit = generation_cache.answer_plan(generator, result.context_plan)
+                        memory_by_id = {str(memory.memory_id): memory for memory in memories}
+                        greedy_memories = [
+                            memory_by_id[memory_id] for memory_id in result.selected_in_greedy_order
+                        ]
+                        response, generation_hit = generation_cache.answer(
+                            generator,
+                            example.query,
+                            greedy_memories,
+                            example.all_options,
+                            selected_ids=result.selected_in_greedy_order,
+                        )
                         if generation_hit:
                             tracker.record_cache_hit()
                     accuracy = answer_accuracy(response, example.correct_answer) if generator is not None else None
@@ -2334,12 +2494,19 @@ def run_semantic_matrix(
                         "persona_id": example.persona_id,
                         "question_id": example.question_id,
                         "architecture": label,
+                        "pool_id": graph.graph_hash,
+                        "pool_origin": (
+                            "legacy_trace" if quality_source_key == "rho2" and graph.proposal_config.get("legacy_trace")
+                            else "current_multi_parent"
+                        ),
                         "selected_memory_ids": list(result.selected_context),
+                        "chronological_ids": list(result.selected_context),
                         "selected_in_greedy_order": list(result.selected_in_greedy_order),
                         "response": response,
                         "outcome": {"answer_accuracy": accuracy} if accuracy is not None else {},
                         "cost": cost,
                         "context_hash": result.context_hash,
+                        "context_plan": result.context_plan.public_dict(),
                         "generation_cache_hit": generation_hit,
                         "shared_graph_hash": graph.graph_hash,
                         "shared_quality": {identifier: value.public_dict() for identifier, value in qualities.items()},
@@ -2409,6 +2576,7 @@ def run_semantic_matrix(
                 )
 
     summaries: Dict[str, Any] = {}
+    baseline_predictions = predictions_by_label.get("S0", [])
     for label in labels:
         costs = costs_by_label[label]
         numeric_names = sorted(
@@ -2428,6 +2596,19 @@ def run_semantic_matrix(
                 if accuracy_by_label[label]
                 else None
             ),
+            # Keep failed/not-completed questions out of the numerator while
+            # retaining their explicit counts above; these are the protocol's
+            # primary answer metrics, not retrieval-only success rates.
+            "persona_macro_accuracy": persona_macro_accuracy(predictions_by_label[label]),
+            "question_micro_accuracy": question_micro_accuracy(predictions_by_label[label]),
+            "paired_vs_S0": (
+                None
+                if label == "S0"
+                else gain_damage_net(baseline_predictions, predictions_by_label[label])
+            ),
+            # Dense+Rerank is a separate candidate-discovery run and is not
+            # silently synthesized from this shared semantic pool.
+            "paired_vs_DenseRerank": None,
             "mean_cost": {
                 key: sum(float(cost.get(key, 0.0)) for cost in costs) / len(costs) if costs else 0.0
                 for key in numeric_names
@@ -2442,10 +2623,7 @@ def run_semantic_matrix(
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repository_root, check=False, capture_output=True, text=True
     ).stdout.strip()
-    source_paths = (
-        Path(config.data.raw_dir) / f"questions_{config.data.split}.csv",
-        Path(config.data.raw_dir) / f"shared_contexts_{config.data.split}.jsonl",
-    )
+    runtime_provenance = _runtime_provenance(config.data.raw_dir, config.data.split)
     manifest = {
         "protocol": "confirmatory_v1" if protocol_manifest is not None else None,
         "phase": phase,
@@ -2462,9 +2640,7 @@ def run_semantic_matrix(
         "config_hash": config.config_hash(),
         "data_revision": PERSONAMEM_REVISION,
         "data_split": config.data.split,
-        "source_sha256": {
-            path.name: file_sha256(path) for path in source_paths if path.is_file()
-        },
+        **runtime_provenance,
         "git_commit": commit or None,
         "embedding_fingerprint": embedding_cache.fingerprint,
         "generation": generate,
@@ -2488,7 +2664,14 @@ def run_semantic_matrix(
             "embedding_model": embedding_cache.model_name,
             "embedding_fingerprint": embedding_cache.fingerprint,
         },
+        # S0/S1/S2/S3/shuffle share the current multi-parent frozen pool.  L0/L1
+        # are a valid same-pool group only when a real legacy trace is supplied;
+        # otherwise they remain explicitly marked as a quality-only control.
         "shared_candidate_pool": True,
+        "candidate_pool_groups": {
+            "current_multi_parent": ["S0", "S1", "S2", "S3", "S2-shuffle"],
+            "legacy_trace": ["L0", "L1"],
+        },
         "shared_costs_by_question": shared_costs_by_question,
         "failures": failures,
     }
@@ -2505,6 +2688,20 @@ def run_semantic_matrix(
         "architectures": summaries,
         "failures": failures,
         "shared_candidate_pool": True,
+        "metrics": {
+            label: {
+                "persona_macro_accuracy": value.get("persona_macro_accuracy"),
+                "question_micro_accuracy": value.get("question_micro_accuracy"),
+                "Gain": (value.get("paired_vs_S0") or {}).get("Gain", 0.0),
+                "Damage": (value.get("paired_vs_S0") or {}).get("Damage", 0.0),
+                "Net": (value.get("paired_vs_S0") or {}).get("Net", 0.0),
+            }
+            for label, value in summaries.items()
+        },
+        "dense_rerank_comparison": {
+            "available": False,
+            "reason": "Dense+Rerank uses a separate candidate-discovery run; run the dedicated baseline entry point.",
+        },
     }
     (root / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

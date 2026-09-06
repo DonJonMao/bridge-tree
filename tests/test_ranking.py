@@ -69,6 +69,45 @@ def test_rerank_cache_key_changes_with_instruction_or_document_order(tmp_path):
     assert len(payload["items"]) == 2
 
 
+def test_rerank_cache_key_includes_memory_provenance_and_cutoff(tmp_path):
+    cache = RerankCache(tmp_path, endpoint="rerank", model="model")
+    first = Memory("m1", "same text", 1.0, "source-1", {"roles": ["user"]})
+    second = Memory("m1", "same text", 2.0, "source-2", {"roles": ["assistant"]})
+
+    key_one = cache.key_for(
+        "q",
+        ["same text"],
+        records=[first],
+        cutoff=1,
+        query_metadata={"topic": "drink"},
+        answer_options="['(a) tea']",
+        include_time_metadata=True,
+        task_instruction="instruction-1",
+    )
+    key_two = cache.key_for(
+        "q",
+        ["same text"],
+        records=[second],
+        cutoff=2,
+        query_metadata={"topic": "drink"},
+        answer_options="['(a) tea']",
+        include_time_metadata=True,
+        task_instruction="instruction-1",
+    )
+    key_three = cache.key_for(
+        "q",
+        ["same text"],
+        records=[first],
+        cutoff=1,
+        query_metadata={"topic": "drink"},
+        answer_options="['(a) tea']",
+        include_time_metadata=True,
+        task_instruction="instruction-2",
+    )
+    assert key_one != key_two
+    assert key_one != key_three
+
+
 def test_rerank_cache_stores_full_ranking_independent_of_later_top_n(tmp_path):
     class Client:
         calls = 0

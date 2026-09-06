@@ -3,7 +3,14 @@ import http.client
 import numpy as np
 import pytest
 
-from bridgetree.clients import GeneratorClient, RemoteEmbeddingClient, RerankerClient, _post_json
+from bridgetree.clients import (
+    ContextPlanError,
+    GenerationCache,
+    GeneratorClient,
+    RemoteEmbeddingClient,
+    RerankerClient,
+    _post_json,
+)
 from bridgetree.config import EmbeddingConfig, EndpointConfig, GeneratorConfig
 from bridgetree.types import Memory
 
@@ -23,6 +30,27 @@ def test_generator_makes_exactly_one_http_call_and_serializes_chronologically(mo
     content = calls[0][1]["messages"][1]["content"]
     assert content.index("first") < content.index("second")
     assert calls[0][2]["Authorization"] == "Bearer key"
+
+
+def test_generation_budget_failure_never_silently_drops_memories(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_post(url, payload, timeout, headers=None):
+        calls.append((url, payload, timeout, headers))
+        return {"choices": [{"message": {"content": "(a)"}}]}
+
+    monkeypatch.setattr("bridgetree.clients._post_json", fake_post)
+    client = GeneratorClient(
+        GeneratorConfig(endpoint="http://chat", model="m", api_key="key", context_token_budget=1)
+    )
+    memories = [Memory("m1", "first memory", 1.0, "s1"), Memory("m2", "second memory", 2.0, "s2")]
+
+    with pytest.raises(ContextPlanError, match="exceeding budget"):
+        client.answer("q", memories)
+    cache = GenerationCache(tmp_path)
+    with pytest.raises(ContextPlanError, match="exceeding budget"):
+        cache.answer(client, "q", memories)
+    assert calls == []
 
 
 def test_embedding_and_reranker_protocols(monkeypatch):

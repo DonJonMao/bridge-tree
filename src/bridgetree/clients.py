@@ -529,25 +529,25 @@ class GeneratorClient:
         self.config = config
 
     def answer(self, query: str, memories: Sequence[Memory], answer_options: str = "") -> str:
+        """Build and send one exact generation plan.
+
+        This convenience API is kept for older callers, but it deliberately
+        does not perform a second context-budget pass.  The selected memory
+        sequence is frozen into a :class:`ContextPlan`; an over-budget
+        selection is an explicit protocol error rather than an instruction to
+        silently drop memories.
+        """
         if not isinstance(query, str) or not isinstance(answer_options, str):
             raise ValueError("generator query and answer_options must be strings")
-        memories = fit_context_budget(memories, self.config.context_token_budget)
-        payload = {
-            "model": self.config.model,
-            "messages": build_generation_messages(query, memories, answer_options),
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
-        }
-        response = _post_json(
-            self.config.endpoint,
-            payload,
-            self.config.timeout_seconds,
-            headers={"Authorization": f"Bearer {self.config.resolved_api_key()}"},
+        plan = build_context_plan(
+            query,
+            memories,
+            answer_options,
+            token_budget=self.config.context_token_budget,
+            strict=True,
+            generator_config=self.config,
         )
-        choices = response.get("choices") if isinstance(response, dict) else None
-        if not choices:
-            raise ValueError("chat response has no choices")
-        return str(choices[0]["message"]["content"]).strip()
+        return self.answer_plan(plan)
 
     def answer_plan(self, plan: ContextPlan) -> str:
         """Send exactly the messages in a frozen :class:`ContextPlan`."""
@@ -610,6 +610,14 @@ class GeneratorClient:
         if not choices:
             raise ValueError("chat response has no choices")
         return str(choices[0]["message"]["content"]).strip()
+
+
+# Keep an immutable reference to the package implementation.  Offline
+# evaluators in the research codebase historically monkeypatch
+# ``GeneratorClient.answer`` with a deterministic adapter; comparing against
+# this saved function lets the cache preserve that explicit compatibility
+# hook while the normal client always sends the frozen ContextPlan directly.
+_DEFAULT_GENERATOR_ANSWER = GeneratorClient.answer
 
 
 class StateEmbeddingCache:
@@ -771,36 +779,65 @@ class GenerationCache:
         query: str,
         memories: Sequence[Memory],
         answer_options: str = "",
+        *,
+        selected_ids: Sequence[str] | None = None,
     ) -> tuple[str, bool]:
-        # The generator applies the context-token budget before constructing
-        # its request.  Build the cache key from that exact effective request,
-        # including source/time headers, so two memories with equal text but
-        # different provenance cannot collide.  This also makes direct uses of
-        # GenerationCache obey the same semantics as experiment callers.
-        effective_memories = fit_context_budget(memories, client.config.context_token_budget)
-        messages = build_generation_messages(query, effective_memories, answer_options)
-        serialized = json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        key = self.key_for(
+        """Cache a convenience call by first freezing its exact plan.
+
+        ``answer`` remains a compatibility wrapper for callers that have not
+        yet materialized a plan.  It never truncates or reorders the supplied
+        selection; the resulting plan is the same object used for the cache
+        key and for transport.
+        """
+        plan = build_context_plan(
             query,
-            [memory.memory_id for memory in effective_memories],
-            serialized,
-            generator=client.config.model,
-            endpoint=client.config.endpoint,
-            temperature=client.config.temperature,
-            max_tokens=client.config.max_tokens,
-            answer_options=answer_options,
+            memories,
+            answer_options,
+            token_budget=client.config.context_token_budget,
+            strict=True,
+            selected_ids=selected_ids,
+            generator_config=client.config,
         )
-        cached = self.get(key)
-        if cached is not None:
-            return cached, True
-        response = client.answer(query, effective_memories, answer_options)
+        # Keep the historical overridable ``GeneratorClient.answer`` hook
+        # usable for local/offline evaluators.  With the package
+        # implementation the exact frozen plan is sent directly; only an
+        # explicitly overridden adapter is called through the compatibility
+        # API.  Reconstruct the same chronological reader order that the
+        # frozen plan carries; the selector order remains available through
+        # ``selected_ids`` and does not change what the reader sees.
+        if selected_ids is None:
+            request_memories = list(memories)
+        else:
+            by_id = {str(memory.memory_id): memory for memory in memories}
+            request_memories = [by_id[identifier] for identifier in plan.chronological_ids]
+        cached = self._cache_key_for_plan(plan, client)
+        cached_value = self.get(cached)
+        if cached_value is not None:
+            return cached_value, True
+        answer_hook = getattr(client, "answer", None)
+        answer_impl = getattr(answer_hook, "__func__", answer_hook)
+        if answer_impl is _DEFAULT_GENERATOR_ANSWER:
+            response = client.answer_plan(plan)
+        else:
+            response = answer_hook(query, request_memories, answer_options)
         self.misses += 1
-        self.put(key, response)
+        self.put(cached, response)
         return response, False
 
     def answer_plan(self, client: GeneratorClient, plan: ContextPlan) -> tuple[str, bool]:
         """Cache and send the exact frozen request represented by ``plan``."""
 
+        key = self._cache_key_for_plan(plan, client)
+        cached = self.get(key)
+        if cached is not None:
+            return cached, True
+        response = client.answer_plan(plan)
+        self.misses += 1
+        self.put(key, response)
+        return response, False
+
+    @staticmethod
+    def _cache_key_for_plan(plan: ContextPlan, client: GeneratorClient) -> str:
         payload = {
             "request": plan.request_dict(),
             # The transport endpoint is not part of the JSON request but is
@@ -810,16 +847,9 @@ class GenerationCache:
             "client_model": client.config.model,
             "context_hash": plan.context_hash,
         }
-        key = hashlib.sha256(
+        return hashlib.sha256(
             json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
-        cached = self.get(key)
-        if cached is not None:
-            return cached, True
-        response = client.answer_plan(plan)
-        self.misses += 1
-        self.put(key, response)
-        return response, False
 
     make_key = key_for
     get_or_generate = answer

@@ -1,6 +1,12 @@
 import numpy as np
 
-from bridgetree.math_utils import logdet_marginal, logdet_value, path_conditioned_innovation, posterior_error
+from bridgetree.math_utils import (
+    factor_conditioned_innovation,
+    logdet_marginal,
+    logdet_value,
+    path_conditioned_innovation,
+    posterior_error,
+)
 
 
 def test_path_conditioned_feature_matches_eigendecomposition():
@@ -25,3 +31,17 @@ def test_posterior_error_uses_pdf_weighting():
     eps = [0.1, 0.2, 0.3]
     expected = (2 / 3) ** 2 * 0.1 + (2 / 3) * 0.2 + 0.3
     assert np.isclose(posterior_error(eps), expected)
+
+
+def test_factor_conditioned_innovation_matches_dense_reference():
+    rng = np.random.default_rng(89846)
+    vector = rng.normal(size=7)
+    ancestors = [rng.normal(size=7) for _ in range(4)]
+    weights = rng.uniform(0.05, 0.9, size=4)
+    actual = factor_conditioned_innovation(vector, 0.73, ancestors, weights)
+    unit = [item / np.linalg.norm(item) for item in ancestors]
+    B = np.column_stack(unit) * np.sqrt(weights)[None, :]
+    dense = np.eye(7) + B @ B.T
+    values, basis = np.linalg.eigh(dense)
+    expected = np.sqrt(0.73) * basis @ np.diag(values ** -0.5) @ basis.T @ (vector / np.linalg.norm(vector))
+    np.testing.assert_allclose(actual, expected, atol=1e-10, rtol=1e-10)

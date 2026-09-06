@@ -1528,6 +1528,105 @@ def propagate_frozen_graph(graph: FrozenProposalGraph) -> FrozenGraphMeasure:
     )
 
 
+def shuffle_frozen_graph(graph: FrozenProposalGraph, seed: int = 0) -> FrozenProposalGraph:
+    """Apply a seeded within-layer identity permutation to a frozen graph.
+
+    Text, vectors and pointwise quality remain attached to their original
+    memory IDs.  Only source-structure positions move: edges, edge weights,
+    root mass and proposal provenance are migrated through the same bijection.
+    The returned graph therefore has the same layered topology and weight
+    multiset while changing which memory occupies each source position.
+    """
+    if isinstance(seed, (bool, np.bool_)):
+        raise ValueError("shuffle seed must be a non-negative integer")
+    try:
+        numeric_seed = int(seed)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("shuffle seed must be a non-negative integer") from exc
+    if numeric_seed < 0 or float(seed) != float(numeric_seed):
+        raise ValueError("shuffle seed must be a non-negative integer")
+    if graph.layers:
+        layers = graph.layers
+    else:
+        # Hand-built audit graphs may omit explicit layers.  Derive a stable
+        # topological layering instead of assigning singleton layers by ID
+        # order (which can invert a valid edge such as ``b -> a``).
+        depth: dict[str, int] = {}
+        for identifier in _graph_topological_order(graph):
+            parents = graph.parent_map.get(identifier, ())
+            depth[identifier] = max((depth[parent] + 1 for parent in parents), default=0)
+        by_depth: dict[int, list[str]] = {}
+        for identifier in graph.memory_ids:
+            by_depth.setdefault(depth.get(identifier, 0), []).append(identifier)
+        layers = tuple(tuple(sorted(values)) for _level, values in sorted(by_depth.items()))
+    rng = np.random.default_rng(numeric_seed)
+    sigma: dict[str, str] = {}
+    for layer in layers:
+        ids = sorted(str(value) for value in layer)
+        targets = list(ids)
+        rng.shuffle(targets)
+        sigma.update(zip(ids, targets))
+    edges = tuple((sigma[left], sigma[right]) for left, right in graph.edges)
+    edge_weights = tuple((sigma[left], sigma[right], float(weight)) for left, right, weight in graph.edge_weights)
+    root_mass = {
+        sigma[identifier]: float(weight)
+        for identifier, weight in zip(graph.memory_ids, graph.root_mass)
+        if float(weight) > 0.0
+    }
+    parent_sources = tuple(
+        (sigma[child], tuple(sigma[parent] for parent in parents))
+        for child, parents in graph.parent_sources
+    )
+    shuffled_layers = tuple(
+        tuple(sigma[identifier] for identifier in layer)
+        for layer in layers
+    )
+    proposal_records = tuple(
+        (sigma[parent], sigma[candidate], layer, rank, score)
+        for parent, candidate, layer, rank, score in graph.proposal_records
+    )
+    proposal_config = dict(graph.proposal_config)
+    raw_anchor_exposures = proposal_config.get("raw_anchor_exposures")
+    if isinstance(raw_anchor_exposures, (tuple, list)):
+        proposal_config["raw_anchor_exposures"] = [
+            [sigma.get(str(identifier), str(identifier)), float(score)]
+            for identifier, score in raw_anchor_exposures
+        ]
+    raw_proposal_records = proposal_config.get("raw_proposal_records")
+    if isinstance(raw_proposal_records, (tuple, list)):
+        proposal_config["raw_proposal_records"] = [
+            [
+                sigma.get(str(parent), str(parent)),
+                sigma.get(str(candidate), str(candidate)),
+                layer,
+                rank,
+                score,
+            ]
+            for parent, candidate, layer, rank, score in raw_proposal_records
+        ]
+    return FrozenProposalGraph(
+        memory_ids=graph.memory_ids,
+        edges=edges,
+        edge_weights=edge_weights,
+        root_mass=root_mass,
+        layers=shuffled_layers,
+        parent_sources=parent_sources,
+        proposal_records=proposal_records,
+        cutoff=graph.cutoff,
+        proposal_config={
+            **proposal_config,
+            "shuffle_seed": numeric_seed,
+            # Persist the intervention itself so a frozen shuffle has a
+            # distinct cache identity and can be audited without re-drawing
+            # the RNG.
+            "shuffle_permutation": dict(sorted(sigma.items())),
+            "shuffle_effective_nodes": sum(left != right for left, right in sigma.items()),
+        },
+        domain_scope=graph.domain_scope,
+        schema_version=graph.schema_version,
+    )
+
+
 def ancestor_occupancy_dp(
     graph: FrozenProposalGraph,
     parent_posterior: Mapping[str, Mapping[str, float]] | None = None,
@@ -1582,17 +1681,18 @@ def count_path_hypotheses(
     return int(counts.get(candidate, 0))
 
 
-def map_path_hypothesis(
+def representative_path_hypothesis(
     measure: FrozenGraphMeasure,
     candidate_id: str,
     *,
     branch_id: str = "",
 ) -> tuple[PathHypothesis, ...]:
-    """Return one deterministic MAP path for display/audit purposes.
+    """Return one deterministic local-parent path for display/audit only.
 
     The formal ancestor representation is ``measure.ancestor_occupancy``;
-    this helper intentionally returns only a compact display path and never
-    substitutes it for the full parent posterior.
+    this helper intentionally returns only a compact representative path and
+    never substitutes it for the full parent posterior or claims to solve a
+    global MAP/Viterbi problem.
     """
 
     candidate = str(candidate_id)
@@ -1618,16 +1718,27 @@ def map_path_hypothesis(
         chain.append(parent)
         current = parent
     path = tuple(reversed(chain))
+    path_mass = 1.0
+    for parent, child in zip(path[:-1], path[1:]):
+        path_mass *= float(measure.parent_posterior.get(child, {}).get(parent, 0.0))
+    access = float(measure.access_quality.get(candidate, 0.0))
+    posterior = path_mass if access > 0.0 else 0.0
     terminal_parents = dict(measure.parent_posterior.get(candidate, {}))
     return (
         PathHypothesis(
             path_ids=path,
             parent_posterior=terminal_parents,
-            branch_id=str(branch_id),
-            posterior=1.0,
-            support=float(measure.access_quality.get(candidate, 0.0)),
+            branch_id=str(branch_id or "representative_local_parent"),
+            posterior=float(min(1.0, max(0.0, posterior))),
+            support=access,
         ),
     )
+
+
+# Compatibility spelling retained for notebooks written against the previous
+# implementation.  It is intentionally an alias, not a claim that the local
+# parent chain is a global MAP path.
+map_path_hypothesis = representative_path_hypothesis
 
 
 def display_path_hypotheses(
@@ -1641,8 +1752,8 @@ def display_path_hypotheses(
 
     Small DAGs retain every positive path, which is convenient for audits and
     diamond fixtures.  Once the dynamic count exceeds ``max_paths`` the
-    production representation falls back to one MAP path; the exact
-    ``gamma`` and ``w`` values remain available on ``measure``.
+    production representation falls back to one representative/local-parent
+    path; the exact ``gamma`` and ``w`` values remain available on ``measure``.
     """
 
     if isinstance(max_paths, bool) or int(max_paths) <= 0 or int(max_paths) != float(max_paths):
@@ -1661,7 +1772,7 @@ def display_path_hypotheses(
             ids=measure.graph.memory_ids,
         )
         return paths, False
-    return map_path_hypothesis(measure, candidate_id, branch_id=branch_id), True
+    return representative_path_hypothesis(measure, candidate_id, branch_id=branch_id), True
 
 
 def cluster_global_propagation(
@@ -1718,10 +1829,12 @@ __all__ = [
     "build_sparse_transition",
     "FrozenGraphMeasure",
     "propagate_frozen_graph",
+    "shuffle_frozen_graph",
     "compute_global_propagation",
     "ancestor_occupancy_dp",
     "compute_ancestor_occupancy",
     "count_path_hypotheses",
+    "representative_path_hypothesis",
     "map_path_hypothesis",
     "display_path_hypotheses",
     "cluster_global_propagation",

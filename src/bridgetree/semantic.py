@@ -34,6 +34,7 @@ from .measure import (
     angular_navigation_affinity,
     display_path_hypotheses,
     propagate_frozen_graph,
+    shuffle_frozen_graph,
 )
 from .ranking import (
     DEFAULT_FINAL_RERANK_INSTRUCTION,
@@ -164,31 +165,43 @@ def build_query_conditioned_representation_text(
 def rho_squared_quality_records(
     measure: Any,
     *,
+    legacy_rho: Mapping[str, float] | None = None,
     scorer_fingerprint: str = "legacy-rho2",
 ) -> dict[str, QualityRecord]:
-    """Return the legacy ``rho²`` quality table for a frozen graph.
+    """Return the old executor's explicit ``legacy_rho[j] ** 2`` table.
 
-    ``h_j`` is the graph's access quality.  Encoding ``r_j=h_j²`` in the
-    semantic quality contract makes ``sqrt(r_j)=h_j`` and therefore gives the
-    exact old rank-one scale for the no-path L0 control, without normalizing by
-    the candidate pool or silently conflating it with a reranker score.
+    ``legacy_rho`` is intentionally separate from the frozen DAG's random
+    path access quality ``h``.  A frozen graph measure alone is not an old
+    executor trace, so callers that do not provide an explicit trace are
+    rejected instead of silently relabelling ``h`` as legacy ``rho``.
     """
 
     graph = getattr(measure, "graph", None)
-    access = getattr(measure, "access_quality", None)
-    if graph is None or not isinstance(access, Mapping):
+    if graph is None:
         raise ValueError("rho² quality requires a frozen graph measure")
+    if legacy_rho is None:
+        legacy_rho = getattr(measure, "legacy_rho", None)
+    if not isinstance(legacy_rho, Mapping):
+        raise ValueError(
+            "rho² quality requires an explicit legacy_rho mapping from an old executor trace; "
+            "frozen path access quality h is not a legacy trace"
+        )
+    normalized_rho = {str(key): float(value) for key, value in legacy_rho.items()}
+    missing = sorted(set(graph.memory_ids) - set(normalized_rho))
+    unknown = sorted(set(normalized_rho) - set(graph.memory_ids))
+    if missing or unknown:
+        raise ValueError(f"legacy_rho must cover exactly the frozen pool (missing={missing}, unknown={unknown})")
     records: dict[str, QualityRecord] = {}
     for raw_identifier in graph.memory_ids:
         identifier = str(raw_identifier)
-        value = float(access.get(identifier, 0.0))
+        value = normalized_rho[identifier]
         if not np.isfinite(value) or value < -1e-10 or value > 1.0 + 1e-10:
-            raise ValueError(f"graph access quality for {identifier} is outside [0, 1]")
-        h = min(1.0, max(0.0, value))
-        squared = h * h
+            raise ValueError(f"legacy rho for {identifier} is outside [0, 1]")
+        rho = min(1.0, max(0.0, value))
+        squared = rho * rho
         input_hash = hashlib.sha256(
             json.dumps(
-                {"graph_hash": graph.graph_hash, "memory_id": identifier, "access_quality": h},
+                {"graph_hash": graph.graph_hash, "memory_id": identifier, "legacy_rho": rho},
                 sort_keys=True,
                 separators=(",", ":"),
             ).encode("utf-8")
@@ -201,6 +214,52 @@ def rho_squared_quality_records(
             input_hash=input_hash,
         )
     return records
+
+
+def legacy_trace_from_result(result: Any) -> tuple[dict[str, float], dict[str, str | None]]:
+    """Extract the first-arrival rho/parent trace from a legacy result.
+
+    This adapter deliberately reads the old executor's recorded node fields;
+    it never recomputes a widest path from the new posterior DAG.
+    """
+    # Newer legacy runners may persist the trace as two explicit mappings;
+    # accept that representation first so a result object does not need to
+    # reconstruct it from serialized TreeNode instances.
+    explicit = getattr(result, "legacy_trace", None)
+    if isinstance(explicit, Mapping):
+        raw_rho = explicit.get("rho", explicit.get("legacy_rho"))
+        raw_parent = explicit.get("parent_id", explicit.get("legacy_parent_id", {}))
+        if isinstance(raw_rho, Mapping) and isinstance(raw_parent, Mapping):
+            rho = {str(identifier): float(value) for identifier, value in raw_rho.items()}
+            parents = {
+                str(identifier): (None if parent is None else str(parent))
+                for identifier, parent in raw_parent.items()
+            }
+            return rho, parents
+    raw_rho = getattr(result, "legacy_rho", None)
+    raw_parent = getattr(result, "legacy_parent_id", None)
+    if isinstance(raw_rho, Mapping) and isinstance(raw_parent, Mapping):
+        return (
+            {str(identifier): float(value) for identifier, value in raw_rho.items()},
+            {
+                str(identifier): (None if parent is None else str(parent))
+                for identifier, parent in raw_parent.items()
+            },
+        )
+    nodes = getattr(result, "nodes", None)
+    if not isinstance(nodes, Mapping) or not nodes:
+        raise ValueError("legacy result does not contain a node trace")
+    rho: dict[str, float] = {}
+    parents: dict[str, str | None] = {}
+    for raw_id, node in nodes.items():
+        identifier = str(raw_id)
+        value = getattr(node, "reachability", None)
+        if value is None:
+            raise ValueError(f"legacy node {identifier} has no reachability")
+        rho[identifier] = float(value)
+        parent = getattr(node, "parent_id", None)
+        parents[identifier] = None if parent is None else str(parent)
+    return rho, parents
 
 
 @dataclass(frozen=True)
@@ -228,7 +287,9 @@ def _memory_mark(memory: Memory) -> TemporalMark:
         if not isinstance(raw, Mapping):
             raise ValueError("memory time metadata must be a mapping")
     else:
-        raw = {}
+        # Accept the flat temporal envelope used by a few programmatic
+        # callers in addition to PersonaMem's nested ``time`` field.
+        raw = metadata
 
     def observed_integer(value: Any, name: str) -> int:
         # ``TemporalMark`` itself owns the final type, but doing the strict
@@ -245,13 +306,40 @@ def _memory_mark(memory: Memory) -> TemporalMark:
 
     observed_start = observed_integer(raw.get("observed_start", memory.timestamp), "observed_start")
     observed_end = observed_integer(raw.get("observed_end", memory.timestamp), "observed_end")
-    event_start = raw.get("event_start")
-    event_end = raw.get("event_end")
-    for name, value in (("event_start", event_start), ("event_end", event_end)):
-        if value is not None and not isinstance(value, str):
-            raise ValueError(f"memory {name} must be a string or None")
-    validity = raw.get("validity", "unknown")
-    source = raw.get("time_source", "message_index")
+    event_start = raw.get("event_start", raw.get("start"))
+    event_end = raw.get("event_end", raw.get("end"))
+
+    def event_value(value: Any, name: str) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, (bool, np.bool_)):
+            raise ValueError(f"memory {name} must be a date-like value or None")
+        if isinstance(value, str):
+            if not value.strip():
+                raise ValueError(f"memory {name} must be a non-empty value")
+            return value
+        # Numeric event epochs are emitted by ``messages_to_memories`` for
+        # explicitly annotated numeric dates.  The semantic provenance type
+        # stores event values textually, so canonicalize them rather than
+        # rejecting a valid annotation at the retrieval boundary.
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"memory {name} must be a date-like value or None") from exc
+        if not np.isfinite(numeric):
+            raise ValueError(f"memory {name} must be finite when present")
+        return str(numeric)
+
+    event_start = event_value(event_start, "event_start")
+    event_end = event_value(event_end, "event_end")
+    validity = raw.get(
+        "validity",
+        "instant" if event_start is not None or event_end is not None else "unknown",
+    )
+    source = raw.get(
+        "time_source",
+        "explicit" if event_start is not None or event_end is not None else "message_index",
+    )
     if not isinstance(validity, str) or not validity.strip():
         raise ValueError("memory time validity must be a non-empty string")
     if not isinstance(source, str) or not source.strip():
@@ -293,26 +381,102 @@ def _visible_records(
     # Keep a scalar numeric cutoff on the observation scale.  This branch is
     # intentionally checked before the generic temporal parser, whose
     # ``TimeMark`` representation carries both observed and event endpoints.
+    # Query metadata often contains ordinary task fields (and PersonaMem
+    # stores ``query_time`` there as a string); those fields must not turn an
+    # observation-index cutoff into an event-date cutoff and thereby admit
+    # future records.
     numeric_cutoff: float | None = None
-    if query_metadata is None and not isinstance(query_cutoff, (Mapping, tuple, list)):
+    if not isinstance(query_cutoff, (Mapping, tuple, list)):
         try:
-            if not isinstance(query_cutoff, bool):
+            if not isinstance(query_cutoff, (bool, np.bool_)):
                 candidate = float(query_cutoff)
                 if np.isfinite(candidate):
                     numeric_cutoff = candidate
         except (TypeError, ValueError):
             numeric_cutoff = None
+
+    def has_explicit_event_fields(value: Any) -> bool:
+        if not isinstance(value, Mapping):
+            return False
+        raw_value: Any = value
+        if isinstance(raw_value.get("metadata"), Mapping):
+            raw_value = {**dict(raw_value.get("metadata", {})), **dict(raw_value)}
+        nested_time = raw_value.get("time")
+        if isinstance(nested_time, Mapping):
+            raw_value = {**dict(raw_value), **dict(nested_time)}
+        event_keys = {
+            "event_start",
+            "event_end",
+            "event_time",
+            "date",
+            "datetime",
+            "query_date",
+        }
+        if any(key in raw_value and raw_value.get(key) is not None for key in event_keys):
+            return True
+        # A non-numeric scalar under ``time`` is an explicit date-like value;
+        # numeric ``query_time``/``cutoff`` values remain observation indices.
+        scalar_time = raw_value.get("time")
+        if scalar_time is not None and not isinstance(scalar_time, Mapping):
+            try:
+                float(scalar_time)
+            except (TypeError, ValueError):
+                return True
+        return False
+
+    def metadata_observation_cutoff(value: Any) -> float | None:
+        if not isinstance(value, Mapping):
+            return None
+        raw_value: Any = value
+        if isinstance(raw_value.get("metadata"), Mapping):
+            raw_value = {**dict(raw_value.get("metadata", {})), **dict(raw_value)}
+        # PersonaMem's ``query_time`` and generic ``cutoff`` aliases denote
+        # an observed message boundary when they are numeric.  Date-like
+        # strings are left to ``query_time_mark`` as explicit event values.
+        for key in ("query_time", "cutoff"):
+            candidate = raw_value.get(key)
+            if candidate is None or isinstance(candidate, (bool, np.bool_)):
+                continue
+            try:
+                numeric = float(candidate)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if np.isfinite(numeric):
+                return numeric
+        nested_time = raw_value.get("time")
+        if isinstance(nested_time, Mapping) and not any(
+            nested_time.get(key) is not None
+            for key in ("event_start", "event_end", "event_time", "date", "datetime")
+        ):
+            candidate = nested_time.get("observed_end", nested_time.get("observed"))
+            if isinstance(candidate, Mapping):
+                candidate = candidate.get("observed_end", candidate.get("end"))
+            try:
+                numeric = float(candidate)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            if np.isfinite(numeric):
+                return numeric
+        return None
+
+    explicit_event_metadata = has_explicit_event_fields(query_metadata)
+    if numeric_cutoff is None and query_cutoff is None and not explicit_event_metadata:
+        numeric_cutoff = metadata_observation_cutoff(query_metadata)
     query_mark = query_time_mark(query_cutoff, query_metadata)
-    if numeric_cutoff is None and query_mark.unavailable:
+    if numeric_cutoff is not None and not explicit_event_metadata:
+        cutoff_end = numeric_cutoff
+        explicit_event_cutoff = False
+    else:
+        if numeric_cutoff is None and query_mark.unavailable:
+            # An opaque/date-less cutoff does not provide a safe comparison key.
+            return list(memories), np.asarray(memory_vectors)
+        cutoff_end = query_mark.end
+        explicit_event_cutoff = (
+            query_mark.event_start is not None or query_mark.event_end is not None
+        )
+    if cutoff_end is None:
         # An opaque/date-less cutoff does not provide a safe comparison key.
         return list(memories), np.asarray(memory_vectors)
-    cutoff_end = numeric_cutoff if numeric_cutoff is not None else query_mark.end
-    if cutoff_end is None:
-        return list(memories), np.asarray(memory_vectors)
-
-    explicit_event_cutoff = numeric_cutoff is None and (
-        query_mark.event_start is not None or query_mark.event_end is not None
-    )
     keep: list[int] = []
     for index, memory in enumerate(memories):
         mark = _memory_mark(memory)
@@ -495,6 +659,7 @@ def discover_frozen_graph(
     proposal_mode: str = "real_member_query_anchor",
     excluded_candidate_ids: Sequence[str] = (),
     cutoff: Any = None,
+    query_metadata: Mapping[str, Any] | None = None,
     initial_hits: Sequence[tuple[str, float]] | None = None,
     initial_hits_accounted: bool = False,
     proposal_query_provider: Any = None,
@@ -524,8 +689,17 @@ def discover_frozen_graph(
         None if proposal_width is None else _strict_positive_int(proposal_width, "proposal_width")
     )
     depth_limit = _strict_positive_int(max_depth, "max_depth")
-    visible = list(memories)
-    vectors = normalize_rows(np.asarray(memory_vectors, dtype=np.float64)).astype(np.float32)
+    # Discovery itself is a visibility boundary.  Callers that pre-freeze a
+    # graph (the semantic matrix) must not be able to expose memories beyond
+    # the question's observation/event cutoff merely by bypassing
+    # ``semantic_retrieve``.
+    visible, visible_vectors = _visible_records(
+        memories,
+        memory_vectors,
+        cutoff,
+        query_metadata=query_metadata,
+    )
+    vectors = normalize_rows(np.asarray(visible_vectors, dtype=np.float64)).astype(np.float32)
     if len(visible) != len(vectors):
         raise ValueError("memories and memory_vectors must have equal length")
     ids = [str(memory.memory_id) for memory in visible]
@@ -539,7 +713,8 @@ def discover_frozen_graph(
         max_unique_nodes=max(1, min(len(ids), initial_width + branch_width * max(0, depth_limit - 1))),
     )
     tracker = tracker or CostTracker(search_budget)
-    if index is None:
+    index_ids = list(getattr(index, "ids", ())) if index is not None else []
+    if index is None or index_ids != ids:
         index = build_index("exact", ids, vectors)
     excluded = {str(value) for value in excluded_candidate_ids}
     width = initial_width
@@ -1217,12 +1392,16 @@ def reranker_quality_records(
             "rank_query": rank_query,
             "options": answer_options,
             "cutoff": query_cutoff,
-            "query_metadata": dict(query_metadata or {}),
+            # Metadata participates in cache identity only after the same
+            # defensive redaction used by query-conditioned representations;
+            # replacing a gold label must not create a different retrieval
+            # request or quality-cache key.
+            "query_metadata": _safe_semantic_metadata(dict(query_metadata or {})),
             "memory_id": memory.memory_id,
             "memory_text": memory.text,
             "timestamp": memory.timestamp,
             "source_id": memory.source_id,
-            "metadata": metadata,
+            "metadata": _safe_semantic_metadata(metadata),
             "include_time_metadata": bool(include_time_metadata),
             "score_space": score_space,
             "scorer_fingerprint": effective_fingerprint,
@@ -1310,6 +1489,9 @@ def semantic_retrieve(
     proposal_vectors: Mapping[str, np.ndarray] | None = None,
     proposal_query_instruction: str = "",
     representation_fingerprint: str = "",
+    legacy_rho: Mapping[str, float] | None = None,
+    legacy_parent_id: Mapping[str, str | None] | None = None,
+    shuffle_seed: int = 42,
 ) -> RetrievalResult:
     """Run the frozen semantic-path chain and return auditable provenance."""
 
@@ -1343,6 +1525,7 @@ def semantic_retrieve(
             relation_mode=config.relation_mode,
             proposal_mode=config.proposal_mode,
             cutoff=query_cutoff,
+            query_metadata=query_metadata,
             proposal_query_provider=proposal_query_provider,
             proposal_vectors=proposal_vectors,
             proposal_query_instruction=proposal_query_instruction,
@@ -1369,6 +1552,28 @@ def semantic_retrieve(
         }
         if index is None:
             index = build_index("exact", [memory.memory_id for memory in visible], visible_vectors)
+    shuffle_effective_nodes = 0
+    graph_has_shuffle = isinstance(graph.proposal_config, Mapping) and "shuffle_seed" in graph.proposal_config
+    if config.path_mode == "shuffle" and not graph_has_shuffle:
+        # S2-shuffle owns a separately identified frozen structure.  Pointwise
+        # qualities, records and embeddings remain keyed by the original IDs;
+        # only the within-layer source assignment is migrated.
+        graph = shuffle_frozen_graph(graph, seed=shuffle_seed)
+        # Count the actual within-layer identity intervention.  This remains
+        # meaningful for an edgeless/root-only graph, where comparing edge
+        # tuples would incorrectly report zero despite a non-identity
+        # permutation.
+        shuffle_effective_nodes = int(
+            graph.proposal_config.get("shuffle_effective_nodes", 0)
+            if isinstance(graph.proposal_config, Mapping)
+            else 0
+        )
+        graph_diagnostics["shuffle_seed"] = int(shuffle_seed)
+        graph_diagnostics["shuffle_effective_nodes"] = int(shuffle_effective_nodes)
+    elif config.path_mode == "shuffle" and graph_has_shuffle:
+        graph_diagnostics["shuffle_seed"] = int(graph.proposal_config["shuffle_seed"])
+        shuffle_effective_nodes = int(graph.proposal_config.get("shuffle_effective_nodes", 0))
+        graph_diagnostics["shuffle_effective_nodes"] = shuffle_effective_nodes
     measure = propagate_frozen_graph(graph)
     records = {
         str(memory.memory_id): memory
@@ -1431,6 +1636,7 @@ def semantic_retrieve(
             # feature's sqrt scale is exactly the old rho scale.
             qualities = rho_squared_quality_records(
                 measure,
+                legacy_rho=legacy_rho,
                 scorer_fingerprint=config.scorer_fingerprint or "legacy-rho2",
             )
         else:
@@ -1463,6 +1669,8 @@ def semantic_retrieve(
         representation_mode=representation_mode,
         scorer_fingerprint=config.scorer_fingerprint,
         representation_fingerprint=representation_fingerprint,
+        legacy_parent_id=legacy_parent_id,
+        shuffle_seed=shuffle_seed,
     )
     selection_mode = config.selection_mode
     if config.profile in {"semantic", SEMANTIC_PROFILE} and selection_mode not in {"pure_rerank", "frozen_listwise"}:
@@ -1522,8 +1730,8 @@ def semantic_retrieve(
 
     # The frozen measure (h/gamma/w) is the production ancestry object.  Path
     # hypotheses are display provenance only: enumerate every path for a
-    # small DAG, but switch to a bounded MAP path when the dynamic count would
-    # exceed the cap.  This keeps a highly branching proposal graph from
+    # small DAG, but switch to a bounded representative/local-parent path when
+    # the dynamic count would exceed the cap.  This keeps a highly branching graph from
     # turning serialization into an exponential operation while preserving
     # every parent posterior and every ancestor occupancy weight exactly.
     path_hypotheses: dict[str, tuple[PathHypothesis, ...]] = {}
@@ -1592,20 +1800,24 @@ def semantic_retrieve(
             layer=layer_by_id.get(identifier, 1),
             ancestor_occupancy=ancestor_map,
         )
-    # SemanticAtom is the selector-facing rank-one feature.  Expose the same
-    # PSD contribution through the historical InformationAtom field as well;
-    # consumers that predate the semantic schema can therefore inspect a
-    # matrix/trace while newer consumers retain the richer semantic atom.
-    information_atoms: dict[str, InformationAtom] = {
-        identifier: InformationAtom(
-            candidate_id=identifier,
-            path_ids=atom.path_ids,
-            matrix=atom.matrix,
-            trace=float(np.trace(atom.matrix)),
-            support=float(measure.access_quality.get(identifier, 0.0)),
-        )
-        for identifier, atom in semantic_atoms.items()
-    }
+    # Keep the historical dense InformationAtom compatibility field only for
+    # genuinely small vectors.  The production semantic chain stores rank-one
+    # features; rebuilding one d-by-d outer product per candidate during
+    # result assembly would defeat the low-rank implementation at embedding
+    # dimensions used by the service.
+    compatibility_dimension = int(next(iter(semantic_atoms.values())).feature.size) if semantic_atoms else 0
+    information_atoms: dict[str, InformationAtom] = {}
+    if compatibility_dimension <= 256:
+        information_atoms = {
+            identifier: InformationAtom(
+                candidate_id=identifier,
+                path_ids=atom.path_ids,
+                matrix=atom.matrix,
+                trace=float(atom.norm_sq),
+                support=float(measure.access_quality.get(identifier, 0.0)),
+            )
+            for identifier, atom in semantic_atoms.items()
+        }
     edges = [(parent, child) for parent, child in graph.edges]
     selection_steps = []
     certified_rows = list(selection.diagnostics.get("certified", ()))
@@ -1765,6 +1977,7 @@ __all__ = [
     "SEMANTIC_QUERY_CONDITIONED_INSTRUCTION",
     "build_query_conditioned_representation_text",
     "rho_squared_quality_records",
+    "legacy_trace_from_result",
     "ProposalExposure",
     "discover_frozen_graph",
     "build_proposal_graph",

@@ -164,6 +164,56 @@ def path_conditioned_innovation(
     return weighted + np.dot(u, factor * projection)
 
 
+def factor_conditioned_innovation(
+    vector: np.ndarray,
+    quality: float,
+    ancestor_vectors: Sequence[np.ndarray] = (),
+    ancestor_weights: Sequence[float] = (),
+) -> np.ndarray:
+    """Return ``sqrt(r) (I + B B.T)^(-1/2) v`` from a thin factor.
+
+    ``B[:, a] = sqrt(w[a] * r[a]) * v[a]``.  Keeping the factor as a
+    ``d x |A|`` matrix avoids materialising the embedding-dimensional scatter
+    matrix; the formula below is the corresponding low-rank update applied to
+    one vector.
+    """
+    candidate = np.asarray(vector, dtype=np.float64).reshape(-1)
+    if candidate.ndim != 1 or candidate.size == 0 or not np.all(np.isfinite(candidate)):
+        raise ValueError("vector must be a finite non-empty one-dimensional vector")
+    norm = float(np.linalg.norm(candidate))
+    if norm <= 1e-12:
+        raise ValueError("vector must be non-zero")
+    candidate = candidate / norm
+    r = float(quality)
+    if not np.isfinite(r) or r < 0.0 or r > 1.0:
+        raise ValueError("quality must lie in [0, 1]")
+    vectors = list(ancestor_vectors)
+    weights = list(ancestor_weights)
+    if len(weights) == 0:
+        weights = [1.0] * len(vectors)
+    if len(vectors) != len(weights):
+        raise ValueError("ancestor vectors and weights must have equal length")
+    columns: list[np.ndarray] = []
+    for value, raw_weight in zip(vectors, weights):
+        ancestor = np.asarray(value, dtype=np.float64).reshape(-1)
+        if ancestor.shape != candidate.shape or not np.all(np.isfinite(ancestor)):
+            raise ValueError("ancestor vectors must match vector and be finite")
+        ancestor_norm = float(np.linalg.norm(ancestor))
+        if ancestor_norm <= 1e-12:
+            raise ValueError("ancestor vectors must be non-zero")
+        weight = float(raw_weight)
+        if not np.isfinite(weight) or weight < 0.0:
+            raise ValueError("ancestor weights must be finite and non-negative")
+        coefficient = np.sqrt(weight)
+        columns.append(coefficient * (ancestor / ancestor_norm))
+    if not columns:
+        return np.sqrt(r) * candidate
+    B = np.column_stack(columns)
+    U, singular, _ = np.linalg.svd(B, full_matrices=False)
+    correction = (1.0 / np.sqrt(1.0 + singular * singular) - 1.0) * (U.T @ candidate)
+    return np.sqrt(r) * (candidate + U @ correction)
+
+
 def symmetrize(matrix: np.ndarray) -> np.ndarray:
     value = np.asarray(matrix, dtype=np.float64)
     if value.ndim != 2 or value.shape[0] != value.shape[1]:

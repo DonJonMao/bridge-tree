@@ -17,11 +17,13 @@ from .measure import (
     parent_posterior,
     propagate_frozen_graph,
     propagate_mass,
+    shuffle_frozen_graph,
 )
 from .retriever import BridgeTreeRetriever
 from .semantic import (
     build_query_conditioned_representation_text,
     discover_frozen_graph,
+    legacy_trace_from_result,
     rho_squared_quality_records,
     semantic_retrieve,
 )
@@ -65,12 +67,14 @@ __all__ = [
     "FrozenGraphMeasure",
     "angular_navigation_affinity",
     "propagate_frozen_graph",
+    "shuffle_frozen_graph",
     "SemanticFeatureProvider",
     "SemanticPathLogDetSelector",
     "PureRerankSelector",
     "discover_frozen_graph",
     "semantic_retrieve",
     "rho_squared_quality_records",
+    "legacy_trace_from_result",
     "build_query_conditioned_representation_text",
     "load_config",
 ]

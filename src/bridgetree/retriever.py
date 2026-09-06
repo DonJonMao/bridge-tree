@@ -31,6 +31,46 @@ from .temporal import TransitionCache, bank_hash, build_time_marks, build_transi
 from .types import Branch, InformationAtom, Memory, PathHypothesis, RetrievalResult, SelectionStep, TreeNode
 
 
+def _prepare_injected_hits(
+    initial_hits: Sequence[Tuple[str, float]],
+    *,
+    memory_by_id: Mapping[str, Memory],
+    tracker: CostTracker,
+    excluded: set[str],
+    initial_hits_accounted: bool,
+) -> list[tuple[str, float]]:
+    """Account and admit an externally supplied ANN response exactly once.
+
+    The full response is raw exposure (including duplicates and excluded
+    IDs); only the first occurrence of each eligible ID enters the frozen
+    graph, subject to the independent unique-node budget.
+    """
+
+    from .semantic import _normalize_initial_hits
+
+    raw_hits = _normalize_initial_hits(initial_hits)
+    unknown = [memory_id for memory_id, _score in raw_hits if memory_id not in memory_by_id]
+    if unknown:
+        raise ValueError(f"initial_hits contain unknown memory ids: {unknown}")
+    if not initial_hits_accounted:
+        tracker.record_candidate_exposure(
+            len(raw_hits), identifiers=[memory_id for memory_id, _score in raw_hits]
+        )
+    unique_hits: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for memory_id, score in raw_hits:
+        if memory_id in excluded or memory_id in seen:
+            continue
+        seen.add(memory_id)
+        unique_hits.append((memory_id, score))
+    tracker.mark_visited(memory_id for memory_id, _score in unique_hits)
+    return [
+        (memory_id, score)
+        for memory_id, score in unique_hits
+        if memory_id in tracker.visited_ids
+    ]
+
+
 class BridgeTreeRetriever:
     """One deterministic first-arrival implementation controlled by runtime config."""
 
@@ -73,6 +113,28 @@ class BridgeTreeRetriever:
         generator_config: Any | None = None,
         representation_fingerprint: str = "",
     ) -> RetrievalResult:
+        # Apply the question visibility envelope before any ANN or reranker
+        # path.  PersonaMem normally slices by observation index already,
+        # but explicit event/date cutoffs can make an earlier observed message
+        # future evidence; no retrieval method may inspect it.  A supplied
+        # index over the unfiltered bank is invalid and is rebuilt below.
+        query_metadata_value = query_metadata if query_metadata else None
+        if query_cutoff is not None or query_metadata_value is not None:
+            from .semantic import _visible_records
+
+            visible_memories, visible_vectors = _visible_records(
+                memories,
+                memory_vectors,
+                query_cutoff,
+                query_metadata=query_metadata_value,
+            )
+            visible_ids = [str(memory.memory_id) for memory in visible_memories]
+            index_ids = list(getattr(index, "ids", ())) if index is not None else []
+            if index is not None and index_ids != visible_ids:
+                index = None
+                index_build_ms = 0.0
+            memories = visible_memories
+            memory_vectors = visible_vectors
         # The revised named semantic profile has a separate frozen execution
         # chain.  Keeping the dispatch here makes legacy_core/legacy_path and
         # the historical TMIC switch combinations byte-compatible while
@@ -177,33 +239,13 @@ class BridgeTreeRetriever:
         if initial_hits is None:
             first_hits = tracker.search_core(index, query_vector, first_width)
         else:
-            unknown = [memory_id for memory_id, _score in initial_hits if memory_id not in memory_by_id]
-            if unknown:
-                raise ValueError(f"initial_hits contain unknown memory ids: {unknown}")
-            # Preserve the supplied ranking but remove duplicate IDs before
-            # spending first-hop capacity.
-            first_hits = []
-            seen_initial: set[str] = set()
-            for item in initial_hits:
-                if item[0] in seen_initial:
-                    continue
-                if item[0] not in tracker.visited_ids and tracker.remaining_unique_nodes <= 0:
-                    break
-                seen_initial.add(item[0])
-                first_hits.append(item)
-                if len(first_hits) >= first_width:
-                    break
-            # Only the hits actually admitted as first-hop nodes consume the
-            # unique-node budget.  Older code marked the entire supplied
-            # adapter list, allowing an oversized ``initial_hits`` payload to
-            # bypass the advertised budget.
-            tracker.mark_visited(memory_id for memory_id, _score in first_hits)
-            # An injected hit list is still an observed candidate exposure;
-            # account for it exactly as ``search_core`` would.  This keeps
-            # matched-budget comparisons independent of whether an adapter
-            # performs the first ANN request inside or outside the retriever.
-            if not initial_hits_accounted:
-                tracker.record_candidate_exposure(len(first_hits))
+            first_hits = _prepare_injected_hits(
+                initial_hits,
+                memory_by_id=memory_by_id,
+                tracker=tracker,
+                excluded=set(),
+                initial_hits_accounted=initial_hits_accounted,
+            )
         nodes: Dict[str, TreeNode] = {}
         edges: List[Tuple[Optional[str], str]] = []
         for discovery_order, (memory_id, _score) in enumerate(first_hits):
@@ -524,23 +566,13 @@ class BridgeTreeRetriever:
         if initial_hits is None:
             first_hits = tracker.search_core(index, query_value, first_width, exclude=excluded)
         else:
-            unknown = [memory_id for memory_id, _score in initial_hits if memory_id not in memory_by_id]
-            if unknown:
-                raise ValueError(f"initial_hits contain unknown memory ids: {unknown}")
-            first_hits = []
-            seen_initial: set[str] = set()
-            for item in initial_hits:
-                if item[0] in seen_initial or item[0] in excluded:
-                    continue
-                if item[0] not in tracker.visited_ids and tracker.remaining_unique_nodes <= 0:
-                    break
-                seen_initial.add(item[0])
-                first_hits.append(item)
-                if len(first_hits) >= first_width:
-                    break
-            tracker.mark_visited(memory_id for memory_id, _score in first_hits)
-            if not initial_hits_accounted:
-                tracker.record_candidate_exposure(len(first_hits))
+            first_hits = _prepare_injected_hits(
+                initial_hits,
+                memory_by_id=memory_by_id,
+                tracker=tracker,
+                excluded=excluded,
+                initial_hits_accounted=initial_hits_accounted,
+            )
 
         nodes: Dict[str, TreeNode] = {}
         edges: List[Tuple[Optional[str], str]] = []

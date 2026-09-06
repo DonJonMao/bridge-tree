@@ -20,8 +20,6 @@ from .clients import (
     GeneratorClient,
     RerankerClient,
     StateEmbeddingCache,
-    context_token_count,
-    fit_context_budget,
     generation_prompt_hash,
 )
 from .config import AppConfig, RetrievalConfig
@@ -32,8 +30,11 @@ from .experiment import (
     RERANK_METHODS,
     EmbeddingCache,
     IndexCache,
+    _exact_context_plan,
     _public_app_config,
     _refresh_rerank_selection_diagnostics,
+    _runtime_provenance,
+    _visible_memory_records,
     load_bridge_gold,
     retrieve_method,
 )
@@ -470,6 +471,11 @@ class TrainingEvaluator:
             ),
             endpoint=app_config.models.reranker.endpoint,
             model=app_config.models.reranker.model,
+            score_space=getattr(app_config.models.reranker, "score_space", "unit_interval"),
+            task_instruction=getattr(app_config.models.reranker, "task_instruction", ""),
+            score_contract=getattr(app_config.models.reranker, "score_contract", "pointwise"),
+            model_fingerprint=getattr(app_config.models.reranker, "model_fingerprint", "")
+            or getattr(app_config.models.reranker, "model", ""),
         )
         self.index_cache = IndexCache()
         self.state_embedding_cache = StateEmbeddingCache(Path(app_config.runtime.cache_dir) / "state")
@@ -492,6 +498,7 @@ class TrainingEvaluator:
             include_system_persona=self.app_config.data.include_system_persona,
             memory_granularity=self.app_config.data.memory_granularity,
         )
+        memories = _visible_memory_records(example, memories)
         segmentation_seconds = time.perf_counter() - segment_started
         if not memories:
             raise ValueError(f"example has no retrievable memories: {example.question_id}")
@@ -535,12 +542,25 @@ class TrainingEvaluator:
         )
         retrieval_seconds = time.perf_counter() - retrieval_started
         tracker = diagnostics.pop("_cost_tracker")
-        selected = fit_context_budget(selected, self.app_config.models.generator.context_token_budget)
-        retained_ids = {memory.memory_id for memory in selected}
-        selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
+        # Freeze one exact reader request for every method.  The selector's
+        # complete cardinality result is retained; an over-budget request is
+        # an explicit evaluation failure rather than a silent post-hoc filter.
+        context_plan = _exact_context_plan(self.app_config, example, selected_ids, selected)
+        if not context_plan.within_budget:
+            raise ValueError("selected context exceeds the configured generator token budget")
+        memory_by_id = {str(memory.memory_id): memory for memory in memories}
+        selected_ids = list(context_plan.selected_ids)
+        selected = [memory_by_id[memory_id] for memory_id in context_plan.chronological_ids]
+        if bridge_result is not None:
+            bridge_result.context_plan = context_plan
+            bridge_result.context_hash = context_plan.context_hash
+            bridge_result.selected_context = tuple(context_plan.chronological_ids)
+            bridge_result.diagnostics["context_plan"] = context_plan.public_dict()
+        diagnostics["context_plan"] = context_plan.public_dict()
+        diagnostics["context_hash"] = context_plan.context_hash
         _refresh_rerank_selection_diagnostics(diagnostics, selected_ids)
-        tracker.final_context_count = len(selected)
-        tracker.final_context_tokens = context_token_count(selected)
+        tracker.final_context_count = len(context_plan.chronological_ids)
+        tracker.final_context_tokens = context_plan.token_count
 
         response = ""
         generation_seconds = 0.0
@@ -548,8 +568,17 @@ class TrainingEvaluator:
         parse_failure = None
         if generate:
             generation_started = time.perf_counter()
+            # ``GenerationCache.answer`` is the compatibility wrapper around
+            # the same frozen plan.  Supply the selector order explicitly so
+            # its rebuilt plan has the identical selected-ID identity; the
+            # adapter itself receives the plan's chronological reader order.
+            greedy_memories = [memory_by_id[memory_id] for memory_id in selected_ids]
             response, generation_hit = self.generation_cache.answer(
-                self.generator, example.query, selected, example.all_options
+                self.generator,
+                example.query,
+                greedy_memories,
+                example.all_options,
+                selected_ids=selected_ids,
             )
             generation_seconds = time.perf_counter() - generation_started
             tracker.generation_ms = 0.0 if generation_hit else generation_seconds * 1000.0
@@ -661,6 +690,7 @@ class TrainingEvaluator:
                 "persona_id": example.persona_id,
                 "question_id": example.question_id,
                 "selected_memory_ids": selected_ids,
+                "context_plan": context_plan.public_dict(),
                 "response": response,
                 "retrieval_diagnostics": diagnostics,
             },
@@ -674,6 +704,7 @@ class TrainingEvaluator:
                 "persona_id": example.persona_id,
                 "question_id": example.question_id,
                 "selected_memory_ids": list(selected_ids),
+                "context_plan": context_plan.public_dict(),
                 "candidate_union_ids": list(diagnostics.get("candidate_union_ids", selected_ids)),
                 "outcome": dict(metrics.get("outcome", {})),
                 "cost": cost_snapshot,
@@ -1136,6 +1167,7 @@ def preflight_tuning(
             include_system_persona=app_config.data.include_system_persona,
             memory_granularity=app_config.data.memory_granularity,
         )
+        memories = _visible_memory_records(example, memories)
         if not memories:
             raise ValueError("preflight example has no retrievable memories")
         query_vector = np.asarray(embedder.encode_query(example.query), dtype=np.float64)
@@ -1317,6 +1349,7 @@ def run_training_experiment(
         raw_root / f"shared_contexts_{app_config.data.split}.jsonl",
     )
     source_sha256 = {path.name: file_sha256(path) for path in source_paths if path.is_file()}
+    runtime_provenance = _runtime_provenance(app_config.data.raw_dir, app_config.data.split)
     writer.write_json(
         "run_manifest.json",
         {
@@ -1326,6 +1359,10 @@ def run_training_experiment(
             "data_revision": PERSONAMEM_REVISION,
             "data_split": app_config.data.split,
             "source_sha256": source_sha256,
+            "source_data_package_hash": runtime_provenance.get("source_data_package_hash"),
+            "source_package_hash": runtime_provenance.get("source_package_hash"),
+            "worktree_clean": runtime_provenance.get("worktree_clean"),
+            "uncommitted_diff_hash": runtime_provenance.get("uncommitted_diff_hash"),
             "dataset_queries": len(all_examples),
             "train_queries_reserved": len(splits.train),
             "validation_queries": len(validation_examples),

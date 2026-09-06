@@ -6,7 +6,8 @@ import pytest
 from bridgetree.clients import ContextPlanError
 from bridgetree.config import RetrievalConfig
 from bridgetree.experiment import SEMANTIC_MATRIX_ARCHITECTURES, semantic_matrix_configs
-from bridgetree.measure import propagate_frozen_graph
+from bridgetree.information import SemanticFeatureProvider
+from bridgetree.measure import display_path_hypotheses, propagate_frozen_graph, shuffle_frozen_graph
 from bridgetree.protocol import _legacy_split, init_protocol, protocol_examples
 from bridgetree.semantic import (
     build_query_conditioned_representation_text,
@@ -70,14 +71,83 @@ def test_semantic_matrix_declares_the_two_legacy_controls_and_shared_s_rows():
     assert configs["S2-shuffle"].path_mode == "shuffle"
 
 
-def test_rho_squared_quality_preserves_the_legacy_rho_scale():
+def test_rho_squared_quality_requires_an_explicit_legacy_trace():
     measure = propagate_frozen_graph(_frozen_chain())
-    records = rho_squared_quality_records(measure)
+    with pytest.raises(ValueError, match="explicit legacy_rho"):
+        rho_squared_quality_records(measure)
+
+    records = rho_squared_quality_records(
+        measure,
+        legacy_rho={identifier: 0.8 for identifier in measure.graph.memory_ids},
+    )
     assert set(records) == set(measure.graph.memory_ids)
-    for identifier, record in records.items():
+    for _identifier, record in records.items():
         assert record.scorer_fingerprint == "legacy-rho2"
-        assert record.value == pytest.approx(measure.access_quality[identifier] ** 2)
-        assert np.sqrt(record.value) == pytest.approx(measure.access_quality[identifier])
+        assert record.value == pytest.approx(0.64)
+        assert np.sqrt(record.value) == pytest.approx(0.8)
+
+
+def test_explicit_legacy_rho_is_independent_of_random_path_access():
+    measure = propagate_frozen_graph(_frozen_chain())
+    records = rho_squared_quality_records(
+        measure,
+        legacy_rho={"m0": 0.8, "m1": 0.4, "m2": 0.25},
+    )
+    assert records["m0"].value == pytest.approx(0.64)
+    assert records["m1"].value == pytest.approx(0.16)
+    assert records["m2"].value == pytest.approx(0.0625)
+
+
+def test_shuffle_moves_source_identity_without_changing_memory_vectors():
+    graph = FrozenProposalGraph(
+        memory_ids=("a", "c", "b", "d"),
+        edges=(("a", "b"), ("c", "d")),
+        edge_weights=(("a", "b", 1.0), ("c", "d", 1.0)),
+        root_mass={"a": 0.5, "c": 0.5},
+        layers=(("a", "c"), ("b", "d")),
+    )
+    measure = propagate_frozen_graph(graph)
+    vectors = {
+        "a": np.array([1.0, 0.0]),
+        "c": np.array([0.0, 1.0]),
+        "b": np.array([1.0, 0.0]),
+        "d": np.array([0.0, 1.0]),
+    }
+    quality = {identifier: 1.0 for identifier in graph.memory_ids}
+    provider = SemanticFeatureProvider(
+        graph, measure, quality,
+        records={identifier: {"vector": value} for identifier, value in vectors.items()},
+        representation_provider=vectors,
+        path_mode="shuffle",
+        shuffle_seed=42,
+    )
+    baseline = SemanticFeatureProvider(
+        graph, measure, quality,
+        records={identifier: {"vector": value} for identifier, value in vectors.items()},
+        representation_provider=vectors,
+        path_mode="posterior_expected_scatter",
+    )
+    assert provider._ancestor_ids("b") == ("c",)
+    assert np.linalg.norm(provider.materialize("b").feature) > np.linalg.norm(baseline.materialize("b").feature)
+    shuffled = shuffle_frozen_graph(graph, seed=42)
+    assert shuffled.layers == graph.layers
+    assert set(shuffled.edges) == {("a", "d"), ("c", "b")}
+    assert shuffled.proposal_config["shuffle_effective_nodes"] == 2
+
+
+def test_truncated_display_path_keeps_local_parent_posterior():
+    graph = FrozenProposalGraph(
+        memory_ids=("a", "c", "b"),
+        edges=(("a", "b"), ("c", "b")),
+        edge_weights=(("a", "b", 1.0), ("c", "b", 1.0)),
+        root_mass={"a": 0.5, "c": 0.5},
+        layers=(("a", "c"), ("b",)),
+    )
+    measure = propagate_frozen_graph(graph)
+    paths, truncated = display_path_hypotheses(measure, "b", max_paths=1)
+    assert truncated
+    assert paths[0].branch_id == "representative_local_parent"
+    assert paths[0].posterior == pytest.approx(0.5)
 
 
 def test_query_conditioned_representation_is_deterministic_and_redacts_gold_metadata():

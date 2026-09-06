@@ -19,10 +19,10 @@ from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
 import numpy as np
 
 from .math_utils import (
+    factor_conditioned_innovation,
     is_psd,
     logdet_matrix_marginal,
     normalize,
-    path_conditioned_innovation,
     psd_eigendecomposition,
     psd_inverse_sqrt,
     stable_logdet,
@@ -487,13 +487,15 @@ def build_information_atom(
         # rather than an unconditioned rho outer product whenever ancestors
         # are present.  ``path_conditioned_innovation`` implements the
         # thin-SVD (I+B_A B_A^T)^(-1/2) contraction without a dense inverse.
-        weighted_ancestors = [
-            np.asarray(item, dtype=np.float64)
-            for item in ancestor_vectors
-        ]
+        weighted_ancestors = [np.asarray(item, dtype=np.float64) for item in ancestor_vectors]
         if any(item.ndim != 1 or item.shape != z.shape or not np.all(np.isfinite(item)) for item in weighted_ancestors):
             raise ValueError("ancestor vectors must be finite one-dimensional vectors matching the candidate")
-        phi = path_conditioned_innovation(z, support_value, weighted_ancestors)
+        phi = factor_conditioned_innovation(
+            z,
+            support_value,
+            ancestor_vectors=weighted_ancestors,
+            ancestor_weights=ancestor_weights or (),
+        )
         matrix = np.outer(phi, phi)
     else:
         b = _coerce_basis(basis, len(z))
@@ -998,6 +1000,9 @@ def semantic_feature(
     quality: float | QualityRecord,
     representation: np.ndarray,
     ancestor_scatter: np.ndarray | None = None,
+    *,
+    ancestor_vectors: Sequence[np.ndarray] = (),
+    ancestor_weights: Sequence[float] = (),
 ) -> np.ndarray:
     """Return ``phi_j = sqrt(r_j) H_j v_j`` without re-normalizing its norm."""
 
@@ -1011,11 +1016,16 @@ def semantic_feature(
     if norm <= 1e-12:
         raise ValueError("semantic representation must be non-zero")
     vector = vector / norm
-    conditioned = (
-        vector
-        if ancestor_scatter is None
-        else _inverse_scatter_vector(ancestor_scatter, vector)
-    )
+    if ancestor_scatter is not None and ancestor_vectors:
+        raise ValueError("provide ancestor factors or ancestor_scatter, not both")
+    if ancestor_vectors:
+        return factor_conditioned_innovation(
+            vector,
+            r,
+            ancestor_vectors=ancestor_vectors,
+            ancestor_weights=ancestor_weights,
+        )
+    conditioned = vector if ancestor_scatter is None else _inverse_scatter_vector(ancestor_scatter, vector)
     return np.sqrt(r) * conditioned
 
 
@@ -1026,6 +1036,8 @@ def build_semantic_atom(
     representation: np.ndarray,
     *,
     ancestor_scatter: np.ndarray | None = None,
+    ancestor_vectors: Sequence[np.ndarray] = (),
+    ancestor_weights: Sequence[float] = (),
     path_ids: Sequence[str] = (),
     representation_hash: str = "",
 ) -> SemanticAtom:
@@ -1034,7 +1046,13 @@ def build_semantic_atom(
         if isinstance(quality, QualityRecord)
         else QualityRecord.from_raw(str(memory_id), float(quality), "unit_interval")
     )
-    feature = semantic_feature(record, representation, ancestor_scatter)
+    feature = semantic_feature(
+        record,
+        representation,
+        ancestor_scatter,
+        ancestor_vectors=ancestor_vectors,
+        ancestor_weights=ancestor_weights,
+    )
     return SemanticAtom(
         memory_id=str(memory_id),
         graph_hash=str(graph_hash),
@@ -1061,6 +1079,8 @@ class SemanticFeatureProvider:
         representation_mode: str = "cached_memory",
         scorer_fingerprint: str = "",
         representation_fingerprint: str = "",
+        shuffle_seed: int = 42,
+        legacy_parent_id: Mapping[str, str | None] | None = None,
     ) -> None:
         self.graph = graph
         self.measure = measure
@@ -1086,6 +1106,23 @@ class SemanticFeatureProvider:
             raise ValueError(f"unsupported representation mode: {representation_mode}")
         self.scorer_fingerprint = str(scorer_fingerprint)
         self.representation_fingerprint = str(representation_fingerprint)
+        self.shuffle_seed = _strict_int(shuffle_seed, "shuffle_seed", nonnegative=True)
+        self.legacy_parent_id = (
+            {str(child): (None if parent is None else str(parent)) for child, parent in legacy_parent_id.items()}
+            if legacy_parent_id is not None
+            else None
+        )
+        self._graph_already_shuffled = bool(
+            self.path_mode == "shuffle" and isinstance(graph.proposal_config, Mapping)
+            and "shuffle_seed" in graph.proposal_config
+        )
+        if self.legacy_parent_id is not None:
+            unknown = (
+                set(self.legacy_parent_id)
+                | {p for p in self.legacy_parent_id.values() if p is not None}
+            ) - set(graph.memory_ids)
+            if unknown:
+                raise ValueError(f"legacy_parent_id references IDs outside the frozen pool: {sorted(unknown)}")
         if isinstance(quality, Mapping):
             quality_input = quality
         else:
@@ -1123,6 +1160,7 @@ class SemanticFeatureProvider:
                     "representation_fingerprint": self.representation_fingerprint,
                     "query": query,
                     "graph_hash": graph.graph_hash,
+                    "shuffle_seed": self.shuffle_seed if self.path_mode == "shuffle" else None,
                 },
                 sort_keys=True,
                 ensure_ascii=False,
@@ -1143,7 +1181,12 @@ class SemanticFeatureProvider:
     def quality_upper(self, memory_id: str) -> float:
         # For a fixed rank-one atom, Delta <= log(1 + r).  This is independent
         # of path mass and remains valid for a deep high-quality leaf.
-        return float(np.log1p(self.quality_value(memory_id)))
+        # Inflate the floating-point value by a tiny protocol margin.  Without
+        # this, an atom whose mathematically bounded trace is equal to ``r``
+        # can round one ulp above ``log1p(r)`` and be incorrectly certified
+        # before its exact feature is materialized.
+        bound = float(np.log1p(self.quality_value(memory_id)))
+        return float(bound + 1e-12 * max(1.0, abs(bound)))
 
     def _get_representation(self, memory_id: str) -> np.ndarray:
         identifier = str(memory_id)
@@ -1167,10 +1210,9 @@ class SemanticFeatureProvider:
     def _ancestor_weights(self, candidate: str) -> tuple[tuple[str, float], ...]:
         """Return the fixed ancestry coefficients for one candidate.
 
-        ``single_path`` follows the deterministic MAP parent chain.  The
-        default uses the full posterior occupancy DP.  ``shuffle`` is an
-        explicit negative control: it permutes the source IDs with a stable
-        graph/candidate seed while preserving the coefficient multiset.
+        ``single_path`` follows a deterministic local-parent chain.  The
+        default uses the full posterior occupancy DP.  ``shuffle`` migrates
+        the frozen structure through one seeded within-layer node bijection.
         """
         if self.measure is None or self.path_mode in {"none", "flat", "no_path", "legacy"}:
             return ()
@@ -1184,49 +1226,52 @@ class SemanticFeatureProvider:
             if float(weight) > 0.0
         ]
         if self.path_mode in {"single_path", "map_path", "map"}:
-            # Parent posterior is defined only for reachable non-roots.  A
-            # lexicographic tie break makes this path independent of mapping
-            # insertion order.
             chain: list[str] = []
             current = candidate
-            parents = self.measure.parent_posterior
             seen: set[str] = set()
-            while current in parents and parents[current] and current not in seen:
+            parents = self.legacy_parent_id or {}
+            while parents.get(current) is not None and current not in seen:
                 seen.add(current)
-                parent = min(parents[current], key=lambda item: (-float(parents[current][item]), str(item)))
-                chain.append(str(parent))
-                current = str(parent)
+                parent = str(parents[current])
+                chain.append(parent)
+                current = parent
+            if current in seen:
+                raise ValueError("legacy_parent_id contains a cycle")
             return tuple((identifier, 1.0) for identifier in reversed(chain))
-        if self.path_mode == "shuffle" and weights:
-            seed = hashlib.sha256(f"{self.graph.graph_hash}:{candidate}".encode("utf-8")).digest()
-            order = list(range(len(weights)))
-            # A tiny deterministic Fisher-Yates implementation avoids relying
-            # on process-global RNG state and keeps the negative control
-            # reproducible across Python versions.
-            cursor = 0
-            for index in range(len(order) - 1, 0, -1):
-                cursor = (cursor + 1) % len(seed)
-                swap = seed[cursor] % (index + 1)
-                order[index], order[swap] = order[swap], order[index]
-            # A deterministic permutation can legitimately land on the
-            # identity (especially for a two-source path).  The negative
-            # control must still alter source assignment whenever at least
-            # two distinct sources are available; rotate as a deterministic
-            # fallback rather than reporting an accidental identity shuffle.
-            if order == list(range(len(order))) and len(order) > 1:
-                order = order[1:] + order[:1]
-            # Shuffle the source identities while retaining the original
-            # coefficient multiset.  Reordering ``(id, weight)`` pairs would
-            # leave the expected scatter unchanged (the sum is commutative)
-            # and therefore would not be a meaningful negative control.  The
-            # permutation below deliberately breaks the identity/occupancy
-            # association but keeps every fixed posterior coefficient exactly
-            # once, making S2-shuffle a path-source control rather than a
-            # coefficient rescaling.
-            shuffled_ids = [weights[index][0] for index in order]
-            coefficients = [weight for _identifier, weight in weights]
-            return tuple((identifier, coefficients[index]) for index, identifier in enumerate(shuffled_ids))
+        if self.path_mode == "shuffle" and not self._graph_already_shuffled:
+            permutation = self._shuffle_permutation()
+            inverse = {target: source for source, target in permutation.items()}
+            original_candidate = inverse[candidate]
+            original_column = position[original_candidate]
+            migrated = []
+            for original_ancestor, weight in zip(
+                self.graph.memory_ids,
+                self.measure.ancestor_occupancy[:, original_column],
+            ):
+                coefficient = float(weight)
+                if coefficient > 0.0:
+                    migrated.append((permutation[original_ancestor], coefficient))
+            return tuple(sorted(migrated))
         return tuple(weights)
+
+    def _shuffle_permutation(self) -> dict[str, str]:
+        """Return the fixed within-layer identity migration for this graph."""
+        cached = getattr(self, "_cached_shuffle_permutation", None)
+        if cached is not None:
+            return dict(cached)
+        layers = self.graph.layers or tuple((identifier,) for identifier in self.graph.memory_ids)
+        rng = np.random.default_rng(self.shuffle_seed)
+        permutation: dict[str, str] = {}
+        changed = 0
+        for layer in layers:
+            identifiers = sorted(str(value) for value in layer)
+            targets = list(identifiers)
+            rng.shuffle(targets)
+            permutation.update(zip(identifiers, targets))
+            changed += sum(left != right for left, right in zip(identifiers, targets))
+        self._cached_shuffle_permutation = dict(permutation)
+        self.shuffle_effective_nodes = int(changed)
+        return permutation
 
     def materialize(self, memory_id: str) -> SemanticAtom:
         identifier = str(memory_id)
@@ -1235,20 +1280,24 @@ class SemanticFeatureProvider:
         representation = self._get_representation(identifier)
         self._representations[identifier] = representation.copy()
         if self.path_mode in {"none", "flat", "no_path", "legacy"}:
-            scatter = np.zeros((representation.size, representation.size), dtype=np.float64)
+            ancestor_vectors: list[np.ndarray] = []
+            ancestor_weights: list[float] = []
             path_ids: tuple[str, ...] = ()
         else:
             ancestry = self._ancestor_weights(identifier)
             represented_before = set(self._representations)
             representations = self._all_representations(identifier, ancestry)
-            scatter = np.zeros((representation.size, representation.size), dtype=np.float64)
+            ancestor_vectors = []
+            ancestor_weights = []
             for ancestor, weight in ancestry:
                 if ancestor not in representations:
                     continue
                 quality = self.quality[ancestor]
                 value = float(quality.value if isinstance(quality, QualityRecord) else quality)
-                scatter += float(weight) * value * np.outer(representations[ancestor], representations[ancestor])
-            scatter = symmetrize(scatter)
+                coefficient = float(weight) * value
+                if coefficient > 0.0:
+                    ancestor_vectors.append(representations[ancestor])
+                    ancestor_weights.append(coefficient)
             path_ids = tuple(ancestor for ancestor, _weight in ancestry)
             # Charge only genuinely new ancestor representations.  Reusing a
             # vector for several candidate scatters is a cache hit, not a new
@@ -1263,7 +1312,8 @@ class SemanticFeatureProvider:
             self.graph.graph_hash,
             self.quality[identifier],
             representation,
-            ancestor_scatter=scatter,
+            ancestor_vectors=ancestor_vectors,
+            ancestor_weights=ancestor_weights,
             path_ids=path_ids,
             representation_hash=self._representation_digest(identifier, representation),
         )
@@ -1317,6 +1367,52 @@ def _tie_better(candidate_id: str, margin: float, best_id: str | None, best_marg
     return margin == best_margin and str(candidate_id) < str(best_id)
 
 
+def _rank1_margin(feature: np.ndarray, selected_features: Sequence[np.ndarray]) -> float:
+    """Exact rank-one log-det marginal using the selected small Gram matrix."""
+    candidate = np.asarray(feature, dtype=np.float64).reshape(-1)
+    if candidate.size == 0 or not np.all(np.isfinite(candidate)):
+        raise ValueError("semantic feature must be finite and non-empty")
+    norm_sq = float(candidate @ candidate)
+    if not selected_features:
+        residual = norm_sq
+    else:
+        Phi = np.column_stack([np.asarray(value, dtype=np.float64).reshape(-1) for value in selected_features])
+        if Phi.shape[0] != candidate.size or not np.all(np.isfinite(Phi)):
+            raise ValueError("selected semantic features have incompatible dimensions")
+        gram = np.eye(Phi.shape[1], dtype=np.float64) + Phi.T @ Phi
+        b = Phi.T @ candidate
+        residual = norm_sq - float(b @ np.linalg.solve(gram, b))
+    scale = max(1.0, norm_sq)
+    if residual < -1e-10 * scale:
+        raise ValueError("rank-one marginal residual is materially negative")
+    if residual < 0.0:
+        residual = 0.0
+    return float(np.log1p(residual))
+
+
+def _rank1_greedy(
+    features: Mapping[str, np.ndarray],
+    candidate_ids: Sequence[str],
+    target: int,
+) -> tuple[list[str], list[float]]:
+    selected: list[str] = []
+    margins: list[float] = []
+    remaining = [str(value) for value in candidate_ids]
+    if len(remaining) != len(set(remaining)):
+        raise ValueError("fixed-pool candidate IDs must be unique")
+    while len(selected) < min(target, len(remaining) + len(selected)):
+        selected_features = [features[identifier] for identifier in selected]
+        rows = [
+            (identifier, _rank1_margin(features[identifier], selected_features))
+            for identifier in remaining
+        ]
+        best_id, best_margin = min(rows, key=lambda item: (-item[1], item[0]))
+        selected.append(best_id)
+        margins.append(float(best_margin))
+        remaining.remove(best_id)
+    return selected, margins
+
+
 class SemanticPathLogDetSelector:
     """Fixed-pool greedy selector with optional lazy quality certificates."""
 
@@ -1346,8 +1442,11 @@ class SemanticPathLogDetSelector:
         mode = (self.certificate_mode if certificate_mode is None else str(certificate_mode)).strip().lower()
         if mode in {"off", "eager", "none"}:
             atoms = features.all_atoms()
-            objective = InformationObjective(atoms={key: atom.matrix for key, atom in atoms.items()}, tie_tolerance=0.0)
-            selected, margins = objective.greedy(list(features.candidate_ids), target)
+            selected, margins = _rank1_greedy(
+                {key: atom.feature for key, atom in atoms.items()},
+                features.candidate_ids,
+                target,
+            )
             return SelectionResult(tuple(selected), tuple(float(value) for value in margins), {
                 "certificate_mode": "off",
                 "certified": [False] * len(selected),
@@ -1370,6 +1469,17 @@ class SemanticPathLogDetSelector:
         starting_materializations = int(features.materialization_count)
         stopped_reason: str | None = None
 
+        def exact_margin(identifier: str) -> float:
+            atom = materialized[identifier]
+            if hasattr(atom, "feature"):
+                selected_features = [materialized[key].feature for key in selected]
+                return _rank1_margin(atom.feature, selected_features)
+            objective = InformationObjective(
+                atoms={key: value.matrix for key, value in materialized.items()},
+                tie_tolerance=0.0,
+            )
+            return float(objective.marginal(identifier, selected))
+
         def upper_bound(identifier: str) -> float:
             value = float(features.quality_upper(identifier))
             if not np.isfinite(value) or value < 0.0:
@@ -1380,15 +1490,11 @@ class SemanticPathLogDetSelector:
             # Materialize candidates until the current exact winner cannot be
             # beaten (including a possible ID tie) by any upper bound.
             while True:
-                objective = InformationObjective(
-                    atoms={key: atom.matrix for key, atom in materialized.items()},
-                    tie_tolerance=0.0,
-                )
                 exact_best_id: str | None = None
                 exact_best_margin: float | None = None
                 available_materialized = [key for key in materialized if key not in selected]
                 for identifier in available_materialized:
-                    margin = float(objective.marginal(identifier, selected))
+                    margin = exact_margin(identifier)
                     if _tie_better(identifier, margin, exact_best_id, exact_best_margin):
                         exact_best_id, exact_best_margin = identifier, margin
                 unseen = [
@@ -1417,12 +1523,8 @@ class SemanticPathLogDetSelector:
                 if upper_best_id is None:
                     break
                 materialized[upper_best_id] = features.materialize(upper_best_id)
-            objective = InformationObjective(
-                atoms={key: atom.matrix for key, atom in materialized.items()},
-                tie_tolerance=0.0,
-            )
             exact_rows = [
-                (identifier, float(objective.marginal(identifier, selected)))
+                (identifier, exact_margin(identifier))
                 for identifier in materialized
                 if identifier not in selected
             ]
@@ -1606,10 +1708,11 @@ def lazy_greedy_fixed_pool(
                 trace_bound = float(np.trace(matrix))
                 if not np.isfinite(trace_bound) or trace_bound < -1e-10:
                     raise ValueError(f"fixed-pool atom {identifier} has an invalid trace")
-                # log(1+trace(Q)) is a valid conservative bound for any PSD
-                # atom.  For a declared semantic quality, use the sharper
-                # log(1+r) only after checking that it really bounds Q.
-                upper = float(np.log1p(max(0.0, trace_bound)))
+                # For arbitrary-rank PSD Q, trace(Q) is the simple valid
+                # bound on logdet(I + Q) requested by the compatibility
+                # interface.  log1p(trace(Q)) can be smaller than the true
+                # high-rank marginal and is therefore not a certificate.
+                upper = max(0.0, trace_bound)
                 if identifier in self._qualities:
                     raw_quality = self._qualities[identifier]
                     quality_value = float(
@@ -1621,7 +1724,16 @@ def lazy_greedy_fixed_pool(
                         raise ValueError(
                             f"quality upper bound for {identifier} is smaller than its atom trace"
                         )
-                    upper = float(np.log1p(quality_value))
+                    eigenvalues = np.linalg.eigvalsh(matrix)
+                    numerical_rank = int(
+                        np.count_nonzero(
+                            eigenvalues > 1e-12 * max(1.0, float(np.max(eigenvalues, initial=0.0)))
+                        )
+                    )
+                    if numerical_rank <= 1:
+                        # The semantic provider's rank-one atom satisfies
+                        # ||phi||^2 <= r, hence Delta <= log(1+r).
+                        upper = float(np.log1p(max(quality_value, trace_bound)))
                 self._upper[identifier] = upper
 
         @staticmethod

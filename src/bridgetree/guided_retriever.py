@@ -110,6 +110,13 @@ class RerankerGuidedBridgeRetriever:
             rank_query,
             dense_documents,
             cost_tracker,
+            records=[memory_by_id[memory_id] for memory_id in dense_ids],
+            cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            answer_options=example.all_options,
+            include_time_metadata=bridge.include_time_metadata,
+            score_contract=getattr(reranker, "score_contract", None),
+            task_instruction=bridge.final_rerank_instruction,
         )
         dense_scores = _score_map(dense_ids, dense_ranking)
         dense_ranked_ids = [dense_ids[item.index] for item in dense_ranking]
@@ -205,6 +212,19 @@ class RerankerGuidedBridgeRetriever:
                     path_query,
                     path_documents,
                     cost_tracker,
+                    records=[
+                        {
+                            "anchor": memory_by_id[anchor_id],
+                            "candidate": memory_by_id[memory_id],
+                        }
+                        for memory_id in raw_ids
+                    ],
+                    cutoff=getattr(example, "query_time", None),
+                    query_metadata=getattr(example, "metadata", None),
+                    answer_options=example.all_options,
+                    include_time_metadata=bridge.include_time_metadata,
+                    score_contract=getattr(reranker, "score_contract", None),
+                    task_instruction=bridge.path_filter_instruction,
                 )
                 path_cache_hits += int(cache_hit)
                 path_scores.update(_score_map(raw_ids, path_ranking))
@@ -228,6 +248,13 @@ class RerankerGuidedBridgeRetriever:
             rank_query,
             candidate_documents,
             cost_tracker,
+            records=[memory_by_id[memory_id] for memory_id in candidate_ids],
+            cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            answer_options=example.all_options,
+            include_time_metadata=bridge.include_time_metadata,
+            score_contract=getattr(reranker, "score_contract", None),
+            task_instruction=bridge.final_rerank_instruction,
         )
         final_scores = _score_map(candidate_ids, final_ranking)
         selected_ids = [candidate_ids[item.index] for item in final_ranking[: self.config.retrieval.context_size]]

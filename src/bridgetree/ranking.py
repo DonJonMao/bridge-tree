@@ -148,6 +148,14 @@ class RerankCache:
 
     @staticmethod
     def _jsonable(value: Any) -> Any:
+        if isinstance(value, Memory):
+            return {
+                "memory_id": str(value.memory_id),
+                "text": str(value.text),
+                "timestamp": value.timestamp,
+                "source_id": str(value.source_id),
+                "metadata": RerankCache._jsonable(value.metadata),
+            }
         if isinstance(value, Mapping):
             return {str(key): RerankCache._jsonable(item) for key, item in value.items()}
         if isinstance(value, (list, tuple)):
@@ -234,6 +242,7 @@ class RerankCache:
         answer_options: str = "",
         include_time_metadata: bool | None = None,
         score_contract: str | None = None,
+        task_instruction: str | None = None,
     ) -> str:
         payload = json.dumps(
             {
@@ -243,7 +252,9 @@ class RerankCache:
                 "model_fingerprint": self.model_fingerprint,
                 "score_space": self.score_space,
                 "score_contract": score_contract or self.score_contract,
-                "task_instruction": self.task_instruction,
+                "task_instruction": (
+                    self.task_instruction if task_instruction is None else str(task_instruction)
+                ),
                 "query": query,
                 "documents": list(documents),
                 "provenance": self._provenance_rows(
