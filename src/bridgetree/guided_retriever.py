@@ -31,11 +31,14 @@ def cached_rerank_all(
     query: str,
     documents: Sequence[str],
     tracker: CostTracker,
+    **cache_kwargs,
 ) -> tuple[List[RerankItem], bool]:
     if not documents:
         return [], True
     if rerank_cache is not None:
-        items, cache_hit, elapsed_ms = rerank_cache.rerank_all(reranker, query, documents)
+        items, cache_hit, elapsed_ms = rerank_cache.rerank_all(
+            reranker, query, documents, **cache_kwargs
+        )
     else:
         started = time.perf_counter()
         method = getattr(reranker, "rerank_all", None)
@@ -43,6 +46,8 @@ def cached_rerank_all(
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         cache_hit = False
     tracker.record_rerank(len(documents), elapsed_ms)
+    if cache_hit:
+        tracker.record_cache_hit()
     return sorted(items, key=lambda item: (-item.score, item.index)), cache_hit
 
 

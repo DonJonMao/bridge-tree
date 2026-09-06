@@ -89,6 +89,95 @@ bridgetree sweep --budget-protocol matched_candidate_exposure --budget 32 --budg
 
 Stop reasons are one of `frontier_empty`, `max_depth`, `search_budget`, `certificate`, or `insufficient_candidates`.
 
+## TMIC matrix and provenance
+
+The four formal switches are independent runtime fields in
+`resolved_config.json` and `run_manifest.json`:
+
+| Switch | Operator | Runtime behavior when enabled |
+| --- | --- | --- |
+| `temporal_measure` (`T`) | time-marked transition | Angular empirical rank `k_S` is multiplied by the temporal Jaccard measure `k_T`; rows are normalized to `P_q`. Unknown time is neutral (`1`) and appears in the temporal diagnostics. |
+| `measure_propagation` (`M`) | real-member measure | First-hop non-negative masses become `pi`; branch support is `s_B = pi P_q`. Proposal calls use each real member vector in deterministic round-robin order. |
+| `state_information` (`I`) | query-state PSD kernel | A frozen option-contrast (or explicit identity) basis produces path-conditioned PSD atoms; selection uses `logdet(I + sum Q)`. No answer labels are fitted. |
+| `information_certificate` (`C`) | finite-domain bound | Exact, non-overlapping `exact_partition` domains and conservative bound ingredients are recorded. Only a valid bound may certify a next greedy item. |
+
+With all switches disabled, ordinary `BridgeTreeRetriever.retrieve` remains the
+legacy first-arrival path.  `run-tmic-matrix` passes `force_tmic=True` so that
+A0 also emits the complete transition/path/atom provenance needed for a fair
+module audit.  The fixed rows are:
+
+| Row | T | M | I | C | Selection/stop |
+| --- | ---: | ---: | ---: | ---: | --- |
+| A0 `R1-Path-Exhaustive` | 0 | 0 | 0 | 0 | legacy path geometry, budget |
+| A1 `R1+T` | 1 | 0 | 0 | 0 | path geometry, budget |
+| A2 `R1+T+M` | 1 | 1 | 0 | 0 | posterior paths, budget |
+| A3 `R1+T+M+I` | 1 | 1 | 1 | 0 | state PSD atoms, budget |
+| A4 `Full-TMIC` | 1 | 1 | 1 | 1 | state PSD atoms, certificate-or-budget |
+
+Run and audit the matrix as follows (the timestamped directory is printed by
+the first command):
+
+```bash
+bridgetree run-tmic-matrix --phase development --limit 20 --no-generate --offline \
+  --output-dir outputs/tmic
+bridgetree audit-tmic --input-dir outputs/tmic/tmic_development_<timestamp> \
+  --raise-on-error
+```
+
+Every architecture writes `predictions_<row>.jsonl`.  A prediction contains
+the greedy and chronological context IDs, `nodes`/`edges`, `transition` and
+time diagnostics, branch member `mass`/`pi`/`support`, parent posteriors and
+all path hypotheses, information atoms with PSD traces, exact domains and
+serializable bound ingredients, selection margins/gaps, `certificate_status`,
+context hash, outcome, and cost.  `cost` separates core/diagnostic ANN calls,
+candidate exposure, unique nodes, state-embedding operations, transition
+operations, bound operations, cache hits, and physical timings.  A3 and A4
+share the same per-question frozen state basis and generation cache.  Context
+equality is reported as a comparison metric because C may legitimately stop
+earlier; whenever the context hashes are equal, the audit requires equal
+generated responses.
+
+`C=true` with `stop_mode=budget` is a useful diagnostic combination: bounds are
+computed and audited but cannot stop search early.  A certificate is never
+claimed for an ANN-only or otherwise incomplete domain; such a row carries
+`certificate_unavailable` and continues under its budget/depth limits.
+
+## Leakage-safe protocol phases
+
+Initialize the persisted `confirmatory_v1` manifest once, audit it against the
+pinned source, and freeze it only after the retrieval configuration is fixed:
+
+```bash
+bridgetree protocol init
+bridgetree protocol audit --protocol confirmatory_v1
+bridgetree protocol freeze --protocol confirmatory_v1 \
+  --config-hash <resolved-config-sha256>
+```
+
+The manifest records development-seen (old validation + test),
+confirmatory-test (old train), and full-benchmark question/persona IDs and
+hashes.  `development-seen` may be internally split by persona for a tuning
+run; the split artifact labels this explicitly as an internal split.  A
+confirmatory phase requires `frozen=true`, the matching config hash, and rejects
+`tune`, `train`, and config/manifest mutation.  No confirmatory result is used
+to choose a configuration.
+
+The development-only answer-effect oracle is separate from retrieval and
+selection.  It consumes token log-probabilities when a service exposes them;
+otherwise its status is `oracle_unavailable`.  It never substitutes a guessed
+answer effect, and it is forbidden in confirmatory phases.
+
+## Caches and fair cost accounting
+
+Transition cache keys include query hash, ordered bank IDs/vectors, the `T`
+switch, and time-mark hash.  State-embedding keys include endpoint/model
+fingerprint, query hash, ordered path IDs, and options hash.  Generation keys
+include prompt hash, query, ordered IDs, serialized context (including
+source/time headers), generator settings, and options.  Cache hits still count
+logical operations/calls in the cost record; only physical wall time becomes
+zero.  This prevents a warm cache from changing algorithmic budget comparisons
+or from conflating equal text with different memory provenance.
+
 ## Formal runs
 
 The following runs all required main-table methods for seeds 41, 42 and 43, enables the common generator by default, and writes query-paired bootstrap confidence intervals:

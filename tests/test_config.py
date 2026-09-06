@@ -13,7 +13,7 @@ def test_default_config_matches_datacenter_services():
     assert config.models.reranker.cache_dir == "outputs/rerank_cache"
     assert config.bridge_rerank.dense_pool_width == 20
     assert config.models.generator.model == "deepseek-v4-flash"
-    assert config.models.generator.api_key == "Aa@11111"
+    assert config.models.generator.api_key == ""
 
 
 def test_runtime_overrides_take_priority_and_serialize_canonical_names():

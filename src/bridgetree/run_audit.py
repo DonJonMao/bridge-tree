@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import json
@@ -10,7 +11,10 @@ from itertools import product
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
 
+import numpy as np
+
 from .config import RetrievalConfig
+from .information import InformationObjective
 from .module_metrics import MODULE_NAMES
 from .personamem import PERSONAMEM_REVISION, PERSONAMEM_SOURCE_SHA256
 from .training import (
@@ -20,6 +24,7 @@ from .training import (
     FORMAL_32K_SEED,
     FORMAL_32K_SPLIT,
 )
+from .types import context_plan_hash
 
 
 def _question_hash(question_ids: Sequence[str]) -> str:
@@ -449,3 +454,764 @@ def audit_tuning_run(
         audit_path = root / "completion_audit.json"
         raise RuntimeError(f"tuning completion audit failed with {len(errors)} errors: {audit_path}")
     return report
+
+
+def audit_semantic_run(
+    run_dir: str | Path,
+    *,
+    raise_on_error: bool = False,
+) -> Dict[str, Any]:
+    """Independently audit a persisted S0--S2-shuffle semantic matrix.
+
+    The audit is deliberately structural: it verifies shared frozen graph and
+    quality identities, whitelist selection, exact context-plan hashes, and
+    explicit failure records.  It does not turn the PSD surrogate into an
+    answer-accuracy claim.
+    """
+    requested = Path(run_dir).resolve()
+    if not requested.is_dir():
+        raise FileNotFoundError(f"semantic run directory does not exist: {requested}")
+    # ``run-semantic-matrix`` writes a timestamped ``semantic_*`` directory
+    # below the user supplied output directory, just like the TMIC runner.
+    # Accepting the parent here is important for the CLI contract and avoids
+    # making callers discover an implementation-specific timestamp.  Only
+    # children with a manifest are candidates; an unrelated/partial directory
+    # must not be selected merely because its name matches the prefix.
+    root = requested
+    if not (root / "run_manifest.json").is_file():
+        candidates = sorted(
+            (
+                item
+                for item in root.glob("semantic_*")
+                if item.is_dir() and (item / "run_manifest.json").is_file()
+            ),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        if candidates:
+            root = candidates[0]
+    errors: list[str] = []
+    warnings: list[str] = []
+    manifest = _load_json(root, "run_manifest.json", errors, {})
+    summary = _load_json(root, "summary.json", errors, {})
+    failures = _load_jsonl(root, "failures.jsonl", errors)
+    expected = ("S0", "S1", "S2", "S3", "S2-shuffle")
+
+    if not isinstance(manifest, Mapping):
+        manifest = {}
+    if not isinstance(summary, Mapping):
+        summary = {}
+    architectures = tuple(str(value) for value in manifest.get("architectures", ()))
+    _check(architectures == expected, "semantic architecture order is not S0/S1/S2/S3/S2-shuffle", errors)
+    _check(
+        summary.get("shared_candidate_pool") is True,
+        "semantic run does not declare a shared candidate pool",
+        errors,
+    )
+
+    # The manifest question list is the denominator.  A hash check here
+    # catches accidental reordering as well as an omitted/duplicated query.
+    raw_question_ids = manifest.get("question_ids", ())
+    if isinstance(raw_question_ids, (str, bytes)) or not isinstance(raw_question_ids, Sequence):
+        errors.append("manifest question_ids must be a sequence")
+        manifest_question_ids: list[str] = []
+    else:
+        manifest_question_ids = [str(value) for value in raw_question_ids]
+    if len(manifest_question_ids) != len(set(manifest_question_ids)):
+        errors.append("manifest question_ids contain duplicates")
+    expected_manifest_hash = _question_hash(manifest_question_ids)
+    if manifest.get("question_id_sha256") not in (None, expected_manifest_hash):
+        errors.append("manifest question_id_sha256 mismatch")
+    try:
+        expected_queries = int(manifest.get("queries", len(manifest_question_ids)))
+    except (TypeError, ValueError):
+        expected_queries = -1
+        errors.append("manifest queries is invalid")
+    _check(expected_queries == len(manifest_question_ids), "manifest query count does not match question_ids", errors)
+    _check(expected_queries > 0, "semantic manifest contains no queries", errors)
+
+    if failures:
+        # A failed architecture/query is not a successful zero-information
+        # observation.  It remains in the artifact for diagnosis, but an
+        # audit must fail so callers cannot compare changing denominators.
+        errors.append(f"failures.jsonl contains {len(failures)} records")
+    if isinstance(manifest.get("failures"), list) and manifest.get("failures") != failures:
+        errors.append("manifest failures differ from failures.jsonl")
+    if isinstance(summary.get("failures"), list) and summary.get("failures") != failures:
+        errors.append("summary failures differ from failures.jsonl")
+    failure_keys: set[tuple[str, str]] = set()
+    for position, failure in enumerate(failures, start=1):
+        if not isinstance(failure, Mapping):
+            errors.append(f"failure record {position} is not an object")
+            continue
+        question_id = str(failure.get("question_id", ""))
+        architecture = str(failure.get("architecture", ""))
+        key = (question_id, architecture)
+        if not question_id or question_id not in set(manifest_question_ids):
+            errors.append(f"failure record {position} references an unknown question")
+        if architecture not in expected:
+            errors.append(f"failure record {position} references an unknown architecture")
+        if key in failure_keys:
+            errors.append(f"duplicate failure record: {question_id}/{architecture}")
+        failure_keys.add(key)
+
+    records_by_label: dict[str, list[dict[str, Any]]] = {}
+    record_keys: set[tuple[str, str]] = set()
+
+    def _quality_digest(value: Any) -> str:
+        return hashlib.sha256(
+            json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+
+    def _audit_plan(label: str, position: int, record: Mapping[str, Any], plan: Any) -> None:
+        prefix = f"{label}:{position}"
+        context_hash = record.get("context_hash")
+        if not isinstance(plan, Mapping):
+            errors.append(f"{prefix}: missing ContextPlan")
+            if context_hash not in (None, ""):
+                errors.append(f"{prefix}: context hash is present without ContextPlan")
+            return
+        required = (
+            "selected_ids",
+            "chronological_ids",
+            "serialized_context",
+            "messages",
+            "token_count",
+            "token_count_is_estimate",
+            "budget",
+            "budget_status",
+            "prompt_hash",
+            "context_hash",
+            "request",
+        )
+        missing = [key for key in required if key not in plan]
+        if missing:
+            errors.append(f"{prefix}: ContextPlan missing fields {missing}")
+            return
+        selected = plan.get("selected_ids")
+        chronological = plan.get("chronological_ids")
+        messages = plan.get("messages")
+        request = plan.get("request")
+        if isinstance(selected, (str, bytes)) or not isinstance(selected, Sequence):
+            errors.append(f"{prefix}: ContextPlan selected_ids is invalid")
+            selected = []
+        if isinstance(chronological, (str, bytes)) or not isinstance(chronological, Sequence):
+            errors.append(f"{prefix}: ContextPlan chronological_ids is invalid")
+            chronological = []
+        if isinstance(messages, (str, bytes)) or not isinstance(messages, Sequence):
+            errors.append(f"{prefix}: ContextPlan messages is invalid")
+            messages = []
+        if not isinstance(request, Mapping):
+            errors.append(f"{prefix}: ContextPlan request is invalid")
+            request = {}
+        normalized_messages: list[dict[str, str]] = []
+        for message in messages:
+            if not isinstance(message, Mapping) or "role" not in message or "content" not in message:
+                errors.append(f"{prefix}: ContextPlan message is malformed")
+                continue
+            # Preserve the raw values for the strict canonical hash.  Coercing
+            # an integer role/content (or a custom object) to text would let a
+            # tampered persisted plan pass audit with a different wire
+            # representation than the one that was actually recorded.
+            if not isinstance(message["role"], str) or not isinstance(message["content"], str):
+                errors.append(f"{prefix}: ContextPlan message role/content must be strings")
+                continue
+            normalized_messages.append({"role": message["role"], "content": message["content"]})
+        try:
+            expected_hash = context_plan_hash(
+                selected_ids=selected,
+                chronological_ids=chronological,
+                serialized_context=plan.get("serialized_context"),
+                messages=normalized_messages,
+                token_count=plan.get("token_count"),
+                token_count_is_estimate=plan.get("token_count_is_estimate"),
+                budget=plan.get("budget"),
+                budget_status=plan.get("budget_status"),
+                prompt_hash=plan.get("prompt_hash"),
+                request=request,
+            )
+            if str(plan.get("context_hash")) != expected_hash:
+                errors.append(f"{prefix}: ContextPlan context hash does not match content/request")
+        except (TypeError, ValueError, KeyError):
+            errors.append(f"{prefix}: ContextPlan hash inputs are malformed")
+        if context_hash != plan.get("context_hash"):
+            errors.append(f"{prefix}: context hash differs from ContextPlan")
+        record_selected = record.get("selected_memory_ids", ())
+        record_greedy = record.get("selected_in_greedy_order", ())
+        if (
+            isinstance(record_selected, Sequence)
+            and not isinstance(record_selected, (str, bytes))
+            and [str(value) for value in chronological] != [str(value) for value in record_selected]
+        ):
+            errors.append(f"{prefix}: ContextPlan chronology differs from selected context")
+        if (
+            isinstance(record_greedy, Sequence)
+            and not isinstance(record_greedy, (str, bytes))
+            and [str(value) for value in selected] != [str(value) for value in record_greedy]
+        ):
+            errors.append(f"{prefix}: ContextPlan greedy IDs differ from selection")
+        request_messages = request.get("messages") if isinstance(request, Mapping) else None
+        if request_messages != normalized_messages:
+            errors.append(f"{prefix}: request messages differ from ContextPlan messages")
+
+    for label in expected:
+        records = _load_jsonl(root, f"predictions_{label}.jsonl", errors)
+        records_by_label[label] = records
+        if len(records) != expected_queries:
+            errors.append(f"{label}: prediction count does not match manifest queries")
+        seen_questions: set[str] = set()
+        for position, record in enumerate(records, start=1):
+            if not isinstance(record, Mapping):
+                errors.append(f"{label}:{position}: prediction is not an object")
+                continue
+            question_id = str(record.get("question_id", ""))
+            if not question_id:
+                errors.append(f"{label}:{position}: missing question_id")
+            elif question_id in seen_questions:
+                errors.append(f"{label}:{position}: duplicate question_id {question_id}")
+            seen_questions.add(question_id)
+            record_keys.add((question_id, label))
+            if question_id not in set(manifest_question_ids):
+                errors.append(f"{label}:{position}: question is outside manifest")
+
+            provenance = record.get("provenance", {})
+            if not isinstance(provenance, Mapping):
+                errors.append(f"{label}:{position}: provenance is not an object")
+                provenance = {}
+            graph = provenance.get("frozen_graph")
+            graph_hash = record.get("shared_graph_hash")
+            if not isinstance(graph, Mapping):
+                errors.append(f"{label}:{position}: missing frozen graph provenance")
+                graph = {}
+            graph_provenance_hash = graph.get("graph_hash")
+            if not isinstance(graph_hash, str) or not graph_hash:
+                errors.append(f"{label}:{position}: missing graph hash")
+            if graph_provenance_hash != graph_hash:
+                errors.append(f"{label}:{position}: graph hash differs from frozen graph provenance")
+
+            domain = provenance.get("proposal_domain", ())
+            selected = record.get("selected_memory_ids", ())
+            if isinstance(domain, Sequence) and not isinstance(domain, (str, bytes)):
+                domain_ids = {str(value) for value in domain}
+                if isinstance(selected, Sequence) and not isinstance(selected, (str, bytes)):
+                    selected_ids = [str(value) for value in selected]
+                    if len(selected_ids) != len(set(selected_ids)):
+                        errors.append(f"{label}:{position}: duplicate selected memory ID")
+                    if not set(selected_ids).issubset(domain_ids):
+                        errors.append(f"{label}:{position}: selected ID is outside proposal domain")
+            else:
+                errors.append(f"{label}:{position}: proposal domain is missing")
+
+            _audit_plan(label, position, record, provenance.get("context_plan"))
+            quality = record.get("shared_quality")
+            if not isinstance(quality, Mapping) or not quality:
+                errors.append(f"{label}:{position}: shared quality table is missing")
+
+    expected_set = set(manifest_question_ids)
+    by_question: dict[str, dict[str, Mapping[str, Any]]] = defaultdict(dict)
+    for label, records in records_by_label.items():
+        for record in records:
+            if not isinstance(record, Mapping):
+                continue
+            question_id = str(record.get("question_id", ""))
+            if question_id:
+                by_question[question_id][label] = record
+    for question_id in sorted(expected_set | set(by_question)):
+        rows = by_question.get(question_id, {})
+        missing_labels = [label for label in expected if label not in rows]
+        if missing_labels:
+            errors.append(f"{question_id}: missing architecture rows {missing_labels}")
+        graph_hashes = {str(row.get("shared_graph_hash", "")) for row in rows.values()}
+        graph_hashes.discard("")
+        if len(graph_hashes) > 1:
+            errors.append(f"{question_id}: architectures use different frozen graph hashes")
+        quality_hashes = {
+            _quality_digest(row.get("shared_quality", {}))
+            for row in rows.values()
+        }
+        if len(quality_hashes) > 1:
+            errors.append(f"{question_id}: architectures use different frozen quality tables")
+
+    # Failure rows must be exactly the complement of successful prediction
+    # rows.  This catches a stale failures file left over from a rerun.
+    expected_keys = {(question_id, label) for question_id in manifest_question_ids for label in expected}
+    if (record_keys | failure_keys) != expected_keys:
+        errors.append("prediction/failure records do not cover the manifest query-by-architecture grid")
+    if record_keys & failure_keys:
+        errors.append("a query/architecture appears in both predictions and failures")
+
+    summary_architectures = summary.get("architectures", {})
+    if not isinstance(summary_architectures, Mapping):
+        errors.append("summary architectures is not an object")
+        summary_architectures = {}
+    for label in expected:
+        row = summary_architectures.get(label)
+        if not isinstance(row, Mapping):
+            errors.append(f"summary is missing architecture {label}")
+            continue
+        expected_success = len(records_by_label[label])
+        expected_failed = expected_queries - expected_success
+        for key, value in (
+            ("queries", expected_success),
+            ("attempted_queries", expected_queries),
+            ("successful_queries", expected_success),
+            ("failed_queries", expected_failed),
+        ):
+            if row.get(key) != value:
+                errors.append(f"{label}: summary {key} mismatch")
+        expected_rate = expected_failed / expected_queries if expected_queries > 0 else 1.0
+        try:
+            if not np.isclose(float(row.get("failure_rate")), expected_rate, atol=1e-12, rtol=0.0):
+                errors.append(f"{label}: summary failure_rate mismatch")
+        except (TypeError, ValueError):
+            errors.append(f"{label}: summary failure_rate is invalid")
+
+    # Persist a machine-readable audit beside the run, as the TMIC auditor
+    # does.  The report itself includes the selected child when a parent was
+    # supplied, which makes shell automation unambiguous.
+    report = {
+        "status": "passed" if not errors else "failed",
+        "requested_dir": str(requested),
+        "run_dir": str(root),
+        "errors": errors,
+        "warnings": warnings,
+        "evidence": {
+            "architectures": list(expected),
+            "queries": expected_queries,
+            "records_by_architecture": {label: len(records_by_label[label]) for label in expected},
+            "failure_records": len(failures),
+            "shared_candidate_pool": bool(summary.get("shared_candidate_pool")),
+            "manifest_question_id_sha256": expected_manifest_hash,
+        },
+    }
+    output_path = root / "semantic_audit.json"
+    _atomic_json(output_path, report)
+    report["output_path"] = str(output_path)
+    if errors and raise_on_error:
+        raise RuntimeError("semantic run audit failed: " + "; ".join(errors))
+    return report
+
+
+def audit_tmic_run(
+    input_dir: str | Path,
+    *,
+    raise_on_error: bool = False,
+) -> Dict[str, Any]:
+    """Audit a persisted ``run-tmic-matrix`` directory.
+
+    The checker is intentionally independent of retrieval code: it validates
+    the serialized A0--A4 provenance, posterior/path normalization, PSD atoms,
+    exact-partition domains, and certificate diagnostics.  If a parent
+    directory is supplied, the newest ``tmic_*`` child is selected.
+    """
+    requested = Path(input_dir).resolve()
+    root = requested
+    if not (root / "run_manifest.json").is_file():
+        candidates = sorted(
+            (item for item in root.glob("tmic_*") if (item / "run_manifest.json").is_file()),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        if candidates:
+            root = candidates[0]
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not root.is_dir():
+        raise FileNotFoundError(f"TMIC run directory does not exist: {root}")
+    manifest_path = root / "run_manifest.json"
+    manifest = _load_json(root, "run_manifest.json", errors, {})
+    summary = _load_json(root, "summary.json", errors, {})
+    architectures = [str(value) for value in manifest.get("architectures", ())]
+    required_architectures = {"A0", "A1", "A2", "A3", "A4"}
+    _check(required_architectures.issubset(set(architectures)), "A0-A4 matrix is incomplete", errors)
+    _check(len(architectures) == len(set(architectures)), "duplicate architecture labels", errors)
+
+    manifest_question_ids = [str(value) for value in manifest.get("question_ids", ())]
+    if manifest_question_ids:
+        _check(
+            len(manifest_question_ids) == len(set(manifest_question_ids)),
+            "manifest question_ids contain duplicates",
+            errors,
+        )
+        expected_manifest_hash = hashlib.sha256("\n".join(manifest_question_ids).encode("utf-8")).hexdigest()
+        _check(
+            manifest.get("question_id_sha256") == expected_manifest_hash,
+            "manifest question_id_sha256 mismatch",
+            errors,
+        )
+    if manifest.get("protocol") is not None:
+        _check(manifest.get("protocol") == "confirmatory_v1", "TMIC protocol name mismatch", errors)
+    if manifest.get("data_revision") is not None:
+        _check(manifest.get("data_revision") == PERSONAMEM_REVISION, "TMIC data revision mismatch", errors)
+
+    prediction_files: dict[str, list[Dict[str, Any]]] = {}
+    question_sets: dict[str, set[str]] = {}
+    certificate_count = 0
+    exhaustive_checks = 0
+    exhaustive_matches = 0
+
+    def finite_number(value: Any) -> bool:
+        try:
+            return bool(np.isfinite(float(value)))
+        except (TypeError, ValueError):
+            return False
+
+    for label in architectures:  # auxiliary rows are allowed
+        records = _load_jsonl(root, f"predictions_{label}.jsonl", errors)
+        prediction_files[label] = records
+        seen_questions: set[str] = set()
+        for row_index, record in enumerate(records, start=1):
+            question_id = str(record.get("question_id", ""))
+            if not question_id:
+                errors.append(f"{label}: prediction {row_index} has no question_id")
+            if question_id in seen_questions:
+                errors.append(f"{label}: duplicate question_id {question_id}")
+            seen_questions.add(question_id)
+            provenance = record.get("provenance", {})
+            if not isinstance(provenance, Mapping):
+                errors.append(f"{label}/{question_id}: provenance is not an object")
+                continue
+            required = (
+                "selected_in_greedy_order",
+                "transition",
+                "paths",
+                "information_atoms",
+                "domains",
+                "bounds",
+                "selection_steps",
+            )
+            for key in required:
+                if key not in provenance:
+                    errors.append(f"{label}/{question_id}: missing provenance field {key}")
+
+            greedy = provenance.get("selected_in_greedy_order", ())
+            if not isinstance(greedy, list):
+                errors.append(f"{label}/{question_id}: greedy IDs are not a list")
+                greedy = []
+            _check(
+                len(greedy) == len(set(str(value) for value in greedy)),
+                f"{label}/{question_id}: duplicate greedy IDs",
+                errors,
+            )
+            selected = record.get("selected_memory_ids", provenance.get("chronological_ids", ()))
+            if isinstance(selected, list):
+                _check(
+                    len(selected) == len(set(str(value) for value in selected)),
+                    f"{label}/{question_id}: duplicate selected IDs",
+                    errors,
+                )
+
+            # Transition is P_q, so every non-empty row must be stochastic;
+            # zero-row uniformization is represented explicitly in the
+            # temporal diagnostics and is still a valid stochastic row.
+            transition_raw = provenance.get("transition")
+            transition = None
+            if transition_raw is not None:
+                try:
+                    transition = np.asarray(transition_raw, dtype=np.float64)
+                    if transition.ndim != 2 or transition.shape[0] != transition.shape[1]:
+                        raise ValueError("transition is not square")
+                    if np.any(~np.isfinite(transition)) or np.any(transition < -1e-10):
+                        raise ValueError("transition contains invalid values")
+                    row_sums = transition.sum(axis=1)
+                    if len(row_sums) and not np.allclose(row_sums, 1.0, atol=1e-7):
+                        errors.append(f"{label}/{question_id}: transition rows are not normalized")
+                except (TypeError, ValueError):
+                    errors.append(f"{label}/{question_id}: invalid transition matrix")
+                    transition = None
+
+            diagnostics = provenance.get("tmic_diagnostics", {})
+            if not isinstance(diagnostics, Mapping):
+                diagnostics = {}
+            memory_ids = [str(value) for value in diagnostics.get("memory_ids", ())]
+            if not memory_ids:
+                temporal_diag = diagnostics.get("temporal", {})
+                if isinstance(temporal_diag, Mapping):
+                    memory_ids = [str(value) for value in temporal_diag.get("ids", ())]
+            if not memory_ids:
+                memory_ids = [
+                    str(item.get("memory_id"))
+                    for item in provenance.get("nodes", ())
+                    if isinstance(item, Mapping)
+                ]
+            excluded = {str(value) for value in diagnostics.get("excluded_candidate_ids", ())}
+
+            # Node-level provenance is the authoritative ID universe for
+            # discovered parent/path records.  Keep the full-bank IDs from
+            # the temporal diagnostics as an additional (superset) check.
+            node_records = provenance.get("nodes", ())
+            discovered_ids: set[str] = set()
+            if isinstance(node_records, list):
+                for node_index, node in enumerate(node_records, start=1):
+                    if not isinstance(node, Mapping):
+                        errors.append(f"{label}/{question_id}: invalid node record {node_index}")
+                        continue
+                    node_id = str(node.get("memory_id", ""))
+                    if not node_id:
+                        errors.append(f"{label}/{question_id}: node {node_index} has no memory_id")
+                    else:
+                        if node_id in discovered_ids:
+                            errors.append(f"{label}/{question_id}: duplicate node ID {node_id}")
+                        discovered_ids.add(node_id)
+                    parent_map = node.get("parent_posterior", {})
+                    if not isinstance(parent_map, Mapping):
+                        errors.append(f"{label}/{question_id}/{node_id}: parent_posterior is not an object")
+                        continue
+                    parent_values: list[float] = []
+                    for _parent_id, value in parent_map.items():
+                        if not finite_number(value) or float(value) < -1e-10:
+                            errors.append(f"{label}/{question_id}/{node_id}: invalid parent posterior")
+                        else:
+                            parent_values.append(max(0.0, float(value)))
+                    if parent_values and not np.isclose(sum(parent_values), 1.0, atol=1e-8):
+                        errors.append(f"{label}/{question_id}/{node_id}: parent posterior does not sum to one")
+                    parent_id = node.get("parent_id")
+                    if parent_id is not None and str(parent_id) == node_id:
+                        errors.append(f"{label}/{question_id}/{node_id}: self parent")
+
+            known_ids = set(memory_ids) | discovered_ids
+
+            paths = provenance.get("paths", {})
+            if isinstance(paths, Mapping):
+                for candidate, values in paths.items():
+                    candidate = str(candidate)
+                    if not isinstance(values, list):
+                        errors.append(f"{label}/{question_id}/{candidate}: paths is not a list")
+                        continue
+                    posterior_values: list[float] = []
+                    for path in values:
+                        if not isinstance(path, Mapping):
+                            errors.append(f"{label}/{question_id}/{candidate}: invalid path record")
+                            continue
+                        posterior = path.get("posterior", 0.0)
+                        support = path.get("support", 0.0)
+                        if not finite_number(posterior) or float(posterior) < -1e-10:
+                            errors.append(f"{label}/{question_id}/{candidate}: invalid path posterior")
+                        else:
+                            posterior_values.append(max(0.0, float(posterior)))
+                        if not finite_number(support) or float(support) < -1e-10:
+                            errors.append(f"{label}/{question_id}/{candidate}: invalid path support")
+                        path_ids = [str(value) for value in path.get("path_ids", ())]
+                        if not path_ids or path_ids[-1] != candidate or len(path_ids) != len(set(path_ids)):
+                            errors.append(f"{label}/{question_id}/{candidate}: malformed/cyclic path")
+                        if known_ids and any(value not in known_ids for value in path_ids):
+                            errors.append(f"{label}/{question_id}/{candidate}: path references an unknown memory ID")
+                        parent_map = path.get("parent_posterior", {})
+                        if isinstance(parent_map, Mapping):
+                            parent_values = []
+                            for parent_id, value in parent_map.items():
+                                if not finite_number(value) or float(value) < -1e-10:
+                                    errors.append(f"{label}/{question_id}/{candidate}: invalid parent posterior")
+                                else:
+                                    parent_values.append(max(0.0, float(value)))
+                                if known_ids and str(parent_id) not in known_ids:
+                                    errors.append(
+                                        f"{label}/{question_id}/{candidate}: parent posterior references unknown ID"
+                                    )
+                            if parent_values and not np.isclose(sum(parent_values), 1.0, atol=1e-8):
+                                errors.append(
+                                    f"{label}/{question_id}/{candidate}: parent posterior does not sum to one"
+                                )
+                            # For a non-root path, at least its immediate
+                            # predecessor must be represented in the stored
+                            # immediate-parent posterior map.  Alternative
+                            # parents may legitimately appear in the map and
+                            # need not lie on this particular path.
+                            if len(path_ids) > 1 and parent_values and path_ids[-2] not in {
+                                str(key) for key in parent_map
+                            }:
+                                errors.append(
+                                    f"{label}/{question_id}/{candidate}: path predecessor missing from parent posterior"
+                                )
+                        else:
+                            errors.append(f"{label}/{question_id}/{candidate}: parent_posterior is not an object")
+                    if values and not np.isclose(sum(posterior_values), 1.0, atol=1e-8):
+                        errors.append(f"{label}/{question_id}/{candidate}: path posterior does not sum to one")
+
+            atoms = provenance.get("information_atoms", {})
+            if isinstance(atoms, Mapping):
+                for candidate, atom in atoms.items():
+                    try:
+                        if not isinstance(atom, Mapping):
+                            raise ValueError("atom is not an object")
+                        matrix = np.asarray(atom.get("matrix"), dtype=np.float64)
+                        if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1] or not np.all(np.isfinite(matrix)):
+                            raise ValueError("not a finite square matrix")
+                        symmetric = (matrix + matrix.T) * 0.5
+                        minimum = float(np.min(np.linalg.eigvalsh(symmetric))) if matrix.size else 0.0
+                        if minimum < -1e-8:
+                            errors.append(f"{label}/{question_id}/{candidate}: information atom is not PSD")
+                        trace = atom.get("trace")
+                        if trace is not None and (
+                            not finite_number(trace)
+                            or abs(float(trace) - float(np.trace(symmetric))) > 1e-7
+                        ):
+                            errors.append(f"{label}/{question_id}/{candidate}: atom trace mismatch")
+                    except (TypeError, ValueError, np.linalg.LinAlgError):
+                        errors.append(f"{label}/{question_id}/{candidate}: invalid information atom")
+
+            domains = provenance.get("domains", {})
+            domain_values: list[tuple[str, ...]] = []
+            if isinstance(domains, Mapping):
+                for branch_id, values in domains.items():
+                    if not isinstance(values, list):
+                        errors.append(f"{label}/{question_id}/{branch_id}: domain is not a list")
+                        continue
+                    domain_values.append(tuple(str(value) for value in values))
+            flattened = [value for values in domain_values for value in values]
+            if len(flattened) != len(set(flattened)):
+                errors.append(f"{label}/{question_id}: certificate domains overlap")
+            known_eligible = set(memory_ids) - excluded
+            cert_status = str(provenance.get("certificate_status", "not_requested"))
+            if known_eligible and domain_values and (
+                label == "A4" or cert_status in {"available", "certificate_unavailable"}
+            ):
+                domain_union = set(flattened)
+                if domain_union != known_eligible:
+                    errors.append(
+                        f"{label}/{question_id}: certificate domain union mismatch "
+                        f"(expected {len(known_eligible)}, got {len(domain_union)})"
+                    )
+
+            bounds = provenance.get("bounds", {})
+            if isinstance(bounds, Mapping):
+                for branch_id, bound in bounds.items():
+                    if not isinstance(bound, Mapping):
+                        errors.append(f"{label}/{question_id}/{branch_id}: bound is not an object")
+                        continue
+                    if bound.get("valid") is True:
+                        for field_name in ("U", "smax", "rho_upper"):
+                            if field_name in bound and (
+                                not finite_number(bound[field_name]) or float(bound[field_name]) < -1e-10
+                            ):
+                                errors.append(f"{label}/{question_id}/{branch_id}: invalid bound {field_name}")
+
+            selection_bounds = diagnostics.get("selection_bounds", ())
+            if isinstance(selection_bounds, list):
+                for bound_row in selection_bounds:
+                    if not isinstance(bound_row, Mapping):
+                        errors.append(f"{label}/{question_id}: invalid selection bound row")
+                        continue
+                    best = bound_row.get("best_discovered_margin", 0.0)
+                    upper = bound_row.get("frontier_upper_bound", 0.0)
+                    gap = bound_row.get("gap", 0.0)
+                    if not all(finite_number(value) for value in (best, upper, gap)) or float(gap) < -1e-8:
+                        errors.append(f"{label}/{question_id}: invalid certificate gap")
+                    expected_gap = (
+                        max(0.0, float(upper) - float(best))
+                        if finite_number(best) and finite_number(upper)
+                        else 0.0
+                    )
+                    if finite_number(gap) and abs(float(gap) - expected_gap) > 1e-7:
+                        errors.append(f"{label}/{question_id}: certificate gap mismatch")
+                    if bound_row.get("certified") and not bound_row.get("bound_valid", False):
+                        errors.append(f"{label}/{question_id}: certified step has invalid bound")
+
+            if cert_status not in {"not_requested", "available", "certificate_unavailable"}:
+                errors.append(f"{label}/{question_id}: unknown certificate status {cert_status}")
+            if cert_status == "available":
+                certificate_count += 1
+                if not domains or not isinstance(diagnostics.get("domains_valid", True), bool):
+                    errors.append(f"{label}/{question_id}: available certificate has no valid domain evidence")
+                if diagnostics.get("domains_valid") is False:
+                    errors.append(f"{label}/{question_id}: certificate status available but domains_valid=false")
+
+                # When every eligible item has an atom, independently replay
+                # the exact finite-domain greedy sequence.  If unseen items
+                # remain, the certificate may still be valid, but an
+                # exhaustive replay is intentionally reported as unavailable.
+                atom_map = {}
+                if isinstance(atoms, Mapping):
+                    for candidate, atom in atoms.items():
+                        if isinstance(atom, Mapping) and atom.get("matrix") is not None:
+                            with contextlib.suppress(TypeError, ValueError):
+                                atom_map[str(candidate)] = np.asarray(atom["matrix"], dtype=np.float64)
+                if atom_map and (not known_eligible or known_eligible.issubset(set(atom_map))):
+                    try:
+                        objective = InformationObjective(atoms=atom_map)
+                        expected_ids, _margins = objective.exhaustive_greedy(
+                            list(atom_map), k=len(provenance.get("selection_steps", ()))
+                        )
+                        actual_ids = [
+                            str(step.get("memory_id"))
+                            for step in provenance.get("selection_steps", ())
+                            if isinstance(step, Mapping)
+                        ]
+                        exhaustive_checks += 1
+                        if actual_ids[: len(expected_ids)] != expected_ids:
+                            errors.append(
+                                f"{label}/{question_id}: certified greedy sequence differs from exhaustive replay"
+                            )
+                        else:
+                            exhaustive_matches += 1
+                    except (KeyError, TypeError, ValueError, FloatingPointError, np.linalg.LinAlgError):
+                        warnings.append(f"{label}/{question_id}: exhaustive replay unavailable")
+
+        question_sets[label] = seen_questions
+
+    # Every architecture must be evaluated on the same persisted question
+    # set.  A per-architecture failure is therefore evidence, not a silent
+    # denominator change.
+    expected_questions = set(manifest_question_ids)
+    if not expected_questions:
+        expected_questions = set().union(*question_sets.values()) if question_sets else set()
+    for label, values in question_sets.items():
+        if values != expected_questions:
+            errors.append(
+                f"{label}: common question set mismatch (expected {len(expected_questions)}, got {len(values)})"
+            )
+    if summary and isinstance(summary.get("architectures"), Mapping):
+        for label in architectures:
+            row = summary["architectures"].get(label, {})
+            if isinstance(row, Mapping):
+                _check(
+                    row.get("queries") == len(question_sets.get(label, set())),
+                    f"{label}: summary query count mismatch",
+                    errors,
+                )
+                _check(
+                    row.get("failed_queries", 0) == 0,
+                    f"{label}: summary reports failed queries",
+                    errors,
+                )
+
+    # C changes only the stopping rule, so A3/A4 selection equality is an
+    # explicit comparison metric rather than an invariant.  A valid early
+    # certificate may expose fewer nodes and legitimately select a different
+    # context.  Whenever the context *is* identical, however, the shared
+    # generation cache/protocol requires an identical response.
+    a3 = {str(item.get("question_id")): item for item in prediction_files.get("A3", ())}
+    a4 = {str(item.get("question_id")): item for item in prediction_files.get("A4", ())}
+    common = set(a3) & set(a4)
+    equal = 0
+    for question_id in sorted(common):
+        left_hash, right_hash = a3[question_id].get("context_hash"), a4[question_id].get("context_hash")
+        equal += int(left_hash == right_hash)
+        shared_response_differs = a3[question_id].get("response") != a4[question_id].get("response")
+        if manifest.get("generation") and left_hash == right_hash and shared_response_differs:
+            errors.append(f"A3/A4 shared context has different generation responses: {question_id}")
+
+    evidence = {
+        "run_dir": str(root),
+        "manifest": str(manifest_path),
+        "architectures": architectures,
+        "prediction_counts": {label: len(records) for label, records in prediction_files.items()},
+        "common_question_count": len(expected_questions),
+        "a3_a4_common_questions": len(common),
+        "a3_a4_context_hash_equal": equal,
+        "certificate_available_records": certificate_count,
+        "exhaustive_replay_checks": exhaustive_checks,
+        "exhaustive_replay_matches": exhaustive_matches,
+        "summary_present": bool(summary),
+    }
+    report = {
+        "status": "passed" if not errors else "failed",
+        "errors": errors,
+        "warnings": warnings,
+        "evidence": evidence,
+    }
+    output_path = root / "tmic_audit.json"
+    _atomic_json(output_path, report)
+    if errors and raise_on_error:
+        raise RuntimeError("TMIC audit failed: " + "; ".join(errors))
+    return {"output_path": str(output_path), **report}

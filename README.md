@@ -67,7 +67,11 @@ Dense query embeddings use a PersonaMem retrieval instruction; memory documents
 are encoded without that prefix. Bridge queries use a separate explicit
 query+anchor instruction, which is included in the embedding-cache identity.
 
-The requested default API key is present in `configs/default.yaml`. `BRIDGETREE_CHAT_API_KEY` overrides it without editing files on another server. Legacy BridgeTree still uses its original proxy objective; the new `*_rerank` methods form a separate, non-certified family whose final selection is owned by the common task-aware reranker.
+The generator credential is intentionally not stored in the repository. Set
+`BRIDGETREE_CHAT_API_KEY` on the Linux host (or provide an explicit local
+overlay) before enabling generation. Legacy BridgeTree still uses its original
+proxy objective; the new `*_rerank` methods form a separate, non-certified
+family whose final selection is owned by the common task-aware reranker.
 
 ## One implementation, runtime-controlled modules
 
@@ -91,6 +95,80 @@ The named configurations are only labels:
 | No-cluster / BFS / Depth1–3 | Change only the named switch |
 
 See [docs/runtime_experiments.md](docs/runtime_experiments.md) for every argument, legal combinations, budget protocols and output schema.
+
+## TMIC: the four composable operators
+
+The TMIC path is one train-free execution chain.  It is selected with the four
+boolean retrieval switches and does not add a learned utility or a reward
+weight:
+
+```text
+T (temporal measure) -> M (real-member mass propagation)
+  -> I (query-state PSD information atoms) -> C (finite-domain certificate)
+```
+
+`T` builds an angular-rank relation and multiplies it by a Jaccard measure of
+explicit instant/interval time marks.  Missing time is neutral and is recorded
+as `time_unavailable`; message indices are ordered observations, never calendar
+dates.  `M` normalizes the non-negative first-hop member mass and propagates it
+through the row-stochastic transition matrix.  When enabled, ANN proposals are
+made from every real branch member in deterministic round-robin order; a
+centroid/probe is never used as a memory or as the M proposal vector.
+
+`I` constructs a frozen orthonormal state basis from centered answer-option
+embeddings.  It uses the identity basis with
+`state_basis_fallback=identity` when options are absent, and combines
+path-conditioned PSD atoms with the fixed `logdet(I + sum Q)` objective.  This
+is a query-conditioned linear-Gaussian/Fisher-style surrogate, not a claim of
+label-estimated mutual information.  `C` is conservative search accounting
+only: it can certify a next greedy item only over an explicit finite
+`exact_partition` domain.  If the domain, time envelope, basis, or exact index
+cannot be audited, the result is `certificate_unavailable` and the configured
+budget/depth continues to apply.
+
+The fixed module matrix is available without tuning:
+
+| Row | T | M | I | C | Meaning |
+| --- | ---: | ---: | ---: | ---: | --- |
+| A0 | 0 | 0 | 0 | 0 | R1 path-conditioned reference |
+| A1 | 1 | 0 | 0 | 0 | Add temporal measure |
+| A2 | 1 | 1 | 0 | 0 | Add real-member propagation |
+| A3 | 1 | 1 | 1 | 0 | Add query-state PSD atoms |
+| A4 | 1 | 1 | 1 | 1 | Add finite-domain certificate |
+
+Run a development matrix with deterministic local embeddings, then audit every
+serialized row:
+
+```bash
+python -m bridgetree.cli run-tmic-matrix \
+  --phase development --limit 20 --no-generate --offline \
+  --output-dir outputs/tmic
+python -m bridgetree.cli audit-tmic \
+  --input-dir outputs/tmic/tmic_development_<timestamp> --raise-on-error
+```
+
+Each `predictions_A*.jsonl` record keeps greedy and chronological IDs,
+`nodes`/`edges`, transition `K/P` diagnostics, branch `mass`/`support`, all
+posterior paths, PSD information atoms, exact domains and bound ingredients,
+selection gaps, context hash, outcome, cost, and diagnostic provenance.  A3 and
+A4 share the same frozen basis and generation cache; equal context hashes must
+produce the same generation response.
+
+The leakage-safe protocol is initialized once from the pinned PersonaMem
+source.  Development code may use the persisted `development-seen` role (an
+explicitly named internal persona split); confirmatory execution requires a
+frozen manifest and rejects `tune`, `train`, and configuration rewrites:
+
+```bash
+python -m bridgetree.cli protocol init
+python -m bridgetree.cli protocol audit --protocol confirmatory_v1
+python -m bridgetree.cli protocol freeze \
+  --protocol confirmatory_v1 --config-hash <resolved-config-sha256>
+```
+
+The answer-effect oracle is development-only and requires token log
+probabilities.  Services without log probabilities emit
+`oracle_unavailable`; no guessed answer effect is used for selection.
 
 ## Experiments
 

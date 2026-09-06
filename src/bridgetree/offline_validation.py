@@ -11,6 +11,7 @@ import numpy as np
 
 from .clients import GeneratorClient, RerankerClient, RerankItem
 from .config import load_config
+from .experiment import _public_app_config
 from .run_audit import audit_tuning_run
 from .training import load_tuning_config, preflight_tuning, run_tuning_experiment
 
@@ -113,7 +114,7 @@ def validate_full_32k_offline(
         "validation_kind": "offline_full_size_scheduler_only_not_experiment_results",
         "elapsed_seconds": time.perf_counter() - started,
         "run_dir": str(run_dir),
-        "resolved_app_config": app_config.resolved_dict(),
+        "resolved_app_config": _public_app_config(app_config),
         "tuning_config": asdict(tuning_config),
         "preflight": preflight,
         "assertions": completion_audit["evidence"],

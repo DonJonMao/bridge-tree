@@ -10,12 +10,13 @@ from dataclasses import replace
 from pathlib import Path
 
 from .aggregation import aggregate_runs
-from .clients import build_embedder
+from .clients import RerankerClient, build_embedder
 from .config import apply_runtime_overrides, load_config
-from .experiment import METHODS, run_personamem_experiment
+from .experiment import METHODS, run_personamem_experiment, run_semantic_matrix, run_tmic_matrix
 from .offline_validation import validate_full_32k_offline
 from .personamem import PERSONAMEM_REPO, PERSONAMEM_REVISION, prepare_split
-from .run_audit import audit_tuning_run
+from .protocol import audit_protocol, freeze_protocol, init_protocol
+from .run_audit import audit_semantic_run, audit_tmic_run, audit_tuning_run
 from .server_bundle import build_server_bundle, verify_bundle_offline_launcher
 from .smoke import run_synthetic_smoke
 from .training import (
@@ -65,8 +66,26 @@ def _add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-clusters", type=int)
     parser.add_argument("--min-cluster-size", type=int)
     parser.add_argument("--search-order", choices=("best_first", "bfs"))
-    parser.add_argument("--feature-mode", choices=("rho", "path_conditioned"))
-    parser.add_argument("--selection-mode", choices=("rho_topk", "mmr", "rho_logdet", "path_logdet"))
+    parser.add_argument(
+        "--profile",
+        choices=("legacy_core", "legacy_path", "semantic_path_v1", "semantic", "legacy"),
+    )
+    parser.add_argument(
+        "--feature-mode",
+        choices=("rho", "path_conditioned", "cached_memory", "query_conditioned"),
+    )
+    parser.add_argument(
+        "--selection-mode",
+        choices=(
+            "rho_topk",
+            "mmr",
+            "rho_logdet",
+            "path_logdet",
+            "semantic_path_logdet",
+            "pure_rerank",
+            "frozen_listwise",
+        ),
+    )
     parser.add_argument("--stop-mode", choices=("budget", "certificate_or_budget"))
     parser.add_argument("--diagnostic-level", choices=("off", "light", "full"))
     parser.add_argument("--root-anchor-weight", type=float)
@@ -94,6 +113,54 @@ def _add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--path-filter-instruction")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--index-backend", choices=("exact", "faiss"))
+    parser.add_argument(
+        "--temporal-measure",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable the angular-rank plus time-measure transition operator",
+    )
+    parser.add_argument(
+        "--measure-propagation",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Propagate branch mass over real member transitions",
+    )
+    parser.add_argument(
+        "--state-information",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Use the query-conditioned state information PSD atoms",
+    )
+    parser.add_argument(
+        "--information-certificate",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable finite-domain information bounds for stopping",
+    )
+    parser.add_argument("--state-basis-mode", choices=("option_contrast", "identity"))
+    parser.add_argument("--certificate-domain", choices=("exact_partition", "frozen_pool"))
+    parser.add_argument(
+        "--proposal-mode",
+        choices=(
+            "legacy_first_arrival",
+            "dense",
+            "centroid",
+            "real_member_vector",
+            "real_member_query_anchor",
+            "round_robin",
+        ),
+    )
+    parser.add_argument("--relation-mode", choices=("cosine", "angular", "legacy_temporal_overlap"))
+    parser.add_argument("--quality-mode", choices=("direct_cosine", "rho", "frozen_reranker", "mapping", "constant"))
+    parser.add_argument(
+        "--path-mode",
+        choices=("legacy", "none", "single_path", "posterior_expected_scatter", "shuffle"),
+    )
+    parser.add_argument("--certificate-mode", choices=("off", "lazy", "certificate_or_budget"))
+    parser.add_argument("--context-unit", choices=("memory", "token"))
+    parser.add_argument("--quality-score-space", choices=("unit_interval", "logit_difference"))
+    parser.add_argument("--scorer-fingerprint")
+    parser.add_argument("--representation-mode", choices=("cached_memory", "query_conditioned"))
     parser.add_argument("--memory-granularity", choices=("user_only", "user_assistant_pair"))
     parser.add_argument(
         "--include-system-persona",
@@ -119,6 +186,10 @@ def _resolved_tuning_config(args: argparse.Namespace):
         tuning = replace(tuning, search_space=replace(tuning.search_space, **search_changes))
     if args.seed is not None:
         tuning = replace(tuning, seed=args.seed)
+    if getattr(args, "phase", None) is not None:
+        tuning = replace(tuning, phase=args.phase)
+    if getattr(args, "protocol_manifest", None) is not None:
+        tuning = replace(tuning, protocol_manifest=args.protocol_manifest)
     tuning.validate()
     return tuning
 
@@ -186,6 +257,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require the persisted run to pass the independent formal 32K completion audit",
     )
     tune.add_argument("--max-parse-failure-rate", type=float, default=0.05)
+    tune.add_argument(
+        "--phase",
+        choices=("development", "development-seen", "confirmatory", "confirmatory-test", "full", "full-benchmark"),
+    )
+    tune.add_argument("--protocol-manifest", "--manifest", dest="protocol_manifest")
     _add_runtime_arguments(tune)
 
     preflight = subparsers.add_parser(
@@ -197,6 +273,11 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--tuning-config", "--training-config", dest="tuning_config", default="configs/train.yaml")
     preflight.add_argument("--check-services", action=argparse.BooleanOptionalAction, default=False)
     preflight.add_argument("--require-full-32k", action="store_true")
+    preflight.add_argument(
+        "--phase",
+        choices=("development", "development-seen", "confirmatory", "confirmatory-test", "full", "full-benchmark"),
+    )
+    preflight.add_argument("--protocol-manifest", "--manifest", dest="protocol_manifest")
     _add_runtime_arguments(preflight)
 
     check = subparsers.add_parser("check-ascend", help="Report Ascend/PyTorch runtime availability")
@@ -204,6 +285,121 @@ def build_parser() -> argparse.ArgumentParser:
 
     synthetic = subparsers.add_parser("smoke-synthetic", help="Run an offline q-to-m1-to-m2 retrieval smoke test")
     synthetic.add_argument("--output-dir", default="outputs/smoke")
+
+    protocol = subparsers.add_parser("protocol", help="Initialize, audit, or freeze the leakage-safe data protocol")
+    protocol_sub = protocol.add_subparsers(dest="protocol_command", required=True)
+    protocol_init_parser = protocol_sub.add_parser("init", help="Persist confirmatory_v1 role/question IDs")
+    protocol_init_parser.add_argument(
+        "--output",
+        "--output-path",
+        dest="output_path",
+        default="outputs/protocol/confirmatory_v1/protocol_manifest.json",
+    )
+    protocol_init_parser.add_argument("--raw-dir", default="data/raw/personamem-v1")
+    protocol_init_parser.add_argument("--split", choices=("32k", "128k", "1M"), default="32k")
+    protocol_init_parser.add_argument("--seed", type=int, default=42)
+    protocol_init_parser.add_argument("--force", action="store_true")
+    protocol_init_parser.add_argument(
+        "--from-legacy-manifest",
+        dest="from_legacy_manifest",
+        help="Convert an existing legacy split manifest instead of re-splitting the source",
+    )
+    protocol_audit_parser = protocol_sub.add_parser("audit", help="Audit a persisted protocol manifest")
+    protocol_audit_parser.add_argument("--protocol", default="confirmatory_v1")
+    protocol_audit_parser.add_argument(
+        "--manifest",
+        "--protocol-manifest",
+        dest="manifest",
+        default="outputs/protocol/confirmatory_v1/protocol_manifest.json",
+    )
+    protocol_audit_parser.add_argument("--raw-dir", default="data/raw/personamem-v1")
+    protocol_audit_parser.add_argument("--split", choices=("32k", "128k", "1M"), default="32k")
+    protocol_audit_parser.add_argument("--require-frozen", action="store_true")
+    protocol_freeze_parser = protocol_sub.add_parser("freeze", help="Freeze a protocol manifest")
+    protocol_freeze_parser.add_argument("--protocol", default="confirmatory_v1")
+    protocol_freeze_parser.add_argument(
+        "--manifest",
+        "--protocol-manifest",
+        dest="manifest",
+        default="outputs/protocol/confirmatory_v1/protocol_manifest.json",
+    )
+    protocol_freeze_parser.add_argument("--config-hash")
+    protocol_freeze_parser.add_argument("--raw-dir", default="data/raw/personamem-v1")
+    protocol_freeze_parser.add_argument("--split", choices=("32k", "128k", "1M"), default="32k")
+
+    # A top-level alias is retained for shell scripts which predate the
+    # nested ``protocol freeze`` spelling.
+    freeze = subparsers.add_parser("freeze", help="Alias for protocol freeze")
+    freeze.add_argument("--protocol", default="confirmatory_v1")
+    freeze.add_argument(
+        "--manifest",
+        "--protocol-manifest",
+        dest="manifest",
+        default="outputs/protocol/confirmatory_v1/protocol_manifest.json",
+    )
+    freeze.add_argument("--config-hash")
+    freeze.add_argument("--raw-dir", default="data/raw/personamem-v1")
+    freeze.add_argument("--split", choices=("32k", "128k", "1M"), default="32k")
+
+    matrix = subparsers.add_parser("run-tmic-matrix", help="Run the fixed A0--A4 TMIC matrix")
+    matrix.add_argument("--config", default="configs/default.yaml")
+    matrix.add_argument("--override-config")
+    matrix.add_argument(
+        "--phase",
+        choices=("development", "development-seen", "confirmatory", "confirmatory-test", "full", "full-benchmark"),
+        default="development",
+    )
+    matrix.add_argument("--protocol-manifest", "--manifest")
+    matrix.add_argument("--limit", type=int)
+    matrix.add_argument("--generate", action=argparse.BooleanOptionalAction, default=False)
+    matrix.add_argument("--output-dir")
+    matrix.add_argument("--include-auxiliary", action="store_true")
+    matrix.add_argument(
+        "--offline",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use the deterministic local embedder (no embedding service calls)",
+    )
+    _add_runtime_arguments(matrix)
+
+    semantic_matrix = subparsers.add_parser(
+        "run-semantic-matrix",
+        help="Run the fixed S0/S1/S2/S3/S2-shuffle semantic matrix on shared frozen candidate pools",
+    )
+    semantic_matrix.add_argument("--config", default="configs/default.yaml")
+    semantic_matrix.add_argument("--override-config")
+    semantic_matrix.add_argument(
+        "--phase",
+        choices=("development", "development-seen", "confirmatory", "confirmatory-test", "full", "full-benchmark"),
+        default="development",
+    )
+    semantic_matrix.add_argument("--protocol-manifest", "--manifest")
+    semantic_matrix.add_argument("--limit", type=int)
+    semantic_matrix.add_argument("--generate", action=argparse.BooleanOptionalAction, default=False)
+    semantic_matrix.add_argument("--output-dir")
+    semantic_matrix.add_argument(
+        "--offline",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use deterministic local embeddings and direct-cosine quality (no model service calls)",
+    )
+    semantic_matrix.add_argument(
+        "--no-reranker",
+        action="store_true",
+        help="Use the explicit offline/direct quality adapter even when a reranker endpoint is configured",
+    )
+    _add_runtime_arguments(semantic_matrix)
+
+    semantic_audit = subparsers.add_parser(
+        "audit-semantic",
+        help="Audit persisted semantic matrix provenance, shared pools, context hashes, and failures",
+    )
+    semantic_audit.add_argument("--input-dir", required=True)
+    semantic_audit.add_argument("--raise-on-error", action="store_true")
+
+    tmic_audit = subparsers.add_parser("audit-tmic", help="Audit persisted TMIC matrix provenance and certificates")
+    tmic_audit.add_argument("--input-dir", required=True)
+    tmic_audit.add_argument("--raise-on-error", action="store_true")
 
     aggregate = subparsers.add_parser("aggregate", help="Aggregate multi-seed runs with paired bootstrap CIs")
     aggregate.add_argument("--input-dir", required=True)
@@ -396,6 +592,8 @@ def main(argv: list[str] | None = None) -> int:
             embedder=embedder,
             check_services=args.check_services,
             require_full_32k=args.require_full_32k,
+            phase=args.phase,
+            protocol_manifest=args.protocol_manifest,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
@@ -418,6 +616,98 @@ def main(argv: list[str] | None = None) -> int:
         return int(args.strict and not status["npu_available"])
     if args.command == "smoke-synthetic":
         print(json.dumps(run_synthetic_smoke(args.output_dir), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "protocol":
+        if args.protocol_command == "init":
+            result = init_protocol(
+                output_path=args.output_path,
+                raw_dir=args.raw_dir,
+                split=args.split,
+                seed=args.seed,
+                force=args.force,
+                from_legacy_manifest=args.from_legacy_manifest,
+            )
+        elif args.protocol_command == "audit":
+            if args.protocol != "confirmatory_v1":
+                raise ValueError("only confirmatory_v1 is supported")
+            result = audit_protocol(
+                args.manifest,
+                raw_dir=args.raw_dir,
+                split=args.split,
+                require_frozen=args.require_frozen,
+                raise_on_error=True,
+            )
+        else:
+            if args.protocol != "confirmatory_v1":
+                raise ValueError("only confirmatory_v1 is supported")
+            result = freeze_protocol(
+                args.manifest,
+                config_hash=args.config_hash,
+                raw_dir=args.raw_dir,
+                split=args.split,
+            )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "freeze":
+        if args.protocol != "confirmatory_v1":
+            raise ValueError("only confirmatory_v1 is supported")
+        result = freeze_protocol(
+            args.manifest,
+            config_hash=args.config_hash,
+            raw_dir=args.raw_dir,
+            split=args.split,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "run-tmic-matrix":
+        config = _resolved_config(args)
+        if args.offline:
+            from .offline_validation import OfflineDeterministicEmbedder
+
+            embedder = OfflineDeterministicEmbedder()
+        else:
+            embedder = build_embedder(config.models.embedding, device=config.runtime.device)
+        result = run_tmic_matrix(
+            config,
+            embedder,
+            phase=args.phase,
+            limit=args.limit,
+            generate=args.generate,
+            protocol_manifest=args.protocol_manifest,
+            output_dir=args.output_dir,
+            include_auxiliary=args.include_auxiliary,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "run-semantic-matrix":
+        config = _resolved_config(args)
+        if args.offline:
+            from .offline_validation import OfflineDeterministicEmbedder
+
+            embedder = OfflineDeterministicEmbedder()
+            reranker = None
+        else:
+            embedder = build_embedder(config.models.embedding, device=config.runtime.device)
+            reranker = None if args.no_reranker else RerankerClient(config.models.reranker)
+        result = run_semantic_matrix(
+            config,
+            embedder,
+            phase=args.phase,
+            limit=args.limit,
+            generate=args.generate,
+            protocol_manifest=args.protocol_manifest,
+            output_dir=args.output_dir,
+            reranker=reranker,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "audit-semantic":
+        result = audit_semantic_run(args.input_dir, raise_on_error=args.raise_on_error)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "audit-tmic":
+        result = audit_tmic_run(args.input_dir, raise_on_error=args.raise_on_error)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.command == "aggregate":
         result = aggregate_runs(

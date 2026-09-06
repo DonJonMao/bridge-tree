@@ -78,8 +78,22 @@ def run_synthetic_smoke(output_dir: str | Path = "outputs/smoke") -> Dict[str, A
     if "m2" not in runs["core"]["discovered"]:
         raise AssertionError("depth=2 synthetic smoke did not discover the bridge candidate m2")
     payload = json.dumps(runs, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    root = Path(output_dir) / f"synthetic_{time.time_ns()}"
-    root.mkdir(parents=True, exist_ok=False)
+    # ``time.time_ns`` is normally sufficient for run IDs, but some filesystems
+    # (and concurrent CLI invocations) can expose the same clock value.  Make
+    # creation collision-safe so two smoke checks never fail merely because
+    # they started together.
+    output_root = Path(output_dir)
+    output_root.mkdir(parents=True, exist_ok=True)
+    stamp = time.time_ns()
+    root = output_root / f"synthetic_{stamp}"
+    suffix = 1
+    while True:
+        try:
+            root.mkdir(parents=False, exist_ok=False)
+            break
+        except FileExistsError:
+            root = output_root / f"synthetic_{stamp}_{suffix}"
+            suffix += 1
     summary = {
         "status": "passed",
         "generator_calls": 0,

@@ -9,6 +9,7 @@ import pytest
 
 from bridgetree.config import (
     AppConfig,
+    DataConfig,
     EmbeddingConfig,
     EndpointConfig,
     GeneratorConfig,
@@ -18,7 +19,8 @@ from bridgetree.config import (
     load_config,
 )
 from bridgetree.module_metrics import MODULE_NAMES, metric_value, module_metric_delta
-from bridgetree.personamem import PersonaMemExample
+from bridgetree.personamem import PERSONAMEM_REVISION, PersonaMemExample, file_sha256
+from bridgetree.protocol import build_protocol_manifest
 from bridgetree.run_audit import audit_tuning_run
 from bridgetree.training import (
     EFFECT_FIRST_VALIDATION_METHODS,
@@ -89,6 +91,66 @@ def _app_config(tmp_path: Path) -> AppConfig:
         ),
         runtime=RuntimeConfig(cache_dir=str(tmp_path / "cache"), output_dir=str(tmp_path / "runs")),
     )
+
+
+def _protocol_fixture(tmp_path: Path, examples: list[PersonaMemExample]):
+    """Write the tiny raw/prepared source needed by protocol preflight tests."""
+    raw_dir = tmp_path / "raw"
+    processed_dir = tmp_path / "processed"
+    raw_dir.mkdir()
+    (processed_dir / "32k").mkdir(parents=True)
+    contexts = {example.shared_context_id: example.messages for example in examples}
+    with (raw_dir / "shared_contexts_32k.jsonl").open("w", encoding="utf-8") as handle:
+        for context_id, messages in contexts.items():
+            handle.write(json.dumps({context_id: messages}) + "\n")
+    fields = [
+        "persona_id",
+        "question_id",
+        "question_type",
+        "topic",
+        "user_question_or_message",
+        "correct_answer",
+        "all_options",
+        "shared_context_id",
+        "end_index_in_shared_context",
+    ]
+    with (raw_dir / "questions_32k.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for example in examples:
+            writer.writerow(
+                {
+                    "persona_id": example.persona_id,
+                    "question_id": example.question_id,
+                    "question_type": example.question_type,
+                    "topic": example.topic,
+                    "user_question_or_message": example.query,
+                    "correct_answer": example.correct_answer,
+                    "all_options": example.all_options,
+                    "shared_context_id": example.shared_context_id,
+                    "end_index_in_shared_context": example.end_index,
+                }
+            )
+    source_sha256 = {
+        "questions_32k.csv": file_sha256(raw_dir / "questions_32k.csv"),
+        "shared_contexts_32k.jsonl": file_sha256(raw_dir / "shared_contexts_32k.jsonl"),
+    }
+    (processed_dir / "32k" / "manifest.json").write_text(
+        json.dumps(
+            {
+                "revision": PERSONAMEM_REVISION,
+                "split": "32k",
+                "questions": len(examples),
+                "source_sha256": source_sha256,
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = replace(
+        _app_config(tmp_path),
+        data=DataConfig(raw_dir=str(raw_dir), processed_dir=str(processed_dir), split="32k"),
+    )
+    return app, build_protocol_manifest(examples).to_dict()
 
 
 def test_persona_split_is_deterministic_and_disjoint():
@@ -320,6 +382,66 @@ def test_full_32k_preflight_validates_complete_protocol_without_service_calls():
     assert report["tuning"]["trial_count"] == 16
     assert report["tuning"]["objective_metric"] == "outcome.answer_accuracy"
     assert report["services"] == {"checked": False}
+
+
+def test_preflight_accepts_an_in_memory_protocol_manifest_mapping(tmp_path):
+    examples = _examples(12)
+    app, manifest = _protocol_fixture(tmp_path, examples)
+    gold_path = tmp_path / "bridge_gold.jsonl"
+    gold_path.write_text(
+        "".join(
+            json.dumps({"question_id": example.question_id, "gold_memory_ids": []}) + "\n"
+            for example in examples
+        ),
+        encoding="utf-8",
+    )
+    tuning = TrainingExperimentConfig(
+        seed=11,
+        search_space=SearchSpace(initial_width=(2,), branch_width=(2,), search_budget=(5,)),
+        diagnostic_methods=("bridgetree",),
+        main_table_methods=("bridgetree",),
+        objective_metric="outcome.recall_at_k",
+        bridge_gold_path=str(gold_path),
+        output_dir=str(tmp_path / "training"),
+    )
+
+    report = preflight_tuning(app, tuning, protocol_manifest=manifest)
+
+    assert report["status"] == "ready"
+    assert report["protocol"]["status"] == "passed"
+    assert report["tuning"]["phase"] == "development-seen"
+    assert report["tuning"]["protocol_manifest"] == manifest
+
+
+def test_training_run_accepts_manifest_mapping_on_config(tmp_path):
+    examples = _examples(12)
+    app, manifest = _protocol_fixture(tmp_path, examples)
+    gold_path = tmp_path / "bridge_gold.jsonl"
+    gold_path.write_text(
+        "".join(
+            json.dumps({"question_id": example.question_id, "gold_memory_ids": []}) + "\n"
+            for example in examples
+        ),
+        encoding="utf-8",
+    )
+    tuning = TrainingExperimentConfig(
+        seed=11,
+        search_space=SearchSpace(initial_width=(2,), branch_width=(2,), search_budget=(5,)),
+        diagnostic_methods=("bridgetree",),
+        main_table_methods=("bridgetree",),
+        objective_metric="outcome.recall_at_k",
+        bridge_gold_path=str(gold_path),
+        protocol_manifest=manifest,
+        output_dir=str(tmp_path / "training"),
+    )
+
+    result = run_training_experiment(app, tuning, DeterministicEmbedder(), examples=examples)
+
+    run_dir = Path(result["run_dir"])
+    run_manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    assert run_manifest["protocol"]["status"] == "passed"
+    assert run_manifest["protocol_manifest"] == manifest
+    assert run_manifest["phase"] == "development-seen"
 
 
 def test_full_32k_preflight_rejects_a_different_search_grid_before_starting():

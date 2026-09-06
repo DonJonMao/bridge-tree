@@ -16,15 +16,20 @@ from .baselines import BaselineResult, cluster_prf, dense_retrieval, rfmem, rfme
 from .budget import CostTracker, SearchBudget
 from .clients import (
     Embedder,
+    GenerationCache,
     GeneratorClient,
     RerankerClient,
+    StateEmbeddingCache,
+    build_generation_messages,
     context_token_count,
     fit_context_budget,
     generation_prompt_hash,
 )
-from .config import AppConfig
+from .config import AppConfig, RetrievalConfig
 from .guided_retriever import RerankerGuidedBridgeRetriever, cached_rerank_all
 from .index import ExactInnerProductIndex, build_index
+from .information import StateBasisProvider
+from .math_utils import nonnegative_cosine
 from .metrics import (
     answer_accuracy,
     answer_parse_failed,
@@ -33,13 +38,92 @@ from .metrics import (
     path_objective_advantage,
     recall_at_k,
 )
-from .personamem import PERSONAMEM_REVISION, PersonaMemExample, iter_examples, messages_to_memories
+from .personamem import (
+    PERSONAMEM_REVISION,
+    PersonaMemExample,
+    file_sha256,
+    iter_examples,
+    messages_to_memories,
+    parse_options,
+)
 from .ranking import RerankCache, build_personamem_rank_query, format_memory_document, stable_union
 from .retriever import BridgeTreeRetriever
-from .types import Memory, RetrievalResult
+from .semantic import discover_frozen_graph, reranker_quality_records, semantic_retrieve
+from .temporal import TransitionCache
+from .types import Memory, QualityRecord, RetrievalResult
+
+
+def _public_service_identity(value: Any) -> dict[str, Any]:
+    """Return non-sensitive model provenance suitable for run artifacts."""
+
+    if hasattr(value, "__dataclass_fields__"):
+        raw = asdict(value)
+    elif isinstance(value, Mapping):
+        raw = dict(value)
+    else:
+        raw = {"model": str(value)}
+    result: dict[str, Any] = {}
+    for key, item in raw.items():
+        normalized = str(key).lower()
+        if normalized in {"api_key", "api_key_env", "authorization", "token", "password", "secret"}:
+            continue
+        if normalized == "endpoint":
+            # Keep a stable identity for cache/audit comparisons without
+            # persisting an internal host or path.
+            result["endpoint_sha256"] = hashlib.sha256(str(item).encode("utf-8")).hexdigest()
+        else:
+            result[str(key)] = item
+    return result
+
+
+def _public_app_config(config: AppConfig) -> dict[str, Any]:
+    """Redact credentials and transport endpoints recursively."""
+
+    def redact(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                str(key): redact(item)
+                for key, item in value.items()
+                if str(key).lower()
+                not in {"api_key", "api_key_env", "authorization", "token", "password", "secret"}
+                and str(key).lower() != "endpoint"
+            }
+        if isinstance(value, (list, tuple)):
+            return [redact(item) for item in value]
+        return value
+
+    result = redact(config.resolved_dict())
+    # Endpoint hashes are useful provenance and avoid a raw URL in the public
+    # artifact.  Walk the service sections explicitly because the generic
+    # redaction above omits the endpoint key.
+    models = result.get("models", {}) if isinstance(result, Mapping) else {}
+    if isinstance(models, Mapping):
+        for section in ("embedding", "reranker", "generator"):
+            original = getattr(config.models, section)
+            public = models.get(section)
+            if isinstance(public, Mapping):
+                public["endpoint_sha256"] = hashlib.sha256(
+                    str(getattr(original, "endpoint", "")).encode("utf-8")
+                ).hexdigest()
+    return result
+
+
+def _read_examples(app_config: AppConfig) -> list[PersonaMemExample]:
+    """Load the configured PersonaMem source for matrix runs."""
+    root = Path(app_config.data.raw_dir)
+    question_path = root / f"questions_{app_config.data.split}.csv"
+    context_path = root / f"shared_contexts_{app_config.data.split}.jsonl"
+    if not question_path.is_file() or not context_path.is_file():
+        raise FileNotFoundError(
+            "PersonaMem raw data is missing; run `bridgetree download-personamem` first"
+        )
+    return list(iter_examples(question_path, context_path))
 
 METHODS = (
     "bridgetree",
+    "semantic_path",
+    "pure_rerank",
+    "frozen_listwise",
     "dense",
     "dense_rerank",
     "dense_rerank_20",
@@ -60,6 +144,159 @@ METHODS = (
     "ablation_direct_path",
 )
 
+SEMANTIC_METHODS = {"semantic_path", "pure_rerank", "frozen_listwise"}
+
+# Fixed-candidate semantic ablation matrix.  Every row is evaluated on the
+# same frozen proposal graph and pointwise quality table; only the selector's
+# path/representation operator changes.
+SEMANTIC_ABLATIONS: Dict[str, Dict[str, Any]] = {
+    "S0": {
+        "label": "Pure-Rerank",
+        "path_mode": "none",
+        "feature_mode": "cached_memory",
+        "selection_mode": "pure_rerank",
+    },
+    "S1": {
+        "label": "Flat-LogDet",
+        "path_mode": "none",
+        "feature_mode": "cached_memory",
+        "selection_mode": "semantic_path_logdet",
+    },
+    "S2": {
+        "label": "Semantic-Path",
+        "path_mode": "posterior_expected_scatter",
+        "feature_mode": "cached_memory",
+        "selection_mode": "semantic_path_logdet",
+    },
+    "S3": {
+        "label": "Semantic-Path-QueryConditioned",
+        "path_mode": "posterior_expected_scatter",
+        "feature_mode": "query_conditioned",
+        "representation_mode": "query_conditioned",
+        "selection_mode": "semantic_path_logdet",
+    },
+    "S2-shuffle": {
+        "label": "Semantic-Path-Shuffled",
+        "path_mode": "shuffle",
+        "feature_mode": "cached_memory",
+        "selection_mode": "semantic_path_logdet",
+    },
+}
+
+
+def semantic_matrix_configs(base: Any) -> Dict[str, RetrievalConfig]:
+    """Return the train-free S0/S1/S2/S3/S2-shuffle configurations."""
+    retrieval = getattr(base, "retrieval", base)
+    resolved: Dict[str, RetrievalConfig] = {}
+    for label, changes in SEMANTIC_ABLATIONS.items():
+        values = {key: value for key, value in changes.items() if key != "label"}
+        candidate = replace(
+            retrieval,
+            profile="semantic_path_v1",
+            proposal_mode="real_member_query_anchor",
+            relation_mode="angular",
+            quality_mode="frozen_reranker",
+            **values,
+        )
+        # S0's pure rerank is still a semantic quality comparison and keeps
+        # the same frozen profile/contract; it simply does not use path
+        # geometry.
+        candidate.validate()
+        resolved[label] = candidate
+    return resolved
+
+# The primary module matrix is intentionally explicit and small.  Auxiliary
+# knobs (clustering/search order) stay shared across rows so a matrix run
+# changes only the four formal operators.
+TMIC_ABLATIONS: Dict[str, Dict[str, Any]] = {
+    "A0": {
+        "label": "R1-Path-Exhaustive",
+        "temporal_measure": False,
+        "measure_propagation": False,
+        "state_information": False,
+        "information_certificate": False,
+        "feature_mode": "path_conditioned",
+        "selection_mode": "path_logdet",
+        "stop_mode": "budget",
+    },
+    "A1": {
+        "label": "R1+T",
+        "temporal_measure": True,
+        "measure_propagation": False,
+        "state_information": False,
+        "information_certificate": False,
+        "feature_mode": "path_conditioned",
+        "selection_mode": "path_logdet",
+        "stop_mode": "budget",
+    },
+    "A2": {
+        "label": "R1+T+M",
+        "temporal_measure": True,
+        "measure_propagation": True,
+        "state_information": False,
+        "information_certificate": False,
+        "feature_mode": "path_conditioned",
+        "selection_mode": "path_logdet",
+        "stop_mode": "budget",
+    },
+    "A3": {
+        "label": "R1+T+M+I",
+        "temporal_measure": True,
+        "measure_propagation": True,
+        "state_information": True,
+        "information_certificate": False,
+        "feature_mode": "path_conditioned",
+        "selection_mode": "path_logdet",
+        "stop_mode": "budget",
+    },
+    "A4": {
+        "label": "Full-TMIC",
+        "temporal_measure": True,
+        "measure_propagation": True,
+        "state_information": True,
+        "information_certificate": True,
+        "feature_mode": "path_conditioned",
+        "selection_mode": "path_logdet",
+        "stop_mode": "certificate_or_budget",
+    },
+}
+
+
+def tmic_matrix_configs(base: Any) -> Dict[str, Any]:
+    """Resolve the fixed A0--A4 configurations from one base config.
+
+    ``base`` may be either a ``RetrievalConfig`` or an ``AppConfig``.  No
+    search/tuning values are learned here; this helper is deliberately pure so
+    confirmatory runs can hash the resulting matrix before execution.
+    """
+    retrieval = getattr(base, "retrieval", base)
+    # TMIC A0--A4 is the historical operator matrix, not the semantic-path
+    # S0--S3 matrix.  The shipped application YAML now selects
+    # ``semantic_path_v1`` for the main runtime, so simply calling
+    # ``dataclasses.replace`` on it would accidentally route every A row
+    # through the semantic profile (and, in particular, make A4's exact
+    # partition certificate unavailable).  Start from an explicit legacy
+    # baseline and let the four TMIC switches below be the only architectural
+    # changes.
+    retrieval = replace(
+        retrieval,
+        profile="legacy_core",
+        proposal_mode="legacy_first_arrival",
+        relation_mode="cosine",
+        quality_mode="direct_cosine",
+        path_mode="legacy",
+        certificate_domain="exact_partition",
+        certificate_mode="off",
+        representation_mode="cached_memory",
+    )
+    resolved: Dict[str, Any] = {}
+    for name, changes in TMIC_ABLATIONS.items():
+        values = {key: value for key, value in changes.items() if key != "label"}
+        candidate = replace(retrieval, **values)
+        candidate.validate()
+        resolved[name] = candidate
+    return resolved
+
 RERANK_METHODS = {
     "dense_rerank",
     "dense_rerank_20",
@@ -73,6 +310,59 @@ RERANK_METHODS = {
 GUIDED_METHODS = {"bridgetree_guided_rerank", "bridgetree_guided_pathfilter"}
 BRIDGE_RERANK_METHODS = GUIDED_METHODS | {"bridgetree_union_rerank"}
 EFFECT_FIRST_METHODS = RERANK_METHODS - {"dense_rerank"}
+
+
+def _state_option_embeddings(
+    example: PersonaMemExample,
+    embedding_cache: EmbeddingCache | None,
+    state_cache: StateEmbeddingCache | None,
+    *,
+    query_text: str | None = None,
+    endpoint: str = "",
+    model: str = "",
+) -> tuple[np.ndarray | None, bool]:
+    """Encode answer options once for I=true without touching labels.
+
+    The option strings only define a frozen coordinate basis; they are never
+    compared with the gold answer.  A cache hit still returns a logical state
+    embedding matrix, while the boolean lets callers account for physical
+    work separately.
+    """
+    if embedding_cache is None:
+        return None, False
+    options = parse_options(example.all_options)
+    if not options:
+        return None, False
+    options_hash = hashlib.sha256(
+        json.dumps(options, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    # Include both the stable question identifier and the actual query text:
+    # a hand-built development fixture may reuse an ID while changing the
+    # wording, and the frozen state basis must never be silently shared in
+    # that case.
+    query_hash = hashlib.sha256(
+        json.dumps(
+            {"question_id": str(example.question_id), "query": query_text if query_text is not None else example.query},
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    key = (
+        state_cache.key_for(
+            endpoint=endpoint,
+            model=model,
+            embedding_fingerprint=embedding_cache.fingerprint,
+            query_hash=query_hash,
+            ordered_path_ids=(),
+            options_hash=options_hash,
+        )
+        if state_cache is not None
+        else ""
+    )
+    if state_cache is None:
+        return embedding_cache.encode_documents(options), False
+    values, hit = state_cache.get_or_encode(key, lambda: embedding_cache.encode_documents(options))
+    return values, hit
 
 
 ABLATION_OPTIONS = {
@@ -208,6 +498,23 @@ def _selected_memories(ids: Iterable[str], memory_by_id: Mapping[str, Memory], c
     return selected
 
 
+def _context_hash(query: str, memories: Sequence[Memory], answer_options: str = "") -> str:
+    """Hash the exact ordered prompt context sent to a generator.
+
+    Using the shared message builder keeps this provenance hash in lockstep
+    with :class:`GeneratorClient` and :class:`GenerationCache`; provenance
+    changes in source/time headers or answer options therefore cannot be
+    mistaken for the same context.
+    """
+    payload = {
+        "prompt_hash": generation_prompt_hash(),
+        "messages": build_generation_messages(query, memories, answer_options),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 def _refresh_rerank_selection_diagnostics(
     diagnostics: Dict[str, Any],
     selected_ids: Sequence[str],
@@ -246,6 +553,13 @@ def retrieve_method(
     index_build_ms: float = 0.0,
     embedding_cache: EmbeddingCache | None = None,
     rerank_cache: RerankCache | None = None,
+    transition_cache: TransitionCache | None = None,
+    option_embeddings: np.ndarray | None = None,
+    state_embedding_cache: StateEmbeddingCache | None = None,
+    quality_provider: Any | None = None,
+    quality_records: Mapping[str, Any] | None = None,
+    representation_provider: Any | None = None,
+    listwise_selector: Any | None = None,
 ) -> Tuple[List[str], List[Memory], Dict[str, Any], RetrievalResult | None]:
     if method not in METHODS:
         raise ValueError(f"unknown method {method}; choose from {METHODS}")
@@ -253,6 +567,102 @@ def retrieve_method(
     memory_by_id = {memory.memory_id: memory for memory in memories}
     k = config.retrieval.context_size
     current_budget = budget or SearchBudget.from_config(config.retrieval)
+    semantic_requested = (
+        method in SEMANTIC_METHODS
+        or getattr(config.retrieval, "profile", "legacy_core") in {"semantic", "semantic_path_v1"}
+        and method == "bridgetree"
+    )
+    if semantic_requested:
+        if method == "frozen_listwise" and listwise_selector is None:
+            # Keep the method routable in offline/legacy smoke runs while
+            # making the absence explicit.  Real listwise experiments must
+            # inject a provider through the public semantic API.
+            def _offline_listwise_selector(_query: Any, records: Mapping[str, Any], _k: int = 0) -> list[str]:
+                return sorted(str(identifier) for identifier in records)[: int(_k)]
+
+            listwise_selector = _offline_listwise_selector
+        semantic_config = config.retrieval
+        if method == "semantic_path":
+            semantic_config = replace(
+                semantic_config,
+                profile="semantic_path_v1",
+                proposal_mode="real_member_query_anchor",
+                relation_mode="angular",
+                path_mode="posterior_expected_scatter",
+                selection_mode="semantic_path_logdet",
+                quality_mode="frozen_reranker" if reranker is not None else semantic_config.quality_mode,
+            )
+        elif method == "pure_rerank":
+            semantic_config = replace(
+                semantic_config,
+                profile="semantic_path_v1",
+                proposal_mode="real_member_query_anchor",
+                relation_mode="angular",
+                selection_mode="pure_rerank",
+                quality_mode="frozen_reranker" if reranker is not None else semantic_config.quality_mode,
+            )
+        elif method == "frozen_listwise":
+            semantic_config = replace(
+                semantic_config,
+                profile="semantic_path_v1",
+                proposal_mode="real_member_query_anchor",
+                relation_mode="angular",
+                selection_mode="frozen_listwise",
+                quality_mode="frozen_reranker" if reranker is not None else semantic_config.quality_mode,
+            )
+        # ``retrieve_method`` is also the compatibility entry point used by
+        # the historical offline matrix tests.  Those callers may request a
+        # named semantic method without injecting a remote reranker.  Keep
+        # the strict ``semantic_retrieve`` contract (which fails loudly for a
+        # declared frozen_reranker with no provider), but make this wrapper's
+        # explicit no-service path use the deterministic direct cosine
+        # quality adapter.  A supplied quality provider/record table remains
+        # authoritative and is never silently replaced.
+        if (
+            reranker is None
+            and quality_provider is None
+            and quality_records is None
+            and semantic_config.quality_mode == "frozen_reranker"
+        ):
+            semantic_config = replace(
+                semantic_config,
+                # ``direct_cosine`` is the semantic constructor's implicit
+                # default and is upgraded to ``frozen_reranker`` whenever a
+                # semantic profile is instantiated.  Use the explicit
+                # ``constant`` compatibility mode here so that ``replace``
+                # cannot upgrade it again; ``semantic_retrieve`` still uses
+                # its deterministic cosine fallback when no provider is
+                # supplied.
+                quality_mode="constant",
+                score_contract="unit_interval",
+            )
+        semantic_config.validate()
+        tracker = cost_tracker or CostTracker(current_budget)
+        result = semantic_retrieve(
+            example.query,
+            query_vector,
+            memories,
+            memory_vectors,
+            semantic_config,
+            index=index,
+            budget=current_budget,
+            cost_tracker=tracker,
+            index_build_ms=index_build_ms,
+            quality_provider=quality_provider,
+            quality_records=quality_records,
+            reranker=reranker,
+            representation_provider=representation_provider,
+            answer_options=example.all_options,
+            query_cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            listwise_selector=listwise_selector,
+            context_token_budget=config.models.generator.context_token_budget,
+            generator_config=config.models.generator,
+        )
+        diagnostics = result.to_dict(include_text=False)
+        diagnostics["_cost_tracker"] = tracker
+        diagnostics["semantic_method"] = method
+        return result.selected_in_greedy_order, result.selected, diagnostics, result
     if method in RERANK_METHODS:
         if not config.models.reranker.endpoint:
             raise ValueError(f"{method} requires a configured reranker endpoint")
@@ -294,6 +704,28 @@ def retrieve_method(
         )
         tracker.index_build_ms += (time.perf_counter() - index_started) * 1000.0
 
+    if config.retrieval.state_information:
+        embedding_fingerprint = getattr(embedding_cache, "fingerprint", "")
+        state_basis_provider = StateBasisProvider(
+            config.retrieval.state_basis_mode,
+            model_fingerprint=embedding_fingerprint,
+            endpoint=config.models.embedding.endpoint,
+        )
+        if option_embeddings is None:
+            option_embeddings, state_cache_hit = _state_option_embeddings(
+                example,
+                embedding_cache,
+                state_embedding_cache,
+                endpoint=config.models.embedding.endpoint,
+                model=config.models.embedding.model,
+            )
+            if option_embeddings is not None:
+                tracker.record_state_embedding(len(parse_options(example.all_options)), 0.0)
+                if state_cache_hit:
+                    tracker.record_cache_hit()
+    else:
+        state_basis_provider = None
+
     if method in ABLATION_OPTIONS:
         retrieval_config = replace(config.retrieval, **ABLATION_OPTIONS[method])
         retrieval_config.validate()
@@ -305,6 +737,12 @@ def retrieve_method(
             index=index,
             budget=current_budget,
             cost_tracker=tracker,
+            answer_options=example.all_options,
+            query_cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            transition_cache=transition_cache,
+            option_embeddings=option_embeddings,
+            state_basis_provider=state_basis_provider,
         )
         diagnostics = bridge_result.to_dict(include_text=False)
         diagnostics["path_objective_advantage"] = path_objective_advantage(bridge_result, k)
@@ -400,6 +838,13 @@ def retrieve_method(
             cost_tracker=tracker,
             initial_hits=dense_hits,
             excluded_candidate_ids=dense_ids,
+            answer_options=example.all_options,
+            query_cutoff=getattr(example, "query_time", None),
+            query_metadata=getattr(example, "metadata", None),
+            transition_cache=transition_cache,
+            option_embeddings=option_embeddings,
+            state_basis_provider=state_basis_provider,
+            initial_hits_accounted=True,
         )
         discovered_ids = list(bridge_result.nodes)
         bridge_ids = [memory_id for memory_id in discovered_ids if memory_id not in set(dense_ids)]
@@ -480,6 +925,13 @@ def retrieve_method(
     elif method == "full_pool_rerank":
         if reranker is None:
             raise ValueError("full_pool_rerank requires a reranker client")
+        # Full-pool reranking is an explicitly diagnostic upper-bound method:
+        # every document is exposed to the reranker even when the retrieval
+        # budget used by efficiency baselines is smaller.  Record that actual
+        # exposure instead of leaving the cost at zero; the opt-out is narrow
+        # and visible in provenance so it cannot be mistaken for a matched
+        # budget run.
+        tracker.record_candidate_exposure(len(ids), enforce_budget=False)
         tracker.mark_visited(ids)
         max_timestamp = max((memory.timestamp for memory in memories), default=0.0)
         rank_query = build_personamem_rank_query(
@@ -505,6 +957,8 @@ def retrieve_method(
             "bridge_raw_ids": [],
             "bridge_kept_ids": [],
             "candidate_union_ids": ids,
+            "candidate_exposure_scope": "full_pool",
+            "candidate_exposure_budget_exempt": True,
             "selected_source_by_id": {memory_id: "full_pool" for memory_id in selected_ids},
             "selected_bridge_count": 0,
             "selected_bridge_rate": 0.0,
@@ -602,9 +1056,15 @@ def run_personamem_experiment(
     bridge_gold_path: str | Path | None = None,
     output_dir: str | Path | None = None,
     run_label: str | None = None,
+    transition_cache: TransitionCache | None = None,
+    generation_cache: GenerationCache | None = None,
 ) -> Dict[str, Any]:
     """Run one method under a fully resolved, recorded evaluation protocol."""
-    if method in RERANK_METHODS and not config.models.reranker.endpoint:
+    semantic_main_method = method == "bridgetree" and getattr(config.retrieval, "profile", "legacy_core") in {
+        "semantic",
+        "semantic_path_v1",
+    }
+    if (method in RERANK_METHODS or semantic_main_method) and not config.models.reranker.endpoint:
         raise ValueError(f"{method} requires a configured reranker endpoint")
     if method in BRIDGE_RERANK_METHODS and config.retrieval.stop_mode == "certificate_or_budget":
         raise ValueError(f"{method} cannot use certificate_or_budget")
@@ -625,21 +1085,39 @@ def run_personamem_experiment(
         asdict(config.models.embedding),
     )
     index_cache = IndexCache()
+    state_embedding_cache = StateEmbeddingCache(Path(config.runtime.cache_dir) / "state")
+    if transition_cache is None:
+        transition_cache = TransitionCache(Path(config.runtime.cache_dir) / "transition")
+    if generation_cache is None:
+        generation_cache = GenerationCache(Path(config.runtime.cache_dir) / "generation")
     generator = GeneratorClient(config.models.generator) if generate else None
-    reranker = RerankerClient(config.models.reranker) if method in RERANK_METHODS else None
+    shared_generation_cache = generation_cache
+    semantic_main = method == "bridgetree" and getattr(config.retrieval, "profile", "legacy_core") in {
+        "semantic",
+        "semantic_path_v1",
+    }
+    reranker = RerankerClient(config.models.reranker) if (method in RERANK_METHODS or semantic_main) else None
     rerank_cache = (
         RerankCache(
             getattr(config.models.reranker, "cache_dir", "outputs/rerank_cache"),
             endpoint=config.models.reranker.endpoint,
             model=config.models.reranker.model,
+            score_space=getattr(config.models.reranker, "score_space", "unit_interval"),
+            task_instruction=getattr(config.models.reranker, "task_instruction", ""),
+            score_contract=getattr(config.models.reranker, "score_contract", "pointwise"),
+            model_fingerprint=getattr(config.models.reranker, "model_fingerprint", "")
+            or getattr(config.models.reranker, "model", ""),
         )
-        if method in RERANK_METHODS
+        if method in RERANK_METHODS or semantic_main
         else None
     )
     bridge_gold = load_bridge_gold(bridge_gold_path)
 
+    # The persisted configuration is a public reproducibility record.  Keep
+    # credentials and raw service URLs out of it while retaining endpoint
+    # hashes for identity/audit comparisons.
     resolved = {
-        "app": config.resolved_dict(),
+        "app": _public_app_config(config),
         "execution": {
             "method": method,
             "limit": limit,
@@ -679,12 +1157,23 @@ def run_personamem_experiment(
         "git_commit": commit or None,
         "data_revision": PERSONAMEM_REVISION,
         "data_split": split,
-        "embedding_model": asdict(config.models.embedding),
-        "generator_model": asdict(config.models.generator),
+        "embedding_model": _public_service_identity(config.models.embedding),
+        "generator_model": _public_service_identity(config.models.generator),
         "prompt_hash": generation_prompt_hash(),
         "seed": config.seed,
         "generate": generate,
         "limit": limit,
+        "retrieval_switches": {
+            name: bool(getattr(config.retrieval, name))
+            for name in (
+                "temporal_measure",
+                "measure_propagation",
+                "state_information",
+                "information_certificate",
+            )
+        },
+        "cache_schema": {"embedding": 1, "transition": 1, "state": 1, "generation": 1},
+        "worktree_clean": None,
     }
     with (run_root / "run_manifest.json").open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)
@@ -752,19 +1241,55 @@ def run_personamem_experiment(
                     index_build_ms=index_build_ms,
                     embedding_cache=cache,
                     rerank_cache=rerank_cache,
+                    transition_cache=transition_cache,
+                    state_embedding_cache=state_embedding_cache,
                 )
                 tracker = diagnostics.pop("_cost_tracker")
-                selected = fit_context_budget(selected, config.models.generator.context_token_budget)
-                retained_ids = {memory.memory_id for memory in selected}
-                selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
+                semantic_result = (
+                    bridge_result is not None
+                    and bridge_result.first_arrival_semantics == "semantic_path_v1"
+                )
+                if semantic_result:
+                    # ContextPlan is authoritative for the semantic path.  A
+                    # plan failure is a protocol failure, not permission to
+                    # silently drop selected memories after the selector.
+                    if bridge_result.context_plan is None:
+                        raise ValueError("semantic retrieval did not produce an exact ContextPlan")
+                    selected = list(selected)
+                    selected_ids = list(bridge_result.selected_in_greedy_order)
+                    context_hash = bridge_result.context_plan.context_hash
+                else:
+                    selected = fit_context_budget(selected, config.models.generator.context_token_budget)
+                    retained_ids = {memory.memory_id for memory in selected}
+                    selected_ids = [memory_id for memory_id in selected_ids if memory_id in retained_ids]
+                    context_hash = _context_hash(example.query, selected, example.all_options)
                 _refresh_rerank_selection_diagnostics(diagnostics, selected_ids)
+                diagnostics["context_hash"] = context_hash
                 tracker.final_context_count = len(selected)
                 tracker.final_context_tokens = context_token_count(selected)
                 response = ""
                 if generator:
                     generation_started = time.perf_counter()
-                    response = generator.answer(example.query, selected, example.all_options)
-                    tracker.generation_ms = (time.perf_counter() - generation_started) * 1000.0
+                    if semantic_result and bridge_result is not None and bridge_result.context_plan is not None:
+                        if shared_generation_cache is not None:
+                            response, generation_hit = shared_generation_cache.answer_plan(
+                                generator, bridge_result.context_plan
+                            )
+                        else:
+                            response = generator.answer_plan(bridge_result.context_plan)
+                            generation_hit = False
+                    elif shared_generation_cache is not None:
+                        response, generation_hit = shared_generation_cache.answer(
+                            generator, example.query, selected, example.all_options
+                        )
+                        if generation_hit:
+                            tracker.record_cache_hit()
+                    else:
+                        response = generator.answer(example.query, selected, example.all_options)
+                        generation_hit = False
+                    tracker.generation_ms = (
+                        (time.perf_counter() - generation_started) * 1000.0 if not generation_hit else 0.0
+                    )
                 latency = time.perf_counter() - started
                 latencies.append(latency)
                 accuracy = answer_accuracy(response, example.correct_answer) if generator else None
@@ -792,6 +1317,9 @@ def run_personamem_experiment(
                         bridge_annotated += 1
                 if bridge_result is not None:
                     bridge_results.append(bridge_result)
+                    bridge_result.context_hash = context_hash
+                    if isinstance(bridge_result.diagnostics, dict):
+                        bridge_result.diagnostics["context_hash"] = context_hash
                     diagnostics = bridge_result.to_dict(include_text=False)
                     diagnostics["diagnostic"] = bridge_result.diagnostic_summary(list(gold_ids) if gold_ids else None)
                     diagnostics["path_objective_advantage"] = path_objective_advantage(
@@ -829,6 +1357,7 @@ def run_personamem_experiment(
                     "response": response,
                     "outcome": outcome,
                     "cost": cost,
+                    "context_hash": context_hash,
                     **{
                         name: cost[name]
                         for name in (
@@ -909,6 +1438,14 @@ def run_personamem_experiment(
         "duplicate_proposals",
         "proposal_count",
         "new_unique_candidates_per_ann",
+        "proposal_ann_calls",
+        "candidate_exposure",
+        "state_embedding_calls",
+        "state_embedding_queries",
+        "state_embedding_ms",
+        "transition_exact_ops",
+        "bound_ops",
+        "cache_hits",
     ]
     mean_cost = {
         name: sum(float(record[name]) for record in cost_records) / len(cost_records) if cost_records else 0.0
@@ -936,7 +1473,9 @@ def run_personamem_experiment(
         "split": split,
         "queries": total,
         "attempted_queries": attempted,
+        "successful_queries": total,
         "failed_queries": failures,
+        "failure_rate": failures / attempted if attempted else 0.0,
         "generated": generate,
         "answer_accuracy": accuracy_sum / total if generate and total else None,
         "parse_failure_rate": parse_failure_sum / total if generate and total else None,
@@ -965,3 +1504,875 @@ def run_personamem_experiment(
         json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
     return {"run_dir": str(run_root), "summary": summary}
+
+
+def run_tmic_matrix(
+    config: AppConfig,
+    embedder: Embedder,
+    *,
+    phase: str = "development",
+    limit: int | None = None,
+    generate: bool = False,
+    examples: Sequence[PersonaMemExample] | None = None,
+    protocol_manifest: str | Path | Mapping[str, Any] | None = None,
+    output_dir: str | Path | None = None,
+    include_auxiliary: bool = False,
+) -> Dict[str, Any]:
+    """Run the fixed A0--A4 TMIC matrix with shared inputs and caches.
+
+    This is a deliberately lightweight scheduler around the single retriever;
+    it is usable with deterministic local embedders in CI and with the normal
+    remote clients in a real experiment.  It never tunes a parameter and
+    records a complete per-question provenance record for every row.
+    """
+    from .clients import GenerationCache
+    from .protocol import protocol_examples, protocol_gate
+
+    config.validate()
+    if limit is not None and limit <= 0:
+        raise ValueError("TMIC limit must be positive")
+    all_examples = list(examples) if examples is not None else _read_examples(config)
+    if protocol_manifest is not None:
+        protocol_gate(
+            phase,
+            manifest=protocol_manifest if isinstance(protocol_manifest, Mapping) else None,
+            manifest_path=protocol_manifest if isinstance(protocol_manifest, (str, Path)) else None,
+            config_hash=config.config_hash(),
+            action="run",
+        )
+        all_examples = list(protocol_examples(protocol_manifest, all_examples, phase))
+    elif phase in {"confirmatory", "confirmatory-test", "development-seen", "full-benchmark"}:
+        raise ValueError(f"phase {phase} requires a persisted protocol manifest")
+    if limit is not None:
+        all_examples = all_examples[:limit]
+    if not all_examples:
+        raise ValueError("TMIC phase has no examples")
+
+    labels = list(TMIC_ABLATIONS)
+    if include_auxiliary:
+        labels.extend(["R1+M", "R1+I"])
+    retrieval_configs = tmic_matrix_configs(config.retrieval)
+    if include_auxiliary:
+        retrieval_configs["R1+M"] = replace(
+            retrieval_configs["A0"],
+            temporal_measure=False,
+            measure_propagation=True,
+            state_information=False,
+            information_certificate=False,
+            feature_mode="path_conditioned",
+            selection_mode="path_logdet",
+            stop_mode="budget",
+        )
+        retrieval_configs["R1+I"] = replace(
+            retrieval_configs["A0"],
+            temporal_measure=False,
+            measure_propagation=False,
+            state_information=True,
+            information_certificate=False,
+            feature_mode="path_conditioned",
+            selection_mode="path_logdet",
+            stop_mode="budget",
+        )
+        retrieval_configs["R1+M"].validate()
+        retrieval_configs["R1+I"].validate()
+
+    root = Path(output_dir or config.runtime.output_dir) / f"tmic_{phase}_{time.time_ns()}"
+    root.mkdir(parents=True, exist_ok=False)
+    embedding_cache = EmbeddingCache(
+        config.runtime.cache_dir,
+        embedder,
+        config.models.embedding.model,
+        asdict(config.models.embedding),
+    )
+    index_cache = IndexCache()
+    transition_cache = TransitionCache(Path(config.runtime.cache_dir) / "transition")
+    state_embedding_cache = StateEmbeddingCache(Path(config.runtime.cache_dir) / "state")
+    generation_cache = GenerationCache(Path(config.runtime.cache_dir) / "generation")
+    generator = GeneratorClient(config.models.generator) if generate else None
+    predictions_by_label: Dict[str, list[Dict[str, Any]]] = {label: [] for label in labels}
+    cost_by_label: Dict[str, list[Dict[str, Any]]] = {label: [] for label in labels}
+    outcome_by_label: Dict[str, list[float]] = {label: [] for label in labels}
+    context_hashes: Dict[str, Dict[str, str]] = {label: {} for label in labels}
+    failures: list[Dict[str, Any]] = []
+
+    # Option embeddings are computed once per question and then shared by the
+    # I=true rows.  They define a frozen coordinate basis only; no gold answer
+    # is ever consulted.  A cache hit still incurs a logical state lookup in
+    # each architecture so cost records remain auditable.
+    for example in all_examples:
+        shared_option_embeddings: np.ndarray | None = None
+        shared_state_provider: StateBasisProvider | None = None
+        state_cache_hit = False
+        state_elapsed_ms = 0.0
+        state_physical_recorded = False
+        option_count = len(parse_options(example.all_options))
+        try:
+            if any(retrieval_configs[label].state_information for label in labels):
+                state_started = time.perf_counter()
+                shared_option_embeddings, state_cache_hit = _state_option_embeddings(
+                    example,
+                    embedding_cache,
+                    state_embedding_cache,
+                    endpoint=config.models.embedding.endpoint,
+                    model=config.models.embedding.model,
+                    query_text=example.query,
+                )
+                state_elapsed_ms = (time.perf_counter() - state_started) * 1000.0
+            if any(retrieval_configs[label].state_information for label in labels):
+                # Share one frozen coordinate-system provider between A3 and
+                # A4 for this question.  Its fingerprint identifies the
+                # actual embedding cache/model rather than the retriever-local
+                # fallback used by bare API callers.  It is also created when
+                # a question has no options, so the identity-basis fallback is
+                # explicitly recorded in provenance.
+                shared_state_provider = StateBasisProvider(
+                    config.retrieval.state_basis_mode,
+                    model_fingerprint=embedding_cache.fingerprint,
+                    endpoint=config.models.embedding.endpoint,
+                )
+        except Exception as exc:
+            # Basis construction is a per-question failure.  Preserve one
+            # explicit failure for every architecture rather than silently
+            # dropping the whole question from the matrix.
+            for label in labels:
+                failures.append(
+                    {
+                        "question_id": example.question_id,
+                        "architecture": label,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+            continue
+
+        try:
+            memories = messages_to_memories(
+                example.messages,
+                source_prefix=example.question_id,
+                include_system_persona=config.data.include_system_persona,
+                memory_granularity=config.data.memory_granularity,
+            )
+            if not memories:
+                raise ValueError("no memories after segmentation")
+            query_vector = embedding_cache.encode_query(example.query)
+            memory_vectors = embedding_cache.encode_documents([memory.text for memory in memories])
+            context_key = (
+                f"{example.shared_context_id}:{example.end_index}:"
+                f"{config.data.memory_granularity}:{config.data.include_system_persona}"
+            )
+            index, index_build_ms, index_hit = index_cache.get(
+                context_key,
+                embedding_cache.fingerprint,
+                config.retrieval.index_backend,
+                [memory.memory_id for memory in memories],
+                memory_vectors,
+                config.retrieval.faiss_exclusion_margin,
+            )
+        except Exception as exc:
+            for label in labels:
+                failures.append(
+                    {
+                        "question_id": example.question_id,
+                        "architecture": label,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+            continue
+
+        for label in labels:
+            try:
+                retrieval_config = retrieval_configs[label]
+                tracker = CostTracker(SearchBudget.from_config(retrieval_config))
+                if retrieval_config.state_information and shared_option_embeddings is not None:
+                    tracker.record_state_embedding(
+                        option_count,
+                        state_elapsed_ms
+                        if not state_cache_hit and not state_physical_recorded
+                        else 0.0,
+                    )
+                    if state_cache_hit or state_physical_recorded:
+                        tracker.record_cache_hit()
+                    state_physical_recorded = True
+                result = BridgeTreeRetriever(retrieval_config).retrieve(
+                    example.query,
+                    query_vector,
+                    memories,
+                    memory_vectors,
+                    index=index,
+                    budget=tracker.budget,
+                    cost_tracker=tracker,
+                    index_build_ms=index_build_ms,
+                    answer_options=example.all_options,
+                    option_embeddings=shared_option_embeddings if retrieval_config.state_information else None,
+                    state_basis_provider=shared_state_provider if retrieval_config.state_information else None,
+                    query_cutoff=getattr(example, "query_time", None),
+                    query_metadata=getattr(example, "metadata", None),
+                    transition_cache=transition_cache,
+                    state_embedding_cache=state_embedding_cache,
+                    context_token_budget=config.models.generator.context_token_budget,
+                    generator_config=config.models.generator,
+                    # A0 is intentionally routed through the unified path so
+                    # its T=0 transition/path/atom provenance is present even
+                    # though ordinary legacy CLI calls remain unchanged.
+                    force_tmic=True,
+                )
+                # ContextPlan is the sole source of the final context.  A
+                # missing plan means the selected set could not satisfy the
+                # declared request/budget contract; record an explicit row
+                # failure rather than silently dropping memories here.
+                if result.context_plan is None:
+                    plan_error = result.diagnostics.get("context_plan_error", {})
+                    detail = (
+                        f": {plan_error.get('message')}"
+                        if isinstance(plan_error, Mapping) and plan_error.get("message")
+                        else ""
+                    )
+                    raise ValueError(
+                        "TMIC retrieval did not produce a valid ContextPlan" + detail
+                    )
+                context_plan = result.context_plan
+                memory_by_id = {str(memory.memory_id): memory for memory in memories}
+                selected_ids = list(context_plan.chronological_ids)
+                selected = [memory_by_id[memory_id] for memory_id in selected_ids]
+                context_hash = context_plan.context_hash
+                response = ""
+                generation_hit = False
+                generation_elapsed_ms = 0.0
+                if generator is not None:
+                    generation_started = time.perf_counter()
+                    response, generation_hit = generation_cache.answer_plan(generator, context_plan)
+                    generation_elapsed_ms = (time.perf_counter() - generation_started) * 1000.0
+                    if generation_hit:
+                        tracker.record_cache_hit()
+                        generation_elapsed_ms = 0.0
+                    tracker.generation_ms = generation_elapsed_ms
+                accuracy = answer_accuracy(response, example.correct_answer) if generator is not None else None
+                if accuracy is not None:
+                    outcome_by_label[label].append(float(accuracy))
+                tracker.final_context_count = len(selected)
+                # ContextPlan is authoritative for the actual request; the
+                # memory-only helper would undercount system/query/options
+                # tokens and make matrix rows claim a different context cost.
+                tracker.final_context_tokens = context_plan.token_count
+                cost = tracker.snapshot().to_dict()
+                cost_by_label[label].append(cost)
+                context_hashes[label][str(example.question_id)] = context_hash
+                record = {
+                    "persona_id": example.persona_id,
+                    "question_id": example.question_id,
+                    "architecture": label,
+                    "selected_memory_ids": selected_ids,
+                    "selected_in_greedy_order": list(result.selected_in_greedy_order),
+                    "response": response,
+                    "outcome": {"answer_accuracy": accuracy} if accuracy is not None else {},
+                    "cost": cost,
+                    "context_hash": context_hash,
+                    "index_cache_hit": index_hit,
+                    "generation_cache_hit": generation_hit,
+                    "provenance": result.to_dict(include_text=False),
+                }
+                predictions_by_label[label].append(record)
+            except Exception as exc:
+                failures.append(
+                    {
+                        "question_id": example.question_id,
+                        "architecture": label,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+
+    summaries: Dict[str, Any] = {}
+    for label in labels:
+        costs = cost_by_label[label]
+        numeric_names = sorted(
+            {
+                key
+                for cost in costs
+                for key, value in cost.items()
+                if isinstance(value, (int, float))
+            }
+        )
+        mean_cost = {
+            key: sum(float(cost.get(key, 0.0)) for cost in costs) / len(costs) if costs else 0.0
+            for key in numeric_names
+        }
+        summaries[label] = {
+            "architecture": label,
+            "queries": len(predictions_by_label[label]),
+            "attempted_queries": len(all_examples),
+            "failed_queries": len(all_examples) - len(predictions_by_label[label]),
+            "failure_rate": (
+                (len(all_examples) - len(predictions_by_label[label])) / len(all_examples)
+                if all_examples
+                else 0.0
+            ),
+            "answer_accuracy": (
+                sum(outcome_by_label[label]) / len(outcome_by_label[label])
+                if outcome_by_label[label]
+                else None
+            ),
+            "mean_cost": mean_cost,
+            "context_hashes": context_hashes[label],
+        }
+        with (root / f"predictions_{label}.jsonl").open("w", encoding="utf-8") as handle:
+            for record in predictions_by_label[label]:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    # Record source and repository identity alongside the resolved matrix.  A
+    # later audit can therefore distinguish a reproducible failure from a
+    # silently changed dataset/configuration.
+    repository_root = Path(__file__).resolve().parents[2]
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repository_root, check=False, capture_output=True, text=True
+    ).stdout.strip()
+    try:
+        dirty = bool(
+            subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=repository_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        )
+    except OSError:
+        dirty = None
+    question_ids = [str(example.question_id) for example in all_examples]
+    persona_ids = sorted({str(example.persona_id) for example in all_examples})
+    raw_root = Path(config.data.raw_dir)
+    source_paths = (
+        raw_root / f"questions_{config.data.split}.csv",
+        raw_root / f"shared_contexts_{config.data.split}.jsonl",
+    )
+    source_sha256 = {
+        path.name: file_sha256(path)
+        for path in source_paths
+        if path.is_file()
+    }
+    resolved_matrix = {
+        label: {
+            **asdict(retrieval_configs[label]),
+            "label": TMIC_ABLATIONS.get(label, {}).get("label", label),
+        }
+        for label in labels
+    }
+    matrix_payload = {
+        "phase": phase,
+        "base_config": _public_app_config(config),
+        "retrieval_matrix": resolved_matrix,
+        "architectures": labels,
+    }
+    matrix_config_hash = hashlib.sha256(
+        json.dumps(matrix_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    (root / "resolved_config.json").write_text(
+        json.dumps(
+            {
+                "config_hash": matrix_config_hash,
+                "app_config_hash": config.config_hash(),
+                "config": {
+                    **matrix_payload,
+                    "base_config": _public_app_config(config),
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    manifest = {
+        # A local ``phase=development`` matrix may intentionally run without
+        # a persisted split manifest.  Do not label that exploratory run as a
+        # confirmatory_v1 result; the protocol identity is present only when
+        # its authoritative manifest was actually gated above.
+        "protocol": "confirmatory_v1" if protocol_manifest is not None else None,
+        "protocol_version": 1 if protocol_manifest is not None else None,
+        "phase": phase,
+        "architectures": labels,
+        "tmic_ablation_definitions": {label: TMIC_ABLATIONS.get(label, {}) for label in labels},
+        "resolved_retrieval_configs": resolved_matrix,
+        "queries": len(all_examples),
+        "question_ids": question_ids,
+        "question_id_sha256": hashlib.sha256("\n".join(question_ids).encode("utf-8")).hexdigest(),
+        "personas": persona_ids,
+        "persona_count": len(persona_ids),
+        "persona_id_sha256": hashlib.sha256("\n".join(persona_ids).encode("utf-8")).hexdigest(),
+        "seed": config.seed,
+        "config_hash": config.config_hash(),
+        "matrix_config_hash": matrix_config_hash,
+        "protocol_manifest": str(protocol_manifest) if protocol_manifest is not None else None,
+        "resolved_config": _public_app_config(config),
+        "data_revision": PERSONAMEM_REVISION,
+        "data_split": config.data.split,
+        "source_sha256": source_sha256,
+        "git_commit": commit or None,
+        "worktree_clean": (not dirty) if dirty is not None else None,
+        "budget": asdict(SearchBudget.from_config(config.retrieval)),
+        "embedding_fingerprint": embedding_cache.fingerprint,
+        "embedding_model": _public_service_identity(config.models.embedding),
+        "generator_model": _public_service_identity(config.models.generator),
+        "prompt_hash": generation_prompt_hash(),
+        "generation": generate,
+        "failures": failures,
+        "cache_schema": {"transition": 1, "generation": 1, "state": 1},
+    }
+    (root / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (root / "failures.jsonl").write_text(
+        "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in failures), encoding="utf-8"
+    )
+    summary = {
+        "phase": phase,
+        "run_dir": str(root),
+        "architectures": summaries,
+        "failures": failures,
+        "shared_inputs": True,
+        "a3_a4_context_hash_equal_count": sum(
+            summaries.get("A3", {}).get("context_hashes", {}).get(q)
+            == summaries.get("A4", {}).get("context_hashes", {}).get(q)
+            for q in set(summaries.get("A3", {}).get("context_hashes", {}))
+            & set(summaries.get("A4", {}).get("context_hashes", {}))
+        ),
+    }
+    (root / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    # A compact combined stream is convenient for audit tools.
+    with (root / "predictions.jsonl").open("w", encoding="utf-8") as handle:
+        for label in labels:
+            for record in predictions_by_label[label]:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return {"run_dir": str(root), "summary": summary, "manifest": manifest}
+
+
+def run_semantic_matrix(
+    config: AppConfig,
+    embedder: Embedder,
+    *,
+    phase: str = "development",
+    limit: int | None = None,
+    generate: bool = False,
+    examples: Sequence[PersonaMemExample] | None = None,
+    protocol_manifest: str | Path | Mapping[str, Any] | None = None,
+    output_dir: str | Path | None = None,
+    reranker: Any | None = None,
+    quality_provider: Any | None = None,
+) -> Dict[str, Any]:
+    """Run the fixed semantic S0--S2-shuffle matrix on shared frozen pools.
+
+    Candidate discovery and pointwise quality are performed once per question;
+    each architecture receives the exact same frozen graph and quality table.
+    This makes a path-vs-flat comparison interpretable and keeps the command
+    usable with deterministic local clients in CI.
+    """
+    from .information import validate_quality_records
+    from .protocol import protocol_examples, protocol_gate
+
+    config.validate()
+    if limit is not None and limit <= 0:
+        raise ValueError("semantic matrix limit must be positive")
+    all_examples = list(examples) if examples is not None else _read_examples(config)
+    if protocol_manifest is not None:
+        protocol_gate(
+            phase,
+            manifest=protocol_manifest if isinstance(protocol_manifest, Mapping) else None,
+            manifest_path=protocol_manifest if isinstance(protocol_manifest, (str, Path)) else None,
+            config_hash=config.config_hash(),
+            action="run",
+        )
+        all_examples = list(protocol_examples(protocol_manifest, all_examples, phase))
+    elif phase in {"confirmatory", "confirmatory-test", "development-seen", "full-benchmark"}:
+        raise ValueError(f"phase {phase} requires a persisted protocol manifest")
+    if limit is not None:
+        all_examples = all_examples[:limit]
+    if not all_examples:
+        raise ValueError("semantic matrix phase has no examples")
+
+    labels = list(SEMANTIC_ABLATIONS)
+    retrieval_configs = semantic_matrix_configs(config)
+    root = Path(output_dir or config.runtime.output_dir) / f"semantic_{phase}_{time.time_ns()}"
+    root.mkdir(parents=True, exist_ok=False)
+    embedding_cache = EmbeddingCache(
+        config.runtime.cache_dir,
+        embedder,
+        config.models.embedding.model,
+        asdict(config.models.embedding),
+    )
+    generation_cache = GenerationCache(Path(config.runtime.cache_dir) / "generation")
+    generator = GeneratorClient(config.models.generator) if generate else None
+    predictions_by_label: Dict[str, list[Dict[str, Any]]] = {label: [] for label in labels}
+    costs_by_label: Dict[str, list[Dict[str, Any]]] = {label: [] for label in labels}
+    accuracy_by_label: Dict[str, list[float]] = {label: [] for label in labels}
+    failures: list[Dict[str, Any]] = []
+    shared_costs_by_question: dict[str, dict[str, Any]] = {}
+
+    for example in all_examples:
+        try:
+            memories = messages_to_memories(
+                example.messages,
+                source_prefix=example.question_id,
+                include_system_persona=config.data.include_system_persona,
+                memory_granularity=config.data.memory_granularity,
+            )
+            if not memories:
+                raise ValueError("no memories after segmentation")
+            query_vector = embedding_cache.encode_query(example.query)
+            memory_vectors = embedding_cache.encode_documents([memory.text for memory in memories])
+            index, index_build_ms, index_hit = IndexCache().get(
+                f"semantic:{example.shared_context_id}:{example.end_index}:{config.data.memory_granularity}",
+                embedding_cache.fingerprint,
+                config.retrieval.index_backend,
+                [memory.memory_id for memory in memories],
+                memory_vectors,
+                config.retrieval.faiss_exclusion_margin,
+            )
+            discovery_budget = SearchBudget.from_config(config.retrieval)
+            discovery_tracker = CostTracker(discovery_budget)
+            graph, graph_diagnostics, _tracker, index = discover_frozen_graph(
+                memories,
+                memory_vectors,
+                query_vector,
+                initial_width=config.retrieval.initial_width,
+                branch_width=config.retrieval.branch_width,
+                proposal_width=config.retrieval.proposal_width,
+                max_depth=config.retrieval.max_depth,
+                budget=discovery_budget,
+                tracker=discovery_tracker,
+                index=index,
+                relation_mode="angular",
+                proposal_mode="real_member_query_anchor",
+                cutoff=getattr(example, "query_time", None),
+                query_text=example.query,
+                proposal_query_provider=embedding_cache,
+                proposal_query_instruction=config.bridge_rerank.bridge_query_instruction,
+            )
+            shared_discovery_cost = discovery_tracker.snapshot()
+            shared_costs_by_question[str(example.question_id)] = {
+                "discovery": shared_discovery_cost.to_dict(),
+            }
+            records = {memory.memory_id: memory for memory in memories if memory.memory_id in graph.memory_ids}
+            quality_started = time.perf_counter()
+            if reranker is not None:
+                qualities = reranker_quality_records(
+                    reranker,
+                    example.query,
+                    records,
+                    answer_options=example.all_options,
+                    score_space=config.retrieval.quality_score_space,
+                    scorer_fingerprint=config.retrieval.scorer_fingerprint,
+                    query_cutoff=getattr(example, "query_time", None),
+                    query_metadata=getattr(example, "metadata", None),
+                )
+            elif quality_provider is not None:
+                provider_method = getattr(quality_provider, "score_all", None)
+                if callable(provider_method):
+                    provider_output = provider_method(example.query, records)
+                elif callable(quality_provider):
+                    provider_output = quality_provider(example.query, records)
+                else:
+                    provider_output = quality_provider
+                qualities = validate_quality_records(
+                    provider_output,
+                    graph.memory_ids,
+                    score_space=config.retrieval.quality_score_space,
+                    scorer_fingerprint=config.retrieval.scorer_fingerprint,
+                )
+            else:
+                # Explicit offline adapter for matrix smoke tests.  The run
+                # manifest marks this source so it cannot be confused with a
+                # frozen reranker experiment.
+                offline_space = str(config.retrieval.quality_score_space)
+                qualities = {
+                    identifier: QualityRecord.from_raw(
+                        identifier,
+                        (
+                            nonnegative_cosine(query_vector, index.vector(identifier))
+                            if offline_space == "unit_interval"
+                            else np.log(
+                                np.clip(
+                                    nonnegative_cosine(query_vector, index.vector(identifier)),
+                                    1e-6,
+                                    1.0 - 1e-6,
+                                )
+                                / (
+                                    1.0
+                                    - np.clip(
+                                        nonnegative_cosine(query_vector, index.vector(identifier)),
+                                        1e-6,
+                                        1.0 - 1e-6,
+                                    )
+                                )
+                            )
+                        ),
+                        offline_space,
+                        scorer_fingerprint="offline-direct-cosine",
+                    )
+                    for identifier in graph.memory_ids
+                }
+            shared_quality_ms = (time.perf_counter() - quality_started) * 1000.0
+            shared_quality_documents = len(records) if reranker is not None else 0
+            shared_costs_by_question[str(example.question_id)]["quality"] = {
+                "rerank_calls": 1 if reranker is not None else 0,
+                "rerank_documents": shared_quality_documents,
+                "elapsed_ms": shared_quality_ms,
+            }
+
+            # Materialize query-conditioned representations once and share
+            # them between the only row that needs them and any repeated run.
+            query_representations: dict[str, np.ndarray] | None = None
+            query_representation_error: dict[str, str] | None = None
+            shared_state_embedding_ms = 0.0
+            if retrieval_configs["S3"].feature_mode == "query_conditioned":
+                state_texts = [
+                    (
+                        "Assess this personal memory for the current task.\n"
+                        f"Task: {example.query}\nOptions: {example.all_options}\n"
+                        f"Memory: {records[identifier].text}"
+                    )
+                    for identifier in graph.memory_ids
+                ]
+                try:
+                    state_started = time.perf_counter()
+                    state_vectors = embedding_cache.encode_queries(
+                        state_texts,
+                        instruction="",
+                        purpose="semantic_query_conditioned",
+                    )
+                    query_representations = {
+                        identifier: state_vectors[position]
+                        for position, identifier in enumerate(graph.memory_ids)
+                    }
+                    shared_state_embedding_ms = (time.perf_counter() - state_started) * 1000.0
+                    shared_costs_by_question[str(example.question_id)]["state_embedding"] = {
+                        "calls": 1,
+                        "queries": len(graph.memory_ids),
+                        "elapsed_ms": shared_state_embedding_ms,
+                    }
+                except Exception as exc:
+                    # Query-conditioned representations are a distinct
+                    # architecture, not an optional hint.  Falling back to
+                    # cached memory vectors would silently relabel S3 as S2
+                    # and invalidate the matrix comparison.  Keep the other
+                    # rows runnable, but emit an explicit S3 failure below.
+                    query_representation_error = {
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                    shared_costs_by_question[str(example.question_id)]["state_embedding"] = {
+                        "calls": 0,
+                        "queries": 0,
+                        "elapsed_ms": 0.0,
+                        "status": "failed",
+                        **query_representation_error,
+                    }
+            for label in labels:
+                try:
+                    retrieval_config = retrieval_configs[label]
+                    if label == "S3" and query_representation_error is not None:
+                        raise RuntimeError(
+                            "query-conditioned representation service failed: "
+                            + query_representation_error["message"]
+                        )
+                    tracker = CostTracker(SearchBudget.from_config(retrieval_config))
+                    tracker.index_build_ms = float(index_build_ms)
+                    tracker.inherit_shared_cost(shared_discovery_cost)
+                    if label == "S3" and query_representations is not None:
+                        tracker.shared_state_embedding_calls = 1
+                        tracker.shared_state_embedding_queries = len(graph.memory_ids)
+                        tracker.shared_state_embedding_ms = shared_state_embedding_ms
+                    if reranker is not None:
+                        tracker.shared_rerank_calls = 1
+                        tracker.shared_rerank_documents = len(records)
+                        tracker.shared_rerank_ms = shared_quality_ms
+                    tracker.mark_visited(graph.memory_ids)
+                    representation_provider = (
+                        query_representations
+                        if label == "S3" and query_representations is not None
+                        else {identifier: index.vector(identifier) for identifier in graph.memory_ids}
+                    )
+                    result = semantic_retrieve(
+                        example.query,
+                        query_vector,
+                        memories,
+                        memory_vectors,
+                        retrieval_config,
+                        index=index,
+                        budget=tracker.budget,
+                        cost_tracker=tracker,
+                        quality_records=qualities,
+                        representation_provider=representation_provider,
+                        answer_options=example.all_options,
+                        query_cutoff=getattr(example, "query_time", None),
+                        query_metadata=getattr(example, "metadata", None),
+                        context_token_budget=config.models.generator.context_token_budget,
+                        generator_config=config.models.generator,
+                        frozen_graph=graph,
+                    )
+                    response = ""
+                    generation_hit = False
+                    if generator is not None:
+                        response, generation_hit = generation_cache.answer_plan(generator, result.context_plan)
+                        if generation_hit:
+                            tracker.record_cache_hit()
+                    accuracy = answer_accuracy(response, example.correct_answer) if generator is not None else None
+                    if accuracy is not None:
+                        accuracy_by_label[label].append(float(accuracy))
+                    tracker.final_context_count = len(result.selected_context)
+                    tracker.final_context_tokens = result.context_plan.token_count if result.context_plan else 0
+                    cost = tracker.snapshot().to_dict()
+                    costs_by_label[label].append(cost)
+                    record = {
+                        "persona_id": example.persona_id,
+                        "question_id": example.question_id,
+                        "architecture": label,
+                        "selected_memory_ids": list(result.selected_context),
+                        "selected_in_greedy_order": list(result.selected_in_greedy_order),
+                        "response": response,
+                        "outcome": {"answer_accuracy": accuracy} if accuracy is not None else {},
+                        "cost": cost,
+                        "context_hash": result.context_hash,
+                        "generation_cache_hit": generation_hit,
+                        "shared_graph_hash": graph.graph_hash,
+                        "shared_quality": {identifier: value.public_dict() for identifier, value in qualities.items()},
+                        "provenance": result.to_dict(include_text=False),
+                        "index_cache_hit": index_hit,
+                        "shared_discovery_cost": shared_discovery_cost.to_dict(),
+                        "shared_quality_cost": {
+                            "rerank_calls": 1 if reranker is not None else 0,
+                            "rerank_documents": shared_quality_documents,
+                            "elapsed_ms": shared_quality_ms,
+                        },
+                        "shared_state_embedding_cost": {
+                            "calls": 1 if label == "S3" and query_representations is not None else 0,
+                            "queries": len(graph.memory_ids)
+                            if label == "S3" and query_representations is not None
+                            else 0,
+                            "elapsed_ms": shared_state_embedding_ms
+                            if label == "S3" and query_representations is not None
+                            else 0.0,
+                        },
+                        "representation_status": (
+                            "query_conditioned"
+                            if label == "S3"
+                            else "cached_memory"
+                        ),
+                    }
+                    predictions_by_label[label].append(record)
+                except Exception as exc:
+                    failures.append(
+                        {
+                            "question_id": example.question_id,
+                            "architecture": label,
+                            "error_type": type(exc).__name__,
+                            "message": str(exc),
+                        }
+                    )
+        except Exception as exc:
+            for label in labels:
+                failures.append(
+                    {
+                        "question_id": example.question_id,
+                        "architecture": label,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+
+    summaries: Dict[str, Any] = {}
+    for label in labels:
+        costs = costs_by_label[label]
+        numeric_names = sorted(
+            {
+                key for cost in costs for key, value in cost.items() if isinstance(value, (int, float))
+            }
+        )
+        summaries[label] = {
+            "architecture": label,
+            "queries": len(predictions_by_label[label]),
+            "attempted_queries": len(all_examples),
+            "successful_queries": len(predictions_by_label[label]),
+            "failed_queries": len(all_examples) - len(predictions_by_label[label]),
+            "failure_rate": (len(all_examples) - len(predictions_by_label[label])) / len(all_examples),
+            "answer_accuracy": (
+                sum(accuracy_by_label[label]) / len(accuracy_by_label[label])
+                if accuracy_by_label[label]
+                else None
+            ),
+            "mean_cost": {
+                key: sum(float(cost.get(key, 0.0)) for cost in costs) / len(costs) if costs else 0.0
+                for key in numeric_names
+            },
+        }
+        (root / f"predictions_{label}.jsonl").write_text(
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in predictions_by_label[label]),
+            encoding="utf-8",
+        )
+
+    repository_root = Path(__file__).resolve().parents[2]
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repository_root, check=False, capture_output=True, text=True
+    ).stdout.strip()
+    source_paths = (
+        Path(config.data.raw_dir) / f"questions_{config.data.split}.csv",
+        Path(config.data.raw_dir) / f"shared_contexts_{config.data.split}.jsonl",
+    )
+    manifest = {
+        "protocol": "confirmatory_v1" if protocol_manifest is not None else None,
+        "phase": phase,
+        "architectures": labels,
+        "semantic_ablation_definitions": SEMANTIC_ABLATIONS,
+        "resolved_retrieval_configs": {label: asdict(value) for label, value in retrieval_configs.items()},
+        "queries": len(all_examples),
+        "question_ids": [str(example.question_id) for example in all_examples],
+        "question_id_sha256": hashlib.sha256(
+            "\n".join(str(example.question_id) for example in all_examples).encode("utf-8")
+        ).hexdigest(),
+        "seed": config.seed,
+        "config_hash": config.config_hash(),
+        "data_revision": PERSONAMEM_REVISION,
+        "data_split": config.data.split,
+        "source_sha256": {
+            path.name: file_sha256(path) for path in source_paths if path.is_file()
+        },
+        "git_commit": commit or None,
+        "embedding_fingerprint": embedding_cache.fingerprint,
+        "generation": generate,
+        "quality_source": (
+            "reranker"
+            if reranker is not None
+            else "provider"
+            if quality_provider is not None
+            else "offline-direct-cosine"
+        ),
+        "shared_candidate_pool": True,
+        "shared_costs_by_question": shared_costs_by_question,
+        "failures": failures,
+    }
+    (root / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (root / "failures.jsonl").write_text(
+        "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in failures), encoding="utf-8"
+    )
+    summary = {
+        "phase": phase,
+        "run_dir": str(root),
+        "architectures": summaries,
+        "failures": failures,
+        "shared_candidate_pool": True,
+    }
+    (root / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with (root / "predictions.jsonl").open("w", encoding="utf-8") as handle:
+        for label in labels:
+            for record in predictions_by_label[label]:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return {"run_dir": str(root), "summary": summary, "manifest": manifest}

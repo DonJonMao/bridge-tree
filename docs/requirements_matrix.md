@@ -37,4 +37,29 @@
 | Separate ANN/rerank/bridge-embedding accounting and traceable candidate provenance | `budget.py`, `module_metrics.py`, prediction artifacts | `test_budget_index.py`, `test_training.py` |
 | Validation-only six-method matrix, point-estimate selection, report-only paired bootstrap | `run_effect_first_validation`, effect-first config/script | `test_training.py`, `test_cli.py` |
 
+## TMIC and confirmatory-protocol requirements
+
+| Design requirement | Implementation evidence | Verification |
+| --- | --- | --- |
+| T: angular-rank transition with explicit temporal overlap, `K_q` and row-stochastic `P_q` | `temporal.py`, `build_transition_matrix`, `TransitionCache` | temporal-kernel regression and cache tests; `audit-tmic` |
+| Time metadata distinguishes instant, durative and unknown marks; missing time is neutral and observable | `TimeMark`, `build_time_marks`, `temporal_overlap_kernel`, `Memory.time_metadata` | time-mark/overlap tests; serialized temporal diagnostics |
+| Message index is an observation order, never an implicit calendar/recency weight | `messages_to_memories`, `TimeMark.time_source=message_index` | data-schema review and temporal diagnostics |
+| M: real-member mass normalization and transition propagation | `measure.py` (`branch_measure`, `normalize_member_mass`, `propagate_mass`) | posterior/mass tests; `predictions_A2+` provenance |
+| M proposals use real member vectors, deterministic round-robin, and never centroids/probes | `retriever._retrieve_tmic` | proposal-vector and provenance audit |
+| All positive parent posteriors and posterior-normalized path hypotheses are retained | `parent_posterior`, `enumerate_path_hypotheses`, `merge_path_hypotheses`, `RetrievalResult.path_hypotheses` | multi-parent/path audit in `run_audit.py` |
+| I: frozen option-contrast basis with identity fallback and PSD path atoms | `information.py` (`StateBasisProvider`, `InformationAtom`) | basis freeze, finite/shape, PSD and log-det tests |
+| I objective is fixed `logdet(I + ΣQ)` and does not fit answer labels | `InformationObjective`, `aggregate_path_atoms` | information-objective tests; protocol inspection |
+| C: certificate only for explicit finite, non-overlapping exact domains with auditable bounds | `rebuild_domains_and_bounds`, `certificate_status` | `audit-tmic`; unavailable-domain regression |
+| Certificate failure is explicit (`certificate_unavailable`) and budget/depth search continues | `retriever.py`, `budget.py` | C/ANN/backend and `stop_mode=budget` tests |
+| A0–A4 fixed module matrix, train-free, with shared A3/A4 basis/cache and conditional generation identity | CLI `run-tmic-matrix`, `experiment.py`, `run_audit.py` | matrix smoke run and `audit-tmic` |
+| Per-row provenance includes transitions, masses, paths, atoms, domains, gaps, context hash and layered cost | `RetrievalResult`, prediction serializers, `CostTracker` | persisted-artifact audit |
+| Leakage-safe `confirmatory_v1` initialization, audit, freeze and phase gate | `protocol.py`, CLI `protocol` commands, `training.py` | `protocol audit`; confirmatory gate tests |
+| Development-only answer-effect oracle; no logprob means `oracle_unavailable` | `oracle.py`, training/evaluation integration | oracle status tests and phase-gate checks |
+
+TMIC claims are limited to the deterministic induced tree, transition/path
+provenance, and the finite-domain search bound.  The PSD/log-det objective is a
+query-state surrogate; it is not an answer-label mutual-information estimate.
+Answer quality and any oracle result remain separate outcome fields.  A
+certificate is never inferred from an ANN-only or otherwise incomplete domain.
+
 Scope is intentionally faithful to the paper boundary: mathematical claims apply to the deterministic induced tree and `F_q`; answer quality is evaluated separately and is not claimed to inherit the proxy certificate.

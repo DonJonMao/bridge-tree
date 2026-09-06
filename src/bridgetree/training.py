@@ -16,8 +16,10 @@ import yaml
 from .budget import CostTracker, SearchBudget
 from .clients import (
     Embedder,
+    GenerationCache,
     GeneratorClient,
     RerankerClient,
+    StateEmbeddingCache,
     context_token_count,
     fit_context_budget,
     generation_prompt_hash,
@@ -30,6 +32,7 @@ from .experiment import (
     RERANK_METHODS,
     EmbeddingCache,
     IndexCache,
+    _public_app_config,
     _refresh_rerank_selection_diagnostics,
     load_bridge_gold,
     retrieve_method,
@@ -59,6 +62,7 @@ from .personamem import (
     messages_to_memories,
 )
 from .ranking import RerankCache
+from .temporal import TransitionCache
 
 DEFAULT_DIAGNOSTIC_METHODS = (
     "bridgetree",
@@ -135,8 +139,28 @@ class TrainingExperimentConfig:
     fail_on_evaluation_error: bool = True
     keep_example_metrics: bool = True
     output_dir: str = "outputs/training"
+    # ``phase`` is optional for backwards compatibility.  A confirmatory
+    # protocol explicitly rejects tuning/training before any examples are
+    # traversed.
+    phase: str = "development"
+    # A persisted path is the normal CLI spelling, while accepting an
+    # in-memory mapping keeps programmatic/notebook callers from having to
+    # round-trip a manifest through a temporary file.  The protocol helpers
+    # validate either representation identically.
+    protocol_manifest: str | Path | Mapping[str, Any] | None = None
 
     def validate(self) -> None:
+        if self.phase not in {
+            "development",
+            "development-seen",
+            "confirmatory",
+            "confirmatory-test",
+            "full",
+            "full-benchmark",
+        }:
+            raise ValueError("unknown training protocol phase")
+        if self.phase in {"confirmatory", "confirmatory-test"}:
+            raise ValueError("confirmatory-test forbids tune/train")
         ratios = (self.split.train_ratio, self.split.validation_ratio, self.split.test_ratio)
         if any(value <= 0.0 for value in ratios) or abs(sum(ratios) - 1.0) > 1e-9:
             raise ValueError("train/validation/test ratios must be positive and sum to 1")
@@ -234,6 +258,8 @@ def load_training_config(path: str | Path) -> TrainingExperimentConfig:
         fail_on_evaluation_error=bool(raw.get("fail_on_evaluation_error", True)),
         keep_example_metrics=bool(raw.get("keep_example_metrics", True)),
         output_dir=str(raw.get("output_dir", "outputs/training")),
+        phase=str(raw.get("phase", "development")),
+        protocol_manifest=raw.get("protocol_manifest"),
     )
     config.validate()
     return config
@@ -446,6 +472,9 @@ class TrainingEvaluator:
             model=app_config.models.reranker.model,
         )
         self.index_cache = IndexCache()
+        self.state_embedding_cache = StateEmbeddingCache(Path(app_config.runtime.cache_dir) / "state")
+        self.transition_cache = TransitionCache(Path(app_config.runtime.cache_dir) / "transition")
+        self.generation_cache = GenerationCache(Path(app_config.runtime.cache_dir) / "generation")
         self.example_artifacts: List[Dict[str, Any]] = []
 
     def evaluate_one(
@@ -501,6 +530,8 @@ class TrainingEvaluator:
             index_build_ms=index_build_ms,
             embedding_cache=self.cache,
             rerank_cache=self.rerank_cache if method in RERANK_METHODS else None,
+            transition_cache=self.transition_cache,
+            state_embedding_cache=self.state_embedding_cache,
         )
         retrieval_seconds = time.perf_counter() - retrieval_started
         tracker = diagnostics.pop("_cost_tracker")
@@ -517,9 +548,13 @@ class TrainingEvaluator:
         parse_failure = None
         if generate:
             generation_started = time.perf_counter()
-            response = self.generator.answer(example.query, selected, example.all_options)
+            response, generation_hit = self.generation_cache.answer(
+                self.generator, example.query, selected, example.all_options
+            )
             generation_seconds = time.perf_counter() - generation_started
-            tracker.generation_ms = generation_seconds * 1000.0
+            tracker.generation_ms = 0.0 if generation_hit else generation_seconds * 1000.0
+            if generation_hit:
+                tracker.record_cache_hit()
             accuracy = answer_accuracy(response, example.correct_answer)
             parse_failure = answer_parse_failed(response)
 
@@ -785,7 +820,13 @@ def _read_examples(app_config: AppConfig) -> list[PersonaMemExample]:
     return list(iter_examples(question_path, context_path))
 
 
-def _split_manifest(splits: ExampleSplits, seed: int) -> Dict[str, Any]:
+def _split_manifest(
+    splits: ExampleSplits,
+    seed: int,
+    *,
+    protocol_role: str | None = None,
+    internal_split: bool = False,
+) -> Dict[str, Any]:
     def describe(examples: Sequence[PersonaMemExample], personas: Sequence[str]) -> Dict[str, Any]:
         ids = [example.question_id for example in examples]
         return {
@@ -794,13 +835,36 @@ def _split_manifest(splits: ExampleSplits, seed: int) -> Dict[str, Any]:
             "question_id_sha256": _question_id_sha256(ids),
         }
 
-    return {
+    manifest = {
         "seed": seed,
         "unit": "persona",
         "train": describe(splits.train, splits.train_personas),
         "validation": describe(splits.validation, splits.validation_personas),
         "test": describe(splits.test, splits.test_personas),
     }
+    if protocol_role is not None:
+        # ``development-seen`` is a persisted outer role (old validation +
+        # test personas).  Tuning may still use a persona-disjoint *internal*
+        # split inside that role; naming it explicitly prevents readers from
+        # mistaking the derived split for a redefinition of the frozen
+        # confirmatory partition.
+        manifest["protocol_role"] = str(protocol_role)
+        manifest["internal_split"] = bool(internal_split)
+        manifest["outer_role_question_count"] = sum(
+            section["queries"] for section in (
+                manifest["train"],
+                manifest["validation"],
+                manifest["test"],
+            )
+        )
+        manifest["outer_role_personas"] = sorted(
+            {
+                *manifest["train"]["personas"],
+                *manifest["validation"]["personas"],
+                *manifest["test"]["personas"],
+            }
+        )
+    return manifest
 
 
 def _resolved_objective(config: TrainingExperimentConfig) -> str | None:
@@ -887,10 +951,43 @@ def preflight_tuning(
     embedder: Embedder | None = None,
     check_services: bool = False,
     require_full_32k: bool = False,
+    phase: str | None = None,
+    protocol_manifest: str | Path | Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Validate data, protocol, search space, and optionally every required service."""
     app_config.validate()
     training_config.validate()
+    effective_phase = phase or training_config.phase
+    # Persisted protocol roles use canonical names.  Keep the historical
+    # no-manifest ``development`` mode intact: a number of callers use it for
+    # ordinary local tuning and it predates the confirmatory protocol.  Once a
+    # manifest is supplied, however, the user-facing alias is resolved to the
+    # persisted role name so that the resulting artifacts cannot be confused
+    # with an unscoped split.
+    from .protocol import canonical_phase
+
+    # Use an explicit ``is not None`` check: an in-memory manifest is a valid
+    # value even though a malformed/empty mapping is false-y and should be
+    # reported by the protocol audit rather than silently replaced by the
+    # config-level value.
+    effective_manifest = protocol_manifest if protocol_manifest is not None else training_config.protocol_manifest
+    if effective_manifest is None and effective_phase == "development":
+        canonical_effective_phase = "development"
+    else:
+        canonical_effective_phase = canonical_phase(effective_phase)
+    if canonical_effective_phase == "confirmatory-test":
+        raise PermissionError("confirmatory-test forbids tune/train")
+    if effective_manifest is not None:
+        from .protocol import protocol_gate
+        protocol_gate_kwargs = {
+            "manifest": effective_manifest if isinstance(effective_manifest, Mapping) else None,
+            "manifest_path": effective_manifest if not isinstance(effective_manifest, Mapping) else None,
+            "config_hash": app_config.config_hash(),
+            "action": "tune",
+        }
+        protocol_gate(canonical_effective_phase, **protocol_gate_kwargs)
+    elif canonical_effective_phase in {"development-seen", "confirmatory-test", "full-benchmark"}:
+        raise ValueError(f"phase {canonical_effective_phase} requires a persisted protocol manifest")
     objective_metric = _resolved_objective(training_config)
     if objective_metric is None:
         raise ValueError("tuning preflight requires an external validation objective")
@@ -929,6 +1026,32 @@ def preflight_tuning(
         for tuned_name in ("initial_width", "branch_width", "search_budget"):
             formal_retrieval.pop(tuned_name)
             actual_retrieval.pop(tuned_name)
+        # Named semantic-profile fields were added after the pinned legacy
+        # tuning protocol.  They are frozen protocol choices, not search axes;
+        # compare them separately below rather than rejecting the shipped
+        # semantic_path_v1 default as an accidental tuning change.  The
+        # feature/selector pair is included here because a named profile may
+        # intentionally choose ``cached_memory`` + ``semantic_path_logdet``.
+        semantic_fields = {
+            "profile",
+            "feature_mode",
+            "proposal_mode",
+            "relation_mode",
+            "quality_mode",
+            "path_mode",
+            "selection_mode",
+            "certificate_mode",
+            "context_unit",
+            "quality_score_space",
+            "scorer_fingerprint",
+            "proposal_width",
+            "certificate_epsilon",
+            "context_strict",
+            "certificate_domain",
+        }
+        for semantic_name in semantic_fields:
+            formal_retrieval.pop(semantic_name, None)
+            actual_retrieval.pop(semantic_name, None)
         if actual_retrieval != formal_retrieval:
             raise ValueError("full 32K tuning requires the pinned retrieval protocol outside the search axes")
 
@@ -960,9 +1083,28 @@ def preflight_tuning(
         if source_hashes.get(filename) != actual_hash:
             raise ValueError(f"PersonaMem source checksum mismatch: {filename}")
 
-    all_examples = _read_examples(app_config)
-    if len(all_examples) != int(data_manifest.get("questions", -1)):
+    source_examples = _read_examples(app_config)
+    if len(source_examples) != int(data_manifest.get("questions", -1)):
         raise ValueError("PersonaMem parsed question count does not match the prepared manifest")
+    all_examples = source_examples
+    protocol_report: Dict[str, Any] | None = None
+    if effective_manifest is not None:
+        from .protocol import audit_protocol, protocol_examples
+
+        manifest_value = (
+            effective_manifest
+            if isinstance(effective_manifest, Mapping)
+            else effective_manifest
+        )
+        # ``protocol_examples`` performs the persisted-ID completeness check;
+        # retain an audit snapshot in the preflight output for reproducibility.
+        all_examples = list(protocol_examples(manifest_value, source_examples, canonical_effective_phase))
+        protocol_report = audit_protocol(
+            manifest_value,
+            examples=source_examples,
+            raw_dir=app_config.data.raw_dir,
+            split=app_config.data.split,
+        )
     splits = split_examples_by_persona(all_examples, training_config.split, training_config.seed)
     validation_examples = _limited(splits.validation, training_config.schedule.max_validation_queries)
     test_examples = _limited(splits.test, training_config.schedule.max_test_queries)
@@ -1034,7 +1176,12 @@ def preflight_tuning(
             "reranker_checked": reranker_checked,
         }
 
-    split_report = _split_manifest(splits, training_config.seed)
+    split_report = _split_manifest(
+        splits,
+        training_config.seed,
+        protocol_role=canonical_effective_phase if effective_manifest is not None else None,
+        internal_split=effective_manifest is not None,
+    )
     validation_count = len(validation_examples)
     test_count = len(test_examples)
     estimated_generator_calls = (
@@ -1064,8 +1211,15 @@ def preflight_tuning(
             "main_table_methods": list(training_config.main_table_methods),
             "fail_on_evaluation_error": training_config.fail_on_evaluation_error,
             "estimated_generator_calls": estimated_generator_calls,
+            "phase": canonical_effective_phase,
+            "protocol_manifest": (
+                dict(effective_manifest)
+                if isinstance(effective_manifest, Mapping)
+                else (str(effective_manifest) if effective_manifest is not None else None)
+            ),
         },
         "services": service_report,
+        "protocol": protocol_report,
     }
 
 
@@ -1083,7 +1237,46 @@ def run_training_experiment(
     remain unranked, no test data is read, and no best config is written.
     """
     training_config.validate()
+    from .protocol import canonical_phase
+
+    # Preserve the legacy local-tuning behavior for the default phase when no
+    # persisted protocol manifest is supplied.  Canonical role names are used
+    # only for manifest-scoped runs.
+    if training_config.protocol_manifest is None and training_config.phase == "development":
+        canonical_training_phase = "development"
+    else:
+        canonical_training_phase = canonical_phase(training_config.phase)
     all_examples = list(examples) if examples is not None else _read_examples(app_config)
+    protocol_report: Dict[str, Any] | None = None
+    if training_config.protocol_manifest is not None:
+        from .protocol import audit_protocol, protocol_examples, protocol_gate
+
+        protocol_gate_kwargs = {
+            "manifest": (
+                training_config.protocol_manifest
+                if isinstance(training_config.protocol_manifest, Mapping)
+                else None
+            ),
+            "manifest_path": (
+                training_config.protocol_manifest
+                if not isinstance(training_config.protocol_manifest, Mapping)
+                else None
+            ),
+            "config_hash": app_config.config_hash(),
+            "action": "tune",
+        }
+        protocol_gate(canonical_training_phase, **protocol_gate_kwargs)
+        all_examples = list(
+            protocol_examples(training_config.protocol_manifest, all_examples, canonical_training_phase)
+        )
+        protocol_report = audit_protocol(
+            training_config.protocol_manifest,
+            examples=examples if examples is not None else None,
+            raw_dir=app_config.data.raw_dir,
+            split=app_config.data.split,
+        )
+    elif canonical_training_phase in {"development-seen", "confirmatory-test", "full-benchmark"}:
+        raise ValueError(f"phase {canonical_training_phase} requires a persisted protocol manifest")
     splits = split_examples_by_persona(all_examples, training_config.split, training_config.seed)
     validation_examples = _limited(splits.validation, training_config.schedule.max_validation_queries)
     test_examples = _limited(splits.test, training_config.schedule.max_test_queries)
@@ -1094,8 +1287,11 @@ def run_training_experiment(
     writer = TrainingMetricsWriter(root, training_config.keep_example_metrics)
     writer.write_run_status("running", run_dir=str(root), phase="initializing")
     writer.write_json("training_config.json", asdict(training_config))
+    # Persist only the public configuration.  Credentials and raw transport
+    # endpoints are runtime secrets, not reproducibility evidence; the shared
+    # helper removes them and records endpoint hashes for identity checks.
     combined_config = {
-        "app": app_config.resolved_dict(),
+        "app": _public_app_config(app_config),
         "tuning": asdict(training_config),
         "execution": {"output_dir": str(output_dir or training_config.output_dir)},
     }
@@ -1140,10 +1336,18 @@ def run_training_experiment(
             "generator_model": app_config.models.generator.model,
             "prompt_hash": generation_prompt_hash(),
             "seed": training_config.seed,
+            "phase": canonical_training_phase,
+            "protocol_manifest": training_config.protocol_manifest,
+            "protocol": protocol_report,
         },
     )
     (root / "failures.jsonl").touch()
-    split_manifest = _split_manifest(splits, training_config.seed)
+    split_manifest = _split_manifest(
+        splits,
+        training_config.seed,
+        protocol_role=canonical_training_phase if training_config.protocol_manifest is not None else None,
+        internal_split=training_config.protocol_manifest is not None,
+    )
     writer.write_json("split_manifest.json", split_manifest)
     bridge_gold = load_bridge_gold(training_config.bridge_gold_path)
     trials = build_retrieval_trials(app_config.retrieval, training_config.search_space)
@@ -1390,7 +1594,7 @@ def run_effect_first_validation(
     writer.write_json(
         "resolved_config.json",
         {
-            "app": app_config.resolved_dict(),
+            "app": _public_app_config(app_config),
             "execution": {
                 "methods": list(methods),
                 "partition": "persona_disjoint_validation",

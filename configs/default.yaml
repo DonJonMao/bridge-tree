@@ -1,5 +1,14 @@
 seed: 42
 retrieval:
+  profile: semantic_path_v1
+  proposal_mode: real_member_query_anchor
+  relation_mode: angular
+  quality_mode: frozen_reranker
+  path_mode: posterior_expected_scatter
+  certificate_mode: "off"
+  certificate_domain: frozen_pool
+  context_unit: memory
+  quality_score_space: unit_interval
   initial_width: 12
   branch_width: 8
   context_size: 5
@@ -12,13 +21,20 @@ retrieval:
   max_clusters: 8
   min_cluster_size: 1
   search_order: best_first
-  feature_mode: rho
-  selection_mode: rho_logdet
+  feature_mode: cached_memory
+  selection_mode: semantic_path_logdet
   stop_mode: budget
   diagnostic_level: light
   root_anchor_weight: 0.0
   index_backend: exact
   tie_tolerance: 1.0e-12
+  temporal_measure: false
+  measure_propagation: false
+  state_information: false
+  information_certificate: false
+  state_basis_mode: option_contrast
+  representation_mode: cached_memory
+  score_contract: unit_interval
 models:
   embedding:
     backend: remote
@@ -35,7 +51,9 @@ models:
   generator:
     endpoint: http://111.19.156.30:8006/v1/chat/completions
     model: deepseek-v4-flash
-    api_key: Aa@11111
+    # Set BRIDGETREE_CHAT_API_KEY on the deployment host; no credential is
+    # stored in the repository.
+    api_key: ""
     api_key_env: BRIDGETREE_CHAT_API_KEY
     timeout_seconds: 120
     temperature: 0.0

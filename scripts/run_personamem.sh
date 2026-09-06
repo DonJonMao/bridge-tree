@@ -41,6 +41,12 @@ RERANK_INCLUDE_TIME="${RERANK_INCLUDE_TIME:-true}"
 SEED="${SEED:-42}"
 MEMORY_GRANULARITY="${MEMORY_GRANULARITY:-user_assistant_pair}"
 INCLUDE_SYSTEM_PERSONA="${INCLUDE_SYSTEM_PERSONA:-true}"
+TEMPORAL_MEASURE="${TEMPORAL_MEASURE:-false}"
+MEASURE_PROPAGATION="${MEASURE_PROPAGATION:-false}"
+STATE_INFORMATION="${STATE_INFORMATION:-false}"
+INFORMATION_CERTIFICATE="${INFORMATION_CERTIFICATE:-false}"
+STATE_BASIS_MODE="${STATE_BASIS_MODE:-option_contrast}"
+CERTIFICATE_DOMAIN="${CERTIFICATE_DOMAIN:-exact_partition}"
 GENERATE="${GENERATE:-false}"
 
 system_flag="--include-system-persona"
@@ -63,6 +69,14 @@ rerank_time_flag="--rerank-include-time"
 if [[ "$RERANK_INCLUDE_TIME" != "true" ]]; then
   rerank_time_flag="--no-rerank-include-time"
 fi
+temporal_flag="--no-temporal-measure"
+if [[ "$TEMPORAL_MEASURE" == "true" ]]; then temporal_flag="--temporal-measure"; fi
+measure_flag="--no-measure-propagation"
+if [[ "$MEASURE_PROPAGATION" == "true" ]]; then measure_flag="--measure-propagation"; fi
+state_flag="--no-state-information"
+if [[ "$STATE_INFORMATION" == "true" ]]; then state_flag="--state-information"; fi
+certificate_flag="--no-information-certificate"
+if [[ "$INFORMATION_CERTIFICATE" == "true" ]]; then certificate_flag="--information-certificate"; fi
 config_args=(--config "$CONFIG")
 if [[ -n "$OVERRIDE_CONFIG" ]]; then
   config_args+=(--override-config "$OVERRIDE_CONFIG")
@@ -89,6 +103,12 @@ exec "$python_bin" -m bridgetree.cli run \
   --stop-mode "$STOP_MODE" \
   --diagnostic-level "$DIAGNOSTIC_LEVEL" \
   --root-anchor-weight "$ROOT_ANCHOR_WEIGHT" \
+  "$temporal_flag" \
+  "$measure_flag" \
+  "$state_flag" \
+  "$certificate_flag" \
+  --state-basis-mode "$STATE_BASIS_MODE" \
+  --certificate-domain "$CERTIFICATE_DOMAIN" \
   --dense-pool-width "$DENSE_POOL_WIDTH" \
   --anchor-width "$ANCHOR_WIDTH" \
   --expand-branch-count "$EXPAND_BRANCH_COUNT" \

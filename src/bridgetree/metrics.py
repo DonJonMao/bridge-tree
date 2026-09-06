@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from itertools import combinations
-from typing import Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 import numpy as np
 
@@ -183,3 +184,201 @@ def summarize_bridge_results(results: Sequence[RetrievalResult]) -> Dict[str, fl
             / max(1, sum(len(result.cluster_stabilities) for result in results))
         ),
     }
+
+
+def _record_value(record: Mapping[str, Any], metric: str = "answer_accuracy") -> float | None:
+    """Read a metric from either prediction or flattened summary records."""
+    value: Any = record.get(metric)
+    if value is None and isinstance(record.get("outcome"), Mapping):
+        value = record["outcome"].get(metric)
+    if value is None and isinstance(record.get("metrics"), Mapping):
+        outcome = record["metrics"].get("outcome", {})
+        if isinstance(outcome, Mapping):
+            value = outcome.get(metric)
+    try:
+        return None if value is None else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def question_micro_accuracy(records: Sequence[Mapping[str, Any]], metric: str = "answer_accuracy") -> float | None:
+    values = [value for record in records if (value := _record_value(record, metric)) is not None]
+    return sum(values) / len(values) if values else None
+
+
+def persona_macro_accuracy(
+    records: Sequence[Mapping[str, Any]],
+    metric: str = "answer_accuracy",
+) -> float | None:
+    """Macro-average question accuracy over personas (primary protocol unit)."""
+    by_persona: Dict[str, list[float]] = defaultdict(list)
+    for record in records:
+        value = _record_value(record, metric)
+        persona = record.get("persona_id")
+        if value is not None and persona is not None:
+            by_persona[str(persona)].append(value)
+    per_persona = [sum(values) / len(values) for values in by_persona.values() if values]
+    return sum(per_persona) / len(per_persona) if per_persona else None
+
+
+def gain_damage_net(
+    baseline: Sequence[Mapping[str, Any]] | Mapping[str, Any],
+    treatment: Sequence[Mapping[str, Any]] | Mapping[str, Any],
+    metric: str = "answer_accuracy",
+) -> Dict[str, float]:
+    """Count paired treatment corrections without inventing relevance labels."""
+    def keyed(value: Sequence[Mapping[str, Any]] | Mapping[str, Any]) -> Dict[str, Mapping[str, Any]]:
+        if isinstance(value, Mapping):
+            # Mapping may already be question_id -> scalar/record.
+            output = {}
+            for key, item in value.items():
+                output[str(key)] = item if isinstance(item, Mapping) else {metric: item}
+            return output
+        return {
+            str(item.get("question_id", index)): item
+            for index, item in enumerate(value)
+            if isinstance(item, Mapping)
+        }
+    left, right = keyed(baseline), keyed(treatment)
+    common = sorted(set(left) & set(right))
+    gain = damage = 0
+    paired = 0
+    for key in common:
+        before, after = _record_value(left[key], metric), _record_value(right[key], metric)
+        if before is None or after is None:
+            continue
+        paired += 1
+        gain += int(before < 1.0 and after >= 1.0)
+        damage += int(before >= 1.0 and after < 1.0)
+    result = {
+        "gain": float(gain),
+        "damage": float(damage),
+        "net": float(gain - damage),
+        "paired_questions": float(paired),
+    }
+    result.update({"Gain": result["gain"], "Damage": result["damage"], "Net": result["net"]})
+    return result
+
+
+def exact_sign_flip_test(
+    treatment_by_persona: Mapping[str, float] | Sequence[float],
+    baseline_by_persona: Mapping[str, float] | Sequence[float],
+    *,
+    alternative: str = "two-sided",
+) -> Dict[str, Any]:
+    """Exact paired sign-flip test at the persona unit (2^14 is tractable)."""
+    if isinstance(treatment_by_persona, Mapping) and isinstance(baseline_by_persona, Mapping):
+        keys = sorted(set(treatment_by_persona) & set(baseline_by_persona), key=str)
+        differences = np.asarray(
+            [float(treatment_by_persona[key]) - float(baseline_by_persona[key]) for key in keys], dtype=np.float64
+        )
+    else:
+        left = np.asarray(treatment_by_persona, dtype=np.float64).reshape(-1)
+        right = np.asarray(baseline_by_persona, dtype=np.float64).reshape(-1)
+        if len(left) != len(right):
+            raise ValueError("sign-flip samples must have equal length")
+        keys = [str(index) for index in range(len(left))]
+        differences = left - right
+    n = len(differences)
+    if n == 0 or n > 20:
+        raise ValueError("exact sign-flip requires 1..20 paired personas")
+    alternative = alternative.lower().replace("_", "-")
+    if alternative not in {"two-sided", "greater", "less"}:
+        raise ValueError("alternative must be two-sided, greater, or less")
+    observed = float(np.mean(differences))
+    zero_mask = np.isclose(differences, 0.0, atol=1e-15, rtol=0.0)
+    null_values = np.empty(1 << n, dtype=np.float64)
+    for mask in range(1 << n):
+        signs = np.asarray([1.0 if mask & (1 << index) else -1.0 for index in range(n)])
+        null_values[mask] = float(np.mean(signs * differences))
+    if alternative == "greater":
+        extreme = np.count_nonzero(null_values >= observed - 1e-15)
+    elif alternative == "less":
+        extreme = np.count_nonzero(null_values <= observed + 1e-15)
+    else:
+        extreme = np.count_nonzero(np.abs(null_values) >= abs(observed) - 1e-15)
+    return {
+        "n_personas": n,
+        "personas": keys,
+        "differences": differences.tolist(),
+        # Zero/tie differences do not affect any sign-flipped statistic, but
+        # retaining their count makes the effective paired sample explicit
+        # instead of silently treating ties as gains or damages.
+        "zero_differences": int(np.count_nonzero(zero_mask)),
+        "nonzero_personas": int(n - np.count_nonzero(zero_mask)),
+        "observed_mean_difference": observed,
+        "p_value": float(extreme / (1 << n)),
+        "enumerated_sign_flips": int(1 << n),
+        "alternative": alternative,
+    }
+
+
+def persona_cluster_bootstrap_interval(
+    differences_by_persona: Mapping[str, float],
+    clusters: Mapping[str, str] | None = None,
+    *,
+    seed: int = 42,
+    resamples: int = 2000,
+    confidence: float = 0.95,
+) -> Dict[str, float]:
+    """Cluster bootstrap interval, resampling persona clusters as units."""
+    if not differences_by_persona:
+        raise ValueError("cluster bootstrap requires non-empty differences")
+    if resamples <= 0 or not 0.0 < confidence < 1.0:
+        raise ValueError("invalid bootstrap settings")
+    cluster_map = {str(persona): str((clusters or {}).get(persona, persona)) for persona in differences_by_persona}
+    by_cluster: Dict[str, list[float]] = defaultdict(list)
+    for persona, value in differences_by_persona.items():
+        by_cluster[cluster_map[str(persona)]].append(float(value))
+    names = sorted(by_cluster)
+    rng = np.random.default_rng(seed)
+    estimates = np.empty(resamples, dtype=np.float64)
+    # Clusters, rather than individual personas, are the resampling units.
+    # Each sampled cluster contributes its own persona mean, so a large
+    # cluster cannot receive extra weight merely because it contains more
+    # personas.  This is the standard cluster-bootstrap estimand and matches
+    # the persona-macro analysis used by the protocol.
+    cluster_means = {name: float(np.mean(values)) for name, values in by_cluster.items()}
+    for index in range(resamples):
+        sampled = rng.choice(names, size=len(names), replace=True)
+        estimates[index] = float(np.mean([cluster_means[str(name)] for name in sampled]))
+    alpha = (1.0 - confidence) / 2.0
+    return {
+        # The estimand is an equally weighted mean over clusters.  Reporting
+        # a persona-weighted point estimate here would make it inconsistent
+        # with the resampled interval whenever clusters have different sizes.
+        "mean_difference": float(np.mean(list(cluster_means.values()))),
+        "ci_low": float(np.quantile(estimates, alpha)),
+        "ci_high": float(np.quantile(estimates, 1.0 - alpha)),
+        "confidence": float(confidence),
+        "resamples": int(resamples),
+        "clusters": int(len(names)),
+    }
+
+
+def stratified_outcome_metrics(
+    records: Sequence[Mapping[str, Any]],
+    fields: Sequence[str] = ("question_type", "topic"),
+    metric: str = "answer_accuracy",
+) -> Dict[str, Dict[str, Any]]:
+    result: Dict[str, Dict[str, Any]] = {}
+    for field in fields:
+        groups: Dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+        for record in records:
+            groups[str(record.get(field, "unknown"))].append(record)
+        result[field] = {
+            name: {
+                "queries": len(values),
+                "question_micro": question_micro_accuracy(values, metric),
+                "persona_macro": persona_macro_accuracy(values, metric),
+            }
+            for name, values in sorted(groups.items())
+        }
+    return result
+
+
+# Compatibility spellings used in analysis notebooks.
+macro_accuracy_by_persona = persona_macro_accuracy
+micro_accuracy_by_question = question_micro_accuracy
+sign_flip_test = exact_sign_flip_test
+cluster_bootstrap_interval = persona_cluster_bootstrap_interval

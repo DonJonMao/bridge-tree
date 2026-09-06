@@ -4,10 +4,11 @@ import ast
 import csv
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Sequence
 
+from .temporal import TimeMark
 from .types import Memory
 
 PERSONAMEM_REPO = "bowen-upenn/PersonaMem-v1"
@@ -32,6 +33,19 @@ class PersonaMemExample:
     shared_context_id: str
     end_index: int
     messages: List[Dict[str, str]]
+    # Optional explicit query-time annotations used by T.  PersonaMem's
+    # shipped rows do not contain these fields, so old positional construction
+    # remains valid.
+    query_time: Any = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def query_cutoff(self) -> Any:
+        return self.query_time
+
+    @property
+    def time_metadata(self) -> Dict[str, Any]:
+        return dict(self.metadata)
 
 
 def load_shared_contexts(path: str | Path) -> Dict[str, List[Dict[str, str]]]:
@@ -59,6 +73,19 @@ def iter_examples(question_path: str | Path, context_path: str | Path) -> Iterat
             if context_id not in contexts:
                 raise KeyError(f"missing shared context: {context_id}")
             messages = contexts[context_id][:end_index]
+            query_metadata: Dict[str, Any] = {}
+            for key in ("query_time", "query_date", "cutoff", "time"):
+                raw_value = row.get(key)
+                if not raw_value:
+                    continue
+                if key == "time":
+                    try:
+                        parsed = json.loads(raw_value)
+                        query_metadata.update(parsed if isinstance(parsed, dict) else {"value": parsed})
+                    except (TypeError, json.JSONDecodeError):
+                        query_metadata[key] = raw_value
+                else:
+                    query_metadata[key] = raw_value
             yield PersonaMemExample(
                 persona_id=row["persona_id"],
                 question_id=row["question_id"],
@@ -70,6 +97,8 @@ def iter_examples(question_path: str | Path, context_path: str | Path) -> Iterat
                 shared_context_id=context_id,
                 end_index=end_index,
                 messages=messages,
+                query_time=(row.get("query_time") or row.get("query_date") or row.get("cutoff") or None),
+                metadata=query_metadata,
             )
 
 
@@ -87,6 +116,154 @@ def messages_to_memories(
     """
     if memory_granularity not in {"user_only", "user_assistant_pair"}:
         raise ValueError("memory_granularity must be user_only or user_assistant_pair")
+
+    temporal_keys = {
+        "time",
+        "timestamp",
+        "date",
+        "datetime",
+        "event_time",
+        "event_start",
+        "event_end",
+        "observed",
+        "observed_start",
+        "observed_end",
+        "validity",
+        "time_source",
+        "start",
+        "end",
+    }
+
+    def message_time_value(message: Mapping[str, Any]) -> Any:
+        """Extract the first explicit temporal value from a message envelope."""
+        if "time" in message and message.get("time") is not None:
+            return message.get("time")
+        metadata = message.get("metadata")
+        if isinstance(metadata, Mapping):
+            if "time" in metadata and metadata.get("time") is not None:
+                return metadata.get("time")
+            if any(key in metadata for key in temporal_keys - {"time"}):
+                return metadata
+        for key in ("timestamp", "datetime", "date", "event_time"):
+            if key in message and message.get(key) is not None:
+                return message.get(key)
+        return None
+
+    def coerce_message_time(value: Any) -> TimeMark | None:
+        """Normalize scalar, interval, and nested time spellings.
+
+        ``TimeMark.from_metadata`` intentionally treats a bare scalar as an
+        observed fallback (the legacy message-index convention).  Message
+        payloads, however, are explicit annotations when a scalar is present,
+        so construct those through ``TimeMark.instant`` instead.
+        """
+        if value is None:
+            return None
+        if isinstance(value, TimeMark):
+            return value
+        if isinstance(value, Mapping):
+            # Common compact aliases such as ``{"timestamp": ...}`` and
+            # nested ``{"metadata": {"time": ...}}`` are explicit dates.
+            nested = value.get("time")
+            if nested is not None and not isinstance(nested, Mapping):
+                return coerce_message_time(nested)
+            for key in ("timestamp", "datetime", "date", "event_time"):
+                if key in value and value.get(key) is not None:
+                    return coerce_message_time(value.get(key))
+            try:
+                mark = TimeMark.from_metadata(value)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            # An arbitrary metadata mapping is not an explicit time value;
+            # leave it out so the normal message-index fallback is retained.
+            if mark.unavailable and str(value.get("validity", "")).strip().lower() != "unknown":
+                numeric_fields = {
+                    key
+                    for key in (
+                        "observed",
+                        "observed_start",
+                        "observed_end",
+                        "event_start",
+                        "event_end",
+                        "start",
+                        "end",
+                    )
+                    if value.get(key) is not None
+                }
+                if not numeric_fields:
+                    return None
+            return mark
+        if isinstance(value, (list, tuple)):
+            if len(value) >= 2:
+                try:
+                    return TimeMark.durative(value[0], value[1], source="explicit")
+                except (TypeError, ValueError, OverflowError):
+                    return None
+            if len(value) == 1:
+                return coerce_message_time(value[0])
+            return None
+        try:
+            return TimeMark.instant(value, source="explicit")
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def combined_time_metadata(raw_values: Sequence[Any], indices: Sequence[int]) -> Dict[str, Any]:
+        marks = [mark for raw in raw_values if (mark := coerce_message_time(raw)) is not None]
+        fallback_start = float(min(indices))
+        fallback_end = float(max(indices))
+        if not marks:
+            return {
+                "observed_start": fallback_start,
+                "observed_end": fallback_end,
+                "event_start": None,
+                "event_end": None,
+                # Message indices are retained as an observation envelope,
+                # but they are not event times.  With no explicit annotation
+                # the temporal measure is therefore unknown/neutral rather
+                # than an accidental recency or exact-index gate.
+                "validity": "unknown",
+                "time_source": "message_index",
+            }
+
+        # An explicitly unknown annotation remains unknown (and therefore
+        # neutral in T) rather than being silently converted to a recency
+        # point.  Keep the observation envelope for diagnostics.
+        known = [mark for mark in marks if not mark.unavailable]
+        if not known:
+            return {
+                "observed_start": fallback_start,
+                "observed_end": fallback_end,
+                "event_start": None,
+                "event_end": None,
+                "validity": "unknown",
+                "time_source": "unknown",
+            }
+
+        observed_starts = [float(mark.observed_start) for mark in known if mark.observed_start is not None]
+        observed_ends = [float(mark.observed_end) for mark in known if mark.observed_end is not None]
+        event_starts = [float(mark.event_start) for mark in known if mark.event_start is not None]
+        event_ends = [float(mark.event_end) for mark in known if mark.event_end is not None]
+        observed_start = min(observed_starts) if observed_starts else fallback_start
+        observed_end = max(observed_ends) if observed_ends else fallback_end
+        event_start = min(event_starts) if event_starts else None
+        event_end = max(event_ends) if event_ends else None
+        if event_start is not None or event_end is not None:
+            left = event_start if event_start is not None else event_end
+            right = event_end if event_end is not None else event_start
+            validity = "durative" if left is not None and right is not None and abs(left - right) > 1e-12 else "instant"
+            source = "explicit"
+        else:
+            validity = "instant"
+            source = "message_index" if all(mark.time_source == "message_index" for mark in known) else "explicit"
+        return {
+            "observed_start": observed_start,
+            "observed_end": observed_end,
+            "event_start": event_start,
+            "event_end": event_end,
+            "validity": validity,
+            "time_source": source,
+        }
+
     normalized: List[Dict[str, Any]] = []
     for index, message in enumerate(messages):
         role = str(message.get("role", "unknown")).strip().lower()
@@ -95,11 +272,21 @@ def messages_to_memories(
             continue
         if role == "assistant" and memory_granularity == "user_only":
             continue
+        message_time = message_time_value(message)
         if memory_granularity == "user_assistant_pair" and normalized and normalized[-1]["role"] == role:
             normalized[-1]["content"] += "\n\n" + content
             normalized[-1]["indices"].append(index)
+            if message_time is not None:
+                normalized[-1].setdefault("times", []).append(message_time)
         else:
-            normalized.append({"role": role, "content": content, "indices": [index]})
+            normalized.append(
+                {
+                    "role": role,
+                    "content": content,
+                    "indices": [index],
+                    "times": [message_time] if message_time is not None else [],
+                }
+            )
 
     memories: List[Memory] = []
     cursor = 0
@@ -108,6 +295,7 @@ def messages_to_memories(
         current = normalized[cursor]
         roles = [current["role"]]
         indices = list(current["indices"])
+        times = list(current.get("times", []))
         parts = [f"{current['role'].capitalize()}:\n{current['content']}"]
         if (
             memory_granularity == "user_assistant_pair"
@@ -118,18 +306,27 @@ def messages_to_memories(
             following = normalized[cursor + 1]
             roles.append("assistant")
             indices.extend(following["indices"])
+            times.extend(following.get("times", []))
             parts.append(f"Assistant:\n{following['content']}")
             cursor += 2
         else:
             cursor += 1
         memory_id = f"{source_prefix}:m{memory_index:05d}"
+        time_metadata = combined_time_metadata(times, indices)
         memories.append(
             Memory(
                 memory_id=memory_id,
                 text="\n\n".join(parts),
                 timestamp=float(max(indices)),
                 source_id=f"{source_prefix}:{min(indices)}-{max(indices)}",
-                metadata={"roles": roles, "source_message_indices": indices},
+                metadata={
+                    "roles": roles,
+                    "source_message_indices": indices,
+                    # Message indices are an ordered observation scale, never
+                    # calendar dates.  Explicit event annotations, when a
+                    # caller supplies them, may replace this entry upstream.
+                    "time": time_metadata,
+                },
             )
         )
         memory_index += 1
