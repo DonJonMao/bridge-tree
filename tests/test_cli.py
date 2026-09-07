@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from bridgetree.cli import _resolved_config, _resolved_tuning_config, build_parser
+from bridgetree.cli import _resolved_config, _resolved_tuning_config, build_parser, main
 
 
 def test_explicit_cli_values_override_yaml():
@@ -21,6 +21,18 @@ def test_explicit_cli_values_override_yaml():
     config = _resolved_config(args)
     assert config.retrieval.initial_width == 7
     assert config.retrieval.cluster_mode == "effective_rank"
+
+
+def test_chain_plan_freezes_all_methods_for_each_query(tmp_path):
+    queries = tmp_path / "queries.jsonl"
+    queries.write_text(
+        '{"persona_id":"p1","question_id":"q1","split":"seen"}\n'
+        '{"persona_id":"p2","question_id":"q2","split":"confirmation"}\n',
+        encoding="utf-8",
+    )
+    output = tmp_path / "planned.jsonl"
+    assert main(["chain-plan", "--queries", str(queries), "--output", str(output)]) == 0
+    assert len(output.read_text(encoding="utf-8").splitlines()) == 18
 
 
 def test_tune_has_a_legacy_train_alias():
