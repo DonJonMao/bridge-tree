@@ -10,6 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .aggregation import aggregate_runs
+from .chain_experiment import build_full_plan, write_plan
 from .clients import RerankerClient, build_embedder
 from .config import apply_runtime_overrides, load_config
 from .experiment import METHODS, run_personamem_experiment, run_semantic_matrix, run_tmic_matrix
@@ -225,6 +226,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output-dir")
     run.add_argument("--run-label")
     _add_runtime_arguments(run)
+
+    chain_plan = subparsers.add_parser(
+        "chain-plan", help="Freeze the full train-free BridgeTree-Chain task plan"
+    )
+    chain_plan.add_argument("--queries", default="data/processed/personamem-v1/32k/queries.jsonl")
+    chain_plan.add_argument("--output", default="outputs/chain/planned_tasks.jsonl")
+    chain_plan.add_argument("--dataset-revision", default="personamem-v1-32k")
+    chain_plan.add_argument("--config-hash", default="chain_full")
+    chain_plan.add_argument("--method", action="append", dest="methods")
 
     sweep = subparsers.add_parser("sweep", help="Run required methods over one or more search budgets")
     sweep.add_argument("--config", default="configs/default.yaml")
@@ -503,6 +513,25 @@ def main(argv: list[str] | None = None) -> int:
             run_label=args.run_label,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "chain-plan":
+        query_path = Path(args.queries)
+        if not query_path.is_file():
+            raise FileNotFoundError(f"query manifest does not exist: {query_path}")
+        with query_path.open(encoding="utf-8") as handle:
+            queries = [json.loads(line) for line in handle if line.strip()]
+        methods = tuple(args.methods) if args.methods else (
+            "dense", "dense_rerank", "rfmem", "semantic_s2", "chain_h1_no_closure",
+            "chain_h2_no_closure", "chain_full", "chain_no_join", "chain_dense_pool",
+        )
+        tasks = build_full_plan(
+            queries,
+            dataset_revision=args.dataset_revision,
+            config_hash=args.config_hash,
+            methods=methods,
+        )
+        write_plan(args.output, tasks)
+        print(json.dumps({"output": str(args.output), "expected_tasks": len(tasks)}, ensure_ascii=False))
         return 0
     if args.command == "sweep":
         config = _resolved_config(args)
