@@ -1,6 +1,9 @@
 """BridgeTree Preference-RAG reference implementation."""
 
 from .clients import ContextPlanError
+from .chain_judge import Claim, JointScore, PublicQuery, Verification
+from .chain_search import ChainSearcher, EvidenceState, SearchArchive, Terminal, choose_terminal
+from .chain_support import ClosureResult, close_support
 from .config import AppConfig, RetrievalConfig, load_config
 from .information import (
     InformationObjective,
@@ -63,6 +66,17 @@ __all__ = [
     "SemanticAtom",
     "ContextPlan",
     "ContextPlanError",
+    "PublicQuery",
+    "JointScore",
+    "Claim",
+    "Verification",
+    "EvidenceState",
+    "Terminal",
+    "SearchArchive",
+    "ChainSearcher",
+    "ClosureResult",
+    "close_support",
+    "choose_terminal",
     "context_plan_hash",
     "FrozenGraphMeasure",
     "angular_navigation_affinity",
