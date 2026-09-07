@@ -6,9 +6,10 @@ config="${1:-configs/chain_full.yaml}"
 state_dir="${BACKGROUND_STATE_DIR:-$repo_dir/outputs/background}"
 run_root="${OUTPUT_DIR:-$repo_dir/outputs/chain}"
 python_bin="${BRIDGETREE_BASE_PYTHON:-python3}"
+export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
 manager="$repo_dir/scripts/background_entrypoint.py"
 case "$action" in
-  start) run_id="chain_$(date +%Y%m%d_%H%M%S)"; exec "$python_bin" "$manager" start --job chain_full --state-dir "$state_dir" --cwd "$repo_dir" --run-root "$run_root" --run-prefix "$run_id" -- python3 "$repo_dir/scripts/chain_worker.py" --config "$config" --output-dir "$run_root/$run_id" ;;
+  start) run_id="chain_$(date +%Y%m%d_%H%M%S)"; exec "$python_bin" "$manager" start --job chain_full --state-dir "$state_dir" --cwd "$repo_dir" --run-root "$run_root" --run-prefix "$run_id" -- "$python_bin" "$repo_dir/scripts/chain_worker.py" --config "$config" --output-dir "$run_root/$run_id" ;;
   status) exec "$python_bin" "$manager" status --job chain_full --state-dir "$state_dir" ;;
   log) tail -f "$state_dir/chain_full.log" ;;
   resume) exec "$0" start "$config" ;;
