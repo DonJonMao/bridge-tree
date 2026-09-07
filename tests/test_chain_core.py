@@ -55,3 +55,12 @@ def test_joint_score_cache_is_shared_for_same_set_in_different_order():
     second = searcher.score(("a", "b"))
     assert first is second
     assert len(searcher._scores) == 1
+
+
+def test_zero_verify_budget_does_not_call_verifier():
+    class CountingJudge(Judge):
+        def verify(self, q, claim, ids):
+            raise AssertionError("verifier called despite zero budget")
+
+    result = close_support(PublicQuery("d", "p", "q", "question"), ("a",), CountingJudge(), max_verify_calls=0)
+    assert result.status == "closure_budget_exhausted"

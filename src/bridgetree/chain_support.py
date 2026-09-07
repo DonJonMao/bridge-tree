@@ -32,7 +32,12 @@ def close_support(query: PublicQuery, raw_ids: Sequence[str], judge: JointJudge,
     original = tuple(dict.fromkeys(str(x) for x in raw_ids))
     if not original:
         return ClosureResult((), (), None, "empty", None)
+    if max_verify_calls is not None and max_verify_calls < 0:
+        raise ValueError("max_verify_calls must be non-negative")
     claim = judge.claim(query, original)
+    if max_verify_calls == 0:
+        return ClosureResult(original, original, claim, "closure_budget_exhausted", None,
+                             closure_applied=True, closure_completed=False)
     calls = 0
     initial = judge.verify(query, claim, original)
     calls += 1
