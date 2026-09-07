@@ -72,7 +72,10 @@ class ChainSearcher:
         self._joint_calls = 0
 
     def score(self, ids: Sequence[str]) -> JointScore:
-        canonical = tuple(dict.fromkeys(str(x) for x in ids))
+        # Joint evidence is a set for scoring.  Navigation paths remain on the
+        # EvidenceState, so canonicalizing this cache key does not merge
+        # distinct historical prerequisites or expandable endpoints.
+        canonical = tuple(sorted(dict.fromkeys(str(x) for x in ids)))
         if canonical not in self._scores:
             if self._joint_calls >= self.max_joint_contexts:
                 raise RuntimeError("joint budget exhausted")

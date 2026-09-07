@@ -46,3 +46,12 @@ def test_budget_exhaustion_keeps_initially_supported_terminal():
     )
     assert len(archive.verified_terminals) == 1
     assert archive.verified_terminals[0].selected_ids == ("a", "b")
+
+
+def test_joint_score_cache_is_shared_for_same_set_in_different_order():
+    judge = Judge()
+    searcher = ChainSearcher(PublicQuery("d", "p", "q", "question"), judge, horizon=0)
+    first = searcher.score(("b", "a"))
+    second = searcher.score(("a", "b"))
+    assert first is second
+    assert len(searcher._scores) == 1
