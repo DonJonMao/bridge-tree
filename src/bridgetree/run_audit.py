@@ -495,16 +495,17 @@ def audit_semantic_run(
     manifest = _load_json(root, "run_manifest.json", errors, {})
     summary = _load_json(root, "summary.json", errors, {})
     failures = _load_jsonl(root, "failures.jsonl", errors)
-    expected = ("L0", "L1", "S0", "S1", "S2", "S3", "S2-shuffle")
+    default_expected = ("L0", "L1", "S0", "S1", "S2", "S3", "S2-shuffle")
 
     if not isinstance(manifest, Mapping):
         manifest = {}
     if not isinstance(summary, Mapping):
         summary = {}
     architectures = tuple(str(value) for value in manifest.get("architectures", ()))
+    expected = architectures or default_expected
     _check(
-        architectures == expected,
-        "semantic architecture order is not L0/L1/S0/S1/S2/S3/S2-shuffle",
+        bool(architectures),
+        "semantic manifest has no architecture order",
         errors,
     )
     _check(
@@ -561,8 +562,10 @@ def audit_semantic_run(
 
     records_by_label: dict[str, list[dict[str, Any]]] = {}
     record_keys: set[tuple[str, str]] = set()
-    quality_families = {"L0": "rho2", "L1": "rho2"}
-    quality_families.update({label: "pointwise" for label in ("S0", "S1", "S2", "S3", "S2-shuffle")})
+    quality_families = {
+        label: ("rho2" if label in {"L0", "L1"} else "pointwise") for label in expected
+    }
+    prediction_failure_keys: set[tuple[str, str]] = set()
 
     def _quality_digest(value: Any) -> str:
         return hashlib.sha256(
@@ -680,6 +683,9 @@ def audit_semantic_run(
             if question_id not in set(manifest_question_ids):
                 errors.append(f"{label}:{position}: question is outside manifest")
 
+            if str(record.get("status", "success")) != "success":
+                prediction_failure_keys.add((question_id, label))
+                continue
             provenance = record.get("provenance", {})
             if not isinstance(provenance, Mapping):
                 errors.append(f"{label}:{position}: provenance is not an object")
@@ -796,7 +802,8 @@ def audit_semantic_run(
     expected_keys = {(question_id, label) for question_id in manifest_question_ids for label in expected}
     if (record_keys | failure_keys) != expected_keys:
         errors.append("prediction/failure records do not cover the manifest query-by-architecture grid")
-    if record_keys & failure_keys:
+    unexpected_overlap = (record_keys & failure_keys) - prediction_failure_keys
+    if unexpected_overlap:
         errors.append("a query/architecture appears in both predictions and failures")
 
     summary_architectures = summary.get("architectures", {})
@@ -808,7 +815,11 @@ def audit_semantic_run(
         if not isinstance(row, Mapping):
             errors.append(f"summary is missing architecture {label}")
             continue
-        expected_success = len(records_by_label[label])
+        expected_success = sum(
+            1
+            for record in records_by_label[label]
+            if isinstance(record, Mapping) and record.get("status", "success") == "success"
+        )
         expected_failed = expected_queries - expected_success
         for key, value in (
             ("queries", expected_success),

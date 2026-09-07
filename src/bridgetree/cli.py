@@ -378,6 +378,17 @@ def build_parser() -> argparse.ArgumentParser:
     semantic_matrix.add_argument("--generate", action=argparse.BooleanOptionalAction, default=False)
     semantic_matrix.add_argument("--output-dir")
     semantic_matrix.add_argument(
+        "--rows",
+        default="S0,S1,S2",
+        help="Comma-separated semantic rows (default: S0,S1,S2; S3/shuffle/L0/L1 are opt-in)",
+    )
+    semantic_matrix.add_argument(
+        "--baseline",
+        choices=("dense_rerank", "none"),
+        default="dense_rerank",
+        help="Optional independent baseline candidate source",
+    )
+    semantic_matrix.add_argument(
         "--offline",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -698,6 +709,8 @@ def main(argv: list[str] | None = None) -> int:
             protocol_manifest=args.protocol_manifest,
             output_dir=args.output_dir,
             reranker=reranker,
+            rows=args.rows,
+            baseline=args.baseline,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0

@@ -28,10 +28,51 @@ PYTHONPATH=src python -m bridgetree --help
 
 ```bash
 PYTHONPATH=src python -m bridgetree run-semantic-matrix \
-  --config configs/default.yaml --offline --no-reranker --limit 1 \
+  --config configs/default.yaml \
+  --protocol-manifest outputs/protocol/confirmatory_v1/protocol_manifest.json \
+  --phase development --rows S0,S1,S2 --baseline none \
+  --offline --no-reranker --limit 1 \
   --output-dir outputs/runs/repair_smoke
 ```
 
 结果目录为 `outputs/runs/repair_smoke_v2/semantic_development_1788704790601243000/`，S0/S1/S2/S3/S2-shuffle 均完成检索，L0/L1 按要求因没有旧执行器 trace 显式失败；没有生成服务调用，因此没有伪造答案准确率。该目录包含逐行 JSONL、`summary.json`、`run_manifest.json` 和失败记录。
 
 本 checkout 已完成离线算法和测试闭环。完整 PreferenceMem 生成实验仍取决于配置的 reranker、embedding 和 generator 服务；服务可用后可去掉 `--offline --no-reranker` 并设置 `--limit 20` 做 development smoke，再运行完整 development。确认集只执行冻结配置对应的独立命令，不用于调参。
+
+## 89846c3 后续实验接线
+
+实验入口现在先执行 `canonical_phase`，真实 PersonaMem 的 development、confirmatory 和
+full 别名都必须通过持久化 protocol manifest；只有显式 `synthetic=True` 的内存 fixture
+可以绕过角色 manifest。角色筛选发生在 limit、embedding、reranker 和 generator 之前。
+
+语义 proposal 查询在 `retrieve_method`、`BridgeTreeRetriever.retrieve` 和
+`semantic_retrieve` 之间使用同一个 provider/instruction。正式
+`real_member_query_anchor` 缺 provider 会显式失败；旧接口中向量维度不匹配的本地替身只
+会被标记为 `offline_q_plus_anchor`，不会伪装成服务编码。
+
+`run_semantic_matrix` 默认运行 S0/S1/S2；S3、shuffle、L0/L1 通过 `--rows` 显式选择。
+L0/L1 会调用 `legacy_core` 执行器，从真实 `result.nodes` 导出 rho/parent 后冻结旧 trace，
+不再从当前多父图的 h/gamma 推导 rho。`--baseline dense_rerank` 产生独立 Dense 候选池和
+逐题可 join 的 `predictions_DenseRerank.jsonl`；缺服务时状态为 `not_run`，不会写入伪造
+Gain/Damage/Net。
+
+每个计划方法题目都会保留一行成功或失败记录。生成开启时，end-to-end 指标以完整计划题
+集为分母，失败按未完成计 0，同时保留 `successful_response_accuracy` 诊断；retrieval-only
+运行的答案指标保持 null。GenerationCache v2 只按 endpoint 身份和实际 JSON request 建键，
+不再把 greedy 选择顺序混入生成缓存身份。
+
+本轮实际运行的 development retrieval-only 命令（使用既有历史 manifest 的 development-seen
+角色，未调用真实模型服务）：
+
+```bash
+PYTHONPATH=src python -m bridgetree run-semantic-matrix \
+  --config configs/default.yaml \
+  --protocol-manifest outputs/protocol/confirmatory_v1/protocol_manifest.json \
+  --phase development --rows S0,S1,S2 --baseline none \
+  --offline --no-reranker --limit 2 \
+  --output-dir outputs/runs/repair_dev_current
+```
+
+结果目录为 `outputs/runs/repair_dev_current/semantic_development-seen_1788783154958999000/`：
+2/2 题的 S0/S1/S2 检索记录成功，答案准确率为 null（未启用生成），Dense 基线明确记录
+为 `not_run`。默认测试、ruff 和该 development smoke 均通过。

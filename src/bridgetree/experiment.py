@@ -38,7 +38,6 @@ from .metrics import (
     gain_damage_net,
     path_objective_advantage,
     persona_macro_accuracy,
-    question_micro_accuracy,
     recall_at_k,
 )
 from .personamem import (
@@ -54,12 +53,13 @@ from .semantic import (
     SEMANTIC_QUERY_CONDITIONED_INSTRUCTION,
     build_query_conditioned_representation_text,
     discover_frozen_graph,
+    legacy_trace_from_result,
     reranker_quality_records,
     rho_squared_quality_records,
     semantic_retrieve,
 )
 from .temporal import TransitionCache
-from .types import Memory, QualityRecord, RetrievalResult
+from .types import FrozenProposalGraph, Memory, QualityRecord, RetrievalResult
 
 
 def _public_service_identity(value: Any) -> dict[str, Any]:
@@ -127,6 +127,41 @@ def _read_examples(app_config: AppConfig) -> list[PersonaMemExample]:
             "PersonaMem raw data is missing; run `bridgetree download-personamem` first"
         )
     return list(iter_examples(question_path, context_path))
+
+
+def _protocol_select_examples(
+    config: AppConfig,
+    *,
+    phase: str,
+    examples: Sequence[PersonaMemExample] | None,
+    protocol_manifest: str | Path | Mapping[str, Any] | None,
+    synthetic: bool = False,
+) -> tuple[str, list[PersonaMemExample]]:
+    """Canonicalize a phase and enforce persisted role selection before models."""
+
+    from .protocol import canonical_phase, protocol_examples, protocol_gate
+
+    normalized_phase = canonical_phase(phase)
+    rows = list(examples) if examples is not None else _read_examples(config)
+    if protocol_manifest is None:
+        # In-memory fixtures are allowed only through an explicitly marked
+        # synthetic path.  Real PersonaMem runs may never interpret the whole
+        # raw bank as development data.
+        if not synthetic:
+            raise ValueError(
+                f"phase {phase} requires a persisted protocol manifest for PersonaMem; "
+                "use synthetic=True only for an explicit synthetic smoke"
+            )
+    else:
+        protocol_gate(
+            normalized_phase,
+            manifest=protocol_manifest if isinstance(protocol_manifest, Mapping) else None,
+            manifest_path=protocol_manifest if isinstance(protocol_manifest, (str, Path)) else None,
+            config_hash=config.config_hash(),
+            action="run",
+        )
+        rows = list(protocol_examples(protocol_manifest, rows, normalized_phase))
+    return normalized_phase, rows
 
 
 def _visible_memory_records(example: PersonaMemExample, memories: Sequence[Memory]) -> list[Memory]:
@@ -679,6 +714,8 @@ def retrieve_method(
     quality_records: Mapping[str, Any] | None = None,
     representation_provider: Any | None = None,
     listwise_selector: Any | None = None,
+    proposal_query_provider: Any | None = None,
+    bridge_query_instruction: str | None = None,
 ) -> Tuple[List[str], List[Memory], Dict[str, Any], RetrievalResult | None]:
     if method not in METHODS:
         raise ValueError(f"unknown method {method}; choose from {METHODS}")
@@ -713,6 +750,21 @@ def retrieve_method(
         and method == "bridgetree"
     )
     if semantic_requested:
+        # The semantic proposal query is one shared contract across the
+        # matrix, the compatibility wrapper, and BridgeTreeRetriever.  When
+        # the caller did not override it, reuse the already-cached embedder
+        # rather than silently constructing a q+anchor approximation.
+        if proposal_query_provider is None and embedding_cache is not None:
+            proposal_query_provider = embedding_cache
+        if bridge_query_instruction is None:
+            bridge_query_instruction = getattr(config.bridge_rerank, "bridge_query_instruction", "")
+        provider_dimension_mismatch = False
+        if proposal_query_provider is embedding_cache and embedding_cache is not None:
+            try:
+                probe = np.asarray(embedding_cache.encode_query(example.query)).reshape(-1)
+                provider_dimension_mismatch = probe.shape != np.asarray(query_vector).reshape(-1).shape
+            except Exception:
+                provider_dimension_mismatch = False
         if method == "frozen_listwise" and listwise_selector is None:
             # Keep the method routable in offline/legacy smoke runs while
             # making the absence explicit.  Real listwise experiments must
@@ -722,6 +774,12 @@ def retrieve_method(
 
             listwise_selector = _offline_listwise_selector
         semantic_config = config.retrieval
+        if provider_dimension_mismatch:
+            # Compatibility callers may inject precomputed vectors from a
+            # different-dimensional local embedder.  Mark the explicit
+            # deterministic adapter instead of pretending those vectors are a
+            # real query-anchor service response.
+            semantic_config = replace(semantic_config, proposal_mode="offline_q_plus_anchor")
         if method == "semantic_path":
             semantic_config = replace(
                 semantic_config,
@@ -750,6 +808,8 @@ def retrieve_method(
                 selection_mode="frozen_listwise",
                 quality_mode="frozen_reranker" if reranker is not None else semantic_config.quality_mode,
             )
+        if provider_dimension_mismatch:
+            semantic_config = replace(semantic_config, proposal_mode="offline_q_plus_anchor")
         # ``retrieve_method`` is also the compatibility entry point used by
         # the historical offline matrix tests.  Those callers may request a
         # named semantic method without injecting a remote reranker.  Keep
@@ -796,6 +856,8 @@ def retrieve_method(
             query_cutoff=getattr(example, "query_time", None),
             query_metadata=getattr(example, "metadata", None),
             listwise_selector=listwise_selector,
+            proposal_query_provider=proposal_query_provider,
+            proposal_query_instruction=bridge_query_instruction or "",
             context_token_budget=config.models.generator.context_token_budget,
             generator_config=config.models.generator,
         )
@@ -883,6 +945,8 @@ def retrieve_method(
             transition_cache=transition_cache,
             option_embeddings=option_embeddings,
             state_basis_provider=state_basis_provider,
+            proposal_query_provider=proposal_query_provider,
+            bridge_query_instruction=bridge_query_instruction,
         )
         diagnostics = bridge_result.to_dict(include_text=False)
         diagnostics["path_objective_advantage"] = path_objective_advantage(bridge_result, k)
@@ -1710,6 +1774,7 @@ def run_tmic_matrix(
     protocol_manifest: str | Path | Mapping[str, Any] | None = None,
     output_dir: str | Path | None = None,
     include_auxiliary: bool = False,
+    synthetic: bool = False,
 ) -> Dict[str, Any]:
     """Run the fixed A0--A4 TMIC matrix with shared inputs and caches.
 
@@ -1719,23 +1784,16 @@ def run_tmic_matrix(
     records a complete per-question provenance record for every row.
     """
     from .clients import GenerationCache
-    from .protocol import protocol_examples, protocol_gate
-
     config.validate()
     if limit is not None and limit <= 0:
         raise ValueError("TMIC limit must be positive")
-    all_examples = list(examples) if examples is not None else _read_examples(config)
-    if protocol_manifest is not None:
-        protocol_gate(
-            phase,
-            manifest=protocol_manifest if isinstance(protocol_manifest, Mapping) else None,
-            manifest_path=protocol_manifest if isinstance(protocol_manifest, (str, Path)) else None,
-            config_hash=config.config_hash(),
-            action="run",
-        )
-        all_examples = list(protocol_examples(protocol_manifest, all_examples, phase))
-    elif phase in {"confirmatory", "confirmatory-test", "development-seen", "full-benchmark"}:
-        raise ValueError(f"phase {phase} requires a persisted protocol manifest")
+    phase, all_examples = _protocol_select_examples(
+        config,
+        phase=phase,
+        examples=examples,
+        protocol_manifest=protocol_manifest,
+        synthetic=synthetic,
+    )
     if limit is not None:
         all_examples = all_examples[:limit]
     if not all_examples:
@@ -2122,6 +2180,61 @@ def run_tmic_matrix(
     return {"run_dir": str(root), "summary": summary, "manifest": manifest}
 
 
+def _legacy_trace_graph(
+    result: RetrievalResult,
+    memories: Sequence[Memory],
+    *,
+    rho: Mapping[str, float],
+    parent_id: Mapping[str, str | None],
+) -> FrozenProposalGraph:
+    """Freeze the actual legacy executor nodes for L0/L1 comparisons."""
+    nodes = getattr(result, "nodes", None)
+    if not isinstance(nodes, Mapping) or not nodes:
+        raise ValueError("legacy executor returned no node trace")
+    ids = tuple(str(identifier) for identifier in nodes)
+    if set(ids) != set(rho) or set(ids) != set(parent_id):
+        raise ValueError("legacy trace does not cover the frozen legacy pool")
+    edges = tuple(
+        (str(parent), identifier)
+        for identifier in ids
+        for parent in [parent_id.get(identifier)]
+        if parent is not None
+    )
+    if len(set(edges)) != len(edges):
+        edges = tuple(dict.fromkeys(edges))
+    roots = [identifier for identifier in ids if parent_id.get(identifier) is None]
+    root_mass = {identifier: (1.0 / len(roots) if identifier in roots and roots else 0.0) for identifier in ids}
+    depths = {identifier: int(getattr(nodes[identifier], "depth", 1) or 1) for identifier in ids}
+    layers_map: dict[int, list[str]] = {}
+    for identifier, depth in depths.items():
+        layers_map.setdefault(max(1, depth), []).append(identifier)
+    layers = tuple(tuple(sorted(values)) for _depth, values in sorted(layers_map.items()))
+    edge_weights = tuple((parent, child, float(rho.get(child, 0.0))) for parent, child in edges)
+    parent_sources = tuple(
+        (identifier, (str(parent_id[identifier]),))
+        for identifier in ids
+        if parent_id.get(identifier) is not None
+    )
+    proposal_records = tuple(
+        (parent, child, depths[child], rank, float(rho.get(child, 0.0)))
+        for rank, (parent, child) in enumerate(edges)
+    )
+    return FrozenProposalGraph(
+        memory_ids=ids,
+        edges=edges,
+        edge_weights=edge_weights,
+        root_mass=root_mass,
+        layers=layers,
+        parent_sources=parent_sources,
+        proposal_records=proposal_records,
+        domain_scope="legacy_executor_trace",
+        proposal_config={
+            "legacy_trace": {"rho": dict(rho), "parent_id": dict(parent_id)},
+            "source": "legacy_executor",
+        },
+    )
+
+
 def run_semantic_matrix(
     config: AppConfig,
     embedder: Embedder,
@@ -2134,6 +2247,9 @@ def run_semantic_matrix(
     output_dir: str | Path | None = None,
     reranker: Any | None = None,
     quality_provider: Any | None = None,
+    rows: Sequence[str] | str | None = None,
+    baseline: str | None = "dense_rerank",
+    synthetic: bool = False,
 ) -> Dict[str, Any]:
     """Run the fixed L0/L1/S0--S2-shuffle matrix on shared frozen pools.
 
@@ -2145,29 +2261,37 @@ def run_semantic_matrix(
     deterministic local clients in CI.
     """
     from .information import validate_quality_records
-    from .protocol import protocol_examples, protocol_gate
-
     config.validate()
     if limit is not None and limit <= 0:
         raise ValueError("semantic matrix limit must be positive")
-    all_examples = list(examples) if examples is not None else _read_examples(config)
-    if protocol_manifest is not None:
-        protocol_gate(
-            phase,
-            manifest=protocol_manifest if isinstance(protocol_manifest, Mapping) else None,
-            manifest_path=protocol_manifest if isinstance(protocol_manifest, (str, Path)) else None,
-            config_hash=config.config_hash(),
-            action="run",
-        )
-        all_examples = list(protocol_examples(protocol_manifest, all_examples, phase))
-    elif phase in {"confirmatory", "confirmatory-test", "development-seen", "full-benchmark"}:
-        raise ValueError(f"phase {phase} requires a persisted protocol manifest")
+    phase, all_examples = _protocol_select_examples(
+        config,
+        phase=phase,
+        examples=examples,
+        protocol_manifest=protocol_manifest,
+        synthetic=synthetic,
+    )
     if limit is not None:
         all_examples = all_examples[:limit]
     if not all_examples:
         raise ValueError("semantic matrix phase has no examples")
 
-    labels = list(SEMANTIC_ABLATIONS)
+    if rows is None:
+        labels = ["S0", "S1", "S2"]
+    elif isinstance(rows, str):
+        labels = [item.strip() for item in rows.split(",") if item.strip()]
+    else:
+        labels = [str(item) for item in rows]
+    if not labels:
+        raise ValueError("semantic matrix rows must not be empty")
+    unknown_rows = sorted(set(labels) - set(SEMANTIC_ABLATIONS))
+    if unknown_rows:
+        raise ValueError(f"unknown semantic matrix rows: {unknown_rows}")
+    if len(set(labels)) != len(labels):
+        raise ValueError("semantic matrix rows must be unique")
+    baseline_name = None if baseline in (None, "", "none", "off") else str(baseline)
+    if baseline_name not in {None, "dense_rerank"}:
+        raise ValueError("baseline must be dense_rerank or omitted")
     retrieval_configs = semantic_matrix_configs(config)
     root = Path(output_dir or config.runtime.output_dir) / f"semantic_{phase}_{time.time_ns()}"
     root.mkdir(parents=True, exist_ok=False)
@@ -2183,6 +2307,8 @@ def run_semantic_matrix(
     costs_by_label: Dict[str, list[Dict[str, Any]]] = {label: [] for label in labels}
     accuracy_by_label: Dict[str, list[float]] = {label: [] for label in labels}
     failures: list[Dict[str, Any]] = []
+    dense_predictions: list[Dict[str, Any]] = []
+    dense_failures: list[Dict[str, Any]] = []
     shared_costs_by_question: dict[str, dict[str, Any]] = {}
     quality_source_by_label = {
         label: str(SEMANTIC_ABLATIONS[label].get("quality_source", "pointwise"))
@@ -2195,6 +2321,25 @@ def run_semantic_matrix(
         if quality_provider is not None
         else "offline-direct-cosine"
     )
+
+    def failed_record(example: PersonaMemExample, label: str, exc: Exception) -> Dict[str, Any]:
+        """Persist one planned row even when retrieval or generation fails."""
+        return {
+            "persona_id": str(example.persona_id),
+            "question_id": str(example.question_id),
+            "architecture": label,
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "selected_memory_ids": [],
+            "chronological_ids": [],
+            "selected_in_greedy_order": [],
+            "response": None,
+            "outcome": {"answer_accuracy": 0.0 if generate else None},
+            "cost": {},
+            "pool_id": None,
+            "pool_origin": "legacy_trace" if label in {"L0", "L1"} else "current_multi_parent",
+        }
 
     for example in all_examples:
         try:
@@ -2243,17 +2388,58 @@ def run_semantic_matrix(
                 "discovery": shared_discovery_cost.to_dict(),
             }
             records = {memory.memory_id: memory for memory in memories if memory.memory_id in graph.memory_ids}
+            legacy_graph: FrozenProposalGraph | None = None
+            legacy_trace_config: Mapping[str, Any] | None = None
+            legacy_discovery_cost: Dict[str, Any] | None = None
+            if "L0" in labels or "L1" in labels:
+                legacy_config = replace(
+                    config.retrieval,
+                    profile="legacy_core",
+                    proposal_mode="legacy_first_arrival",
+                    feature_mode="rho",
+                    selection_mode="rho_logdet",
+                    quality_mode="rho",
+                    path_mode="none",
+                    temporal_measure=False,
+                    measure_propagation=False,
+                    state_information=False,
+                    information_certificate=False,
+                    stop_mode="budget",
+                )
+                legacy_config.validate()
+                legacy_tracker = CostTracker(SearchBudget.from_config(legacy_config))
+                legacy_result = BridgeTreeRetriever(legacy_config).retrieve(
+                    example.query,
+                    query_vector,
+                    memories,
+                    memory_vectors,
+                    index=index,
+                    budget=legacy_tracker.budget,
+                    cost_tracker=legacy_tracker,
+                    query_cutoff=getattr(example, "query_time", None),
+                    query_metadata=getattr(example, "metadata", None),
+                    answer_options=example.all_options,
+                    context_token_budget=None,
+                )
+                legacy_rho, legacy_parent_id = legacy_trace_from_result(legacy_result)
+                legacy_graph = _legacy_trace_graph(
+                    legacy_result,
+                    memories,
+                    rho=legacy_rho,
+                    parent_id=legacy_parent_id,
+                )
+                legacy_trace_config = {
+                    "rho": legacy_rho,
+                    "parent_id": legacy_parent_id,
+                    "source": "legacy_executor",
+                }
+                legacy_discovery_cost = legacy_tracker.snapshot().to_dict()
             # L0/L1 are the explicit legacy controls.  Their quality is the
             # frozen graph access probability squared, not the reranker table;
             # this gives the exact ``sqrt(rho²)=rho`` scale while preserving a
             # separate provenance identity from the S rows.
             graph_measure = propagate_frozen_graph(graph)
             rho_quality_started = time.perf_counter()
-            legacy_trace_config = (
-                graph.proposal_config.get("legacy_trace")
-                if isinstance(graph.proposal_config, Mapping)
-                else None
-            )
             explicit_legacy_rho = (
                 legacy_trace_config.get("rho")
                 if isinstance(legacy_trace_config, Mapping)
@@ -2261,7 +2447,7 @@ def run_semantic_matrix(
             )
             rho_qualities = (
                 rho_squared_quality_records(
-                    graph_measure,
+                    propagate_frozen_graph(legacy_graph) if legacy_graph is not None else graph_measure,
                     legacy_rho=explicit_legacy_rho,
                     scorer_fingerprint=retrieval_configs["L0"].scorer_fingerprint or "legacy-rho2",
                 )
@@ -2277,6 +2463,9 @@ def run_semantic_matrix(
                     example.query,
                     records,
                     answer_options=example.all_options,
+                    instruction=config.bridge_rerank.final_rerank_instruction,
+                    include_time_metadata=config.bridge_rerank.include_time_metadata,
+                    use_answer_options=config.bridge_rerank.use_answer_options,
                     score_space=config.retrieval.quality_score_space,
                     scorer_fingerprint=config.retrieval.scorer_fingerprint,
                     query_cutoff=getattr(example, "query_time", None),
@@ -2343,17 +2532,102 @@ def run_semantic_matrix(
                     "trace_available": explicit_legacy_rho is not None,
                     "elapsed_ms": rho_quality_ms,
                     "documents": len(rho_qualities),
+                    "legacy_executor": legacy_discovery_cost,
                 },
             }
             quality_tables = {"rho2": rho_qualities, "pointwise": pointwise_qualities}
             quality_runtime_sources = {"rho2": "rho2", "pointwise": pointwise_source}
+
+            if baseline_name == "dense_rerank" and reranker is not None:
+                try:
+                    dense_tracker = CostTracker(SearchBudget.from_config(config.retrieval))
+                    dense_ids, dense_selected, dense_diagnostics, _ = retrieve_method(
+                        "dense_rerank",
+                        config,
+                        example,
+                        memories,
+                        query_vector,
+                        memory_vectors,
+                        reranker=reranker,
+                        index=index,
+                        budget=dense_tracker.budget,
+                        cost_tracker=dense_tracker,
+                        index_build_ms=index_build_ms,
+                        embedding_cache=embedding_cache,
+                    )
+                    dense_tracker = dense_diagnostics.pop("_cost_tracker", dense_tracker)
+                    dense_plan = _exact_context_plan(config, example, dense_ids, dense_selected)
+                    dense_response = ""
+                    dense_cache_hit = False
+                    if generator is not None:
+                        dense_response, dense_cache_hit = generation_cache.answer(
+                            generator,
+                            example.query,
+                            dense_selected,
+                            example.all_options,
+                            selected_ids=dense_ids,
+                        )
+                        if dense_cache_hit:
+                            dense_tracker.record_cache_hit()
+                    dense_accuracy = (
+                        answer_accuracy(dense_response, example.correct_answer) if generator is not None else None
+                    )
+                    dense_predictions.append(
+                        {
+                            "persona_id": str(example.persona_id),
+                            "question_id": str(example.question_id),
+                            "architecture": "DenseRerank",
+                            "status": "success",
+                            "pool_origin": "dense_independent",
+                            "pool_id": hashlib.sha256(
+                                json.dumps(
+                                    list(dense_diagnostics.get("candidate_union_ids", dense_ids)),
+                                    sort_keys=True,
+                                ).encode()
+                            ).hexdigest(),
+                            "selected_memory_ids": list(dense_plan.chronological_ids),
+                            "selected_in_greedy_order": list(dense_ids),
+                            "response": dense_response,
+                            "outcome": {"answer_accuracy": dense_accuracy},
+                            "context_plan": dense_plan.public_dict(),
+                            "cost": dense_tracker.snapshot().to_dict(),
+                            "diagnostic": dense_diagnostics,
+                            "generation_cache_hit": dense_cache_hit,
+                        }
+                    )
+                except Exception as exc:
+                    dense_failures.append(
+                        {
+                            "question_id": str(example.question_id),
+                            "architecture": "DenseRerank",
+                            "error_type": type(exc).__name__,
+                            "message": str(exc),
+                        }
+                    )
+                    dense_predictions.append(
+                        {
+                            "persona_id": str(example.persona_id),
+                            "question_id": str(example.question_id),
+                            "architecture": "DenseRerank",
+                            "status": "failed",
+                            "pool_origin": "dense_independent",
+                            "pool_id": None,
+                            "selected_memory_ids": [],
+                            "selected_in_greedy_order": [],
+                            "response": None,
+                            "outcome": {"answer_accuracy": 0.0 if generate else None},
+                            "cost": {},
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        }
+                    )
 
             # Materialize query-conditioned representations once and share
             # them between the only row that needs them and any repeated run.
             query_representations: dict[str, np.ndarray] | None = None
             query_representation_error: dict[str, str] | None = None
             shared_state_embedding_ms = 0.0
-            if retrieval_configs["S3"].feature_mode == "query_conditioned":
+            if "S3" in labels and retrieval_configs["S3"].feature_mode == "query_conditioned":
                 state_texts = [
                     build_query_conditioned_representation_text(
                         example.query,
@@ -2409,6 +2683,7 @@ def run_semantic_matrix(
                     runtime_quality_source = quality_runtime_sources[
                         "rho2" if quality_source_key == "rho2" else "pointwise"
                     ]
+                    label_graph = legacy_graph if quality_source_key == "rho2" and legacy_graph is not None else graph
                     if label == "S3" and query_representation_error is not None:
                         raise RuntimeError(
                             "query-conditioned representation service failed: "
@@ -2424,17 +2699,17 @@ def run_semantic_matrix(
                     tracker.inherit_shared_cost(shared_discovery_cost)
                     if label == "S3" and query_representations is not None:
                         tracker.shared_state_embedding_calls = 1
-                        tracker.shared_state_embedding_queries = len(graph.memory_ids)
+                        tracker.shared_state_embedding_queries = len(label_graph.memory_ids)
                         tracker.shared_state_embedding_ms = shared_state_embedding_ms
                     if reranker is not None and quality_source_key != "rho2":
                         tracker.shared_rerank_calls = 1
                         tracker.shared_rerank_documents = len(records)
                         tracker.shared_rerank_ms = shared_quality_ms
-                    tracker.mark_visited(graph.memory_ids)
+                    tracker.mark_visited(label_graph.memory_ids)
                     representation_provider = (
                         query_representations
                         if label == "S3" and query_representations is not None
-                        else {identifier: index.vector(identifier) for identifier in graph.memory_ids}
+                        else {identifier: index.vector(identifier) for identifier in label_graph.memory_ids}
                     )
                     result = semantic_retrieve(
                         example.query,
@@ -2452,7 +2727,7 @@ def run_semantic_matrix(
                         query_metadata=getattr(example, "metadata", None),
                         context_token_budget=config.models.generator.context_token_budget,
                         generator_config=config.models.generator,
-                        frozen_graph=graph,
+                        frozen_graph=label_graph,
                         representation_fingerprint=embedding_cache.fingerprint,
                         legacy_rho=(
                             legacy_trace_config.get("rho")
@@ -2494,9 +2769,9 @@ def run_semantic_matrix(
                         "persona_id": example.persona_id,
                         "question_id": example.question_id,
                         "architecture": label,
-                        "pool_id": graph.graph_hash,
+                        "pool_id": label_graph.graph_hash,
                         "pool_origin": (
-                            "legacy_trace" if quality_source_key == "rho2" and graph.proposal_config.get("legacy_trace")
+                            "legacy_trace" if quality_source_key == "rho2" and legacy_graph is not None
                             else "current_multi_parent"
                         ),
                         "selected_memory_ids": list(result.selected_context),
@@ -2508,7 +2783,7 @@ def run_semantic_matrix(
                         "context_hash": result.context_hash,
                         "context_plan": result.context_plan.public_dict(),
                         "generation_cache_hit": generation_hit,
-                        "shared_graph_hash": graph.graph_hash,
+                        "shared_graph_hash": label_graph.graph_hash,
                         "shared_quality": {identifier: value.public_dict() for identifier, value in qualities.items()},
                         "quality_source": runtime_quality_source,
                         "quality_source_declared": quality_source_key,
@@ -2553,9 +2828,11 @@ def run_semantic_matrix(
                             if label == "S3"
                             else str(SEMANTIC_ABLATIONS[label].get("representation_role", "cached_memory"))
                         ),
+                        "status": "success",
                     }
                     predictions_by_label[label].append(record)
                 except Exception as exc:
+                    predictions_by_label[label].append(failed_record(example, label, exc))
                     failures.append(
                         {
                             "question_id": example.question_id,
@@ -2566,6 +2843,7 @@ def run_semantic_matrix(
                     )
         except Exception as exc:
             for label in labels:
+                predictions_by_label[label].append(failed_record(example, label, exc))
                 failures.append(
                     {
                         "question_id": example.question_id,
@@ -2574,11 +2852,64 @@ def run_semantic_matrix(
                         "message": str(exc),
                     }
                 )
+            if baseline_name == "dense_rerank" and reranker is not None:
+                dense_failures.append(
+                    {
+                        "question_id": str(example.question_id),
+                        "architecture": "DenseRerank",
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+                dense_predictions.append(
+                    {
+                        "persona_id": str(example.persona_id),
+                        "question_id": str(example.question_id),
+                        "architecture": "DenseRerank",
+                        "status": "failed",
+                        "pool_origin": "dense_independent",
+                        "pool_id": None,
+                        "selected_memory_ids": [],
+                        "selected_in_greedy_order": [],
+                        "response": None,
+                        "outcome": {"answer_accuracy": 0.0 if generate else None},
+                        "cost": {},
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    }
+                )
 
     summaries: Dict[str, Any] = {}
     baseline_predictions = predictions_by_label.get("S0", [])
     for label in labels:
         costs = costs_by_label[label]
+        planned_records = predictions_by_label[label]
+        successful_records = [record for record in planned_records if record.get("status") == "success"]
+        failed_count = len(planned_records) - len(successful_records)
+        successful_answers = [
+            float(record["outcome"]["answer_accuracy"])
+            for record in successful_records
+            if isinstance(record.get("outcome"), Mapping)
+            and record["outcome"].get("answer_accuracy") is not None
+        ]
+        end_to_end_answers = (
+            [
+                float(record.get("outcome", {}).get("answer_accuracy", 0.0) or 0.0)
+                for record in planned_records
+            ]
+            if generate
+            else []
+        )
+        metric_records = []
+        if generate:
+            for record in planned_records:
+                metric_record = dict(record)
+                metric_record["outcome"] = {
+                    "answer_accuracy": float(
+                        record.get("outcome", {}).get("answer_accuracy", 0.0) or 0.0
+                    )
+                }
+                metric_records.append(metric_record)
         numeric_names = sorted(
             {
                 key for cost in costs for key, value in cost.items() if isinstance(value, (int, float))
@@ -2586,25 +2917,33 @@ def run_semantic_matrix(
         )
         summaries[label] = {
             "architecture": label,
-            "queries": len(predictions_by_label[label]),
+            "queries": len(planned_records),
             "attempted_queries": len(all_examples),
-            "successful_queries": len(predictions_by_label[label]),
-            "failed_queries": len(all_examples) - len(predictions_by_label[label]),
-            "failure_rate": (len(all_examples) - len(predictions_by_label[label])) / len(all_examples),
+            "successful_queries": len(successful_records),
+            "failed_queries": failed_count,
+            "failure_rate": failed_count / len(all_examples),
+            "status": "incomplete" if failed_count else "completed",
+            "has_failures": bool(failed_count),
             "answer_accuracy": (
-                sum(accuracy_by_label[label]) / len(accuracy_by_label[label])
-                if accuracy_by_label[label]
+                sum(end_to_end_answers) / len(end_to_end_answers)
+                if end_to_end_answers
                 else None
             ),
-            # Keep failed/not-completed questions out of the numerator while
-            # retaining their explicit counts above; these are the protocol's
-            # primary answer metrics, not retrieval-only success rates.
-            "persona_macro_accuracy": persona_macro_accuracy(predictions_by_label[label]),
-            "question_micro_accuracy": question_micro_accuracy(predictions_by_label[label]),
+            "end_to_end_micro_accuracy": (
+                sum(end_to_end_answers) / len(end_to_end_answers) if end_to_end_answers else None
+            ),
+            "end_to_end_macro_accuracy": persona_macro_accuracy(metric_records) if generate else None,
+            "successful_response_accuracy": (
+                sum(successful_answers) / len(successful_answers) if successful_answers else None
+            ),
+            "persona_macro_accuracy": persona_macro_accuracy(metric_records) if generate else None,
+            "question_micro_accuracy": (
+                sum(end_to_end_answers) / len(end_to_end_answers) if end_to_end_answers else None
+            ),
             "paired_vs_S0": (
                 None
                 if label == "S0"
-                else gain_damage_net(baseline_predictions, predictions_by_label[label])
+                else gain_damage_net(baseline_predictions, planned_records)
             ),
             # Dense+Rerank is a separate candidate-discovery run and is not
             # silently synthesized from this shared semantic pool.
@@ -2669,9 +3008,12 @@ def run_semantic_matrix(
         # otherwise they remain explicitly marked as a quality-only control.
         "shared_candidate_pool": True,
         "candidate_pool_groups": {
-            "current_multi_parent": ["S0", "S1", "S2", "S3", "S2-shuffle"],
-            "legacy_trace": ["L0", "L1"],
+            "current_multi_parent": [label for label in labels if label not in {"L0", "L1"}],
+            "legacy_trace": [label for label in labels if label in {"L0", "L1"}],
         },
+        "rows_requested": labels,
+        "baseline_requested": baseline_name,
+        "baseline_failures": dense_failures,
         "shared_costs_by_question": shared_costs_by_question,
         "failures": failures,
     }
@@ -2682,6 +3024,16 @@ def run_semantic_matrix(
     (root / "failures.jsonl").write_text(
         "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in failures), encoding="utf-8"
     )
+    dense_end_to_end = [
+        float(item.get("outcome", {}).get("answer_accuracy", 0.0) or 0.0)
+        for item in dense_predictions
+    ]
+    dense_successful_answers = [
+        float(item["outcome"]["answer_accuracy"])
+        for item in dense_predictions
+        if item.get("status") == "success"
+        and item.get("outcome", {}).get("answer_accuracy") is not None
+    ]
     summary = {
         "phase": phase,
         "run_dir": str(root),
@@ -2692,16 +3044,37 @@ def run_semantic_matrix(
             label: {
                 "persona_macro_accuracy": value.get("persona_macro_accuracy"),
                 "question_micro_accuracy": value.get("question_micro_accuracy"),
-                "Gain": (value.get("paired_vs_S0") or {}).get("Gain", 0.0),
-                "Damage": (value.get("paired_vs_S0") or {}).get("Damage", 0.0),
-                "Net": (value.get("paired_vs_S0") or {}).get("Net", 0.0),
+                "Gain": None if value.get("paired_vs_S0") is None else value["paired_vs_S0"].get("Gain"),
+                "Damage": None if value.get("paired_vs_S0") is None else value["paired_vs_S0"].get("Damage"),
+                "Net": None if value.get("paired_vs_S0") is None else value["paired_vs_S0"].get("Net"),
             }
             for label, value in summaries.items()
         },
-        "dense_rerank_comparison": {
-            "available": False,
-            "reason": "Dense+Rerank uses a separate candidate-discovery run; run the dedicated baseline entry point.",
-        },
+        "dense_rerank_comparison": (
+            {
+                "available": True,
+                "status": "incomplete" if dense_failures else "completed",
+                "queries": len(dense_predictions),
+                "failed_queries": len(dense_failures),
+                "answer_accuracy": (
+                    sum(dense_end_to_end) / len(dense_end_to_end)
+                    if generate and dense_predictions
+                    else None
+                ),
+                "successful_response_accuracy": (
+                    sum(dense_successful_answers) / len(dense_successful_answers)
+                    if generate and dense_predictions
+                    else None
+                ),
+                "paired_vs_S0": gain_damage_net(baseline_predictions, dense_predictions) if dense_predictions else None,
+            }
+            if baseline_name == "dense_rerank" and reranker is not None
+            else {
+                "available": False,
+                "status": "not_run",
+                "reason": "Dense+Rerank requires an explicit reranker service; no result is synthesized.",
+            }
+        ),
     }
     (root / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -2711,4 +3084,9 @@ def run_semantic_matrix(
         for label in labels:
             for record in predictions_by_label[label]:
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    if baseline_name == "dense_rerank":
+        (root / "predictions_DenseRerank.jsonl").write_text(
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in dense_predictions),
+            encoding="utf-8",
+        )
     return {"run_dir": str(root), "summary": summary, "manifest": manifest}

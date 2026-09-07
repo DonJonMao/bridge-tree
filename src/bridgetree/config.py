@@ -504,6 +504,7 @@ class RetrievalConfig:
                     "centroid",
                     "real_member_vector",
                     "real_member_query_anchor",
+                    "offline_q_plus_anchor",
                     "round_robin",
                 },
             ),

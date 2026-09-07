@@ -838,14 +838,19 @@ class GenerationCache:
 
     @staticmethod
     def _cache_key_for_plan(plan: ContextPlan, client: GeneratorClient) -> str:
+        # Cache identity follows the request actually sent to the model.  The
+        # provenance ``context_hash`` intentionally includes selector order,
+        # but that order is not part of the chronological reader messages and
+        # must not split an otherwise identical generation request.
+        request = dict(plan.request_dict())
+        request.pop("endpoint", None)
+        request.pop("endpoint_sha256", None)
         payload = {
-            "request": plan.request_dict(),
-            # The transport endpoint is not part of the JSON request but is
-            # part of cache identity.  Include it separately so two services
-            # with identical models/prompts cannot share a response.
-            "endpoint": client.config.endpoint,
-            "client_model": client.config.model,
-            "context_hash": plan.context_hash,
+            "schema": 2,
+            "request": request,
+            # The endpoint is transport identity rather than JSON payload;
+            # hash it so cache files do not expose internal service URLs.
+            "endpoint_sha256": hashlib.sha256(str(client.config.endpoint).encode("utf-8")).hexdigest(),
         }
         return hashlib.sha256(
             json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")

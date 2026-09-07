@@ -112,6 +112,8 @@ class BridgeTreeRetriever:
         context_token_budget: int | None = None,
         generator_config: Any | None = None,
         representation_fingerprint: str = "",
+        proposal_query_provider: Any | None = None,
+        bridge_query_instruction: str | None = None,
     ) -> RetrievalResult:
         # Apply the question visibility envelope before any ANN or reranker
         # path.  PersonaMem normally slices by observation index already,
@@ -167,6 +169,8 @@ class BridgeTreeRetriever:
                 query_cutoff=query_cutoff,
                 query_metadata=query_metadata,
                 listwise_selector=listwise_selector,
+                proposal_query_provider=proposal_query_provider,
+                proposal_query_instruction=bridge_query_instruction or "",
                 context_token_budget=context_token_budget,
                 generator_config=generator_config,
                 representation_fingerprint=representation_fingerprint,

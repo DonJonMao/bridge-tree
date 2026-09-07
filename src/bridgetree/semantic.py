@@ -676,6 +676,7 @@ def discover_frozen_graph(
 
     if proposal_mode not in {
         "real_member_query_anchor",
+        "offline_q_plus_anchor",
         "real_member_vector",
         "round_robin",
         "dense",
@@ -771,7 +772,7 @@ def discover_frozen_graph(
     proposal_embedding_source = "not_applicable"
     proposal_embedding_queries = 0
     proposal_embedding_ms = 0.0
-    if proposal_mode == "real_member_query_anchor":
+    if proposal_mode in {"real_member_query_anchor", "offline_q_plus_anchor"}:
         if proposal_vectors is not None:
             if not isinstance(proposal_vectors, Mapping):
                 raise ValueError("proposal_vectors must be a mapping from anchor ID to vector")
@@ -790,7 +791,7 @@ def discover_frozen_graph(
                     raise ValueError(f"proposal vector for {identifier} has the wrong dimension")
                 proposal_vector_map[identifier] = normalize(value)
             proposal_embedding_source = "precomputed"
-        elif proposal_query_provider is not None:
+        elif proposal_mode == "real_member_query_anchor" and proposal_query_provider is not None:
             # Providers are called layer-by-layer below because the set of
             # real members is itself discovered synchronously.  The marker is
             # retained in the graph config for audit/caching identity.
@@ -812,10 +813,10 @@ def discover_frozen_graph(
         for _parent_position, parent_id in enumerate(current):
             if not tracker.can_propose():
                 break
-            if proposal_mode == "real_member_query_anchor":
+            if proposal_mode in {"real_member_query_anchor", "offline_q_plus_anchor"}:
                 if parent_id in proposal_vector_map:
                     proposal_query = proposal_vector_map[parent_id]
-                elif proposal_query_provider is not None:
+                elif proposal_mode == "real_member_query_anchor" and proposal_query_provider is not None:
                     provider_parent_ids.append(parent_id)
                     provider_texts.append(build_bridge_embedding_text(str(query_text), memory_by_id[parent_id]))
                     # The actual provider call is batched after collecting the
@@ -1511,6 +1512,15 @@ def semantic_retrieve(
             visible_bank=(), proposal_domain=(), selected_context=(), certificate_status="unavailable",
         )
     if frozen_graph is None:
+        if (
+            config.proposal_mode == "real_member_query_anchor"
+            and proposal_query_provider is None
+            and proposal_vectors is None
+        ):
+            raise ValueError(
+                "proposal_mode=real_member_query_anchor requires an explicit proposal_query_provider "
+                "or proposal_vectors"
+            )
         graph, graph_diagnostics, tracker, index = discover_frozen_graph(
             visible,
             visible_vectors,
