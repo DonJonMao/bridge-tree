@@ -96,6 +96,30 @@ def require_label_pair(response: Mapping[str, Any], *, sufficient_label: str = "
     return first, second
 
 
+def preflight_joint_backend(backend: Any, *, sufficient_label: str = "A",
+                            insufficient_label: str = "B") -> dict[str, Any]:
+    """Fail before a run if a backend cannot provide the required label pair.
+
+    Backends may expose ``capabilities()`` or ``probe_label_scores()``.  A
+    generic truthy ``supports_logprobs`` flag is intentionally insufficient:
+    the response itself must contain both labels, so a configured probe is
+    always parsed with :func:`require_label_pair`.
+    """
+    capability = getattr(backend, "capabilities", None)
+    if callable(capability):
+        details = capability()
+        if isinstance(details, Mapping) and details.get("same_position") is False:
+            raise ValueError("joint judge backend does not score labels at one output position")
+    probe = getattr(backend, "probe_label_scores", None)
+    if not callable(probe):
+        raise ValueError("joint judge backend has no label-score probe")
+    response = probe(sufficient_label=sufficient_label, insufficient_label=insufficient_label)
+    first, second = require_label_pair(response, sufficient_label=sufficient_label,
+                                       insufficient_label=insufficient_label)
+    return {"sufficient_label": sufficient_label, "insufficient_label": insufficient_label,
+            "same_position": True, "sufficient_logprob": first, "insufficient_logprob": second}
+
+
 def judge_input_hash(query: PublicQuery, raw_ids: Sequence[str], records: Mapping[str, Any]) -> str:
     payload = {"query": query.identity(), "raw_ids": list(raw_ids),
                "records": [records.get(identifier) for identifier in raw_ids]}
