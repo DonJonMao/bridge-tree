@@ -1,6 +1,8 @@
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
+import yaml
 
 from bridgetree.config import BridgeRerankConfig, RetrievalConfig, apply_runtime_overrides, load_config
 
@@ -13,7 +15,45 @@ def test_default_config_matches_datacenter_services():
     assert config.models.reranker.cache_dir == "outputs/rerank_cache"
     assert config.bridge_rerank.dense_pool_width == 20
     assert config.models.generator.model == "deepseek-v4-flash"
-    assert config.models.generator.api_key == ""
+    # The public template stays credential-free; deployment may automatically
+    # resolve a gitignored private credential beside it.
+    public = yaml.safe_load(Path("configs/default.yaml").read_text(encoding="utf-8"))
+    assert public["models"]["generator"]["api_key"] == ""
+
+
+def test_private_key_is_automatically_sent_without_environment(tmp_path, monkeypatch):
+    from bridgetree.clients import GeneratorClient
+
+    config_path = tmp_path / "default.yaml"
+    config_path.write_text(Path("configs/default.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    private = tmp_path / "credentials.local.yaml"
+    private.write_text(yaml.safe_dump({"generator": {
+        "endpoint": "http://111.19.156.30:8006/v1/chat/completions", "api_key": "test-private-key",
+    }}), encoding="utf-8")
+    monkeypatch.delenv("BRIDGETREE_CHAT_API_KEY", raising=False)
+    config = load_config(config_path)
+    requests = []
+
+    def capture(endpoint, payload, timeout, headers):
+        requests.append((payload, headers))
+        return {"choices": [{"message": {"content": "(a)"}}]}
+
+    monkeypatch.setattr("bridgetree.clients._post_json", capture)
+    assert GeneratorClient(config.models.generator).answer("question", [], "(a) option") == "(a)"
+    assert requests[0][1]["Authorization"] == "Bearer test-private-key"
+    assert "test-private-key" not in str(requests[0][0])
+    monkeypatch.setenv("BRIDGETREE_CHAT_API_KEY", "")
+    assert config.models.generator.resolved_api_key() == "test-private-key"
+    monkeypatch.setenv("BRIDGETREE_CHAT_API_KEY", "test-env-key")
+    assert config.models.generator.resolved_api_key() == "test-env-key"
+
+    override = tmp_path / "override.yaml"
+    override.write_text(yaml.safe_dump({"models": {"generator": {"endpoint": "http://another-service"}}}),
+                        encoding="utf-8")
+    assert load_config(config_path, override).models.generator.api_key == ""
+    override.write_text(yaml.safe_dump({"models": {"generator": {"api_key": "test-explicit-key"}}}),
+                        encoding="utf-8")
+    assert load_config(config_path, override).models.generator.api_key == "test-explicit-key"
 
 
 def test_runtime_overrides_take_priority_and_serialize_canonical_names():

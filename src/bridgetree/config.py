@@ -683,9 +683,8 @@ class RerankerConfig(EndpointConfig):
 
 @dataclass(frozen=True)
 class GeneratorConfig(EndpointConfig):
-    # Credentials must be supplied through the environment on a deployment
-    # host; keeping a usable key in the repository would leak it when this
-    # project is mirrored or packaged.
+    # A private local config can supply credentials directly. A non-empty
+    # environment value remains an optional deployment override.
     api_key: str = ""
     api_key_env: str = "BRIDGETREE_CHAT_API_KEY"
     temperature: float = 0.0
@@ -710,7 +709,7 @@ class GeneratorConfig(EndpointConfig):
         object.__setattr__(self, "context_token_budget", context_token_budget)
 
     def resolved_api_key(self) -> str:
-        return os.environ.get(self.api_key_env, self.api_key)
+        return os.environ.get(self.api_key_env) or self.api_key
 
 
 @dataclass(frozen=True)
@@ -890,6 +889,14 @@ def load_config(path: str | Path, override_path: str | Path | None = None) -> Ap
     for name, section in (("embedding", embedding_raw), ("reranker", reranker_raw), ("generator", generator_raw)):
         if not isinstance(section, Mapping):
             raise ValueError(f"configuration models.{name} section must be a mapping")
+    credentials_path = Path(path).resolve().parent / "credentials.local.yaml"
+    if not generator_raw.get("api_key") and credentials_path.is_file():
+        private_generator = _read_yaml(credentials_path).get("generator", {})
+        if not isinstance(private_generator, Mapping):
+            raise ValueError("private credentials generator section must be a mapping")
+        # Never attach an existing service's credential to an unrelated URL.
+        if private_generator.get("endpoint") == generator_raw.get("endpoint"):
+            generator_raw = {**generator_raw, "api_key": private_generator.get("api_key", "")}
     bridge_raw = raw.get("bridge_rerank", {})
     data_raw = raw.get("data", {})
     runtime_raw = raw.get("runtime", {})
