@@ -36,3 +36,13 @@ def test_support_uses_one_fixed_claim_and_restarts_after_each_delete():
     assert result.status == "single_deletion_minimal"
     assert result.retained_ids == ("a", "b")
     assert all(entry["removed"] != "b" or entry["supported"] is False for entry in result.deletion_trace)
+
+
+def test_budget_exhaustion_keeps_initially_supported_terminal():
+    judge = Judge()
+    archive = ChainSearcher(PublicQuery("d", "p", "q", "question"), judge,
+                            horizon=0, max_verify_calls=1).search(
+        [EvidenceState(("a", "b"), paths=(("a", "b"),))], closure=True
+    )
+    assert len(archive.verified_terminals) == 1
+    assert archive.verified_terminals[0].selected_ids == ("a", "b")

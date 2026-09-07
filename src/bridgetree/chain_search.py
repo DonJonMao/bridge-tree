@@ -47,7 +47,7 @@ class Terminal:
 
     @property
     def selected_ids(self) -> tuple[str, ...]:
-        if self.closure and self.closure.status in {"single_deletion_minimal", "closure_budget_exhausted"}:
+        if self.closure and self.closure.status == "single_deletion_minimal":
             return self.closure.retained_ids
         return self.state.raw_ids
 
@@ -100,8 +100,12 @@ class ChainSearcher:
                         self.query, state.raw_ids, self.judge,
                         max_verify_calls=self.max_verify_calls,
                     )
-                    if result.status == "single_deletion_minimal":
-                        rescored = Terminal(state, self.score(result.retained_ids), result)
+                    if result.initial_verification and result.initial_verification.supported:
+                        # The original C is a valid terminal even when the
+                        # deletion budget prevents proving minimality.  Only a
+                        # completed deletion pass may replace it with W.
+                        selected = result.retained_ids if result.status == "single_deletion_minimal" else state.raw_ids
+                        rescored = Terminal(state, self.score(selected), result)
                         archive.verified_terminals.append(rescored)
                 elif not closure:
                     archive.verified_terminals.append(terminal)
