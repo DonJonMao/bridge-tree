@@ -56,6 +56,10 @@ L0/L1 会调用 `legacy_core` 执行器，从真实 `result.nodes` 导出 rho/pa
 逐题可 join 的 `predictions_DenseRerank.jsonl`；缺服务时状态为 `not_run`，不会写入伪造
 Gain/Damage/Net。
 
+当请求 L0/L1 时，runner 还会把旧 `legacy_core` 与旧 `legacy_path` 的完整执行器结果分别
+写入 `legacy_executor_predictions.jsonl`；L0/L1 本身仍明确标记为旧 trace 固定池核比较，
+不冒称完整旧在线调度。
+
 每个计划方法题目都会保留一行成功或失败记录。生成开启时，end-to-end 指标以完整计划题
 集为分母，失败按未完成计 0，同时保留 `successful_response_accuracy` 诊断；retrieval-only
 运行的答案指标保持 null。GenerationCache v2 只按 endpoint 身份和实际 JSON request 建键，

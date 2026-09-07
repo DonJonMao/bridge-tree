@@ -2309,6 +2309,8 @@ def run_semantic_matrix(
     failures: list[Dict[str, Any]] = []
     dense_predictions: list[Dict[str, Any]] = []
     dense_failures: list[Dict[str, Any]] = []
+    legacy_executor_records: list[Dict[str, Any]] = []
+    legacy_executor_failures: list[Dict[str, Any]] = []
     shared_costs_by_question: dict[str, dict[str, Any]] = {}
     quality_source_by_label = {
         label: str(SEMANTIC_ABLATIONS[label].get("quality_source", "pointwise"))
@@ -2434,6 +2436,54 @@ def run_semantic_matrix(
                     "source": "legacy_executor",
                 }
                 legacy_discovery_cost = legacy_tracker.snapshot().to_dict()
+                legacy_executor_records.append(
+                    {
+                        "persona_id": str(example.persona_id),
+                        "question_id": str(example.question_id),
+                        "method": "legacy_core",
+                        "status": "success",
+                        "selected_memory_ids": list(legacy_result.selected_context),
+                        "discovered_memory_ids": list(legacy_result.nodes),
+                        "pool_id": legacy_graph.graph_hash,
+                        "cost": legacy_discovery_cost,
+                    }
+                )
+                legacy_path_config = replace(
+                    legacy_config,
+                    profile="legacy_path",
+                    feature_mode="path_conditioned",
+                    selection_mode="path_logdet",
+                    path_mode="legacy",
+                )
+                legacy_path_config.validate()
+                legacy_path_tracker = CostTracker(SearchBudget.from_config(legacy_path_config))
+                legacy_path_result = BridgeTreeRetriever(legacy_path_config).retrieve(
+                    example.query,
+                    query_vector,
+                    memories,
+                    memory_vectors,
+                    index=index,
+                    budget=legacy_path_tracker.budget,
+                    cost_tracker=legacy_path_tracker,
+                    query_cutoff=getattr(example, "query_time", None),
+                    query_metadata=getattr(example, "metadata", None),
+                    answer_options=example.all_options,
+                    context_token_budget=None,
+                )
+                legacy_executor_records.append(
+                    {
+                        "persona_id": str(example.persona_id),
+                        "question_id": str(example.question_id),
+                        "method": "legacy_path",
+                        "status": "success",
+                        "selected_memory_ids": list(legacy_path_result.selected_context),
+                        "discovered_memory_ids": list(legacy_path_result.nodes),
+                        "pool_id": hashlib.sha256(
+                            json.dumps(list(legacy_path_result.nodes), sort_keys=True).encode()
+                        ).hexdigest(),
+                        "cost": legacy_path_tracker.snapshot().to_dict(),
+                    }
+                )
             # L0/L1 are the explicit legacy controls.  Their quality is the
             # frozen graph access probability squared, not the reranker table;
             # this gives the exact ``sqrt(rho²)=rho`` scale while preserving a
@@ -3014,6 +3064,8 @@ def run_semantic_matrix(
         "rows_requested": labels,
         "baseline_requested": baseline_name,
         "baseline_failures": dense_failures,
+        "legacy_executor_methods": ["legacy_core", "legacy_path"] if legacy_executor_records else [],
+        "legacy_executor_failures": legacy_executor_failures,
         "shared_costs_by_question": shared_costs_by_question,
         "failures": failures,
     }
@@ -3087,6 +3139,11 @@ def run_semantic_matrix(
     if baseline_name == "dense_rerank":
         (root / "predictions_DenseRerank.jsonl").write_text(
             "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in dense_predictions),
+            encoding="utf-8",
+        )
+    if legacy_executor_records:
+        (root / "legacy_executor_predictions.jsonl").write_text(
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in legacy_executor_records),
             encoding="utf-8",
         )
     return {"run_dir": str(root), "summary": summary, "manifest": manifest}
