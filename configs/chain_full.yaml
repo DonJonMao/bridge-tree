@@ -1,16 +1,42 @@
-data:
-  split: 32k
-  processed_dir: data/processed/personamem-v1
-chain:
-  horizon: 2
+# Train-free conditional-activation experiment. Deployment endpoints and
+# credentials continue to come from the established application config.
+base_config: default.yaml
+
+dependency:
   initial_width: 12
+  initial_expansion_width: 4
   proposal_width: 4
-  max_unique_memories: 64
-  max_proposal_calls: 36
-  max_joint_contexts: 512
-  max_claim_calls: 32
-  max_verify_calls: 512
-runtime:
+  max_ann_calls: 36
+  max_scored_sets: 512
+  max_selection_sets: 512
+  pair_rescue_width: 4
+  reranker_batch_size: 32
+  reranker_max_input_tokens: 8192
+
+execution:
+  methods:
+    - dense
+    - dense_rerank
+    - activation
+    - context_marginal
+    - activation_fixed_pool
   log_every_questions: 10
   evaluate_every_questions: 25
   heartbeat_seconds: 30
+
+data:
+  split: 32k
+  raw_dir: data/raw/personamem-v1
+  processed_dir: data/processed/personamem-v1
+  include_system_persona: true
+  memory_granularity: user_assistant_pair
+
+runtime:
+  device: cpu
+  cache_dir: outputs/cache
+  output_dir: outputs/chain
+
+models:
+  reranker:
+    score_space: unit_interval
+    score_contract: pointwise

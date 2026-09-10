@@ -440,6 +440,59 @@ class RerankItem:
         object.__setattr__(self, "score", score)
 
 
+def _response_declares_truncation(value: Any) -> bool:
+    """Return true only for an explicit positive backend truncation flag.
+
+    Different OpenAI-compatible reranker servers expose this bit in slightly
+    different envelopes (top-level, ``meta``/``usage``, or per result).  A
+    full-set score must never be cached when any of those envelopes says the
+    input was shortened.  We intentionally do not infer truncation from token
+    counts or from a field describing the configured truncation strategy.
+    """
+
+    flag_names = {
+        "truncated",
+        "is_truncated",
+        "was_truncated",
+        "input_truncated",
+        "inputs_truncated",
+        "document_truncated",
+        "documents_truncated",
+    }
+    reason_names = {"finish_reason", "termination_reason"}
+    truncation_reasons = {"length", "max_tokens", "truncated", "input_length"}
+
+    def positive_flag(flag: Any) -> bool:
+        if isinstance(flag, (bool, np.bool_)):
+            return bool(flag)
+        if isinstance(flag, str):
+            return flag.strip().lower() in {"true", "yes", "1"}
+        if isinstance(flag, (int, np.integer)) and not isinstance(flag, bool):
+            return int(flag) == 1
+        if isinstance(flag, Mapping):
+            return any(positive_flag(child) for child in flag.values())
+        if isinstance(flag, (list, tuple)):
+            return any(positive_flag(child) for child in flag)
+        return False
+
+    if isinstance(value, Mapping):
+        for raw_key, child in value.items():
+            key = str(raw_key).strip().lower().replace("-", "_")
+            if key in flag_names and positive_flag(child):
+                return True
+            if (
+                key in reason_names
+                and isinstance(child, str)
+                and child.strip().lower().replace("-", "_") in truncation_reasons
+            ):
+                return True
+            if isinstance(child, (Mapping, list, tuple)) and _response_declares_truncation(child):
+                return True
+    elif isinstance(value, (list, tuple)):
+        return any(_response_declares_truncation(item) for item in value)
+    return False
+
+
 class RerankerClient:
     def __init__(self, config: EndpointConfig):
         self.config = config
@@ -483,6 +536,8 @@ class RerankerClient:
         if self.config.model:
             payload["model"] = self.config.model
         response = _post_json(self.config.endpoint, payload, self.config.timeout_seconds)
+        if _response_declares_truncation(response):
+            raise ValueError("rerank backend explicitly reported input truncation")
         if isinstance(response, dict):
             raw_results = response.get("results", response.get("data"))
         elif isinstance(response, list):

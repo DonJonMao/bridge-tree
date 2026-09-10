@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
 
 ACTIVE_STATES = {"starting", "running"}
+WORKER_READY_FILE = ".background_worker_ready.json"
 
 
 def _utc_iso(timestamp: float | None = None) -> str:
@@ -43,6 +44,7 @@ def _job_paths(state_dir: str | Path, job: str) -> Dict[str, Path]:
         "spec": root / f"{job}.spec.json",
         "log": root / f"{job}.log",
         "status": root / f"{job}.status.json",
+        "ready": root / f"{job}.monitor_ready.json",
         "pid": root / f"{job}.pid",
         "exit": root / f"{job}.exit",
         "run_dir": root / f"{job}.run_dir",
@@ -69,6 +71,36 @@ def _load_json(path: Path) -> Dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return value if isinstance(value, dict) else None
+
+
+def _not_started_status(paths: Mapping[str, Path], job: str) -> Dict[str, Any]:
+    return {
+        "job": job,
+        "state": "not_started",
+        "state_dir": str(paths["root"]),
+        "log_file": str(paths["log"]),
+        "status_file": str(paths["status"]),
+    }
+
+
+def _refresh_dead_status_unlocked(
+    paths: Mapping[str, Path], status: Dict[str, Any]
+) -> Dict[str, Any]:
+    pid = status.get("pid")
+    if status.get("state") not in ACTIVE_STATES or _pid_is_alive(
+        pid if isinstance(pid, int) else None
+    ):
+        return status
+    now = time.time()
+    refreshed = {
+        **status,
+        "state": "interrupted",
+        "finished_at": _utc_iso(now),
+        "finished_at_epoch": now,
+        "message": "background monitor process is no longer running",
+    }
+    _atomic_write_json(paths["status"], refreshed)
+    return refreshed
 
 
 def _archive_previous(paths: Mapping[str, Path], job: str, previous: Mapping[str, Any] | None) -> str | None:
@@ -114,24 +146,18 @@ def read_job_status(state_dir: str | Path, job: str, *, refresh: bool = True) ->
     paths = _job_paths(state_dir, job)
     status = _load_json(paths["status"])
     if status is None:
-        return {
-            "job": job,
-            "state": "not_started",
-            "state_dir": str(paths["root"]),
-            "log_file": str(paths["log"]),
-            "status_file": str(paths["status"]),
-        }
+        return _not_started_status(paths, job)
     pid = status.get("pid")
     if refresh and status.get("state") in ACTIVE_STATES and not _pid_is_alive(pid if isinstance(pid, int) else None):
-        now = time.time()
-        status = {
-            **status,
-            "state": "interrupted",
-            "finished_at": _utc_iso(now),
-            "finished_at_epoch": now,
-            "message": "background monitor process is no longer running",
-        }
-        _atomic_write_json(paths["status"], status)
+        # Re-read and transition under the same lock used by launch_job.  A
+        # stale status refresh must never overwrite a concurrently launched
+        # monitor's new live PID.
+        with paths["lock"].open("a+", encoding="utf-8") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            current = _load_json(paths["status"])
+            if current is None:
+                return _not_started_status(paths, job)
+            status = _refresh_dead_status_unlocked(paths, current)
     return status
 
 
@@ -144,6 +170,7 @@ def launch_job(
     run_root: str | Path,
     run_prefix: str,
     artifacts: Mapping[str, str] | None = None,
+    exact_run_dir: str | Path | None = None,
 ) -> Dict[str, Any]:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", job):
         raise ValueError("job name may contain only letters, digits, dot, underscore, and dash")
@@ -159,12 +186,26 @@ def launch_job(
     if not output_root.is_absolute():
         output_root = working_directory / output_root
     output_root = output_root.resolve()
+    declared_run_dir: Path | None = None
+    if exact_run_dir is not None:
+        declared_run_dir = Path(exact_run_dir)
+        if not declared_run_dir.is_absolute():
+            declared_run_dir = working_directory / declared_run_dir
+        declared_run_dir = declared_run_dir.resolve()
+        try:
+            declared_run_dir.relative_to(output_root)
+        except ValueError as exc:
+            raise ValueError("exact run directory must stay inside run_root") from exc
     paths = _job_paths(state_dir, job)
     paths["root"].mkdir(parents=True, exist_ok=True)
 
     with paths["lock"].open("a+", encoding="utf-8") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        previous = read_job_status(paths["root"], job)
+        previous = _load_json(paths["status"])
+        if previous is None:
+            previous = _not_started_status(paths, job)
+        else:
+            previous = _refresh_dead_status_unlocked(paths, previous)
         previous_pid = previous.get("pid")
         if previous.get("state") in ACTIVE_STATES and _pid_is_alive(
             previous_pid if isinstance(previous_pid, int) else None
@@ -179,6 +220,7 @@ def launch_job(
             "command_display": shlex.join(command),
             "run_root": str(output_root),
             "run_prefix": run_prefix,
+            "exact_run_dir": str(declared_run_dir) if declared_run_dir is not None else None,
             "artifacts": dict(artifacts or {}),
             "started_at": _utc_iso(started_epoch),
             "started_at_epoch": started_epoch,
@@ -220,7 +262,20 @@ def launch_job(
             "state": "starting",
             "pid": worker.pid,
             "launch_result": "started",
+            "run_dir": str(declared_run_dir) if declared_run_dir is not None else None,
         }
+        _atomic_write_json(paths["status"], starting)
+        deadline = time.monotonic() + 5.0
+        monitor_ready = False
+        while time.monotonic() < deadline:
+            ready = _load_json(paths["ready"])
+            if ready is not None and ready.get("pid") == worker.pid:
+                monitor_ready = True
+                break
+            if not _pid_is_alive(worker.pid):
+                break
+            time.sleep(0.01)
+        starting = {**starting, "monitor_ready": monitor_ready}
         _atomic_write_json(paths["status"], starting)
         return starting
 
@@ -230,7 +285,14 @@ def _discover_run_dir(run_root: Path, run_prefix: str, before: set[Path]) -> Pat
         return None
     candidates = [path.resolve() for path in run_root.glob(f"{run_prefix}*") if path.is_dir()]
     created = [path for path in candidates if path not in before]
-    return max(created, key=lambda path: path.stat().st_mtime_ns) if created else None
+    if created:
+        return max(created, key=lambda path: path.stat().st_mtime_ns)
+    # Resume workers intentionally write into the exact pre-existing run
+    # directory.  In that case there is no newly-created directory to
+    # discover, but the exact prefix remains unambiguous.  Do not guess among
+    # merely prefix-matching historical runs.
+    exact = (run_root / run_prefix).resolve()
+    return exact if exact in candidates else None
 
 
 def _copy_artifacts(
@@ -273,15 +335,42 @@ def run_worker(spec_path: str | Path) -> int:
         for path in run_root.glob(f"{spec['run_prefix']}*")
         if path.is_dir()
     } if run_root.is_dir() else set()
-
-    with paths["lock"].open("a+", encoding="utf-8") as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        running = {**spec, "state": "running", "pid": pid, "launch_result": "started"}
-        _atomic_write_json(paths["status"], running)
-
+    declared_value = spec.get("exact_run_dir")
+    declared_run_dir = Path(str(declared_value)).resolve() if declared_value else None
     command = [str(value) for value in spec["command"]]
     exit_code = 125
     error: str | None = None
+    termination_signal: int | None = None
+    child: subprocess.Popen[Any] | None = None
+    termination_requested_at: float | None = None
+    termination_forwarded = False
+
+    def forward_termination(signum: int, _frame: Any) -> None:
+        nonlocal termination_requested_at, termination_signal
+        termination_signal = signum
+        if termination_requested_at is None:
+            termination_requested_at = time.monotonic()
+
+    signal.signal(signal.SIGTERM, forward_termination)
+    signal.signal(signal.SIGINT, forward_termination)
+    _atomic_write_json(
+        paths["ready"],
+        {"job": job, "pid": pid, "ready_at": _utc_iso(), "ready_at_epoch": time.time()},
+    )
+
+    with paths["lock"].open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        running = {
+            **spec,
+            "state": "running",
+            "pid": pid,
+            "launch_result": "started",
+            "run_dir": str(declared_run_dir) if declared_run_dir is not None else None,
+        }
+        _atomic_write_json(paths["status"], running)
+        if declared_run_dir is not None:
+            _atomic_write_text(paths["run_dir"], f"{declared_run_dir}\n")
+
     paths["log"].parent.mkdir(parents=True, exist_ok=True)
     with paths["log"].open("w", encoding="utf-8", buffering=1) as log:
         log.write("=== BridgeTree background job ===\n")
@@ -293,21 +382,42 @@ def run_worker(spec_path: str | Path) -> int:
         log.write("=== command output ===\n")
         log.flush()
         try:
-            completed = subprocess.run(
+            child = subprocess.Popen(
                 command,
                 cwd=str(spec["cwd"]),
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=subprocess.STDOUT,
-                check=False,
                 env=os.environ.copy(),
             )
-            exit_code = int(completed.returncode)
+            while child.poll() is None:
+                if termination_signal is not None and not termination_forwarded:
+                    ready = False
+                    if declared_run_dir is not None:
+                        ready_value = _load_json(declared_run_dir / WORKER_READY_FILE)
+                        ready = bool(
+                            ready_value is not None
+                            and ready_value.get("pid") == child.pid
+                        )
+                    grace_elapsed = (
+                        termination_requested_at is not None
+                        and time.monotonic() - termination_requested_at >= 5.0
+                    )
+                    if ready or grace_elapsed:
+                        with suppress(OSError):
+                            child.send_signal(termination_signal)
+                        termination_forwarded = True
+                time.sleep(0.02)
+            exit_code = int(child.returncode)
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             log.write(f"\nbackground worker could not execute command: {error}\n")
 
-        run_dir = _discover_run_dir(run_root, str(spec["run_prefix"]), before)
+        run_dir = (
+            declared_run_dir
+            if declared_run_dir is not None and declared_run_dir.is_dir()
+            else _discover_run_dir(run_root, str(spec["run_prefix"]), before)
+        )
         _atomic_write_text(paths["run_dir"], f"{run_dir or ''}\n")
         copied, missing, artifact_errors = _copy_artifacts(
             run_dir,
@@ -315,7 +425,11 @@ def run_worker(spec_path: str | Path) -> int:
             {str(key): str(value) for key, value in dict(spec.get("artifacts", {})).items()},
         )
         finished_epoch = time.time()
-        state = "completed" if exit_code == 0 else "failed"
+        state = (
+            "interrupted"
+            if termination_signal is not None
+            else ("completed" if exit_code == 0 else "failed")
+        )
         final = {
             **spec,
             "state": state,
@@ -329,6 +443,8 @@ def run_worker(spec_path: str | Path) -> int:
             "missing_artifacts": missing,
             "artifact_errors": artifact_errors,
             "error": error,
+            "termination_signal": termination_signal,
+            "termination_forwarded": termination_forwarded,
         }
         _atomic_write_text(paths["exit"], f"{exit_code}\n")
         _atomic_write_json(paths["status"], final)
@@ -347,6 +463,7 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument("--cwd", required=True)
     start.add_argument("--run-root", required=True)
     start.add_argument("--run-prefix", required=True)
+    start.add_argument("--exact-run-dir")
     start.add_argument("--artifact", action="append", default=[])
     start.add_argument("command", nargs=argparse.REMAINDER)
 
@@ -378,6 +495,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_root=args.run_root,
         run_prefix=args.run_prefix,
         artifacts=_parse_artifacts(args.artifact),
+        exact_run_dir=args.exact_run_dir,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

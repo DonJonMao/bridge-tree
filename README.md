@@ -73,6 +73,49 @@ overlay) before enabling generation. Legacy BridgeTree still uses its original
 proxy objective; the new `*_rerank` methods form a separate, non-certified
 family whose final selection is owned by the common task-aware reranker.
 
+## Train-free conditional-activation Chain run
+
+The current production Chain entry point uses a separate fixed-target
+conditional-activation implementation. It scores complete sets with the frozen
+pointwise reranker, uses `q + target + premises` only to propose additional
+real memories, and performs a fresh bundle-marginal comparison after every
+final selection. Legacy tree and Chain planning entry points remain available.
+
+```bash
+# After extracting the server bundle on Linux, this creates/reuses .venv,
+# validates all 589 questions / 2,945 tasks without model calls, and starts
+# the detached worker only if every preflight assertion passes.
+bash scripts/start_chain_linux.sh configs/chain_full.yaml
+
+# Complete 589-question / 2,945-task data check; no service calls.
+PYTHONPATH=src python -m bridgetree chain-run \
+  --config configs/chain_full.yaml \
+  --output-dir outputs/chain/data_check \
+  --preflight-only
+
+# Detached server execution and exact-directory resume.
+bash scripts/run_chain.sh start configs/chain_full.yaml
+bash scripts/run_chain.sh status
+bash scripts/run_chain.sh log
+bash scripts/run_chain.sh module-log effectiveness
+bash scripts/run_chain.sh module-log effectiveness-current
+bash scripts/run_chain.sh resume
+```
+
+This run is train-free inference/evaluation, not model-weight training:
+`optimizer_steps=0` and `weights_updated=false`. The one-command Linux launcher
+requires Linux, Bash, Python 3.9+ with `venv`, access to Python package sources
+on first install, at least 20 GiB free by default, and reachable configured
+embedding/reranker/generator services. Credentials remain outside the bundle;
+use `BRIDGETREE_CHAT_API_KEY` or a mode-0600 sibling
+`configs/credentials.local.yaml`.
+
+See [the migration and server guide](docs/conditional_activation_migration.md)
+for the mathematical contract, resource accounting, artifacts, limitations,
+and all lifecycle commands. The preserved acceptance contract is in
+[the implementation goal](docs/conditional_activation_goal.md), with the
+[original supplied text](docs/conditional_activation_goal_source.txt) beside it.
+
 ## One implementation, runtime-controlled modules
 
 `scripts/run_personamem.sh` declares every algorithm switch at the top. Environment variables override YAML, and trailing CLI arguments override the script values:

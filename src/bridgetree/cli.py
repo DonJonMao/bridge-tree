@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import signal
 import sys
 import time
 import urllib.request
@@ -235,6 +236,18 @@ def build_parser() -> argparse.ArgumentParser:
     chain_plan.add_argument("--dataset-revision", default="personamem-v1-32k")
     chain_plan.add_argument("--config-hash", default="chain_full")
     chain_plan.add_argument("--method", action="append", dest="methods")
+
+    chain_run = subparsers.add_parser(
+        "chain-run",
+        help="Run or preflight the train-free conditional-activation Chain experiment",
+    )
+    chain_run.add_argument("--config", default="configs/chain_full.yaml")
+    chain_run.add_argument("--override-config")
+    chain_run.add_argument("--output-dir")
+    chain_run.add_argument("--protocol-manifest")
+    chain_mode = chain_run.add_mutually_exclusive_group()
+    chain_mode.add_argument("--resume", action="store_true")
+    chain_mode.add_argument("--preflight-only", action="store_true")
 
     sweep = subparsers.add_parser("sweep", help="Run required methods over one or more search budgets")
     sweep.add_argument("--config", default="configs/default.yaml")
@@ -514,6 +527,37 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+    if args.command == "chain-run":
+        from .dependency_config import load_dependency_config
+        from .dependency_experiment import run_dependency_experiment
+
+        config = load_dependency_config(args.config, args.override_config)
+        if args.resume and args.output_dir is None:
+            raise ValueError("chain-run --resume requires --output-dir for the original run")
+        output_dir = args.output_dir
+        if output_dir is None:
+            output_dir = (
+                Path(config.runtime.output_dir)
+                / f"dependency_{time.strftime('%Y%m%d_%H%M%S')}_{time.time_ns()}"
+            )
+        previous_sigterm = signal.getsignal(signal.SIGTERM)
+
+        def interrupt_for_sigterm(signum, _frame):
+            raise KeyboardInterrupt(f"received {signal.Signals(signum).name}")
+
+        signal.signal(signal.SIGTERM, interrupt_for_sigterm)
+        try:
+            result = run_dependency_experiment(
+                config,
+                output_dir,
+                resume=args.resume,
+                preflight_only=args.preflight_only,
+                protocol_manifest=args.protocol_manifest,
+            )
+        finally:
+            signal.signal(signal.SIGTERM, previous_sigterm)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result.get("status") in {"completed", "preflight_complete"} else 1
     if args.command == "chain-plan":
         query_path = Path(args.queries)
         if not query_path.is_file():

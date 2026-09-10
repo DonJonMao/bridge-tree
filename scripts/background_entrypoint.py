@@ -14,7 +14,6 @@ import runpy
 import sys
 from pathlib import Path
 
-
 manager = Path(__file__).resolve().parents[1] / "src" / "bridgetree" / "background.py"
 sys.argv[0] = str(manager)
 runpy.run_path(str(manager), run_name="__main__")

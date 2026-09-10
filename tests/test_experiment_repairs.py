@@ -7,6 +7,7 @@ from bridgetree.config import GeneratorConfig, load_config
 from bridgetree.experiment import run_semantic_matrix
 from bridgetree.offline_validation import OfflineDeterministicEmbedder
 from bridgetree.personamem import PersonaMemExample
+from bridgetree.protocol import _source_identity_path_is_excluded
 from bridgetree.types import Memory
 
 
@@ -26,6 +27,19 @@ def _example(question_id: str) -> PersonaMemExample:
             {"role": "assistant", "content": "memory two"},
         ),
     )
+
+
+def test_source_identity_excludes_private_runtime_credentials(tmp_path):
+    credential = tmp_path / "configs" / "credentials.local.yaml"
+    credential.parent.mkdir()
+    credential.write_text("api_key: private", encoding="utf-8")
+    public = credential.with_name("default.yaml")
+    public.write_text("api_key: ''", encoding="utf-8")
+
+    assert _source_identity_path_is_excluded(
+        "configs/credentials.local.yaml", credential
+    )
+    assert not _source_identity_path_is_excluded("configs/default.yaml", public)
 
 
 def test_real_personamem_matrix_requires_manifest_before_embedding(tmp_path):

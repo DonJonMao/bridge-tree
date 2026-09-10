@@ -1,0 +1,114 @@
+Use this goal together with docs/conditional_activation_migration.md. The reference base is DonJonMao/bridge-tree at 65f411e3d3270874c54ec1e74d65f63e22564784. The delivered branch already implements the migration. If these files already exist, audit and finish concrete gaps instead of adding a second implementation. If working from the reference base, implement the same migration described by the document.
+
+Goal and scope
+
+Make the current Chain entry point run the latest train-free memory-retrieval design on the complete PersonaMem-v1 32k dataset. The central mechanism measures how candidate conditions change a fixed target memory's marginal utility for the original question. Use that signal to control additional retrieval and then choose evidence by its marginal contribution to the final context.
+
+Preserve the existing history normalization, visible-history boundaries, original-query retrieval, query-plus-memory proposals, source IDs, model deployment settings, and final generator interface. Keep legacy tree experiments available through their existing entry points. The new entry point must explicitly use the new implementation.
+
+Do not introduce trainable modules, generator log-probabilities, value models, generated personal facts, weighted reward mixtures, path-protection rules, hard search depth, fixed final bundle count, or claimed global certificates. Generator calls are for the final answer. The frozen reranker provides scalar set scores.
+
+Mathematical contract
+
+For one unchanged original query q, implement:
+
+R(S) = frozen_reranker(q, canonical_serialize(real_memories_in_S))
+M(e | P) = R(P union {e}) - R(P)
+A(G => e | P) = R(P union G union {e}) - R(P union G)
+                 - R(P union {e}) + R(P)
+
+G is a singleton or an explicitly proposed small premise group. Score the empty set with a fixed neutral serialization and the same endpoint; never set its score to zero. Preserve one declared pointwise scale throughout a run. Do not apply sigmoid, batch softmax, min-max normalization, or rank conversion in the new set scorer. unit_interval means the returned bounded scalar is used unchanged; the existing logit_difference configuration identifies finite real-valued scores, also used unchanged here.
+
+The query side of every reranker call is exactly the original question. The richer q + e + P text is only an embedding proposal query. Canonical set serialization includes original text, role, time and provenance, sorted by time and stable ID. It must not depend on which record currently has the target role.
+
+Positive activation means positive score interaction. It does not prove necessity, real-world causal direction, or an increase in total bundle score. Keep target singletons, independent candidate singletons, and observed intermediate bundles in the archive so the final selector can choose them.
+
+Required implementation
+
+Use the established module boundaries:
+
+dependency_config.py: strictly validated resource configuration and deployment loading.
+
+dependency_retrieval.py: initial retrieval, query-memory expansion, full-visible-bank completion, fixed-pool control, and complete provenance.
+
+dependency_scoring.py: canonical set utility, persistent cache, complete batch/index validation, input accounting, and budgets.
+
+dependency_search.py: fixed-target search, activation records, pair rescue, and bundle selection.
+
+dependency_experiment.py: all-data execution, task persistence, metrics and resume.
+
+State identity is (target_id, canonical_premise_ids). A transition is (e, P) -> (e, P union G). Never promote the latest premise to the target automatically. Exclude the current target and its existing premises from a new proposal, but do not globally ban a candidate after testing it under another premise set. The same candidate must be reevaluated when P changes.
+
+Initialize from the entire union of initial dense and bridge proposals. Allow every exposed initial memory to be a target. Do not filter bridge candidates by independent query-score thresholds. Initial target states have zero priority; positive successor signals enter the same best-first frontier, allowing multi-premise evolution before all roots consume the budget. Deterministic ties must not depend on hash iteration order.
+
+Each state proposes a bounded number of records over the complete history visible to that question. A finite probe is not an exhaustive scan. Test the same four utility terms for each candidate. If no singleton has positive signal and resources remain, test pairs among the current finite rescue candidates. Reuse cached terms, archive measured positive successors before queueing them, and preserve results even if no budget remains to expand them.
+
+Stop records must distinguish actual resource exhaustion, unavailable model input capacity, no new finite proposals, no positive measured signal, and successors already seen. None of these conditions proves that no useful evidence exists elsewhere in the bank. Do not add the optional surrogate knapsack bound as a global stopping certificate.
+
+Freeze the bundle archive before final selection. At every selection round compute:
+
+Delta(B | S) = R(S union B) - R(S)
+
+Choose the largest positive marginal among all feasible candidates, update the ID union, and recompute the next round. Do not substitute a static bundle score, summed activation, or marginal-per-token ratio. A round must have enough budget to score every feasible candidate before committing its choice. Otherwise stop with a budget reason. Deduplicate shared memories and input costs.
+
+Use the same exact selected memory union in the final ContextPlan. Account for query, options and prompt overhead. No downstream fitting pass may drop a selected premise. Treat the repository token counter as an estimate and retain that label. Reject explicitly reported backend truncation; never silently rescore a shorter input under the full set's cache key.
+
+Scoring cache and resource accounting
+
+Cache identities must include query identity, visible-history cutoff/content, raw memory metadata, template, model identity, endpoint and score contract. Scores for the same set are batch-composition independent. Strictly validate returned indices and finite values; incomplete, duplicated or truncated responses must fail explicitly.
+
+Count unique scored sets separately from client requests and cache hits. Persistent cache hits consume the same logical unique-set budget as a cold run; caches change cost, not the search frontier. Search and final selection have independent new-set quotas. At their boundary set the cumulative limit to scorer.scored_sets + max_selection_sets.
+
+The scorer's set_budget may reduce an unused cap but must never set a limit below already scored sets. Preflight a complete four-term request before performing new calls. Numerical protocol probes are separate from search budgets and run once per actual execution attempt, not once per question or method. Preserve numerical tolerances and measured deviations in the report; protocol consistency alone does not validate semantic utility.
+
+Evaluation requirements
+
+Default methods are dense, dense_rerank, activation, context_marginal, and activation_fixed_pool. Include optional activation_no_pairs and activation_singleton_selection through the same implementation. Do not implement duplicate experimental pipelines.
+
+context_marginal uses R(PGe)-R(Pe) for acceptance and search priority while retaining the same four-score measurement path, proposal interface, resources and final selector. Joint total score and ordinary marginal have the same ordering within a state; do not present them as separate ranking mechanisms.
+
+Dense baselines perform one original-query retrieval only. They must not incur unused bridge expansion cost. Select their candidates in dense or singleton-reranker order under the same input budget; avoid an extra restrictive evidence-count cap absent from the main method. Report actual inference costs because equal caps do not guarantee equal realized cost.
+
+Use all 589 questions and the pinned raw and processed dataset, giving 2,945 default tasks. Validate checksums, nonempty data, question identities and visibility cutoffs. Freeze the complete task plan before model work. Do not add a silent limit, development subsample, or fallback to an empty plan.
+
+Correct labels are available only for post-generation evaluation. Do not include them in queries, reranking, probes, selection, search caches or diagnostic prompts. Public answer options may enter the final answer prompt. Keep all-data metrics. Use a persisted authoritative seen/confirmation protocol if supplied; otherwise mark those reports not_defined and do not invent a new unseen split after inspecting all data.
+
+Execution and persistence
+
+Replace the old plan-only chain_worker.py with actual per-task retrieval, generation and evaluation. The method is train-free: optimizer_steps=0, weights_updated=false. User-visible training logs should record real inference progress and cumulative evaluation, never pretend weights were trained.
+
+Provide working start, status, log, resume, stop, and data-only preflight actions through scripts/run_chain.sh. Start detaches safely. Resume reuses the original run directory and frozen plan, skips successful tasks, and retries failed or pending tasks. Reject changed configuration, dataset, source-code or protocol identities. A fully successful resume must make zero model calls.
+
+Persist authoritative outcomes atomically per task, preserve append-only predictions and failure events, and compute metrics from authoritative task outcomes. Retain failures in the original denominator. Infrastructure transport outages should persist the current failure and stop with remaining tasks pending; do not spend hours repeating the same unavailable service call for every task.
+
+Print progress every 10 tasks, update method metrics every 25 tasks, and emit a heartbeat every 30 seconds by default. Save the task plan, resolved configuration, progress, completion status, predictions, failures, per-question outcomes, visible-memory snapshots, candidate pools, proposal source graph, four scores, activations, search states, stopping reasons, selection rounds, final context and cost counters. These outputs must contain actual events from execution.
+
+Package source, configurations, scripts, tests, documentation, and complete raw/processed data for Linux. Keep model installation separate from this HTTP client workflow. Preserve the existing server credential-loading behavior; never invent a key.
+
+Acceptance and handoff
+
+Run meaningful offline tests using explicit deterministic fake services. Cover at least:
+
+Scores R(empty)=.10, R(e)=.25, R(p)=.35, R(pe)=.90 yield activation .40.
+
+Positive activation with decreasing total bundle score still lets the singleton win final selection.
+
+A multi-step path keeps its target, and the same candidate changes activation under a changed premise set.
+
+Joint pair activation can succeed when both singleton activations are nonpositive.
+
+Adding a bundle changes later candidates' marginal rankings; incomplete rounds commit nothing.
+
+Cache ordering, empty-set calls, shuffled indices, warm/cold logical budgets, invalid responses and input capacity are handled correctly.
+
+Full-bank retrieval reaches a record outside the initial pool; fixed-pool mode cannot.
+
+Default-style finite ANN budgets can reach nonempty premise states.
+
+A small fake-service experiment actually writes predictions and metrics, resumes correctly, rejects data/config conflicts, and preserves failed denominators.
+
+Data-only preflight freezes all 2,945 tasks without model calls and without reporting inference completion.
+
+Run relevant legacy regression tests for modified shared clients, CLI and background handling. Do not contact the user's deployment from the current workstation merely to reproduce known connection failures. Actual 910B model validation is a server-side step.
+
+Deliver the modified code, exact base identity and change summary, detailed migration/run document, this goal, and an honest verification report. Distinguish offline implementation evidence from real-model task results. Do not claim improved accuracy, validated semantic interactions, server compatibility or global optimality without the corresponding experiment.

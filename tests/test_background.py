@@ -1,9 +1,11 @@
 import json
+import os
+import signal
 import sys
 import time
 from pathlib import Path
 
-from bridgetree.background import _copy_artifacts, launch_job, read_job_status
+from bridgetree.background import _copy_artifacts, _discover_run_dir, launch_job, read_job_status
 
 
 def _wait_for_terminal(state_dir: Path, job: str):
@@ -74,6 +76,56 @@ def test_background_job_records_nonzero_exit_in_fixed_status_files(tmp_path):
     assert "failed run" in (state_dir / "train_32k.log").read_text()
 
 
+def test_background_monitor_forwards_graceful_stop_and_records_interruption(tmp_path):
+    state_dir = tmp_path / "state"
+    run_dir = tmp_path / "runs" / "dependency_exact"
+    code = """
+import json
+import os
+import signal
+import sys
+import time
+from pathlib import Path
+
+run = Path(sys.argv[1])
+run.mkdir(parents=True)
+
+def stop(_signum, _frame):
+    (run / "completion.json").write_text(
+        json.dumps({"status": "interrupted", "inference_complete": False})
+    )
+    raise SystemExit(1)
+
+time.sleep(0.2)
+signal.signal(signal.SIGTERM, stop)
+(run / ".background_worker_ready.json").write_text(
+    json.dumps({"pid": os.getpid()})
+)
+print("worker-ready", flush=True)
+while True:
+    time.sleep(0.02)
+"""
+    launched = launch_job(
+        job="graceful",
+        state_dir=state_dir,
+        cwd=tmp_path,
+        command=[sys.executable, "-c", code, str(run_dir)],
+        run_root=run_dir.parent,
+        run_prefix=run_dir.name,
+        exact_run_dir=run_dir,
+        artifacts={"completion.json": "graceful.completion.json"},
+    )
+    assert launched["monitor_ready"] is True
+    os.kill(launched["pid"], signal.SIGTERM)
+    status = _wait_for_terminal(state_dir, "graceful")
+
+    assert status["state"] == "interrupted"
+    assert status["termination_signal"] == signal.SIGTERM
+    assert status["exit_code"] == 1
+    completion = json.loads((state_dir / "graceful.completion.json").read_text())
+    assert completion == {"status": "interrupted", "inference_complete": False}
+
+
 def test_background_launcher_reports_an_existing_live_job(tmp_path):
     state_dir = tmp_path / "state"
     first = launch_job(
@@ -116,3 +168,37 @@ def test_artifact_copy_error_is_reported_without_leaving_a_temporary_file(tmp_pa
     assert missing == []
     assert "summary.json" in errors
     assert not list(state_dir.glob("fixed.json.*.tmp"))
+
+
+def test_run_discovery_recognizes_exact_preexisting_resume_directory(tmp_path):
+    run_root = tmp_path / "runs"
+    exact = run_root / "dependency_20260910_120000"
+    sibling = run_root / "dependency_20260910_120000_old"
+    exact.mkdir(parents=True)
+    sibling.mkdir()
+
+    discovered = _discover_run_dir(run_root, exact.name, {exact.resolve(), sibling.resolve()})
+
+    assert discovered == exact.resolve()
+
+
+def test_background_status_exposes_declared_run_directory_while_running(tmp_path):
+    state_dir = tmp_path / "state"
+    run_root = tmp_path / "runs"
+    exact = run_root / "dependency_exact"
+    launched = launch_job(
+        job="declared",
+        state_dir=state_dir,
+        cwd=tmp_path,
+        command=[
+            sys.executable,
+            "-c",
+            "import pathlib,sys,time; pathlib.Path(sys.argv[1]).mkdir(parents=True); time.sleep(.2)",
+            str(exact),
+        ],
+        run_root=run_root,
+        run_prefix=exact.name,
+        exact_run_dir=exact,
+    )
+    assert launched["run_dir"] == str(exact.resolve())
+    assert _wait_for_terminal(state_dir, "declared")["run_dir"] == str(exact.resolve())

@@ -1,49 +1,64 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 import argparse
 import json
+import os
+import signal
 import time
+from contextlib import suppress
 from pathlib import Path
-from bridgetree.chain_experiment import build_full_plan, summarize_outcomes, write_plan
+
+from bridgetree.dependency_config import load_dependency_config
+from bridgetree.dependency_experiment import run_dependency_experiment
+
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Run or preflight the train-free conditional-activation experiment"
+    )
     parser.add_argument("--config", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--queries", default="data/processed/personamem-v1/32k/queries.jsonl")
+    parser.add_argument("--override-config")
+    parser.add_argument("--protocol-manifest")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--resume", action="store_true")
+    mode.add_argument("--preflight-only", action="store_true")
     args = parser.parse_args()
-    out = Path(args.output_dir); out.mkdir(parents=True, exist_ok=True)
-    source = Path(args.queries)
-    queries = [json.loads(line) for line in source.open(encoding="utf-8") if line.strip()] if source.is_file() else []
-    tasks = build_full_plan(queries, dataset_revision="personamem-v1-32k", config_hash="chain_full")
-    write_plan(out / "planned_tasks.jsonl", tasks)
-    manifest = {
-        "schema_version": 1,
-        "mode": "train_free",
-        "dataset_revision": "personamem-v1-32k",
-        "config": args.config,
-        "created_at_epoch": time.time(),
-        "methods": sorted({task.method_id for task in tasks}),
-        "expected_tasks": len(tasks),
-    }
-    (out / "run_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    (out / "resolved_config.json").write_text(json.dumps({"config_path": args.config}, indent=2), encoding="utf-8")
-    (out / "train.log").write_text("mode=train_free optimizer_steps=0 weights_updated=false\n", encoding="utf-8")
-    for name in ("visibility", "proposal", "graph", "joint", "closure", "lookahead", "join", "stop", "context", "outcome", "cost"):
-        module_dir = out / "modules"
-        module_dir.mkdir(exist_ok=True)
-        (module_dir / f"{name}.jsonl").write_text("", encoding="utf-8")
-    for name in ("events.jsonl", "predictions.jsonl", "failures.jsonl", "metrics.csv"):
-        (out / name).write_text("", encoding="utf-8")
-    reports = out / "reports"
-    reports.mkdir(exist_ok=True)
-    for name in ("seen_report.json", "confirmation_report.json", "all_data_report.json"):
-        (reports / name).write_text(json.dumps({"status": "planned", "expected_tasks": len(tasks)}, indent=2), encoding="utf-8")
-    (out / "progress.json").write_text(json.dumps({"expected_tasks": len(tasks), "completed_tasks": 0}, indent=2), encoding="utf-8")
-    (out / "summary.json").write_text(json.dumps(summarize_outcomes(tasks, []), indent=2), encoding="utf-8")
-    (out / "completion.json").write_text(json.dumps({"status": "planned", "expected_tasks": len(tasks)}, indent=2), encoding="utf-8")
-    print(json.dumps({"run_dir": str(out), "expected_tasks": len(tasks)}, ensure_ascii=False))
-    return 0
+
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    ready_path = output_dir / ".background_worker_ready.json"
+    previous_sigterm = signal.getsignal(signal.SIGTERM)
+
+    def interrupt_for_sigterm(signum, _frame):
+        raise KeyboardInterrupt(f"received {signal.Signals(signum).name}")
+
+    signal.signal(signal.SIGTERM, interrupt_for_sigterm)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        temporary_ready = ready_path.with_name(
+            f".{ready_path.name}.{os.getpid()}.{time.time_ns()}.tmp"
+        )
+        temporary_ready.write_text(
+            json.dumps({"pid": os.getpid(), "ready_at_epoch": time.time()}) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary_ready, ready_path)
+        config = load_dependency_config(args.config, args.override_config)
+        result = run_dependency_experiment(
+            config,
+            output_dir,
+            resume=args.resume,
+            preflight_only=args.preflight_only,
+            protocol_manifest=args.protocol_manifest,
+        )
+    finally:
+        with suppress(OSError):
+            ready_path.unlink()
+        signal.signal(signal.SIGTERM, previous_sigterm)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("status") in {"completed", "preflight_complete"} else 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

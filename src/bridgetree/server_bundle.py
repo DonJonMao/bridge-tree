@@ -22,7 +22,7 @@ ROOT_FILES = (
     "requirements-ascend910b.txt",
     "问题.md",
 )
-ROOT_DIRECTORIES = ("configs", "data", "docs", "scripts", "src", "tests")
+ROOT_DIRECTORIES = ("configs", "data", "docs", "reference", "scripts", "src", "tests")
 EXCLUDED_PARTS = {
     ".git",
     ".pytest_cache",
@@ -48,9 +48,23 @@ def _sha256_file(path: Path) -> str:
 
 
 def _excluded(relative: Path) -> bool:
-    return any(part in EXCLUDED_PARTS or part.endswith(".egg-info") for part in relative.parts) or relative.suffix in {
+    if relative.parts[:2] == ("data", "protocol"):
+        return True
+    if any(part in EXCLUDED_PARTS or part.endswith(".egg-info") for part in relative.parts):
+        return True
+    name = relative.name.lower()
+    if name == ".ds_store" or name == ".env" or name.startswith(".env."):
+        return True
+    if "credential" in name and relative.suffix.lower() in {".yaml", ".yml", ".json"}:
+        return True
+    return relative.suffix.lower() in {
+        ".key",
+        ".p12",
+        ".pem",
+        ".pfx",
         ".pyc",
         ".pyo",
+        ".tmp",
     }
 
 
@@ -77,6 +91,8 @@ def server_bundle_files(repository_root: str | Path) -> list[Path]:
         root / "data" / "raw" / "personamem-v1" / "shared_contexts_32k.jsonl",
         root / "scripts" / "run_effect_first_validation.sh",
         root / "scripts" / "background_entrypoint.py",
+        root / "scripts" / "run_chain.sh",
+        root / "scripts" / "start_chain_linux.sh",
         root / "scripts" / "start_effect_first_background.sh",
         root / "scripts" / "start_train_32k_background.sh",
         root / "scripts" / "train_32k.sh",
@@ -212,6 +228,8 @@ def verify_server_bundle(archive_path: str | Path) -> Dict[str, Any]:
         if not launcher.mode & 0o111:
             raise ValueError("server bundle launcher is not executable")
         executable_launchers = (
+            "scripts/run_chain.sh",
+            "scripts/start_chain_linux.sh",
             "scripts/run_effect_first_validation.sh",
             "scripts/start_effect_first_background.sh",
             "scripts/start_train_32k_background.sh",

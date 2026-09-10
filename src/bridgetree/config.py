@@ -783,6 +783,52 @@ class BridgeRerankConfig:
 
 
 @dataclass(frozen=True)
+class ChainConfig:
+    """Resource limits for the historical joint-evidence Chain runner.
+
+    The conditional-activation runner has a separate configuration surface in
+    :mod:`bridgetree.dependency_config`.  Keeping these fields on
+    :class:`AppConfig` is solely a compatibility contract for the legacy
+    ``chain-*`` methods and does not route the new entry point back through the
+    old search implementation.
+    """
+
+    horizon: int = 2
+    initial_width: int = 12
+    proposal_width: int = 4
+    max_unique_memories: int = 64
+    max_proposal_calls: int = 36
+    max_joint_contexts: int = 512
+    max_claim_calls: int = 32
+    max_verify_calls: int = 512
+
+    def __post_init__(self) -> None:
+        horizon = _strict_int(self.horizon, "chain.horizon", nonnegative=True)
+        if horizon > 2:
+            raise ValueError("chain.horizon must be 0, 1, or 2")
+        object.__setattr__(self, "horizon", horizon)
+        for name in (
+            "initial_width",
+            "proposal_width",
+            "max_unique_memories",
+            "max_joint_contexts",
+        ):
+            object.__setattr__(
+                self,
+                name,
+                _strict_int(getattr(self, name), f"chain.{name}", positive=True),
+            )
+        for name in ("max_proposal_calls", "max_claim_calls", "max_verify_calls"):
+            object.__setattr__(
+                self,
+                name,
+                _strict_int(getattr(self, name), f"chain.{name}", nonnegative=True),
+            )
+        if self.initial_width > self.max_unique_memories:
+            raise ValueError("chain.initial_width must be <= chain.max_unique_memories")
+
+
+@dataclass(frozen=True)
 class DataConfig:
     raw_dir: str = "data/raw/personamem-v1"
     processed_dir: str = "data/processed/personamem-v1"
@@ -806,6 +852,9 @@ class AppConfig:
     bridge_rerank: BridgeRerankConfig = field(default_factory=BridgeRerankConfig)
     data: DataConfig = field(default_factory=DataConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    # Appended after the historical fields to preserve positional constructor
+    # compatibility for external callers.
+    chain: ChainConfig = field(default_factory=ChainConfig)
 
     def validate(self) -> None:
         seed = _strict_int(self.seed, "seed", nonnegative=True)
@@ -813,6 +862,7 @@ class AppConfig:
             raise ValueError("seed must be canonicalized as an integer")
         self.retrieval.validate()
         self.bridge_rerank.validate(self.retrieval)
+        self.chain.__post_init__()
         # Model dataclasses validate their own transport and numeric fields at
         # construction time; repeat the checks here for objects assembled by
         # deserializers or ``dataclasses.replace``.
@@ -871,10 +921,30 @@ def _retrieval_from_mapping(raw: Mapping[str, Any]) -> RetrievalConfig:
     return RetrievalConfig(**values)
 
 
+def _read_config_tree(path: Path, seen: tuple[Path, ...] = ()) -> Dict[str, Any]:
+    """Resolve ``base_config`` recursively relative to the declaring file."""
+
+    resolved = path.expanduser().resolve()
+    if resolved in seen:
+        chain = " -> ".join(str(item) for item in (*seen, resolved))
+        raise ValueError(f"cyclic base_config chain: {chain}")
+    raw = _read_yaml(resolved)
+    base_value = raw.pop("base_config", None)
+    if base_value is None:
+        return raw
+    if not isinstance(base_value, str) or not base_value.strip():
+        raise ValueError("base_config must be a non-empty path string")
+    base_path = Path(base_value).expanduser()
+    if not base_path.is_absolute():
+        base_path = resolved.parent / base_path
+    return _deep_merge(_read_config_tree(base_path, (*seen, resolved)), raw)
+
+
 def load_config(path: str | Path, override_path: str | Path | None = None) -> AppConfig:
-    raw = _read_yaml(Path(path))
+    config_path = Path(path)
+    raw = _read_config_tree(config_path)
     if override_path is not None:
-        raw = _deep_merge(raw, _read_yaml(Path(override_path)))
+        raw = _deep_merge(raw, _read_config_tree(Path(override_path)))
 
     retrieval_raw = raw.get("retrieval", {})
     if not isinstance(retrieval_raw, Mapping):
@@ -889,7 +959,7 @@ def load_config(path: str | Path, override_path: str | Path | None = None) -> Ap
     for name, section in (("embedding", embedding_raw), ("reranker", reranker_raw), ("generator", generator_raw)):
         if not isinstance(section, Mapping):
             raise ValueError(f"configuration models.{name} section must be a mapping")
-    credentials_path = Path(path).resolve().parent / "credentials.local.yaml"
+    credentials_path = config_path.resolve().parent / "credentials.local.yaml"
     if not generator_raw.get("api_key") and credentials_path.is_file():
         private_generator = _read_yaml(credentials_path).get("generator", {})
         if not isinstance(private_generator, Mapping):
@@ -898,21 +968,50 @@ def load_config(path: str | Path, override_path: str | Path | None = None) -> Ap
         if private_generator.get("endpoint") == generator_raw.get("endpoint"):
             generator_raw = {**generator_raw, "api_key": private_generator.get("api_key", "")}
     bridge_raw = raw.get("bridge_rerank", {})
+    chain_raw = raw.get("chain", {})
     data_raw = raw.get("data", {})
     runtime_raw = raw.get("runtime", {})
-    for name, section in (("bridge_rerank", bridge_raw), ("data", data_raw), ("runtime", runtime_raw)):
+    for name, section in (
+        ("bridge_rerank", bridge_raw),
+        ("chain", chain_raw),
+        ("data", data_raw),
+        ("runtime", runtime_raw),
+    ):
         if not isinstance(section, Mapping):
             raise ValueError(f"configuration {name} section must be a mapping")
     embedding = EmbeddingConfig(**embedding_raw)
     reranker = RerankerConfig(**reranker_raw)
     generator = GeneratorConfig(**generator_raw)
+    # The historical background worker stored its reporting cadence beside
+    # AppConfig's runtime paths.  Those values never affected retrieval and
+    # the current dependency loader canonicalizes them into ``execution``.
+    # Ignore them here so legacy overlays remain loadable without adding
+    # irrelevant fields to AppConfig (and therefore to dependency identities).
+    legacy_runtime_fields = {
+        "log_every_questions",
+        "evaluate_every_questions",
+        "heartbeat_seconds",
+    }
+    unknown_runtime_fields = (
+        set(runtime_raw) - set(RuntimeConfig.__dataclass_fields__) - legacy_runtime_fields
+    )
+    if unknown_runtime_fields:
+        raise ValueError(
+            "unknown runtime field(s): " + ", ".join(sorted(unknown_runtime_fields))
+        )
+    runtime_values = {
+        key: value
+        for key, value in runtime_raw.items()
+        if key in RuntimeConfig.__dataclass_fields__
+    }
     config = AppConfig(
         seed=_strict_int(raw.get("seed", 42), "seed", nonnegative=True),
         retrieval=retrieval,
         models=ModelsConfig(embedding=embedding, reranker=reranker, generator=generator),
         bridge_rerank=BridgeRerankConfig(**bridge_raw),
+        chain=ChainConfig(**chain_raw),
         data=DataConfig(**data_raw),
-        runtime=RuntimeConfig(**runtime_raw),
+        runtime=RuntimeConfig(**runtime_values),
     )
     config.validate()
     return config

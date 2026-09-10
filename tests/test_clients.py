@@ -120,3 +120,42 @@ def test_explicit_embedding_instruction_is_not_double_prefixed_and_batches_queri
     assert "DEFAULT" not in payloads[0]["input"][0]
     assert payloads[1]["input"] == ["BRIDGE: bridge one", "BRIDGE: bridge two"]
     assert len(payloads) == 2
+
+
+def test_reranker_rejects_explicit_backend_truncation(monkeypatch):
+    monkeypatch.setattr(
+        "bridgetree.clients._post_json",
+        lambda *_args, **_kwargs: {
+            "results": [{"index": 0, "relevance_score": 0.8}],
+            "meta": {"input_truncated": True},
+        },
+    )
+    client = RerankerClient(EndpointConfig(endpoint="http://rerank"))
+    with pytest.raises(ValueError, match="truncation"):
+        client.rerank_all("question", ["full document"])
+
+
+def test_reranker_rejects_per_document_truncation_flags(monkeypatch):
+    monkeypatch.setattr(
+        "bridgetree.clients._post_json",
+        lambda *_args, **_kwargs: {
+            "results": [{"index": 0, "relevance_score": 0.8}],
+            "usage": {"documents_truncated": [False, True]},
+        },
+    )
+    client = RerankerClient(EndpointConfig(endpoint="http://rerank"))
+    with pytest.raises(ValueError, match="truncation"):
+        client.rerank_all("question", ["full document"])
+
+
+def test_reranker_rejects_explicit_length_termination(monkeypatch):
+    monkeypatch.setattr(
+        "bridgetree.clients._post_json",
+        lambda *_args, **_kwargs: {
+            "results": [{"index": 0, "relevance_score": 0.8}],
+            "finish_reason": "length",
+        },
+    )
+    client = RerankerClient(EndpointConfig(endpoint="http://rerank"))
+    with pytest.raises(ValueError, match="truncation"):
+        client.rerank_all("question", ["full document"])

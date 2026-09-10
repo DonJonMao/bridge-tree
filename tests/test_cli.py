@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -33,6 +34,66 @@ def test_chain_plan_freezes_all_methods_for_each_query(tmp_path):
     output = tmp_path / "planned.jsonl"
     assert main(["chain-plan", "--queries", str(queries), "--output", str(output)]) == 0
     assert len(output.read_text(encoding="utf-8").splitlines()) == 18
+
+
+def test_chain_run_dispatches_the_dependency_runner(monkeypatch, tmp_path):
+    from bridgetree import dependency_experiment
+
+    captured = {}
+
+    def fake_runner(config, output_dir, **kwargs):
+        captured.update(config=config, output_dir=output_dir, **kwargs)
+        return {"status": "preflight_complete", "model_calls": 0}
+
+    monkeypatch.setattr(dependency_experiment, "run_dependency_experiment", fake_runner)
+    output_dir = tmp_path / "preflight"
+    assert main(
+        [
+            "chain-run",
+            "--config",
+            "configs/chain_full.yaml",
+            "--output-dir",
+            str(output_dir),
+            "--preflight-only",
+        ]
+    ) == 0
+    assert captured["output_dir"] == str(output_dir)
+    assert captured["preflight_only"] is True
+    assert captured["resume"] is False
+    assert captured["config"].methods == (
+        "dense",
+        "dense_rerank",
+        "activation",
+        "context_marginal",
+        "activation_fixed_pool",
+    )
+
+
+def test_chain_run_resume_requires_the_original_output_directory():
+    import pytest
+
+    with pytest.raises(ValueError, match="requires --output-dir"):
+        main(["chain-run", "--resume"])
+
+
+def test_chain_run_returns_nonzero_for_unsuccessful_terminal_status(monkeypatch, tmp_path):
+    from bridgetree import dependency_experiment
+
+    monkeypatch.setattr(
+        dependency_experiment,
+        "run_dependency_experiment",
+        lambda *args, **kwargs: {"status": "interrupted"},
+    )
+
+    assert main(
+        [
+            "chain-run",
+            "--config",
+            "configs/chain_full.yaml",
+            "--output-dir",
+            str(tmp_path / "interrupted"),
+        ]
+    ) == 1
 
 
 def test_tune_has_a_legacy_train_alias():
@@ -216,7 +277,19 @@ def test_full_32k_launcher_is_portable_and_runs_all_preflight_gates():
     assert "validate-full-32k-offline" in offline_script
 
 
-def test_full_32k_launcher_executes_offline_preflight_without_starting_tuning():
+def test_full_32k_launcher_executes_offline_preflight_without_starting_tuning(tmp_path):
+    override_config = tmp_path / "data_paths.json"
+    override_config.write_text(
+        json.dumps(
+            {
+                "data": {
+                    "raw_dir": str(Path("data/raw/personamem-v1").resolve()),
+                    "processed_dir": str(tmp_path / "processed"),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
     environment = {
         **os.environ,
         "BRIDGETREE_PYTHON": sys.executable,
@@ -224,6 +297,7 @@ def test_full_32k_launcher_executes_offline_preflight_without_starting_tuning():
         "RUN_CHECKS": "false",
         "CHECK_SERVICES": "false",
         "PREFLIGHT_ONLY": "true",
+        "OVERRIDE_CONFIG": str(override_config),
     }
     completed = subprocess.run(
         ["bash", "scripts/train_32k.sh"],

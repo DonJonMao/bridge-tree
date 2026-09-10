@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-09-10T05:36:56Z",
+  "status": "offline_validation_passed",
+  "scope": "Train-free fixed-target conditional-activation retrieval migration",
+  "reference": {
+    "repository": "https://github.com/DonJonMao/bridge-tree",
+    "base_commit": "65f411e3d3270874c54ec1e74d65f63e22564784",
+    "branch": "codex/conditional-activation"
+  },
+  "environment": {
+    "platform": "Darwin arm64",
+    "python": "3.13.13",
+    "pytest": "9.0.3",
+    "ruff": "0.15.17"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=src python -m pytest",
+      "status": "passed",
+      "passed": 246
+    },
+    {
+      "command": "PYTHONPATH=src python -m pytest -q tests/test_dependency_config.py tests/test_dependency_retrieval.py tests/test_dependency_scoring.py tests/test_dependency_search.py tests/test_dependency_experiment.py tests/test_background.py tests/test_chain_executor.py tests/test_chain_http.py tests/test_chain_repairs.py tests/test_chain_linux_launcher.py tests/test_server_bundle.py",
+      "status": "passed",
+      "passed": 119
+    },
+    {
+      "command": "python -m ruff check src tests scripts reference",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "command": "bash -n scripts/run_chain.sh scripts/start_chain_linux.sh scripts/package_chain_server.sh",
+      "status": "passed"
+    }
+  ],
+  "required_fake_service_evidence": {
+    "status": "passed",
+    "user_deployment_contacted": false,
+    "evidence": [
+      "Real empty-set scoring and the required .10/.25/.35/.90 four-term activation value of .40",
+      "Canonical set serialization, shuffled response indices, warm/cold logical budgets, invalid responses, explicit truncation, and capacity preflight",
+      "Fixed-target multistep evolution, premise-conditioned re-evaluation, diamond-path measurements, best-first successors, and bounded pair rescue",
+      "Positive activation with a lower total bundle score, dynamic marginal recomputation, deterministic ties, and all-or-nothing selection rounds",
+      "Full-visible-bank conditional discovery versus fixed-pool exclusion and per-proposal provenance",
+      "All default methods executing through deterministic fake embedding, pointwise reranker, and generator services",
+      "Atomic outcomes, append-only failures and probes, failure denominators, retry, zero-call completed resume, identity conflicts, transport outage, and interruption recovery",
+      "Per-task label-safe module-effectiveness summaries, retry-safe atomic current views, periodic comparable method metrics, and main-log mirroring",
+      "Background start/status/log/resume/stop behavior, SIGTERM/SIGINT forwarding, log rotation following, and authoritative terminal artifacts",
+      "Fail-closed Linux bootstrap ordering, full-preflight contract parsing, detached-launch acknowledgement parsing, module-log whitelisting, and active-run protection",
+      "Atomic PersonaMem stage/fsync/replace publication, preservation on preparation failure, normal output permissions, and launcher test isolation",
+      "Credential, unfrozen protocol draft, cache, and interrupted staging exclusions in both server packaging paths"
+    ]
+  },
+  "full_data_preflight": {
+    "status": "passed",
+    "commands": [
+      "PYTHONPATH=src python -m bridgetree chain-run --config configs/chain_full.yaml --output-dir <fresh-dir> --preflight-only",
+      "PYTHONPATH=src python scripts/chain_worker.py --config configs/chain_full.yaml --output-dir <fresh-dir> --preflight-only"
+    ],
+    "entrypoints_agree": true,
+    "questions": 589,
+    "methods": [
+      "dense",
+      "dense_rerank",
+      "activation",
+      "context_marginal",
+      "activation_fixed_pool"
+    ],
+    "expected_tasks": 2945,
+    "planned_task_lines": 2945,
+    "unique_task_ids": 2945,
+    "unique_question_method_pairs": 2945,
+    "model_calls": 0,
+    "pending_tasks": 2945,
+    "inference_complete": false,
+    "optimizer_steps": 0,
+    "weights_updated": false,
+    "protocol_status": "not_defined",
+    "service_probe_snapshot_created": false,
+    "service_probe_history_bytes": 0,
+    "config_hash": "9e01a0e091e7b7ceeef428eba602566058859adb44b7f5a86f79e45ac28b7058",
+    "source_code_hash": "ceba4e64fa2a4295f87ab5d97871cf708299577fc6194a718b8cea12e03d2e03",
+    "protocol_hash": "not_defined",
+    "generation_prompt_hash": "1d5d5075d0c2dc41d260f2eab25d7720d17da7ababb6d247a47bd70af4c96f6f",
+    "task_plan_hash": "170b6ccda5a082b7cdf3e19d6c9a8f0129de032592c80d19ef017ea5ba19f812",
+    "run_identity": "2cb2dee517240a2e9a27ac2d447ea88ab232b88900e21fa79119238a0078089c"
+  },
+  "dataset": {
+    "name": "PersonaMem-v1",
+    "revision": "fd7c30f071d5c2ee2a211506783be222d7b6002e",
+    "split": "32k",
+    "data_hash": "fe4b12d89ac0fc1138640df282432667227485be666b696029cb3e74f51cce49",
+    "question_id_sha256": "b22932139759cb3acfa5ce6e5064d8a878edd982515e2df0126d57c0a71a1080",
+    "sha256": {
+      "data/raw/personamem-v1/questions_32k.csv": "cccd34cf53e0bc4d9536c04cff5ca045156d9a4e227e83327112482840bbc93c",
+      "data/raw/personamem-v1/shared_contexts_32k.jsonl": "217247ebfec9e8442fc53570c795ab69f21aad08745f7de78d9beab51b122d4a",
+      "data/processed/personamem-v1/32k/contexts.jsonl": "36ede76374746f5e2e7050544cb5db515913f6882bccd026acc60bef8d37cdfa",
+      "data/processed/personamem-v1/32k/queries.jsonl": "26d7888aa3ea94690c0c4ce3a39e1d0edb3be93c5c6ce3169e21cb6b63547d45",
+      "data/processed/personamem-v1/32k/manifest.json": "eb8f411c54f4c7409c1f19ff0c57a617335156f33d682d30ccd00684a487d993"
+    }
+  },
+  "server_package": {
+    "status": "passed",
+    "archive": "dist/chain-server-conditional-activation/bridge-tree-chain.tar.gz",
+    "members": 134,
+    "regular_files": 122,
+    "checks": {
+      "complete_source_config_script_test_doc_and_data_set": true,
+      "every_archived_file_matches_workspace_sha256": true,
+      "raw_and_processed_dataset_hashes_match": true,
+      "safe_relative_paths_only": true,
+      "no_symlink_hardlink_or_special_members": true,
+      "required_launchers_executable": true,
+      "linux_one_command_launcher_included": true,
+      "module_effectiveness_log_commands_included": true,
+      "companion_sha256_file_generated": true,
+      "credentials_private_keys_env_files_and_secret_patterns_absent": true,
+      "unfrozen_data_protocol_draft_absent": true,
+      "outputs_caches_build_metadata_staging_and_appledouble_files_absent": true,
+      "safe_clean_extraction": true,
+      "offline_editable_install_and_import": true,
+      "extracted_cli_preflight": true,
+      "extracted_source_identity_matches_workspace": true
+    },
+    "installation_validation": {
+      "network_index_disabled": true,
+      "dependencies_downloaded": false,
+      "install_mode": "pip install --no-deps --no-build-isolation -e .",
+      "extracted_preflight_questions": 589,
+      "extracted_preflight_tasks": 2945,
+      "extracted_preflight_model_calls": 0,
+      "extracted_preflight_inference_complete": false
+    },
+    "note": "The final transport SHA-256 is generated beside the archive after this self-containing report is archived."
+  },
+  "not_validated": {
+    "real_model_qa": true,
+    "accuracy_or_quality_improvement": true,
+    "semantic_validity_of_positive_activation": true,
+    "user_server_response_compatibility": true,
+    "real_context_capacity_and_latency": true,
+    "global_optimality_or_exhaustive_premise_discovery": true,
+    "reason": "No user deployment or real inference endpoint was contacted from this workstation. These remain server-side validation steps."
+  }
+}

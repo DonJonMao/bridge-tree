@@ -245,6 +245,32 @@ def _source_snapshot(raw_dir: str | Path, split: str) -> tuple[dict[str, str], s
     return hashes, hashlib.sha256(payload).hexdigest()
 
 
+def _source_identity_path_is_excluded(relative: str, path: Path) -> bool:
+    """Exclude generated state and private runtime credentials from code identity."""
+
+    if any(
+        part in {
+            "__pycache__",
+            ".pytest_cache",
+            ".ruff_cache",
+            ".mypy_cache",
+            ".cache",
+            ".git",
+        }
+        or part.endswith(".egg-info")
+        for part in path.parts
+    ):
+        return True
+    name = path.name.lower()
+    if name == ".ds_store" or name == ".env" or name.startswith(".env."):
+        return True
+    if relative == "configs/credentials.local.yaml":
+        return True
+    if "credential" in name and path.suffix.lower() in {".yaml", ".yml", ".json"}:
+        return True
+    return path.suffix.lower() in {".pem", ".key", ".p12", ".pfx"}
+
+
 def _source_package_snapshot() -> str | None:
     """Hash the runnable source package, including untracked source files.
 
@@ -282,9 +308,7 @@ def _source_package_snapshot() -> str | None:
             relative = path.relative_to(root).as_posix()
         except ValueError:
             continue
-        if any(part in {"__pycache__", ".pytest_cache", ".git"} for part in path.parts):
-            continue
-        if path.name == ".DS_Store":
+        if _source_identity_path_is_excluded(relative, path):
             continue
         if path.is_file():
             normalized.append((relative, path))

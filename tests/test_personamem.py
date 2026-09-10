@@ -82,3 +82,44 @@ def test_prepare_and_iter_respect_end_index(tmp_path):
 
     with pytest.raises(ValueError, match="source checksum mismatch"):
         prepare_split(raw, processed, "32k", verify_pinned_source=True)
+
+
+def test_failed_preparation_preserves_committed_outputs(tmp_path):
+    raw = tmp_path / "raw"
+    processed = tmp_path / "processed"
+    raw.mkdir()
+    (raw / "shared_contexts_32k.jsonl").write_text(
+        json.dumps({"ctx": [{"role": "user", "content": "memory"}]}) + "\n",
+        encoding="utf-8",
+    )
+    question_path = raw / "questions_32k.csv"
+    question_path.write_text(
+        "persona_id,end_index_in_shared_context\n"
+        "persona,1\n",
+        encoding="utf-8",
+    )
+    prepare_split(raw, processed, "32k")
+    output_root = processed / "32k"
+    assert {
+        (output_root / name).stat().st_mode & 0o777
+        for name in ("contexts.jsonl", "queries.jsonl", "manifest.json")
+    } == {0o644}
+    committed = {
+        path.name: path.read_bytes()
+        for path in (
+            output_root / "contexts.jsonl",
+            output_root / "queries.jsonl",
+            output_root / "manifest.json",
+        )
+    }
+
+    question_path.write_text(
+        "persona_id,end_index_in_shared_context\n"
+        "persona,not-an-integer\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="invalid literal for int"):
+        prepare_split(raw, processed, "32k")
+
+    assert {name: (output_root / name).read_bytes() for name in committed} == committed
+    assert list(output_root.glob(".*.tmp")) == []

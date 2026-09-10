@@ -4,6 +4,8 @@ import ast
 import csv
 import hashlib
 import json
+import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Sequence
@@ -377,37 +379,86 @@ def prepare_split(
 
     context_map = load_shared_contexts(contexts)
     context_output = output_root / "contexts.jsonl"
-    with context_output.open("w", encoding="utf-8") as handle:
-        for context_id in sorted(context_map):
-            record = {"shared_context_id": context_id, "messages": context_map[context_id]}
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-    query_count = 0
-    persona_ids = set()
     query_output = output_root / "queries.jsonl"
-    with (
-        questions.open("r", encoding="utf-8", newline="") as source,
-        query_output.open("w", encoding="utf-8") as target,
-    ):
-        for row in csv.DictReader(source):
-            record = dict(row)
-            record["end_index_in_shared_context"] = int(record["end_index_in_shared_context"])
-            target.write(json.dumps(record, ensure_ascii=False) + "\n")
-            query_count += 1
-            persona_ids.add(row["persona_id"])
-
-    manifest = {
-        "dataset": PERSONAMEM_REPO,
-        "revision": PERSONAMEM_REVISION,
-        "split": split,
-        "questions": query_count,
-        "personas": len(persona_ids),
-        "shared_contexts": len(context_map),
-        "source_sha256": source_hashes,
-        "outputs": {context_output.name: file_sha256(context_output), query_output.name: file_sha256(query_output)},
-    }
     manifest_path = output_root / "manifest.json"
-    with manifest_path.open("w", encoding="utf-8") as handle:
-        json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
-    return manifest
+    staged_paths: list[Path] = []
+
+    def staged_path(target: Path) -> Path:
+        descriptor, raw_path = tempfile.mkstemp(
+            dir=output_root,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+        )
+        path = Path(raw_path)
+        staged_paths.append(path)
+        try:
+            try:
+                output_mode = target.stat().st_mode & 0o777
+            except FileNotFoundError:
+                output_mode = 0o644
+            os.fchmod(descriptor, output_mode)
+        finally:
+            os.close(descriptor)
+        return path
+
+    try:
+        context_staged = staged_path(context_output)
+        query_staged = staged_path(query_output)
+        manifest_staged = staged_path(manifest_path)
+        with context_staged.open("w", encoding="utf-8") as handle:
+            for context_id in sorted(context_map):
+                record = {"shared_context_id": context_id, "messages": context_map[context_id]}
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        query_count = 0
+        persona_ids = set()
+        with (
+            questions.open("r", encoding="utf-8", newline="") as source,
+            query_staged.open("w", encoding="utf-8") as target,
+        ):
+            for row in csv.DictReader(source):
+                record = dict(row)
+                record["end_index_in_shared_context"] = int(
+                    record["end_index_in_shared_context"]
+                )
+                target.write(json.dumps(record, ensure_ascii=False) + "\n")
+                query_count += 1
+                persona_ids.add(row["persona_id"])
+            target.flush()
+            os.fsync(target.fileno())
+
+        manifest = {
+            "dataset": PERSONAMEM_REPO,
+            "revision": PERSONAMEM_REVISION,
+            "split": split,
+            "questions": query_count,
+            "personas": len(persona_ids),
+            "shared_contexts": len(context_map),
+            "source_sha256": source_hashes,
+            "outputs": {
+                context_output.name: file_sha256(context_staged),
+                query_output.name: file_sha256(query_staged),
+            },
+        }
+        with manifest_staged.open("w", encoding="utf-8") as handle:
+            json.dump(manifest, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        # Publish only complete files.  The manifest is the commit marker and
+        # therefore moves last, after both data files named by its checksums.
+        os.replace(context_staged, context_output)
+        os.replace(query_staged, query_output)
+        os.replace(manifest_staged, manifest_path)
+        directory_fd = os.open(output_root, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        return manifest
+    finally:
+        for path in staged_paths:
+            path.unlink(missing_ok=True)
