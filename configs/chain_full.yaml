@@ -23,6 +23,13 @@ execution:
   log_every_questions: 10
   evaluate_every_questions: 25
   heartbeat_seconds: 30
+  # A transient service outage retries the same task in-process. After the
+  # bounded retry budget is exhausted, the circuit opens and leaves all
+  # remaining tasks pending for an explicit resume.
+  infrastructure_task_max_attempts: 3
+  infrastructure_retry_initial_seconds: 15
+  infrastructure_retry_multiplier: 4
+  infrastructure_retry_max_seconds: 300
 
 data:
   split: 32k

@@ -31,6 +31,10 @@ def test_canonical_chain_config_loads_deployment_and_new_resources():
     assert config.execution.log_every_questions == 10
     assert config.execution.evaluate_every_questions == 25
     assert config.execution.heartbeat_seconds == 30.0
+    assert config.execution.infrastructure_task_max_attempts == 3
+    assert config.execution.infrastructure_retry_initial_seconds == 15.0
+    assert config.execution.infrastructure_retry_multiplier == 4.0
+    assert config.execution.infrastructure_retry_max_seconds == 300.0
     assert "retrieval" not in config.resolved_dict()
     assert "bridge_rerank" not in config.resolved_dict()
     assert "api_key" not in config.resolved_dict()["models"]["generator"]
@@ -109,6 +113,30 @@ def test_methods_are_explicit_unique_and_supported():
         DependencyExecutionConfig(methods=["made_up_method"])
     with pytest.raises(ValueError, match="cannot be empty"):
         DependencyExecutionConfig(methods=[])
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("infrastructure_task_max_attempts", 0),
+        ("infrastructure_task_max_attempts", True),
+        ("infrastructure_retry_initial_seconds", 0),
+        ("infrastructure_retry_initial_seconds", float("inf")),
+        ("infrastructure_retry_multiplier", 0.5),
+        ("infrastructure_retry_max_seconds", 0),
+    ),
+)
+def test_infrastructure_retry_policy_is_strict(field, value):
+    with pytest.raises(ValueError, match=field):
+        DependencyExecutionConfig(**{field: value})
+
+
+def test_infrastructure_retry_cap_cannot_be_below_initial_delay():
+    with pytest.raises(ValueError, match="retry_max_seconds"):
+        DependencyExecutionConfig(
+            infrastructure_retry_initial_seconds=20,
+            infrastructure_retry_max_seconds=10,
+        )
 
 
 def test_dependency_run_requires_pointwise_reranker():

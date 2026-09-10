@@ -110,6 +110,56 @@ class CardinalityReranker(FakeReranker):
         return 0.10 + 0.15 * document.count("[Memory ")
 
 
+class TransportTrackedReranker(FakeReranker):
+    """Expose production-shaped physical transport counters to the scorer."""
+
+    def __init__(self):
+        super().__init__()
+        self.counters = {
+            "logical_calls": 0,
+            "logical_documents": 0,
+            "batch_requests": 0,
+            "batch_documents": 0,
+            "transport_attempts": 0,
+            "transport_document_attempts": 0,
+            "failed_batch_requests": 0,
+            "split_events": 0,
+            "split_recovered_calls": 0,
+            "failed_calls": 0,
+        }
+
+    @property
+    def transport_stats(self):
+        return dict(self.counters)
+
+    def rerank_all(self, query, documents):
+        count = len(documents)
+        self.counters["logical_calls"] += 1
+        self.counters["logical_documents"] += count
+        self.counters["batch_requests"] += 1
+        self.counters["batch_documents"] += count
+        self.counters["transport_attempts"] += 1
+        self.counters["transport_document_attempts"] += count
+        return super().rerank_all(query, documents)
+
+
+class TransientProbeReranker(FakeReranker):
+    def __init__(self, fail_count=1, error=None):
+        super().__init__()
+        self.fail_count = fail_count
+        self.error = error or ConnectionError("service temporarily unavailable")
+
+    def rerank_all(self, query, documents):
+        if len(self.calls) < self.fail_count:
+            self.calls.append({"query": query, "documents": tuple(documents)})
+            raise self.error
+        return super().rerank_all(query, documents)
+
+
+class NonRetryableTransportError(RuntimeError):
+    retryable = False
+
+
 class FakeGenerator:
     def __init__(self, *, error=None, fail_count=0):
         self.calls = []
@@ -348,6 +398,38 @@ def test_effectiveness_events_are_concrete_safe_and_periodic(tmp_path, capsys):
     assert all(row["authoritative_current"] is True for row in current_rows)
 
 
+def test_effectiveness_exposes_transport_without_recharging_logical_budget(tmp_path):
+    run_dir = tmp_path / "transport-effectiveness"
+    result = run_dependency_experiment(
+        fake_config(tmp_path, ("dense_rerank",)),
+        run_dir,
+        examples=[example()],
+        embedder=FakeEmbedder(),
+        reranker=TransportTrackedReranker(),
+        generator=FakeGenerator(),
+    )
+
+    assert result["status"] == "completed"
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "modules" / "effectiveness.jsonl")
+        .read_text()
+        .splitlines()
+        if '"event": "module_effectiveness"' in line
+    ]
+    assert len(rows) == 1
+    scoring = rows[0]["scoring"]
+    transport = scoring["reranker_transport"]
+    assert transport["logical_calls"] == scoring[
+        "reranker_logical_adapter_invocations_total"
+    ]
+    assert transport["transport_attempts"] == transport["logical_calls"]
+    assert transport["logical_documents"] == transport[
+        "transport_document_attempts"
+    ]
+    assert scoring["logical_unique_sets_charged_total"] == 2
+
+
 def test_gold_and_options_do_not_change_set_cache_identity_and_gold_never_reaches_services(tmp_path):
     config = fake_config(tmp_path, ("activation",))
     task = DependencyTask(
@@ -561,6 +643,147 @@ def test_inconsistent_pointwise_probe_persists_full_measurement_history(tmp_path
         assert record["max_absolute_deviation"] > record["atol"]
         assert record["max_relative_deviation"] > record["rtol"]
         assert record["reranker_adapter_requests"] == 5
+
+
+def test_transient_service_probe_failure_retries_and_recovers(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    reranker = TransientProbeReranker(fail_count=1)
+    run_dir = tmp_path / "transient-probe"
+
+    result = run_dependency_experiment(
+        fake_config(tmp_path, ("dense",)),
+        run_dir,
+        examples=[example()],
+        embedder=FakeEmbedder(),
+        reranker=reranker,
+        generator=FakeGenerator(),
+    )
+
+    assert result["status"] == "completed"
+    assert waits == [15.0]
+    assert len(reranker.calls) == 6
+    history = [
+        json.loads(line)
+        for line in (run_dir / "service_probes.jsonl").read_text().splitlines()
+    ]
+    assert [row["status"] for row in history] == ["failed", "passed"]
+    assert [row["probe_attempt"] for row in history] == [1, 2]
+    assert history[0]["retryable"] is True
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    retry_events = [
+        row for row in events if row["event"] == "infrastructure_retry_scheduled"
+    ]
+    assert len(retry_events) == 1
+    assert retry_events[0]["scope"] == "service_probe"
+    assert retry_events[0]["delay_seconds"] == 15.0
+    assert any(
+        row["event"] == "infrastructure_retry_wait_completed"
+        and row["scope"] == "service_probe"
+        for row in events
+    )
+    assert any(
+        row["event"] == "infrastructure_retry_recovered"
+        and row["scope"] == "service_probe"
+        for row in events
+    )
+    train_log = (run_dir / "train.log").read_text()
+    assert "infrastructure_retry_scheduled" in train_log
+    assert "infrastructure_retry_wait_completed" in train_log
+
+
+def test_service_probe_retry_budget_opens_circuit(monkeypatch, tmp_path):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    reranker = TransientProbeReranker(fail_count=10)
+    run_dir = tmp_path / "probe-outage"
+
+    result = run_dependency_experiment(
+        fake_config(tmp_path, ("dense",)),
+        run_dir,
+        examples=[example()],
+        embedder=FakeEmbedder(),
+        reranker=reranker,
+        generator=FakeGenerator(),
+    )
+
+    assert result["status"] == "interrupted"
+    assert result["stop_reason"] == "service_probe_failure"
+    assert waits == [15.0, 60.0]
+    assert len(reranker.calls) == 3
+    history = [
+        json.loads(line)
+        for line in (run_dir / "service_probes.jsonl").read_text().splitlines()
+    ]
+    assert [row["probe_attempt"] for row in history] == [1, 2, 3]
+    assert all(row["status"] == "failed" for row in history)
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    opened = [
+        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    ]
+    assert len(opened) == 1
+    assert opened[0]["scope"] == "service_probe"
+    assert opened[0]["failed_attempts"] == 3
+    assert opened[0]["reason"] == "retry_budget_exhausted"
+
+
+def test_non_retryable_probe_transport_failure_does_not_sleep(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    reranker = TransientProbeReranker(
+        fail_count=10,
+        error=NonRetryableTransportError(
+            "request failed after 1 transport attempt: HTTP status 401"
+        ),
+    )
+    run_dir = tmp_path / "non-retryable-probe"
+
+    result = run_dependency_experiment(
+        fake_config(tmp_path, ("dense",)),
+        run_dir,
+        examples=[example()],
+        embedder=FakeEmbedder(),
+        reranker=reranker,
+        generator=FakeGenerator(),
+    )
+
+    assert result["status"] == "interrupted"
+    assert waits == []
+    assert len(reranker.calls) == 1
+    history = [
+        json.loads(line)
+        for line in (run_dir / "service_probes.jsonl").read_text().splitlines()
+    ]
+    assert len(history) == 1
+    assert history[0]["infrastructure_failure"] is True
+    assert history[0]["retryable"] is False
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    assert not any(
+        row["event"] == "infrastructure_retry_scheduled" for row in events
+    )
+    opened = next(
+        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    )
+    assert opened["reason"] == "non_retryable_infrastructure_failure"
 
 
 def test_probe_history_is_durable_before_latest_snapshot(monkeypatch, tmp_path):
@@ -812,8 +1035,261 @@ def test_initialization_failure_finalizes_attempt_and_can_resume(
     ] == 2
 
 
-def test_transport_outage_stops_after_current_failure_and_leaves_rest_pending(tmp_path):
+def test_transient_task_infrastructure_failures_retry_same_task_and_recover(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
     config = fake_config(tmp_path, ("dense",))
+    run_dir = tmp_path / "task-recovery"
+    generator = FakeGenerator(
+        error=ConnectionError("service temporarily unavailable"), fail_count=2
+    )
+
+    result = run_dependency_experiment(
+        config,
+        run_dir,
+        examples=[example()],
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=generator,
+    )
+
+    assert result["status"] == "completed"
+    assert result["tasks_attempted_this_attempt"] == 3
+    assert result["unique_tasks_attempted_this_attempt"] == 1
+    assert result["task_retries_this_attempt"] == 2
+    assert result["summary"]["successful_tasks"] == 1
+    assert waits == [15.0, 60.0]
+    assert len(generator.calls) == 3
+    failures = [
+        json.loads(line)
+        for line in (run_dir / "failures.jsonl").read_text().splitlines()
+    ]
+    assert [row["attempt"] for row in failures] == [1, 2]
+    assert all(row["retryable"] is True for row in failures)
+    outcome = json.loads(next((run_dir / "outcomes").glob("*.json")).read_text())
+    assert outcome["status"] == "success"
+    assert outcome["attempt"] == 3
+    effectiveness = [
+        json.loads(line)
+        for line in (run_dir / "modules" / "effectiveness.jsonl")
+        .read_text()
+        .splitlines()
+        if '"event": "module_effectiveness"' in line
+    ]
+    assert [(row["attempt"], row["status"]) for row in effectiveness] == [
+        (1, "error"),
+        (2, "error"),
+        (3, "success"),
+    ]
+    current = [
+        json.loads(line)
+        for line in (run_dir / "modules" / "effectiveness.current.jsonl")
+        .read_text()
+        .splitlines()
+    ]
+    assert [(row["attempt"], row["status"]) for row in current] == [
+        (3, "success")
+    ]
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    recovered = next(
+        row
+        for row in events
+        if row["event"] == "infrastructure_retry_recovered"
+        and row["scope"] == "task"
+    )
+    assert recovered["prior_infrastructure_failures"] == 2
+    assert not any(
+        row["event"] == "infrastructure_circuit_opened" for row in events
+    )
+
+
+def test_progress_cadence_counts_unique_tasks_not_retry_invocations(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    base = fake_config(tmp_path, ("dense",))
+    config = DependencyRunConfig(
+        app=base.app,
+        dependency=base.dependency,
+        execution=replace(
+            base.execution,
+            log_every_questions=2,
+            evaluate_every_questions=2,
+        ),
+    )
+    run_dir = tmp_path / "unique-task-cadence"
+
+    result = run_dependency_experiment(
+        config,
+        run_dir,
+        examples=[example("q1"), example("q2")],
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=FakeGenerator(
+            error=ConnectionError("service temporarily unavailable"),
+            fail_count=1,
+        ),
+    )
+
+    assert result["status"] == "completed"
+    assert result["tasks_attempted_this_attempt"] == 3
+    assert result["unique_tasks_attempted_this_attempt"] == 2
+    assert result["task_retries_this_attempt"] == 1
+    assert waits == [15.0]
+    metric_rows = [
+        json.loads(line)
+        for line in (run_dir / "modules" / "effectiveness.jsonl")
+        .read_text()
+        .splitlines()
+        if '"event": "method_metrics"' in line
+    ]
+    assert len(metric_rows) == 1
+    metric = metric_rows[0]
+    assert metric["checkpoint"] == "periodic"
+    assert metric["tasks_attempted_this_attempt"] == 3
+    assert metric["unique_tasks_attempted_this_attempt"] == 2
+    assert metric["task_retries_this_attempt"] == 1
+    assert metric["tasks_attempted_unit"] == "executor_invocation"
+    assert metric["progress_cadence_unit"] == "unique_method_x_question"
+    assert metric["aggregate"]["completed_tasks"] == 2
+    assert (run_dir / "train.log").read_text().count(
+        "event=inference_progress"
+    ) == 1
+
+
+def test_non_retryable_task_transport_failure_stops_without_sleep(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    generator = FakeGenerator(
+        error=NonRetryableTransportError(
+            "request failed after 1 transport attempt: HTTP status 401"
+        ),
+        fail_count=10,
+    )
+    run_dir = tmp_path / "task-non-retryable"
+
+    result = run_dependency_experiment(
+        fake_config(tmp_path, ("dense",)),
+        run_dir,
+        examples=[example("q1"), example("q2")],
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=generator,
+    )
+
+    assert result["status"] == "interrupted"
+    assert result["tasks_attempted_this_attempt"] == 1
+    assert result["summary"]["failed_tasks"] == 1
+    assert result["summary"]["pending_tasks"] == 1
+    assert waits == []
+    assert len(generator.calls) == 1
+    failure = json.loads((run_dir / "failures.jsonl").read_text().splitlines()[0])
+    assert failure["infrastructure_failure"] is True
+    assert failure["retryable"] is False
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    assert not any(
+        row["event"] == "infrastructure_retry_scheduled" for row in events
+    )
+    opened = next(
+        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    )
+    assert opened["reason"] == "non_retryable_infrastructure_failure"
+
+
+def test_interrupt_during_task_retry_wait_is_finalized_and_resumable(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    def interrupt_wait(_seconds):
+        raise KeyboardInterrupt("operator stopped infrastructure retry wait")
+
+    monkeypatch.setattr(experiment_module.time, "sleep", interrupt_wait)
+    config = fake_config(tmp_path, ("dense",))
+    run_dir = tmp_path / "retry-wait-interrupt"
+    generator = FakeGenerator(
+        error=ConnectionError("service temporarily unavailable"), fail_count=10
+    )
+
+    first = run_dependency_experiment(
+        config,
+        run_dir,
+        examples=[example("q1"), example("q2")],
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=generator,
+    )
+
+    assert first["status"] == "interrupted"
+    assert first["stop_reason"] == "execution_interrupted"
+    assert first["tasks_attempted_this_attempt"] == 1
+    assert first["unique_tasks_attempted_this_attempt"] == 1
+    assert first["task_retries_this_attempt"] == 0
+    assert first["summary"]["failed_tasks"] == 1
+    assert first["summary"]["pending_tasks"] == 1
+    assert len(generator.calls) == 1
+    manifest = json.loads((run_dir / "run_manifest.json").read_text())
+    assert manifest["last_attempt"]["stop_reason"] == "execution_interrupted"
+    heartbeat = json.loads((run_dir / "heartbeat.json").read_text())
+    assert heartbeat["active"] is False
+    failures = [
+        json.loads(line)
+        for line in (run_dir / "failures.jsonl").read_text().splitlines()
+    ]
+    assert [row["event"] for row in failures] == [
+        "task_failure",
+        "execution_interrupted",
+    ]
+    assert failures[-1]["stage"] == "task_infrastructure_retry_wait"
+    assert failures[-1]["authoritative_outcome_status"] == "error"
+
+    resumed = run_dependency_experiment(
+        config,
+        run_dir,
+        resume=True,
+        examples=[example("q1"), example("q2")],
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=FakeGenerator(),
+    )
+    assert resumed["status"] == "completed"
+    assert resumed["summary"]["successful_tasks"] == 2
+
+
+def test_transport_outage_retries_current_task_then_leaves_rest_pending(
+    monkeypatch, tmp_path
+):
+    import bridgetree.dependency_experiment as experiment_module
+
+    waits = []
+    monkeypatch.setattr(experiment_module.time, "sleep", waits.append)
+    base = fake_config(tmp_path, ("dense",))
+    config = DependencyRunConfig(
+        app=base.app,
+        dependency=base.dependency,
+        execution=replace(
+            base.execution,
+            log_every_questions=1,
+            evaluate_every_questions=1,
+        ),
+    )
     run_dir = tmp_path / "outage"
     generator = FakeGenerator(error=ConnectionError("service unavailable"), fail_count=10)
     first = run_dependency_experiment(
@@ -827,8 +1303,38 @@ def test_transport_outage_stops_after_current_failure_and_leaves_rest_pending(tm
     assert first["status"] == "interrupted"
     assert first["summary"]["failed_tasks"] == 1
     assert first["summary"]["pending_tasks"] == 1
-    assert len(generator.calls) == 1
+    assert first["tasks_attempted_this_attempt"] == 3
+    assert first["unique_tasks_attempted_this_attempt"] == 1
+    assert first["task_retries_this_attempt"] == 2
+    assert len(generator.calls) == 3
+    assert waits == [15.0, 60.0]
     assert len(list((run_dir / "outcomes").glob("*.json"))) == 1
+    failed_outcome = json.loads(
+        next((run_dir / "outcomes").glob("*.json")).read_text()
+    )
+    assert failed_outcome["attempt"] == 3
+    assert failed_outcome["status"] == "error"
+    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 3
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    assert len(
+        [row for row in events if row["event"] == "infrastructure_retry_scheduled"]
+    ) == 2
+    opened = next(
+        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    )
+    assert opened["scope"] == "task"
+    assert opened["failed_attempts"] == 3
+    metrics = [row for row in events if row["event"] == "method_metrics"]
+    assert len(metrics) == 1
+    assert metrics[0]["checkpoint"] == "periodic"
+    assert metrics[0]["aggregate"]["failed_tasks"] == 1
+    train_log = (run_dir / "train.log").read_text()
+    assert train_log.count("event=inference_progress") == 1
+    assert "tasks_attempted_unit=executor_invocation" in train_log
+    assert "progress_cadence_unit=unique_method_x_question" in train_log
 
     resumed = run_dependency_experiment(
         config,
@@ -841,7 +1347,7 @@ def test_transport_outage_stops_after_current_failure_and_leaves_rest_pending(tm
     )
     assert resumed["status"] == "completed"
     assert resumed["summary"]["successful_tasks"] == 2
-    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 1
+    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 3
     assert len((run_dir / "predictions.jsonl").read_text().splitlines()) == 2
 
 

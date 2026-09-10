@@ -1,32 +1,33 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-10T05:36:56Z",
+  "generated_at_utc": "2026-09-10T15:01:38Z",
   "status": "offline_validation_passed",
   "scope": "Train-free fixed-target conditional-activation retrieval migration",
   "reference": {
     "repository": "https://github.com/DonJonMao/bridge-tree",
     "base_commit": "65f411e3d3270874c54ec1e74d65f63e22564784",
+    "feature_parent_commit": "2c9f2952cb5fc9e8677fdbc39ae952909e44920b",
     "branch": "codex/conditional-activation"
   },
   "environment": {
     "platform": "Darwin arm64",
-    "python": "3.13.13",
-    "pytest": "9.0.3",
-    "ruff": "0.15.17"
+    "python": "3.9.6",
+    "pytest": "8.4.2",
+    "ruff": "0.16.5"
   },
   "checks": [
     {
-      "command": "PYTHONPATH=src python -m pytest",
+      "command": ".venv/bin/python -m pytest",
       "status": "passed",
-      "passed": 246
+      "passed": 275
     },
     {
-      "command": "PYTHONPATH=src python -m pytest -q tests/test_dependency_config.py tests/test_dependency_retrieval.py tests/test_dependency_scoring.py tests/test_dependency_search.py tests/test_dependency_experiment.py tests/test_background.py tests/test_chain_executor.py tests/test_chain_http.py tests/test_chain_repairs.py tests/test_chain_linux_launcher.py tests/test_server_bundle.py",
+      "command": ".venv/bin/python -m pytest tests/test_clients.py tests/test_dependency_config.py tests/test_dependency_retrieval.py tests/test_dependency_scoring.py tests/test_dependency_search.py tests/test_dependency_experiment.py tests/test_background.py tests/test_chain_executor.py tests/test_chain_http.py tests/test_chain_repairs.py tests/test_chain_linux_launcher.py tests/test_server_bundle.py",
       "status": "passed",
-      "passed": 119
+      "passed": 156
     },
     {
-      "command": "python -m ruff check src tests scripts reference",
+      "command": ".venv/bin/ruff check src tests scripts reference",
       "status": "passed"
     },
     {
@@ -48,13 +49,43 @@
       "Positive activation with a lower total bundle score, dynamic marginal recomputation, deterministic ties, and all-or-nothing selection rounds",
       "Full-visible-bank conditional discovery versus fixed-pool exclusion and per-proposal provenance",
       "All default methods executing through deterministic fake embedding, pointwise reranker, and generator services",
-      "Atomic outcomes, append-only failures and probes, failure denominators, retry, zero-call completed resume, identity conflicts, transport outage, and interruption recovery",
+      "Atomic outcomes, append-only failures and probes, failure denominators, bounded service-probe/task retry, zero-call completed resume, identity conflicts, transport outage, circuit opening, and interruption recovery",
+      "Four-attempt HTTP recovery for transient status/network/body failures, permanent-4xx fail-fast behavior, Retry-After handling, and credential-safe transport errors",
+      "Pointwise reranker 413/422/500 batch bisection with one-shot descendants, global-index/top-n restoration, bounded outage behavior, and logical-versus-physical transport accounting",
       "Per-task label-safe module-effectiveness summaries, retry-safe atomic current views, periodic comparable method metrics, and main-log mirroring",
       "Background start/status/log/resume/stop behavior, SIGTERM/SIGINT forwarding, log rotation following, and authoritative terminal artifacts",
       "Fail-closed Linux bootstrap ordering, full-preflight contract parsing, detached-launch acknowledgement parsing, module-log whitelisting, and active-run protection",
       "Atomic PersonaMem stage/fsync/replace publication, preservation on preparation failure, normal output permissions, and launcher test isolation",
       "Credential, unfrozen protocol draft, cache, and interrupted staging exclusions in both server packaging paths"
     ]
+  },
+  "resilience_validation": {
+    "status": "passed",
+    "real_endpoint_contacted": false,
+    "http_transport_max_attempts": 4,
+    "http_backoff_seconds": [
+      0.5,
+      1.0,
+      2.0
+    ],
+    "retryable_http_statuses": "408, 425, 429, and 5xx",
+    "retryable_transport_failures": "network/timeout, HTTPException including IncompleteRead, invalid JSON, and invalid UTF-8",
+    "pointwise_split_statuses": [
+      413,
+      422,
+      500
+    ],
+    "split_descendant_transport_attempts": 1,
+    "task_and_probe_max_attempts": 3,
+    "task_backoff_seconds": [
+      15.0,
+      60.0
+    ],
+    "permanent_4xx_task_retry": false,
+    "logical_budget_unchanged_by_transport_recovery": true,
+    "retry_wait_interruptible_and_resumable": true,
+    "progress_cadence": "unique method_x_question tasks",
+    "physical_transport_stats_in_module_effectiveness": true
   },
   "full_data_preflight": {
     "status": "passed",
@@ -83,12 +114,12 @@
     "protocol_status": "not_defined",
     "service_probe_snapshot_created": false,
     "service_probe_history_bytes": 0,
-    "config_hash": "9e01a0e091e7b7ceeef428eba602566058859adb44b7f5a86f79e45ac28b7058",
-    "source_code_hash": "ceba4e64fa2a4295f87ab5d97871cf708299577fc6194a718b8cea12e03d2e03",
+    "config_hash": "ab7c1417e7f93f27ae43ea6dd0e9aadf523a7ef162ef5f5dabfad200b0b368bf",
+    "source_code_hash": "89dbd7e71b38616fc9203506c09d85e50b80b67cd222f41afea80280dd06afb5",
     "protocol_hash": "not_defined",
     "generation_prompt_hash": "1d5d5075d0c2dc41d260f2eab25d7720d17da7ababb6d247a47bd70af4c96f6f",
-    "task_plan_hash": "170b6ccda5a082b7cdf3e19d6c9a8f0129de032592c80d19ef017ea5ba19f812",
-    "run_identity": "2cb2dee517240a2e9a27ac2d447ea88ab232b88900e21fa79119238a0078089c"
+    "task_plan_hash": "1ce8c0d760c4b8e701f0f792f730cb3992315f21718408462a3f1547a451abe4",
+    "run_identity": "266edf2555a3915f58124fc0a6d7499334eb121e6e998568eaf0f5ae29c33317"
   },
   "dataset": {
     "name": "PersonaMem-v1",
@@ -106,7 +137,7 @@
   },
   "server_package": {
     "status": "passed",
-    "archive": "dist/chain-server-conditional-activation/bridge-tree-chain.tar.gz",
+    "archive": "dist/chain-server-conditional-activation-resilient/bridge-tree-chain.tar.gz",
     "members": 134,
     "regular_files": 122,
     "checks": {

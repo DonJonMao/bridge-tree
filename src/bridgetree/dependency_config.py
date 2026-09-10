@@ -128,6 +128,10 @@ class DependencyExecutionConfig:
     log_every_questions: int = 10
     evaluate_every_questions: int = 25
     heartbeat_seconds: float = 30.0
+    infrastructure_task_max_attempts: int = 3
+    infrastructure_retry_initial_seconds: float = 15.0
+    infrastructure_retry_multiplier: float = 4.0
+    infrastructure_retry_max_seconds: float = 300.0
 
     def __post_init__(self) -> None:
         methods_value = self.methods
@@ -160,6 +164,45 @@ class DependencyExecutionConfig:
             self,
             "heartbeat_seconds",
             _strict_positive_float(self.heartbeat_seconds, "execution.heartbeat_seconds"),
+        )
+        object.__setattr__(
+            self,
+            "infrastructure_task_max_attempts",
+            _strict_int(
+                self.infrastructure_task_max_attempts,
+                "execution.infrastructure_task_max_attempts",
+                positive=True,
+            ),
+        )
+        initial_retry = _strict_positive_float(
+            self.infrastructure_retry_initial_seconds,
+            "execution.infrastructure_retry_initial_seconds",
+        )
+        retry_multiplier = _strict_positive_float(
+            self.infrastructure_retry_multiplier,
+            "execution.infrastructure_retry_multiplier",
+        )
+        maximum_retry = _strict_positive_float(
+            self.infrastructure_retry_max_seconds,
+            "execution.infrastructure_retry_max_seconds",
+        )
+        if retry_multiplier < 1.0:
+            raise ValueError(
+                "execution.infrastructure_retry_multiplier must be at least 1"
+            )
+        if maximum_retry < initial_retry:
+            raise ValueError(
+                "execution.infrastructure_retry_max_seconds must be at least "
+                "execution.infrastructure_retry_initial_seconds"
+            )
+        object.__setattr__(
+            self, "infrastructure_retry_initial_seconds", initial_retry
+        )
+        object.__setattr__(
+            self, "infrastructure_retry_multiplier", retry_multiplier
+        )
+        object.__setattr__(
+            self, "infrastructure_retry_max_seconds", maximum_retry
         )
 
 

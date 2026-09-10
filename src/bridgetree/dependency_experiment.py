@@ -1015,6 +1015,18 @@ def _module_effectiveness_event(
     costs = dict(outcome.costs)
     scorer_cost = costs.get("set_scorer")
     scorer_value = dict(scorer_cost) if isinstance(scorer_cost, Mapping) else {}
+    reranker_transport_raw = scorer_value.get("reranker_transport")
+    reranker_transport = (
+        {
+            str(key): _nonnegative_count(value)
+            for key, value in reranker_transport_raw.items()
+            if isinstance(key, str)
+            and not isinstance(value, bool)
+            and isinstance(value, (int, np.integer))
+        }
+        if isinstance(reranker_transport_raw, Mapping)
+        else {}
+    )
     cache_hits = _nonnegative_count(
         scorer_value.get("cache_hits", costs.get("cache_hits", 0))
     )
@@ -1186,6 +1198,10 @@ def _module_effectiveness_event(
                 )
             ),
             "reranker_samples_attempted_total": reranker_samples,
+            # Logical search/set budgets above deliberately exclude physical
+            # HTTP retries and pointwise batch subdivision. This nested view
+            # exposes recovery work without changing experiment accounting.
+            "reranker_transport": reranker_transport,
             "cache_hit_events_total": cache_hits,
             "persistent_cache_hit_events_total": _nonnegative_count(
                 scorer_value.get("persistent_cache_hits", 0)
@@ -1454,6 +1470,7 @@ def _method_metrics_event(
     *,
     attempt: int,
     tasks_attempted_this_attempt: int,
+    unique_tasks_attempted_this_attempt: int,
     checkpoint: str,
 ) -> dict[str, Any]:
     summary = summarize_dependency_outcomes(tasks, outcomes)
@@ -1484,7 +1501,14 @@ def _method_metrics_event(
         "attempt": attempt,
         "checkpoint": checkpoint,
         "tasks_attempted_this_attempt": tasks_attempted_this_attempt,
+        "unique_tasks_attempted_this_attempt": unique_tasks_attempted_this_attempt,
+        "task_retries_this_attempt": max(
+            0,
+            tasks_attempted_this_attempt - unique_tasks_attempted_this_attempt,
+        ),
+        "tasks_attempted_unit": "executor_invocation",
         "task_unit": "method_x_question",
+        "progress_cadence_unit": "unique_method_x_question",
         "interval_resets_on_resume": True,
         "aggregate_scope": "all_method_task_micro",
         "metrics_scope": "authoritative_outcomes_only",
@@ -2255,6 +2279,77 @@ def _is_infrastructure_failure(exc: BaseException) -> bool:
     return any(marker in text for marker in INFRASTRUCTURE_MARKERS)
 
 
+def _is_retryable_infrastructure_failure(exc: BaseException) -> bool:
+    """Respect a transport adapter's explicit retry decision when present."""
+
+    declared = getattr(exc, "retryable", None)
+    if isinstance(declared, bool):
+        return declared
+    return _is_infrastructure_failure(exc)
+
+
+def _infrastructure_retry_delay(
+    config: DependencyRunConfig,
+    *,
+    failed_attempts: int,
+) -> float:
+    """Return the bounded delay after a consecutive infrastructure failure."""
+
+    if failed_attempts <= 0:
+        raise ValueError("failed_attempts must be positive")
+    execution = config.execution
+    delay = float(execution.infrastructure_retry_initial_seconds)
+    for _ in range(failed_attempts - 1):
+        delay = min(
+            float(execution.infrastructure_retry_max_seconds),
+            delay * float(execution.infrastructure_retry_multiplier),
+        )
+        if delay >= float(execution.infrastructure_retry_max_seconds):
+            break
+    return delay
+
+
+def _wait_for_infrastructure_retry(
+    root: Path,
+    *,
+    event_context: Mapping[str, Any],
+    delay_seconds: float,
+) -> None:
+    """Record a retry wait on every observable log and remain signal-safe.
+
+    ``chain_worker`` converts SIGTERM into ``KeyboardInterrupt`` in the main
+    thread.  Python's ``time.sleep`` is interruptible by that exception, so an
+    operator stop during this wait is finalized by the runner's existing
+    interruption guard instead of being delayed until the full backoff ends.
+    """
+
+    scheduled_at = time.time()
+    _emit_runtime_event(
+        root,
+        {
+            "schema_version": 1,
+            "event": "infrastructure_retry_scheduled",
+            "at_epoch": scheduled_at,
+            "retry_at_epoch": scheduled_at + float(delay_seconds),
+            "delay_seconds": float(delay_seconds),
+            "circuit_state": "closed",
+            **dict(event_context),
+        },
+    )
+    time.sleep(float(delay_seconds))
+    _emit_runtime_event(
+        root,
+        {
+            "schema_version": 1,
+            "event": "infrastructure_retry_wait_completed",
+            "at_epoch": time.time(),
+            "delay_seconds": float(delay_seconds),
+            "circuit_state": "half_open",
+            **dict(event_context),
+        },
+    )
+
+
 class _Heartbeat:
     def __init__(self, root: Path, interval: float):
         self.root = root
@@ -2981,6 +3076,9 @@ def _persist_failure_attempt(
 ) -> DependencyOutcome:
     finished = time.time()
     infrastructure = _is_infrastructure_failure(exc)
+    retryable = bool(
+        infrastructure and _is_retryable_infrastructure_failure(exc)
+    )
     resolved_costs = dict(costs or {})
     resolved_costs["elapsed_ms"] = max(0.0, (finished - started_at) * 1000.0)
     resolved_costs["elapsed_ms_scope"] = "complete_failed_task_attempt"
@@ -2993,6 +3091,7 @@ def _persist_failure_attempt(
         "error_type": type(exc).__name__,
         "error": str(exc),
         "infrastructure_failure": infrastructure,
+        "retryable": retryable,
         "costs": resolved_costs,
     }
     _append_jsonl(prepared.root / "failures.jsonl", error_event)
@@ -3023,6 +3122,8 @@ def _persist_failure_attempt(
             "reason": "infrastructure_failure" if infrastructure else "task_error",
             "error_type": type(exc).__name__,
             "error": str(exc),
+            "infrastructure_failure": infrastructure,
+            "retryable": retryable,
         },
     )
     outcome = DependencyOutcome(
@@ -3092,6 +3193,7 @@ def _finalize_interrupted_attempt(
     exc: KeyboardInterrupt,
     adapter_invocations: Mapping[str, int],
     active_task: DependencyTask | None = None,
+    unique_tasks_attempted: int | None = None,
 ) -> dict[str, Any]:
     """Persist a resumable operator interruption before returning control."""
 
@@ -3120,6 +3222,11 @@ def _finalize_interrupted_attempt(
         stop_reason = "fully_persisted_before_interruption"
 
     message = str(exc).strip() or "execution interrupted by operator"
+    unique_attempted = (
+        tasks_attempted
+        if unique_tasks_attempted is None
+        else int(unique_tasks_attempted)
+    )
     event: dict[str, Any] = {
         "schema_version": 1,
         "event": "execution_interrupted",
@@ -3128,6 +3235,8 @@ def _finalize_interrupted_attempt(
         "attempt": attempt_number,
         "stage": stage,
         "tasks_attempted_this_attempt": tasks_attempted,
+        "unique_tasks_attempted_this_attempt": unique_attempted,
+        "task_retries_this_attempt": max(0, tasks_attempted - unique_attempted),
         "error_type": type(exc).__name__,
         "error": message,
         "infrastructure_failure": False,
@@ -3179,6 +3288,8 @@ def _finalize_interrupted_attempt(
         "summary": views["summary"],
         "stop_reason": stop_reason,
         "tasks_attempted_this_attempt": tasks_attempted,
+        "unique_tasks_attempted_this_attempt": unique_attempted,
+        "task_retries_this_attempt": max(0, tasks_attempted - unique_attempted),
         "model_calls_this_attempt": sum(adapter_invocations.values()),
         "adapter_invocations_this_attempt": dict(adapter_invocations),
         "resume_noop": False,
@@ -3271,6 +3382,8 @@ def _run_dependency_experiment_impl(
                 "generator_adapter_invocations": 0,
             },
             "tasks_attempted_this_attempt": 0,
+            "unique_tasks_attempted_this_attempt": 0,
+            "task_retries_this_attempt": 0,
             "resume_noop": True,
         }
 
@@ -3390,6 +3503,8 @@ def _run_dependency_experiment_impl(
                 "model_calls_this_attempt": sum(adapter_invocations.values()),
                 "adapter_invocations_this_attempt": adapter_invocations,
                 "tasks_attempted_this_attempt": 0,
+                "unique_tasks_attempted_this_attempt": 0,
+                "task_retries_this_attempt": 0,
             }
         raise
 
@@ -3400,38 +3515,188 @@ def _run_dependency_experiment_impl(
         for task in prepared.tasks
         if task.task_id not in outcomes or outcomes[task.task_id].status != "success"
     )
+    probe_stage = "service_probe"
+    terminal_probe_error: Exception | None = None
+    terminal_probe_infrastructure = False
+    probe_attempt = 0
     try:
-        probe = _pointwise_service_probe(
-            executor,
-            first_pending,
-            prepared.examples_by_id[first_pending.question_id],
-        )
-        probe = {
-            **probe,
-            "execution_attempt": attempt_number,
-            "executed_at_epoch": time.time(),
-        }
-        _append_jsonl(prepared.root / "service_probes.jsonl", probe)
-        _atomic_json(prepared.root / "service_probe.json", probe)
-        _emit_runtime_event(
-            prepared.root,
-            {
-                "schema_version": 1,
-                "event": "service_probe_passed",
-                "at_epoch": time.time(),
-                "attempt": attempt_number,
-                "consistent": probe["consistent"],
-                "score_space": probe["score_space"],
-                "score_contract": probe["score_contract"],
-                "compared_values": probe["compared_values"],
-                "max_absolute_deviation": probe["max_absolute_deviation"],
-                "max_relative_deviation": probe["max_relative_deviation"],
-                "rtol": probe["rtol"],
-                "atol": probe["atol"],
-                "reranker_adapter_requests": probe["reranker_adapter_requests"],
-                "search_budget_consumed": 0,
-            },
-        )
+        while True:
+            probe_attempt += 1
+            probe_adapter_start = executor.adapter_cost
+            try:
+                probe = _pointwise_service_probe(
+                    executor,
+                    first_pending,
+                    prepared.examples_by_id[first_pending.question_id],
+                )
+            except Exception as exc:
+                infrastructure = _is_infrastructure_failure(exc)
+                retryable = bool(
+                    infrastructure and _is_retryable_infrastructure_failure(exc)
+                )
+                probe_adapter_invocations = _counter_delta(
+                    executor.adapter_cost, probe_adapter_start
+                )
+                measured = (
+                    dict(exc.report)
+                    if isinstance(exc, PointwiseProtocolMismatch)
+                    else {}
+                )
+                failure = {
+                    **measured,
+                    "schema_version": 1,
+                    "event": "service_probe_failure",
+                    "status": "failed",
+                    "at_epoch": time.time(),
+                    # Keep the historical spelling for compatibility while
+                    # making the nested attempt identity explicit.
+                    "attempt": attempt_number,
+                    "execution_attempt": attempt_number,
+                    "probe_attempt": probe_attempt,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                    "infrastructure_failure": infrastructure,
+                    "retryable": retryable,
+                    "adapter_invocations": probe_adapter_invocations,
+                }
+                _append_jsonl(
+                    prepared.root / "service_probes.jsonl",
+                    failure,
+                )
+                _atomic_json(prepared.root / "service_probe.json", failure)
+                _append_jsonl(prepared.root / "failures.jsonl", failure)
+                _append_jsonl(prepared.root / "events.jsonl", failure)
+                _emit_runtime_event(
+                    prepared.root,
+                    {
+                        "schema_version": 1,
+                        "event": "service_probe_failed",
+                        "at_epoch": time.time(),
+                        "attempt": attempt_number,
+                        "execution_attempt": attempt_number,
+                        "probe_attempt": probe_attempt,
+                        "consistent": measured.get("consistent"),
+                        "score_space": measured.get("score_space"),
+                        "score_contract": measured.get("score_contract"),
+                        "compared_values": measured.get("compared_values"),
+                        "max_absolute_deviation": measured.get(
+                            "max_absolute_deviation"
+                        ),
+                        "max_relative_deviation": measured.get(
+                            "max_relative_deviation"
+                        ),
+                        "rtol": measured.get("rtol"),
+                        "atol": measured.get("atol"),
+                        "error_type": type(exc).__name__,
+                        "infrastructure_failure": infrastructure,
+                        "retryable": retryable,
+                        "adapter_invocations": probe_adapter_invocations,
+                        "search_budget_consumed": 0,
+                    },
+                )
+                if (
+                    retryable
+                    and probe_attempt
+                    < prepared.config.execution.infrastructure_task_max_attempts
+                ):
+                    delay = _infrastructure_retry_delay(
+                        prepared.config, failed_attempts=probe_attempt
+                    )
+                    probe_stage = "service_probe_retry_wait"
+                    _wait_for_infrastructure_retry(
+                        prepared.root,
+                        event_context={
+                            "scope": "service_probe",
+                            "execution_attempt": attempt_number,
+                            "failed_attempt": probe_attempt,
+                            "next_attempt": probe_attempt + 1,
+                            "max_attempts": (
+                                prepared.config.execution.infrastructure_task_max_attempts
+                            ),
+                            "attempts_remaining": (
+                                prepared.config.execution.infrastructure_task_max_attempts
+                                - probe_attempt
+                            ),
+                            "error_type": type(exc).__name__,
+                            "retryable": retryable,
+                        },
+                        delay_seconds=delay,
+                    )
+                    probe_stage = "service_probe"
+                    continue
+                terminal_probe_error = exc
+                terminal_probe_infrastructure = infrastructure
+                if infrastructure:
+                    _emit_runtime_event(
+                        prepared.root,
+                        {
+                            "schema_version": 1,
+                            "event": "infrastructure_circuit_opened",
+                            "at_epoch": time.time(),
+                            "scope": "service_probe",
+                            "execution_attempt": attempt_number,
+                            "failed_attempts": probe_attempt,
+                            "max_attempts": (
+                                prepared.config.execution.infrastructure_task_max_attempts
+                            ),
+                            "reason": (
+                                "retry_budget_exhausted"
+                                if retryable
+                                else "non_retryable_infrastructure_failure"
+                            ),
+                            "error_type": type(exc).__name__,
+                            "retryable": retryable,
+                            "circuit_state": "open",
+                        },
+                    )
+                break
+
+            probe = {
+                **probe,
+                "execution_attempt": attempt_number,
+                "probe_attempt": probe_attempt,
+                "executed_at_epoch": time.time(),
+            }
+            _append_jsonl(prepared.root / "service_probes.jsonl", probe)
+            _atomic_json(prepared.root / "service_probe.json", probe)
+            _emit_runtime_event(
+                prepared.root,
+                {
+                    "schema_version": 1,
+                    "event": "service_probe_passed",
+                    "at_epoch": time.time(),
+                    "attempt": attempt_number,
+                    "execution_attempt": attempt_number,
+                    "probe_attempt": probe_attempt,
+                    "consistent": probe["consistent"],
+                    "score_space": probe["score_space"],
+                    "score_contract": probe["score_contract"],
+                    "compared_values": probe["compared_values"],
+                    "max_absolute_deviation": probe["max_absolute_deviation"],
+                    "max_relative_deviation": probe["max_relative_deviation"],
+                    "rtol": probe["rtol"],
+                    "atol": probe["atol"],
+                    "reranker_adapter_requests": probe[
+                        "reranker_adapter_requests"
+                    ],
+                    "search_budget_consumed": 0,
+                },
+            )
+            if probe_attempt > 1:
+                _emit_runtime_event(
+                    prepared.root,
+                    {
+                        "schema_version": 1,
+                        "event": "infrastructure_retry_recovered",
+                        "at_epoch": time.time(),
+                        "scope": "service_probe",
+                        "execution_attempt": attempt_number,
+                        "successful_attempt": probe_attempt,
+                        "prior_infrastructure_failures": probe_attempt - 1,
+                        "circuit_state": "closed",
+                    },
+                )
+            break
     except KeyboardInterrupt as exc:
         adapter_invocations = _counter_delta(
             executor.adapter_cost, attempt_adapter_start
@@ -3443,64 +3708,12 @@ def _run_dependency_experiment_impl(
             outcomes,
             attempt_number=attempt_number,
             tasks_attempted=0,
-            stage="service_probe",
+            stage=probe_stage,
             exc=exc,
             adapter_invocations=adapter_invocations,
         )
-    except Exception as exc:
-        infrastructure = _is_infrastructure_failure(exc)
-        probe_adapter_invocations = _counter_delta(
-            executor.adapter_cost, attempt_adapter_start
-        )
-        measured = (
-            dict(exc.report)
-            if isinstance(exc, PointwiseProtocolMismatch)
-            else {}
-        )
-        failure = {
-            **measured,
-            "schema_version": 1,
-            "event": "service_probe_failure",
-            "status": "failed",
-            "at_epoch": time.time(),
-            "attempt": attempt_number,
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-            "infrastructure_failure": infrastructure,
-            "adapter_invocations": probe_adapter_invocations,
-        }
-        _append_jsonl(
-            prepared.root / "service_probes.jsonl", {**failure, "status": "failed"}
-        )
-        _atomic_json(
-            prepared.root / "service_probe.json", {**failure, "status": "failed"}
-        )
-        _append_jsonl(prepared.root / "failures.jsonl", failure)
-        _append_jsonl(prepared.root / "events.jsonl", failure)
-        _emit_runtime_event(
-            prepared.root,
-            {
-                "schema_version": 1,
-                "event": "service_probe_failed",
-                "at_epoch": time.time(),
-                "attempt": attempt_number,
-                "consistent": measured.get("consistent"),
-                "score_space": measured.get("score_space"),
-                "score_contract": measured.get("score_contract"),
-                "compared_values": measured.get("compared_values"),
-                "max_absolute_deviation": measured.get(
-                    "max_absolute_deviation"
-                ),
-                "max_relative_deviation": measured.get(
-                    "max_relative_deviation"
-                ),
-                "rtol": measured.get("rtol"),
-                "atol": measured.get("atol"),
-                "error_type": type(exc).__name__,
-                "infrastructure_failure": infrastructure,
-                "search_budget_consumed": 0,
-            },
-        )
+
+    if terminal_probe_error is not None:
         views = _write_run_views(
             prepared.root,
             prepared.tasks,
@@ -3517,7 +3730,7 @@ def _run_dependency_experiment_impl(
             stop_reason="service_probe_failure",
         )
         heartbeat.close(completed_tasks=len(outcomes))
-        if infrastructure:
+        if terminal_probe_infrastructure:
             adapter_invocations = _counter_delta(
                 executor.adapter_cost, attempt_adapter_start
             )
@@ -3529,86 +3742,213 @@ def _run_dependency_experiment_impl(
                 "model_calls_this_attempt": sum(adapter_invocations.values()),
                 "adapter_invocations_this_attempt": adapter_invocations,
                 "tasks_attempted_this_attempt": 0,
+                "unique_tasks_attempted_this_attempt": 0,
+                "task_retries_this_attempt": 0,
             }
-        raise
+        raise terminal_probe_error
+    # ``tasks_attempted`` counts executor invocations, including in-process
+    # retries. Keep a separate unique count so operational cost is explicit.
     tasks_attempted = 0
+    unique_tasks_attempted = 0
     infrastructure_stop: str | None = None
     active_task: DependencyTask | None = None
     interruption: KeyboardInterrupt | None = None
+    interruption_stage = "task_execution"
     try:
         for task in prepared.tasks:
             previous = outcomes.get(task.task_id)
             if previous is not None and previous.status == "success":
                 continue
+            unique_tasks_attempted += 1
             task_attempt = 1 if previous is None else previous.attempt + 1
-            tasks_attempted += 1
+            infrastructure_failures = 0
             active_task = task
-            heartbeat.update(task=task, completed_tasks=len(outcomes))
-            started_at = time.time()
-            task_adapter_start = executor.adapter_cost
-            try:
-                result = executor.execute(
-                    task, prepared.examples_by_id[task.question_id]
-                )
-                outcome = _persist_success_attempt(
-                    prepared,
-                    task,
-                    result,
-                    attempt=task_attempt,
-                    started_at=started_at,
-                )
-            except Exception as exc:
-                partial = getattr(exc, "dependency_partial_artifacts", {})
-                if isinstance(partial, Mapping) and partial:
-                    _persist_task_artifacts(
+            while True:
+                tasks_attempted += 1
+                interruption_stage = "task_execution"
+                heartbeat.update(task=task, completed_tasks=len(outcomes))
+                started_at = time.time()
+                task_adapter_start = executor.adapter_cost
+                retryable_infrastructure = False
+                try:
+                    result = executor.execute(
+                        task, prepared.examples_by_id[task.question_id]
+                    )
+                    outcome = _persist_success_attempt(
                         prepared,
                         task,
-                        partial,
+                        result,
                         attempt=task_attempt,
-                        partial=True,
+                        started_at=started_at,
                     )
-                task_adapter_cost = _counter_delta(
-                    executor.adapter_cost, task_adapter_start
+                except Exception as exc:
+                    retryable_infrastructure = bool(
+                        _is_infrastructure_failure(exc)
+                        and _is_retryable_infrastructure_failure(exc)
+                    )
+                    partial = getattr(exc, "dependency_partial_artifacts", {})
+                    if isinstance(partial, Mapping) and partial:
+                        _persist_task_artifacts(
+                            prepared,
+                            task,
+                            partial,
+                            attempt=task_attempt,
+                            partial=True,
+                        )
+                    task_adapter_cost = _counter_delta(
+                        executor.adapter_cost, task_adapter_start
+                    )
+                    partial_costs = (
+                        dict(partial.get("costs", {}))
+                        if isinstance(partial, Mapping)
+                        and isinstance(partial.get("costs"), Mapping)
+                        else {}
+                    )
+                    partial_costs["adapter_invocations"] = task_adapter_cost
+                    partial_costs["generator_calls"] = int(
+                        task_adapter_cost.get("generator_adapter_invocations", 0)
+                    )
+                    outcome = _persist_failure_attempt(
+                        prepared,
+                        task,
+                        exc,
+                        attempt=task_attempt,
+                        started_at=started_at,
+                        costs=partial_costs,
+                        artifacts=(
+                            partial if isinstance(partial, Mapping) else None
+                        ),
+                    )
+                outcomes[task.task_id] = outcome
+                effectiveness = outcome.diagnostics.get("module_effectiveness")
+                if not isinstance(effectiveness, Mapping):
+                    raise ValueError(
+                        "authoritative outcome omitted module_effectiveness diagnostics"
+                    )
+                _emit_runtime_event(
+                    prepared.root,
+                    effectiveness,
+                    module_name="effectiveness",
                 )
-                partial_costs = (
-                    dict(partial.get("costs", {}))
-                    if isinstance(partial, Mapping)
-                    and isinstance(partial.get("costs"), Mapping)
-                    else {}
-                )
-                partial_costs["adapter_invocations"] = task_adapter_cost
-                partial_costs["generator_calls"] = int(
-                    task_adapter_cost.get("generator_adapter_invocations", 0)
-                )
-                outcome = _persist_failure_attempt(
-                    prepared,
-                    task,
-                    exc,
-                    attempt=task_attempt,
-                    started_at=started_at,
-                    costs=partial_costs,
-                    artifacts=partial if isinstance(partial, Mapping) else None,
-                )
-            outcomes[task.task_id] = outcome
-            effectiveness = outcome.diagnostics.get("module_effectiveness")
-            if not isinstance(effectiveness, Mapping):
-                raise ValueError(
-                    "authoritative outcome omitted module_effectiveness diagnostics"
-                )
-            _emit_runtime_event(
-                prepared.root,
-                effectiveness,
-                module_name="effectiveness",
-            )
-            heartbeat.update(task=None, completed_tasks=len(outcomes))
-            active_task = None
+                # Make the retry-safe current view match a retry transition
+                # immediately. Avoid rewriting the full materialized view on
+                # every ordinary success; periodic run views own that path.
+                if outcome.infrastructure_failure or infrastructure_failures:
+                    _write_current_effectiveness(
+                        prepared.root, prepared.tasks, outcomes
+                    )
 
-            if tasks_attempted % prepared.config.execution.log_every_questions == 0:
+                if not outcome.infrastructure_failure:
+                    if outcome.status == "success" and infrastructure_failures:
+                        _emit_runtime_event(
+                            prepared.root,
+                            {
+                                "schema_version": 1,
+                                "event": "infrastructure_retry_recovered",
+                                "at_epoch": time.time(),
+                                "scope": "task",
+                                "execution_attempt": attempt_number,
+                                "task_id": task.task_id,
+                                "persona_id": task.persona_id,
+                                "question_id": task.question_id,
+                                "method_id": task.method_id,
+                                "successful_task_attempt": task_attempt,
+                                "prior_infrastructure_failures": (
+                                    infrastructure_failures
+                                ),
+                                "circuit_state": "closed",
+                            },
+                        )
+                    heartbeat.update(task=None, completed_tasks=len(outcomes))
+                    active_task = None
+                    break
+
+                infrastructure_failures += 1
+                maximum_attempts = (
+                    prepared.config.execution.infrastructure_task_max_attempts
+                )
+                if (
+                    not retryable_infrastructure
+                    or infrastructure_failures >= maximum_attempts
+                ):
+                    infrastructure_stop = (
+                        f"{outcome.error_type}: {outcome.error}"
+                    )
+                    _emit_runtime_event(
+                        prepared.root,
+                        {
+                            "schema_version": 1,
+                            "event": "infrastructure_circuit_opened",
+                            "at_epoch": time.time(),
+                            "scope": "task",
+                            "execution_attempt": attempt_number,
+                            "task_id": task.task_id,
+                            "persona_id": task.persona_id,
+                            "question_id": task.question_id,
+                            "method_id": task.method_id,
+                            "failed_task_attempt": task_attempt,
+                            "failed_attempts": infrastructure_failures,
+                            "max_attempts": maximum_attempts,
+                            "reason": (
+                                "retry_budget_exhausted"
+                                if retryable_infrastructure
+                                else "non_retryable_infrastructure_failure"
+                            ),
+                            "error_type": outcome.error_type,
+                            "retryable": retryable_infrastructure,
+                            "circuit_state": "open",
+                        },
+                    )
+                    heartbeat.update(task=None, completed_tasks=len(outcomes))
+                    active_task = None
+                    break
+
+                delay = _infrastructure_retry_delay(
+                    prepared.config,
+                    failed_attempts=infrastructure_failures,
+                )
+                interruption_stage = "task_infrastructure_retry_wait"
+                _wait_for_infrastructure_retry(
+                    prepared.root,
+                    event_context={
+                        "scope": "task",
+                        "execution_attempt": attempt_number,
+                        "task_id": task.task_id,
+                        "persona_id": task.persona_id,
+                        "question_id": task.question_id,
+                        "method_id": task.method_id,
+                        "failed_attempt": infrastructure_failures,
+                        "failed_task_attempt": task_attempt,
+                        "next_attempt": infrastructure_failures + 1,
+                        "next_task_attempt": task_attempt + 1,
+                        "max_attempts": maximum_attempts,
+                        "attempts_remaining": (
+                            maximum_attempts - infrastructure_failures
+                        ),
+                        "error_type": outcome.error_type,
+                        "retryable": retryable_infrastructure,
+                    },
+                    delay_seconds=delay,
+                )
+                task_attempt = outcome.attempt + 1
+
+            if (
+                unique_tasks_attempted
+                % prepared.config.execution.log_every_questions
+                == 0
+            ):
                 progress = summarize_dependency_outcomes(prepared.tasks, outcomes)
                 line = {
                     "event": "inference_progress",
                     "attempt": attempt_number,
                     "tasks_attempted_this_attempt": tasks_attempted,
+                    "unique_tasks_attempted_this_attempt": unique_tasks_attempted,
+                    "task_retries_this_attempt": max(
+                        0, tasks_attempted - unique_tasks_attempted
+                    ),
+                    "tasks_attempted_unit": "executor_invocation",
+                    "unique_tasks_attempted_unit": "method_x_question",
+                    "progress_cadence_unit": "unique_method_x_question",
                     "completed_tasks": progress["completed_tasks"],
                     "successful_tasks": progress["successful_tasks"],
                     "failed_tasks": progress["failed_tasks"],
@@ -3621,7 +3961,11 @@ def _run_dependency_experiment_impl(
                     prepared.root / "train.log",
                     " ".join(f"{key}={value}" for key, value in line.items()),
                 )
-            if tasks_attempted % prepared.config.execution.evaluate_every_questions == 0:
+            if (
+                unique_tasks_attempted
+                % prepared.config.execution.evaluate_every_questions
+                == 0
+            ):
                 _emit_runtime_event(
                     prepared.root,
                     _method_metrics_event(
@@ -3629,6 +3973,9 @@ def _run_dependency_experiment_impl(
                         outcomes,
                         attempt=attempt_number,
                         tasks_attempted_this_attempt=tasks_attempted,
+                        unique_tasks_attempted_this_attempt=(
+                            unique_tasks_attempted
+                        ),
                         checkpoint="periodic",
                     ),
                     module_name="effectiveness",
@@ -3641,10 +3988,7 @@ def _run_dependency_experiment_impl(
                     completion_status="running",
                     inference_complete=False,
                 )
-            if outcome.infrastructure_failure:
-                infrastructure_stop = (
-                    f"{outcome.error_type}: {outcome.error}"
-                )
+            if infrastructure_stop is not None:
                 break
     except KeyboardInterrupt as exc:
         partial = getattr(exc, "dependency_partial_artifacts", {})
@@ -3675,18 +4019,19 @@ def _run_dependency_experiment_impl(
             outcomes,
             attempt_number=attempt_number,
             tasks_attempted=tasks_attempted,
-            stage="task_execution",
+            stage=interruption_stage,
             exc=interruption,
             adapter_invocations=adapter_invocations,
             active_task=active_task,
+            unique_tasks_attempted=unique_tasks_attempted,
         )
 
     summary_now = summarize_dependency_outcomes(prepared.tasks, outcomes)
     pending = int(summary_now["pending_tasks"])
     failures = int(summary_now["failed_tasks"])
     if (
-        tasks_attempted
-        and tasks_attempted
+        unique_tasks_attempted
+        and unique_tasks_attempted
         % prepared.config.execution.evaluate_every_questions
         != 0
     ):
@@ -3697,6 +4042,7 @@ def _run_dependency_experiment_impl(
                 outcomes,
                 attempt=attempt_number,
                 tasks_attempted_this_attempt=tasks_attempted,
+                unique_tasks_attempted_this_attempt=unique_tasks_attempted,
                 checkpoint="attempt_end",
             ),
             module_name="effectiveness",
@@ -3745,6 +4091,8 @@ def _run_dependency_experiment_impl(
             "attempt": attempt_number,
             "status": status,
             "tasks_attempted": tasks_attempted,
+            "unique_tasks_attempted": unique_tasks_attempted,
+            "task_retries": max(0, tasks_attempted - unique_tasks_attempted),
             "infrastructure_stop": infrastructure_stop,
             "completed_tasks": views["summary"]["completed_tasks"],
             "pending_tasks": views["summary"]["pending_tasks"],
@@ -3759,6 +4107,10 @@ def _run_dependency_experiment_impl(
             "infrastructure_failure" if infrastructure_stop is not None else None
         ),
         "tasks_attempted_this_attempt": tasks_attempted,
+        "unique_tasks_attempted_this_attempt": unique_tasks_attempted,
+        "task_retries_this_attempt": max(
+            0, tasks_attempted - unique_tasks_attempted
+        ),
         "model_calls_this_attempt": sum(adapter_invocations.values()),
         "adapter_invocations_this_attempt": adapter_invocations,
         "resume_noop": False,
@@ -3904,6 +4256,8 @@ def _recover_outer_interruption(
         "stop_reason": stop_reason,
         "model_calls_this_attempt": 0 if resume and not pending and not failures else None,
         "tasks_attempted_this_attempt": None,
+        "unique_tasks_attempted_this_attempt": None,
+        "task_retries_this_attempt": None,
         "resume_noop": bool(resume and not pending and not failures),
         "recovered_after_interruption": True,
     }

@@ -285,6 +285,62 @@ def test_batching_restores_each_batch_by_index():
     assert scorer.reranker_adapter_requests == 2
 
 
+def test_transport_fallback_stats_are_audited_without_changing_logical_budget():
+    class TrackedReranker(FakeReranker):
+        def __init__(self):
+            super().__init__()
+            self.counters = {
+                "logical_calls": 7,
+                "logical_documents": 21,
+                "batch_requests": 8,
+                "batch_documents": 25,
+                "transport_attempts": 10,
+                "transport_document_attempts": 31,
+                "failed_batch_requests": 1,
+                "split_events": 1,
+                "split_recovered_calls": 1,
+                "failed_calls": 0,
+            }
+
+        @property
+        def transport_stats(self):
+            return dict(self.counters)
+
+        def rerank_all(self, query, documents):
+            result = super().rerank_all(query, documents)
+            count = len(documents)
+            self.counters["logical_calls"] += 1
+            self.counters["logical_documents"] += count
+            self.counters["batch_requests"] += 3
+            self.counters["batch_documents"] += count * 2
+            self.counters["transport_attempts"] += 5
+            self.counters["transport_document_attempts"] += count * 4
+            self.counters["failed_batch_requests"] += 1
+            self.counters["split_events"] += 1
+            self.counters["split_recovered_calls"] += 1
+            return result
+
+    scorer, _, _ = fixture_scorer(
+        TrackedReranker(), batch_size=8, set_budget=2
+    )
+
+    assert scorer.score_sets([("e",), ("p",)]) == [0.5, 0.5]
+    assert scorer.scored_sets == 2
+    assert scorer.reranker_adapter_requests == 1
+    assert scorer.cost["reranker_transport"] == {
+        "logical_calls": 1,
+        "logical_documents": 2,
+        "batch_requests": 3,
+        "batch_documents": 4,
+        "transport_attempts": 5,
+        "transport_document_attempts": 8,
+        "failed_batch_requests": 1,
+        "split_events": 1,
+        "split_recovered_calls": 1,
+        "failed_calls": 0,
+    }
+
+
 def test_pointwise_probe_reports_and_rejects_batch_dependence():
     stable = FakeReranker()
     report = probe_pointwise_consistency(stable, "q", ["a", "b"])

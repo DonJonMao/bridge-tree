@@ -102,6 +102,42 @@ bash scripts/run_chain.sh module-log effectiveness-current
 bash scripts/run_chain.sh resume
 ```
 
+Transient service failures are handled by bounded retries at two distinct
+layers. Each JSON-over-HTTP request makes at most four transport attempts;
+timeouts, connection failures, HTTP protocol failures such as
+`HTTPException`/`IncompleteRead`, invalid UTF-8 or JSON, HTTP 408/425/429, and
+5xx are retried with short exponential backoff. Permanent 4xx responses are
+not retried. For the pointwise reranker only, 413/422 batch failures and a 500
+that still fails after its transport retries are deterministically bisected
+until the batch succeeds or a singleton proves the failure irreducible. Once
+the root batch enters this fallback, every child batch gets only one transport
+attempt, preventing four retries from multiplying at each split depth. These
+physical retries and splits do not consume additional logical scored-set or
+search budget. The service probe and each current task additionally have at
+most three execution attempts, with default waits of 15 and 60 seconds; after
+that, the circuit opens and leaves remaining tasks pending for operator
+inspection. Periodic progress and method metrics advance by unique
+`method×question` tasks, not retry invocations, while separately reporting
+executor invocations and retries. Retry events, attempt histories, and
+logical-versus-physical reranker counters are persisted in the normal run
+artifacts described below.
+
+Source and resolved-configuration hashes are part of the frozen run identity,
+so a run created before this resilience policy cannot be resumed with the new
+source/configuration. Keep the old run directories and `outputs/cache` for
+audit and safe keyed cache reuse, and start the upgraded run under isolated
+state and output roots:
+
+```bash
+BACKGROUND_STATE_DIR=outputs/background-resilient \
+OUTPUT_DIR=outputs/chain-resilient \
+bash scripts/start_chain_linux.sh configs/chain_full.yaml
+```
+
+Use the same two environment variables with subsequent `run_chain.sh`
+`status`, `log`, `module-log`, and `stop` commands. Do not use `resume` against
+the old run directory.
+
 This run is train-free inference/evaluation, not model-weight training:
 `optimizer_steps=0` and `weights_updated=false`. The one-command Linux launcher
 requires Linux, Bash, Python 3.9+ with `venv`, access to Python package sources

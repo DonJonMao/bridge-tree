@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -9,7 +10,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Protocol, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Protocol, Sequence
 
 import numpy as np
 
@@ -291,7 +292,81 @@ class Embedder(Protocol):
     def encode_queries(self, texts: Sequence[str], instruction: str | None = None) -> np.ndarray: ...
 
 
-def _post_json(url: str, payload: Dict[str, Any], timeout: float, headers: Dict[str, str] | None = None) -> Any:
+_HTTP_MAX_TRANSPORT_ATTEMPTS = 4
+_HTTP_RETRY_BACKOFF_BASE_SECONDS = 0.5
+_HTTP_RETRY_BACKOFF_CAP_SECONDS = 4.0
+_HTTP_RETRY_AFTER_CAP_SECONDS = 30.0
+_HTTP_SPLIT_CHILD_MAX_TRANSPORT_ATTEMPTS = 1
+
+
+class HTTPTransportError(RuntimeError):
+    """A JSON request failed without exposing response bodies or credentials."""
+
+    def __init__(
+        self,
+        *,
+        attempts: int,
+        status_code: int | None,
+        retryable: bool,
+        cause_type: str,
+    ) -> None:
+        self.attempts = int(attempts)
+        self.status_code = status_code
+        self.retryable = bool(retryable)
+        self.cause_type = str(cause_type)
+        detail = (
+            f"HTTP status {status_code}"
+            if status_code is not None
+            else self.cause_type
+        )
+        noun = "attempt" if self.attempts == 1 else "attempts"
+        super().__init__(
+            f"request failed after {self.attempts} transport {noun}: {detail}"
+        )
+
+    @property
+    def batch_reducible(self) -> bool:
+        """Whether reducing a pointwise batch can plausibly recover the call."""
+
+        # 413/422 commonly describe batch payload shape or size, while this
+        # deployment's 500 has been observed only for real multi-document
+        # reranker batches. Gateway/unavailable statuses (502/503/504) point
+        # to an endpoint-wide outage, so subdividing would only amplify load.
+        return self.status_code in {413, 422, 500}
+
+
+def _retryable_http_status(status_code: int) -> bool:
+    return status_code in {408, 425, 429} or 500 <= status_code <= 599
+
+
+def _retry_delay_seconds(failed_attempt: int, error: Exception) -> float:
+    delay = min(
+        _HTTP_RETRY_BACKOFF_CAP_SECONDS,
+        _HTTP_RETRY_BACKOFF_BASE_SECONDS * (2 ** (failed_attempt - 1)),
+    )
+    if isinstance(error, urllib.error.HTTPError) and error.headers is not None:
+        raw_retry_after = error.headers.get("Retry-After")
+        try:
+            retry_after = float(raw_retry_after)
+        except (TypeError, ValueError, OverflowError):
+            retry_after = 0.0
+        if np.isfinite(retry_after) and retry_after > 0.0:
+            delay = max(delay, min(retry_after, _HTTP_RETRY_AFTER_CAP_SECONDS))
+    return delay
+
+
+def _post_json(
+    url: str,
+    payload: Dict[str, Any],
+    timeout: float,
+    headers: Dict[str, str] | None = None,
+    *,
+    on_attempt: Callable[[int], None] | None = None,
+    max_attempts: int = _HTTP_MAX_TRANSPORT_ATTEMPTS,
+) -> Any:
+    max_attempts = _strict_int_value(
+        max_attempts, "HTTP max_attempts", positive=True
+    )
     request_headers = {"Content-Type": "application/json"}
     request_headers.update(headers or {})
     request = urllib.request.Request(
@@ -300,19 +375,43 @@ def _post_json(url: str, payload: Dict[str, Any], timeout: float, headers: Dict[
         headers=request_headers,
         method="POST",
     )
-    last_error: Exception | None = None
     # Match datacenter's `curl --noproxy '*'`: these model IPs are private
     # service routes and must not be sent through an ambient HTTP(S) proxy.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    for attempt in range(3):
+    for attempt_index in range(max_attempts):
+        attempt = attempt_index + 1
+        if on_attempt is not None:
+            on_attempt(attempt)
         try:
             with opener.open(request, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-            last_error = exc
-            if attempt < 2:
-                time.sleep(0.25 * (2**attempt))
-    raise RuntimeError(f"request failed after 3 attempts: {url}: {last_error}")
+        except urllib.error.HTTPError as exc:
+            retryable = _retryable_http_status(exc.code)
+            if not retryable or attempt == max_attempts:
+                raise HTTPTransportError(
+                    attempts=attempt,
+                    status_code=exc.code,
+                    retryable=retryable,
+                    cause_type=type(exc).__name__,
+                ) from exc
+            time.sleep(_retry_delay_seconds(attempt, exc))
+        except (
+            OSError,
+            urllib.error.URLError,
+            TimeoutError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            http.client.HTTPException,
+        ) as exc:
+            if attempt == max_attempts:
+                raise HTTPTransportError(
+                    attempts=attempt,
+                    status_code=None,
+                    retryable=True,
+                    cause_type=type(exc).__name__,
+                ) from exc
+            time.sleep(_retry_delay_seconds(attempt, exc))
+    raise AssertionError("unreachable HTTP retry state")
 
 
 class RemoteEmbeddingClient:
@@ -514,19 +613,54 @@ class RerankerClient:
         self.model_fingerprint = str(
             getattr(config, "model_fingerprint", "") or getattr(config, "model", "") or getattr(config, "endpoint", "")
         )
+        # These counters distinguish one caller-visible scoring operation from
+        # the extra transport work caused by retrying a failed pointwise batch.
+        # Search/set budgets remain the caller's responsibility and are never
+        # charged again when this client subdivides a request.
+        self._logical_calls = 0
+        self._logical_documents = 0
+        self._batch_requests = 0
+        self._batch_documents = 0
+        self._transport_attempts = 0
+        self._transport_document_attempts = 0
+        self._failed_batch_requests = 0
+        self._split_events = 0
+        self._split_recovered_calls = 0
+        self._failed_calls = 0
 
-    def rerank(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
-        if not isinstance(query, str):
-            raise ValueError("rerank query must be a string")
-        if isinstance(documents, (str, bytes)) or not isinstance(documents, Sequence):
-            raise ValueError("rerank documents must be a sequence of strings")
-        if any(not isinstance(document, str) for document in documents):
-            raise ValueError("rerank documents must be a sequence of strings")
-        top_n = _strict_int_value(top_n, "top_n", nonnegative=True)
-        if self.score_contract != "pointwise":
-            raise ValueError("listwise reranker contracts cannot be used as pointwise scores")
-        if not documents or top_n == 0:
-            return []
+    @property
+    def transport_stats(self) -> Dict[str, int]:
+        """Return cumulative logical, batch, and actual HTTP-attempt counts.
+
+        ``logical_documents`` counts each input document once per public
+        ``rerank`` call. ``batch_documents`` counts it again when a failed
+        batch is divided, while ``transport_document_attempts`` additionally
+        includes exponential-backoff attempts made by :func:`_post_json`.
+        """
+
+        return {
+            "logical_calls": self._logical_calls,
+            "logical_documents": self._logical_documents,
+            "batch_requests": self._batch_requests,
+            "batch_documents": self._batch_documents,
+            "transport_attempts": self._transport_attempts,
+            "transport_document_attempts": self._transport_document_attempts,
+            "failed_batch_requests": self._failed_batch_requests,
+            "split_events": self._split_events,
+            "split_recovered_calls": self._split_recovered_calls,
+            "failed_calls": self._failed_calls,
+        }
+
+    def _rerank_batch(
+        self,
+        query: str,
+        documents: Sequence[str],
+        top_n: int,
+        *,
+        max_transport_attempts: int | None = None,
+    ) -> List[RerankItem]:
+        """Issue and validate one physical batch without changing indices."""
+
         payload: Dict[str, Any] = {
             "query": query,
             "documents": list(documents),
@@ -535,7 +669,26 @@ class RerankerClient:
         }
         if self.config.model:
             payload["model"] = self.config.model
-        response = _post_json(self.config.endpoint, payload, self.config.timeout_seconds)
+        self._batch_requests += 1
+        self._batch_documents += len(documents)
+
+        def record_attempt(_attempt: int) -> None:
+            self._transport_attempts += 1
+            self._transport_document_attempts += len(documents)
+
+        post_kwargs: Dict[str, Any] = {"on_attempt": record_attempt}
+        if max_transport_attempts is not None:
+            post_kwargs["max_attempts"] = max_transport_attempts
+        try:
+            response = _post_json(
+                self.config.endpoint,
+                payload,
+                self.config.timeout_seconds,
+                **post_kwargs,
+            )
+        except HTTPTransportError:
+            self._failed_batch_requests += 1
+            raise
         if _response_declares_truncation(response):
             raise ValueError("rerank backend explicitly reported input truncation")
         if isinstance(response, dict):
@@ -563,16 +716,94 @@ class RerankerClient:
             if raw_score is None:
                 raise ValueError("rerank response item is missing score")
             score = _strict_float_value(raw_score, "rerank response score")
-            if position < 0 or position >= len(documents) or position in seen:
+            if position >= len(documents) or position in seen:
                 raise ValueError("rerank response contains an unknown or duplicate index")
             if not np.isfinite(score):
                 raise ValueError("rerank response contains a non-finite score")
-            normalized_space = self.score_space.strip().lower().replace("-", "_")
-            if normalized_space in {"unit_interval", "probability", "sigmoid", "unit"} and not 0.0 <= score <= 1.0:
+            if self.score_space == "unit_interval" and not 0.0 <= score <= 1.0:
                 raise ValueError("unit-interval rerank score is outside [0, 1]")
             seen.add(position)
             items.append(RerankItem(index=position, score=score))
+        if top_n >= len(documents) and seen != set(range(len(documents))):
+            raise ValueError("rerank_all response must cover every document")
         return sorted(items, key=lambda item: (-item.score, item.index))[:top_n]
+
+    def _rerank_pointwise_with_splits(
+        self,
+        query: str,
+        documents: Sequence[str],
+        top_n: int,
+    ) -> tuple[List[RerankItem], bool]:
+        """Bisect exhausted 5xx/oversized batches and restore original indices."""
+
+        pending: list[tuple[int, List[str], int | None]] = [
+            (0, list(documents), None)
+        ]
+        combined: list[RerankItem] = []
+        split_used = False
+        while pending:
+            offset, batch, max_transport_attempts = pending.pop()
+            try:
+                local_items = self._rerank_batch(
+                    query,
+                    batch,
+                    min(top_n, len(batch)),
+                    max_transport_attempts=max_transport_attempts,
+                )
+            except HTTPTransportError as exc:
+                # Splitting is valid only because this client enforces a
+                # pointwise score contract. A singleton proves the failure is
+                # not recoverable by changing batch composition.
+                if not exc.batch_reducible or len(batch) == 1:
+                    raise
+                midpoint = len(batch) // 2
+                self._split_events += 1
+                split_used = True
+                # LIFO with right first processes the left/original prefix
+                # first and aborts along the first irrecoverable branch rather
+                # than creating a full retry storm during a persistent outage.
+                # The parent already exhausted its normal transport retry
+                # budget. Probe each degraded child once so a persistent 500
+                # cannot multiply four retries at every bisection depth. A
+                # later task-level retry still provides bounded recovery.
+                child_attempts = _HTTP_SPLIT_CHILD_MAX_TRANSPORT_ATTEMPTS
+                pending.append(
+                    (offset + midpoint, batch[midpoint:], child_attempts)
+                )
+                pending.append((offset, batch[:midpoint], child_attempts))
+                continue
+            combined.extend(
+                RerankItem(index=offset + item.index, score=item.score)
+                for item in local_items
+            )
+        return sorted(combined, key=lambda item: (-item.score, item.index))[:top_n], split_used
+
+    def rerank(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
+        if not isinstance(query, str):
+            raise ValueError("rerank query must be a string")
+        if isinstance(documents, (str, bytes)) or not isinstance(documents, Sequence):
+            raise ValueError("rerank documents must be a sequence of strings")
+        if any(not isinstance(document, str) for document in documents):
+            raise ValueError("rerank documents must be a sequence of strings")
+        top_n = _strict_int_value(top_n, "top_n", nonnegative=True)
+        if self.score_contract != "pointwise":
+            raise ValueError("listwise reranker contracts cannot be used as pointwise scores")
+        self._logical_calls += 1
+        self._logical_documents += len(documents)
+        if not documents or top_n == 0:
+            return []
+        try:
+            items, split_used = self._rerank_pointwise_with_splits(
+                query,
+                list(documents),
+                min(top_n, len(documents)),
+            )
+        except Exception:
+            self._failed_calls += 1
+            raise
+        if split_used:
+            self._split_recovered_calls += 1
+        return items
 
     def rerank_all(self, query: str, documents: Sequence[str]) -> List[RerankItem]:
         """Return a complete deterministic ranking so callers can cache once and slice later."""

@@ -24,6 +24,18 @@ from .types import Memory
 
 EMPTY_SET_SERIALIZATION = "Personal memories: [No personal memories supplied.]"
 SET_SERIALIZATION_TEMPLATE_VERSION = "dependency-set-v1"
+RERANKER_TRANSPORT_STAT_KEYS = (
+    "logical_calls",
+    "logical_documents",
+    "batch_requests",
+    "batch_documents",
+    "transport_attempts",
+    "transport_document_attempts",
+    "failed_batch_requests",
+    "split_events",
+    "split_recovered_calls",
+    "failed_calls",
+)
 
 
 class SetScoringError(ValueError):
@@ -504,7 +516,35 @@ class SetReranker:
         self._client_samples = 0
         self._client_elapsed_ms = 0.0
         self._logical_input_tokens = 0
+        self._transport_stats_start = self._transport_stats_snapshot()
         self.events: list[dict[str, Any]] = []
+
+    def _transport_stats_snapshot(self) -> dict[str, int]:
+        """Read optional production-client transport counters safely."""
+
+        try:
+            raw = getattr(self.reranker, "transport_stats", None)
+        except (AttributeError, TypeError, ValueError):
+            return {}
+        if not isinstance(raw, Mapping):
+            return {}
+        result: dict[str, int] = {}
+        for key in RERANKER_TRANSPORT_STAT_KEYS:
+            value = raw.get(key)
+            if isinstance(value, bool) or not isinstance(value, Integral):
+                continue
+            numeric = int(value)
+            if numeric >= 0:
+                result[key] = numeric
+        return result
+
+    def _transport_stats_delta(self) -> dict[str, int]:
+        current = self._transport_stats_snapshot()
+        return {
+            key: max(0, current.get(key, 0) - self._transport_stats_start.get(key, 0))
+            for key in RERANKER_TRANSPORT_STAT_KEYS
+            if key in current or key in self._transport_stats_start
+        }
 
     def _canonical_ids(self, memory_ids: Iterable[str]) -> tuple[str, ...]:
         if isinstance(memory_ids, (str, bytes)):
@@ -903,6 +943,10 @@ class SetReranker:
             "memory_cache_hits": self._memory_cache_hits,
             "cache_hits": self.cache_hits,
             "reranker_elapsed_ms": self._client_elapsed_ms,
+            # Optional physical-transport accounting from RerankerClient.
+            # Logical set/search budgets above are deliberately unchanged by
+            # HTTP retries or pointwise batch subdivision.
+            "reranker_transport": self._transport_stats_delta(),
             "logical_input_tokens_estimate": self._logical_input_tokens,
             "token_count_is_estimate": True,
         }
