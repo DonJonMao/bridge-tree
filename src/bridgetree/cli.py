@@ -479,11 +479,42 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--run-dir", required=True)
     audit.add_argument("--require-full-32k", action="store_true")
     audit.add_argument("--max-parse-failure-rate", type=float, default=0.05)
+    diagnostic_plan = subparsers.add_parser("diagnostic-plan", help="Freeze an offline, budgeted post-hoc diagnostic plan")
+    diagnostic_plan.add_argument("--config", default="configs/diagnostic_28.yaml")
+    diagnostic_plan.add_argument("--output-dir", required=True)
+    for command in ("diagnostic-analyze", "diagnostic-score", "diagnostic-generate", "diagnostic-evaluate", "diagnostic-report"):
+        entry = subparsers.add_parser(command, help="PR1–PR3 frozen dependency diagnostics (not a benchmark method)")
+        entry.add_argument("--run-dir", required=True)
+        if command in {"diagnostic-score", "diagnostic-generate"}:
+            entry.add_argument("--config", default="configs/diagnostic_28.yaml")
+            entry.add_argument("--execute", action="store_true", help="Actually call only frozen deployments under hard budgets")
+            entry.add_argument("--resume", action="store_true", help="Resume the same predeclared trial identities (terminal outcomes are retained)")
+        elif command == "diagnostic-analyze":
+            entry.add_argument("--score-view", choices=("historical", "fresh"), default="historical")
+        elif command == "diagnostic-evaluate":
+            entry.add_argument("--gold-source", required=True)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command.startswith("diagnostic-"):
+        from .diagnostic_runner import analyze_diagnostics, plan_diagnostics, run_generations, run_scores
+        from .diagnostic_evaluation import evaluate_diagnostics, unified_diagnostic_report
+        if args.command == "diagnostic-plan":
+            result = plan_diagnostics(args.config, args.output_dir)
+        elif args.command == "diagnostic-analyze":
+            result = analyze_diagnostics(args.run_dir, score_view=args.score_view)
+        elif args.command == "diagnostic-score":
+            result = run_scores(args.run_dir, args.config, execute=args.execute)
+        elif args.command == "diagnostic-generate":
+            result = run_generations(args.run_dir, args.config, execute=args.execute)
+        elif args.command == "diagnostic-evaluate":
+            result = evaluate_diagnostics(args.run_dir, args.gold_source)
+        else:
+            result = unified_diagnostic_report(args.run_dir)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "download-personamem":
         download_personamem(args.raw_dir, args.split or ["32k"])
         return 0

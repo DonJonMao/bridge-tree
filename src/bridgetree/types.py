@@ -1111,6 +1111,17 @@ class ContextPlan:
             "request": _safe_request_value(dict(self.request)),
         }
 
+    @classmethod
+    def from_public_dict(cls, value: Mapping[str, Any]) -> "ContextPlan":
+        """Restore a frozen plan; never repair, reformat or silently drop fields."""
+        if not isinstance(value, Mapping):
+            raise ValueError("ContextPlan snapshot must be a mapping")
+        expected = set(cls.__dataclass_fields__)
+        if set(value) != expected:
+            raise ValueError("ContextPlan snapshot fields differ from the frozen contract")
+        # __post_init__ rechecks messages, token accounting, payload and hashes.
+        return cls(**dict(value))
+
 
 @dataclass(frozen=True)
 class Memory:

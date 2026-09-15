@@ -1,0 +1,43 @@
+# Offline planning works with unknown deployments. --execute refuses unknown
+# identities. Copy this file and point deployment_override at a private YAML
+# containing actual deployment_identity values; never invent a revision.
+schema_version: 1
+deployment_config: chain_full.yaml
+deployment_override: null
+detail_archive:
+  path: /Users/mao/chain-audit-detail.tgz
+  sha256: c040e839dc5f957596cde0632d739d60769e1ec884092829460bde62c3334c80
+full_archive:
+  path: /Users/mao/chain-audit-full.tgz
+  sha256: 51e5a511c198a4d14799128ef6d511204582a43c2473da387a1c394642697d53
+questions: ../data/raw/personamem-v1/questions_32k.csv
+contexts: ../data/raw/personamem-v1/shared_contexts_32k.jsonl
+cases:
+  - name: painting
+    question_id: 17273334-b524-4398-baae-bfb459f149e0
+    task_id: 3b1003e23012d57db5e0a5bf1cf473689beef60580562ffe71d84c0dc7cd581b
+    universe: [m00011, m00039, m00081]
+    controls: []
+  - name: music
+    question_id: fd81b480-5723-43fe-9fb1-d3efa0df8e49
+    task_id: dd67463ac5377f24adb34606b97ec13df4e20e72130624ae43c9c4d7d299dec2
+    universe: [m00005, m00006, m00008, m00027]
+    controls: []
+  - name: book_club
+    question_id: d4562a36-f9aa-4dcb-9033-434e5a1a4535
+    task_id: 55de70ff2877a08d427cfbccbeb317a07625f037c72a98e72e250340f3faccfa
+    universe: [m00037, m00073]
+    controls: []
+repeats: 10
+order_seed: 20260915
+task_max_attempts: 1
+include_dense_controls: true
+# Root runs: 3 cases × (legacy + 3 predeclared seeds), no generation.
+root_seeds: [7, 19, 43]
+budgets:
+  score_logical_inputs: 28
+  generation_trials: 310
+  score_transport_attempts: 84
+  generation_transport_attempts: 930
+  root_runs: 12
+  root_transport_attempts: 12000
