@@ -54,7 +54,7 @@ def build_report(run_dir: Path, output: Path, acceptance: Path) -> dict:
     page("BridgeTree：诊断改造与机制重设计方向", f"""
 <p class="subtitle">讨论修订版 R2 · PR1–PR4 同轮交付 · PersonaMem-v1 32k</p>
 <div class="lead">大方向已知，但具体机制尚未定稿：优先检验集合相关性是否代表证据价值，再决定是否重设计目标、选择路径或跨目标调度。</div>
-<h2>本轮边界</h2><p>本轮实施的是可复现诊断与受控消融，不是 PR5。保持 legacy 集合评分、选择器和默认搜索行为；不训练，不加 dense 保护、新 Judge、新选择器、轮询或根预算保留。PR4 只增加默认关闭的零优先级根平局顺序消融。</p>
+<h2>本轮边界</h2><p>用户确认本轮交付代码、离线验收和 PDF，真实模型实验由用户上传服务器后执行。本轮不是 PR5：保持 legacy 评分、选择器和默认搜索行为；不训练，不加 dense 保护、Judge、新选择器、轮询或根预算。PR4 只增加默认关闭的根平局顺序消融。</p>
 {table(['工作类别','PR','性质'], [['工程与可观测性','PR1','身份、缓存隔离、请求与失败审计'],['找问题与验证错因','PR2–PR3','历史回放、28格点评分、重复生成'],['诊断性机制扰动','PR4','只改变根之间无语义的平局顺序'],['主方法重设计','PR5','未实施，需依据诊断另行定义']])}
 <h2>实际执行状态</h2>{table(['阶段','当前归档状态'], online)}
 <p>离线实际归档已恢复 {offline['historical_score_count']}/{offline['subset_count']} 个小集合分数，保留 {offline['missing_score_count']} 个缺口。三个完整 archive 历史选择回放均匹配。假 HTTP 测试证明程序契约，不证明真实服务效果。</p>
@@ -122,11 +122,12 @@ python -m bridgetree diagnostic-evaluate --run-dir RUN --gold-source CSV
 python -m bridgetree diagnostic-report --run-dir RUN</pre>
 <p>三个在线入口默认只展示清单；只有显式 --execute 才调用，并且必须通过身份、源码与预算门禁。--resume 不重置额度。完整命令与独立测试见 docs/diagnostic_runbook.md。</p>
 <p>统一 JSON 报告连接 manifest、历史/新评分、重复生成、根trace、评价和失败。PDF是该状态的可读汇总，不替代原始归档。</p>""")
-    page("07　诊断后的决策门，与本轮未完成项", f"""
+    page("07　诊断后的决策门，与服务器后续执行", f"""
 {table(['得到的证据','下一步应改什么'], [['补入历史稳定有益，却降低R','优先修改评分目标或撤销当前效用解释'],['更好组合R更高，但archive不可构造','单独研究组合提议'],['存在正路径，greedy却走错','单独研究联合添加、有限回退或替换'],['事实在可见库但未召回','检查query、检索域与目标覆盖'],['证据已充分但重复生成仍错','检查reader输入、任务指令和利用能力'],['请求漂移、截断或服务不稳定','先处理部署/服务一致性，勿据此调公式']])}
 <p>不能同时更换目标、选择器、调度器再猜收益来源。下一版新效用必须定义清楚：提供序关系、充分性标签还是可比较的差值；不能把未校准Judge打分直接塞入四项公式。dense锚点只能作为另命名的对照，不能证明条件机制被修好。</p>
-<h2>当前归档中的未完成事项</h2>{table(['在线阶段','状态'], online)}
-<p>若身份门禁阻断，需要部署操作者提供真实revision与来源、确认服务可用并在实验期间冻结部署，再建立新manifest。代码和假HTTP回归已完成不等于真实模型评分与生成实验完成；本报告不伪造在线成功率或宣称PR5已实现。</p>
+<h2>待用户在服务器执行的实验</h2>{table(['在线阶段','状态'], online)}
+<p>本机网络不能调用模型；上述实验不再阻断本轮代码与 PDF 交付，也没有被记作已完成。上传服务器后，修改诊断 YAML 的归档/数据路径和私有部署覆盖配置，填写真实 revision 与来源，并建立新的 manifest；不要直接续跑本机冻结目录。</p>
+<p>服务器须确认服务可用且实验期间不热切换。安装 Python 依赖即可执行诊断，不需要 Chrome 或 PDFKit；具体部署步骤见运行手册。本报告不宣称获得线上成功率或实现 PR5。</p>
 <p>旧24分、新测28分、技术重复和根种子消融分别归档。生成结果出来后，应更新fresh格点分析和分块配对，再更新统一报告/PDF，而不是回写历史归档。</p>
 <p class="small">本报告关联：{esc(run_dir)}<br>完整要求：docs/diagnostic_implementation_requirements.md<br>结论范围：同一PersonaMem-v1 32k历史的事后机制诊断；不是全体589题的正式方法排名。</p>""")
     css = """@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#172334;font-family:'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;font-size:10.4pt;line-height:1.52}.page{width:210mm;height:297mm;padding:15mm 18mm 14mm;position:relative;break-after:page;overflow:hidden}.page:last-child{break-after:auto}.content{height:255mm;overflow:visible}h1{font-size:20pt;line-height:1.24;margin:0 0 7mm;color:#123e59}h2{font-size:12.5pt;margin:5mm 0 2mm;color:#174e67}p{margin:2.7mm 0}.subtitle{color:#567083}.lead{padding:4mm 5mm;background:#eaf3f6;border-left:3px solid #247492;font-size:12pt;margin:5mm 0}table{width:100%;border-collapse:collapse;margin:4mm 0;font-size:9.8pt}th{background:#e8eff3;text-align:left}td,th{padding:2.1mm 2.6mm;border-bottom:1px solid #d4e0e6;overflow-wrap:anywhere}aside{background:#f4f6f7;padding:3mm 4mm;margin:4mm 0}aside p{margin:1.5mm 0}.small{font-size:8.6pt;color:#536578;overflow-wrap:anywhere}pre{font:8.2pt/1.55 'Menlo',monospace;background:#f1f4f6;padding:3mm;white-space:pre-wrap;overflow-wrap:anywhere}ol{padding-left:6mm}li{margin:2mm 0}.footer{position:absolute;bottom:9mm;left:18mm;right:18mm;font-size:8pt;color:#6a7f8b;border-top:1px solid #d9e1e6;padding-top:2mm;display:flex;justify-content:space-between}#layout-qa{display:none}"""

@@ -2,6 +2,35 @@
 
 本轮交付是诊断改造，不是 PR5 主方法重设计。不训练，不引入 dense 保护、Judge 或新选择器。旧集合评分、空集合真实评分、正边际选择和默认搜索策略保留；PR4 只提供初始零优先级根的平局顺序开关。
 
+按用户最终确认，本机只完成代码、离线验收和 PDF；真实模型实验留到服务器执行，不是本轮交付阻断项。服务器上的身份检查和预算约束继续保留。
+
+## 上传服务器后先做什么
+
+推荐上传或更新完整仓库源码，不要复制本机 `.venv`。另行放置两份原始审计包 `chain-audit-full.tgz` / `chain-audit-detail.tgz`，以及同一 revision 的 `questions_32k.csv` / `shared_contexts_32k.jsonl`。已有文件可以复用，不必再次下载；审计包保持原字节和 SHA。
+
+在仓库根目录使用 Python 3.9 或以上创建服务器环境：
+
+```bash
+python3 -m venv .venv-diagnostics
+.venv-diagnostics/bin/python -m pip install -e '.[test]'
+.venv-diagnostics/bin/python -m bridgetree --help
+.venv-diagnostics/bin/python -m pytest
+```
+
+当前远程 embedding / reranker / generator 配置不需要本机安装模型权重或 `local-models` 依赖。不要把密钥写进可提交配置；生成服务可使用 `BRIDGETREE_CHAT_API_KEY` 环境变量或现有私有凭据配置。
+
+复制 `configs/diagnostic_28.yaml` 为 `configs/diagnostic_28.server.yaml`，在服务器上编辑副本：
+
+- 把两处 `/Users/mao/chain-audit-*.tgz` 改为服务器实际路径。例如审计包放在仓库 `data/audit/` 时，使用 `../data/audit/chain-audit-full.tgz` 和 `../data/audit/chain-audit-detail.tgz`；不改 SHA。
+- 检查 `questions`、`contexts`、`deployment_config`。所有相对路径均相对于诊断 YAML 所在目录，而不是执行命令时的目录。
+- 从 `diagnostic_deployment.example.yaml` 制作私有部署覆盖文件，填写三个服务的实际 endpoint、必要模型名及真实身份，再设置 `deployment_override` 指向该文件。`identity_source` 应按证据选择；未知量化/tokenizer字段可保留空，不得假填 revision 绕过门禁。
+- 部署覆盖文件的顶层是 `models`，不能直接使用旧凭据文件的顶层 `generator` 格式，也不要加入 `base_config`。依赖实验 YAML 自己的 `base_config` 则按那个 YAML 的目录解析。
+- 数据或路径、源码、服务配置改完后再 `diagnostic-plan`。不要使用从本机复制的冻结目录执行线上实验，服务器必须建立自己的新 manifest。
+
+下文命令示例使用本机的 `.venv/bin/python` 和 `configs/diagnostic_28.yaml`；服务器请分别替换为 `.venv-diagnostics/bin/python` 和 `configs/diagnostic_28.server.yaml`，并选择一个新的输出目录。先运行不带 `--execute` 的三个预览入口确认预算，再显式执行。完整命令和调用上限见下文；无需改变评分、选择器或搜索规则。
+
+PDF 已在本机生成，可直接上传。服务器运行实验只需 Python，不依赖 Chrome 或 macOS PDFKit；本机的 PDF 构建脚本与 Swift 图像验收工具不是模型实验运行依赖。
+
 ## 独立验收
 
 所有测试默认只用合成数据和假 HTTP。不能把假服务通过当成真实在线实验已完成。
