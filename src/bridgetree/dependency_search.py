@@ -19,6 +19,7 @@ from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
 import numpy as np
 
 from .dependency_retrieval import DependencyRetriever, InitialCandidatePool, ProposalBatch
+from .root_tie_diagnostics import root_tie_order, summarize_root_tie_run, validate_root_tie_settings
 
 
 class SetScorer(Protocol):
@@ -130,6 +131,11 @@ def _set_cumulative_budget(scorer: Any, limit: int | None) -> None:
 
 
 def _resource_reason(exc: BaseException) -> str | None:
+    # A physical HTTP ceiling or failed audit write is not an algorithmic
+    # set-budget stop. Preserve the error for the diagnostic task ledger.
+    from .request_audit import AuditWriteError, TransportBudgetExceeded
+    if isinstance(exc, (AuditWriteError, TransportBudgetExceeded)):
+        return None
     text = f"{exc.__class__.__name__}: {exc}".lower().replace("-", "_")
     if any(word in text for word in ("budget", "quota", "setlimit", "set_limit")):
         return "score_budget_exhausted"
@@ -532,6 +538,8 @@ class DependencySearcher:
         pair_rescue_width: int = 4,
         fixed_pool: bool | None = None,
         max_scored_sets: int | None = None,
+        root_tie_break: str = "legacy_lexical",
+        root_tie_seed: int | None = None,
     ) -> None:
         normalized = str(signal).strip().lower().replace("-", "_")
         aliases = {"context": "context_marginal", "marginal": "context_marginal"}
@@ -549,6 +557,32 @@ class DependencySearcher:
             None if max_scored_sets is None else _nonnegative_int(max_scored_sets, "max_scored_sets")
         )
         self._partial_progress: dict[str, Any] | None = None
+        self.root_tie_break, self.root_tie_seed = validate_root_tie_settings(root_tie_break, root_tie_seed)
+        self._root_tie_trace: list[dict[str, Any]] = []
+        self._root_tie_final: tuple[int, int, str] | None = None
+
+    def root_tie_diagnostics(self, selected_ids: Sequence[str] | None = None) -> dict[str, Any] | None:
+        """Return a separate trace without changing legacy archive serialization.
+
+        A final selection must be supplied explicitly; it is never inferred
+        from visited states. Search counters are frozen before selection.
+        """
+        progress = self._partial_progress
+        if progress is None:
+            return None
+        final = self._root_tie_final
+        return summarize_root_tie_run(
+            mode=self.root_tie_break, seed=self.root_tie_seed,
+            initial_ids=progress["initial_ids"], state_observations=self._root_tie_trace,
+            initial_ann_calls=progress["initial_ann_calls"],
+            final_ann_calls=final[0] if final else int(getattr(self.retriever, "ann_calls", 0)),
+            initial_scored_sets=progress["initial_scored_sets"],
+            final_scored_sets=final[1] if final else _scored_sets(self.scorer),
+            bundle_ids=progress["bundle_reasons"],
+            proposed_ids=(identifier for batch in progress["proposal_batches"] for identifier in batch.ids),
+            search_complete=final is not None, stop_reason=final[2] if final else None,
+            selected_ids=selected_ids,
+        )
 
     def partial_public_dict(
         self,
@@ -691,10 +725,15 @@ class DependencySearcher:
         state_records: list[SearchStateRecord] = []
         skipped: list[SkippedMeasurement] = []
         proposal_batches: list[ProposalBatch] = []
-        frontier: list[tuple[float, str, tuple[str, ...], DependencyState]] = []
+        frontier: list[tuple[float, int, str, tuple[str, ...], DependencyState]] = []
         known_states: set[tuple[str, tuple[str, ...]]] = set()
         expanded_states: set[tuple[str, tuple[str, ...]]] = set()
         capacity_limited = False
+        self._root_tie_trace = []
+        self._root_tie_final = None
+        root_ranks = {identifier: rank for rank, identifier in enumerate(root_tie_order(
+            initial_ids, mode=self.root_tie_break, seed=self.root_tie_seed,
+        ))}
         self._partial_progress = {
             "initial_ids": tuple(initial_ids),
             "initial_ann_calls": initial_ann_calls,
@@ -711,19 +750,29 @@ class DependencySearcher:
             state = DependencyState(target_id)
             known_states.add(state.identity)
             archive_bundle((target_id,), "initial_target_singleton", target_id)
-            heapq.heappush(frontier, (-0.0, state.target_id, state.premise_ids, state))
+            root_rank = root_ranks[target_id] if self.root_tie_break == "seeded_hash" else 0
+            heapq.heappush(frontier, (-0.0, root_rank, state.target_id, state.premise_ids, state))
 
         stop_reason = "finite_frontier_exhausted"
         if not frontier:
             stop_reason = "no_initial_candidates"
 
         while frontier:
-            negative_priority, _target_key, _premise_key, state = heapq.heappop(frontier)
+            negative_priority, _tie_key, _target_key, _premise_key, state = heapq.heappop(frontier)
             if state.identity in expanded_states:
                 continue
             expanded_states.add(state.identity)
             priority = -negative_priority
             archive_bundle(state.bundle_ids, "visited_state", state.target_id)
+            observation = {
+                "pop_index": len(self._root_tie_trace), "target_id": state.target_id,
+                "premise_ids": list(state.premise_ids), "premise_depth": len(state.premise_ids),
+                "priority": priority, "is_zero_priority_root": priority == 0.0 and not state.premise_ids,
+                "root_tie_rank": root_ranks[state.target_id] if not state.premise_ids else None,
+                "ann_calls_before": int(getattr(self.retriever, "ann_calls", 0)),
+                "scored_sets_before": _scored_sets(self.scorer), "completed": False,
+            }
+            self._root_tie_trace.append(observation)
 
             proposal = self.retriever.propose(
                 state.target_id,
@@ -785,7 +834,7 @@ class DependencySearcher:
                         archive_bundle(successor.bundle_ids, "positive_successor", state.target_id)
                         heapq.heappush(
                             frontier,
-                            (-record.signal, successor.target_id, successor.premise_ids, successor),
+                            (-record.signal, 0, successor.target_id, successor.premise_ids, successor),
                         )
                         new_successors += 1
                         record = ActivationRecord(**{**record.__dict__, "queued": True})
@@ -836,7 +885,7 @@ class DependencySearcher:
                             )
                             heapq.heappush(
                                 frontier,
-                                (-record.signal, successor.target_id, successor.premise_ids, successor),
+                                (-record.signal, 0, successor.target_id, successor.premise_ids, successor),
                             )
                             new_successors += 1
                             record = ActivationRecord(**{**record.__dict__, "queued": True})
@@ -885,6 +934,10 @@ class DependencySearcher:
                     ann_call_index=proposal.ann_call_index,
                 )
             )
+            observation.update({
+                "ann_calls_after": int(getattr(self.retriever, "ann_calls", 0)),
+                "scored_sets_after": _scored_sets(self.scorer), "completed": True,
+            })
             if resource_detail is not None:
                 stop_reason = resource_detail
                 break
@@ -904,6 +957,7 @@ class DependencySearcher:
             )
             for ids in sorted(bundle_reasons, key=lambda value: (len(value), value))
         )
+        self._root_tie_final = (int(getattr(self.retriever, "ann_calls", 0)), _scored_sets(self.scorer), stop_reason)
         return SearchArchive(
             initial_target_ids=tuple(sorted(initial_ids)),
             bundles=frozen_bundles,

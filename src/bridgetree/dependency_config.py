@@ -18,6 +18,7 @@ from typing import Any, Mapping, Sequence
 import yaml
 
 from .config import AppConfig, load_config
+from .root_tie_diagnostics import validate_root_tie_settings
 
 DEFAULT_DEPENDENCY_METHODS = (
     "dense",
@@ -100,6 +101,8 @@ class DependencyConfig:
     pair_rescue_width: int = 4
     reranker_batch_size: int = 32
     reranker_max_input_tokens: int = 8192
+    root_tie_break: str = "legacy_lexical"
+    root_tie_seed: int | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -118,6 +121,12 @@ class DependencyConfig:
             "pair_rescue_width",
             _strict_int(self.pair_rescue_width, "dependency.pair_rescue_width", nonnegative=True),
         )
+        seed = self.root_tie_seed
+        if seed is not None:
+            seed = _strict_int(seed, "dependency.root_tie_seed", nonnegative=True)
+        mode, seed = validate_root_tie_settings(self.root_tie_break, seed)
+        object.__setattr__(self, "root_tie_break", mode)
+        object.__setattr__(self, "root_tie_seed", seed)
 
 
 @dataclass(frozen=True)
@@ -257,12 +266,18 @@ class DependencyRunConfig:
 
         models = asdict(self.app.models)
         models.get("generator", {}).pop("api_key", None)
+        dependency = asdict(self.dependency)
+        # Adding an opt-in diagnostic must not change existing run/config
+        # identities when it is disabled. Enabled settings remain explicit.
+        if self.dependency.root_tie_break == "legacy_lexical":
+            dependency.pop("root_tie_break")
+            dependency.pop("root_tie_seed")
         return {
             "seed": self.app.seed,
             "models": models,
             "data": asdict(self.app.data),
             "runtime": asdict(self.app.runtime),
-            "dependency": asdict(self.dependency),
+            "dependency": dependency,
             "execution": asdict(self.execution),
         }
 

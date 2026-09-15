@@ -482,10 +482,10 @@ def build_parser() -> argparse.ArgumentParser:
     diagnostic_plan = subparsers.add_parser("diagnostic-plan", help="Freeze an offline, budgeted post-hoc diagnostic plan")
     diagnostic_plan.add_argument("--config", default="configs/diagnostic_28.yaml")
     diagnostic_plan.add_argument("--output-dir", required=True)
-    for command in ("diagnostic-analyze", "diagnostic-score", "diagnostic-generate", "diagnostic-evaluate", "diagnostic-report"):
-        entry = subparsers.add_parser(command, help="PR1–PR3 frozen dependency diagnostics (not a benchmark method)")
+    for command in ("diagnostic-analyze", "diagnostic-score", "diagnostic-generate", "diagnostic-roots", "diagnostic-evaluate", "diagnostic-report"):
+        entry = subparsers.add_parser(command, help="PR1–PR4 frozen dependency diagnostics (not a benchmark method)")
         entry.add_argument("--run-dir", required=True)
-        if command in {"diagnostic-score", "diagnostic-generate"}:
+        if command in {"diagnostic-score", "diagnostic-generate", "diagnostic-roots"}:
             entry.add_argument("--config", default="configs/diagnostic_28.yaml")
             entry.add_argument("--execute", action="store_true", help="Actually call only frozen deployments under hard budgets")
             entry.add_argument("--resume", action="store_true", help="Resume the same predeclared trial identities (terminal outcomes are retained)")
@@ -509,6 +509,9 @@ def main(argv: list[str] | None = None) -> int:
             result = run_scores(args.run_dir, args.config, execute=args.execute)
         elif args.command == "diagnostic-generate":
             result = run_generations(args.run_dir, args.config, execute=args.execute)
+        elif args.command == "diagnostic-roots":
+            from .diagnostic_root_runner import run_root_diagnostics
+            result = run_root_diagnostics(args.run_dir, args.config, execute=args.execute)
         elif args.command == "diagnostic-evaluate":
             result = evaluate_diagnostics(args.run_dir, args.gold_source)
         else:

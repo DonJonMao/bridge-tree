@@ -2057,6 +2057,8 @@ class DependencyTaskExecutor:
                 pair_rescue_width=pair_width,
                 fixed_pool=fixed_pool,
                 max_scored_sets=self.config.dependency.max_scored_sets,
+                root_tie_break=self.config.dependency.root_tie_break,
+                root_tie_seed=self.config.dependency.root_tie_seed,
             )
             try:
                 with request_audit_scope({"stage": "dependency_search"}):
