@@ -60,6 +60,7 @@ _FIELDS = {
     "server_reported_input_tokens", "server_reported_output_tokens", "server_reported_total_tokens",
     "server_token_source", "children", "probe_attempt", "diagnostic_id", "repetition", "scope",
     "score_reason", "objective_semantics", "utility_validation_id",
+    "item_id", "trial_id", "subset_id", "condition_id", "repeat_index", "root_tie_seed", "root_tie_break",
 }
 
 

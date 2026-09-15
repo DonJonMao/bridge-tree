@@ -24,6 +24,7 @@ from .clients import GeneratorClient, RerankerClient, build_context_plan, build_
 from .dependency_scoring import SetReranker
 from .diagnostic_config import digest, load_diagnostic_config
 from .diagnostic_identity import request_hash
+from .diagnostic_observability import observe
 from .experiment import _visible_memory_records
 from .personamem import load_shared_contexts, messages_to_memories
 from .types import ContextPlan, Memory
@@ -397,9 +398,12 @@ def _task_attempt(root: Path, phase: str, item_id: str, manifest: dict) -> tuple
 def _execute_item(root: Path, manifest: dict, phase: str, item_id: str, budget: Any,
                   action: Any, metadata: dict) -> dict:
     from .clients import HTTPTransportError
-    from .request_audit import JsonlAuditSink, TransportBudgetExceeded, request_audit_scope
+    from .request_audit import AuditWriteError, JsonlAuditSink, TransportBudgetExceeded, request_audit_scope
     attempt, terminal = _task_attempt(root, phase, item_id, manifest)
     if terminal is not None:
+        observe("execution", "task_reused", **{**metadata, "phase": phase,
+                "task_id": item_id, "item_id": item_id, "status": terminal["status"],
+                "task_attempt": terminal.get("task_attempt")})
         return terminal
     limit = manifest["task_max_attempts"]
     result = {"manifest_id": manifest["manifest_id"], "item_id": item_id, "phase": phase, **metadata}
@@ -410,13 +414,18 @@ def _execute_item(root: Path, manifest: dict, phase: str, item_id: str, budget: 
         for index in range(attempt, limit + 1):
             started = {**result, "event": "task_attempt_started", "task_attempt": index, "at_epoch": time.time()}
             append_jsonl(root / "attempts.jsonl", started)
+            observe("execution", started, task_id=item_id)
             try:
-                with request_audit_scope({"phase": phase, "task_id": item_id, "task_attempt": index,
-                                          "stage": phase, "run_identity": manifest["manifest_id"]},
+                with request_audit_scope({**metadata, "phase": phase, "task_id": item_id, "item_id": item_id,
+                                          "task_attempt": index, "stage": phase, "run_identity": manifest["manifest_id"]},
                                          sink=JsonlAuditSink(root / "requests.jsonl"), budget=budget):
                     response = action()
                 result.update(response)
                 result.update(status="success", task_attempt=index, outcome_unknown=False)
+            except AuditWriteError:
+                # Losing the audit trail is a pipeline failure, not a model
+                # trial eligible for retries or silent continuation.
+                raise
             except Exception as exc:
                 retryable = isinstance(exc, HTTPTransportError) and bool(getattr(exc, "retryable", False))
                 result.update(status="budget_exhausted" if isinstance(exc, TransportBudgetExceeded) else "error",
@@ -426,10 +435,16 @@ def _execute_item(root: Path, manifest: dict, phase: str, item_id: str, budget: 
                 if hasattr(exc, "diagnostic_partial_artifacts"):
                     result["partial_artifacts"] = exc.diagnostic_partial_artifacts
                 append_jsonl(root / "attempts.jsonl", {**result, "event": "task_attempt_failed", "at_epoch": time.time()})
+                observe("execution", "task_attempt_failed", **{**metadata, "phase": phase,
+                        "task_id": item_id, "item_id": item_id, "task_attempt": index,
+                        "status": result["status"], "cause_type": type(exc).__name__,
+                        "http_status": getattr(exc, "status_code", None)})
                 if retryable and index < limit:
                     continue
             else:
                 append_jsonl(root / "attempts.jsonl", {**result, "event": "task_attempt_completed", "at_epoch": time.time()})
+                observe("execution", "task_attempt_completed", **{**metadata, "phase": phase,
+                        "task_id": item_id, "item_id": item_id, "task_attempt": index, "status": "success"})
             break
     atomic_json(root / phase / (item_id + ".json"), result)
     return result
@@ -494,6 +509,12 @@ def run_generations(root: str | Path, config_path: str | Path, *, execute: bool 
             def action(plan=plan):
                 # Deliberately bypass GenerationCache. TrialStore provides
                 # idempotent resume, not cross-repeat answer reuse.
+                observe("context", "generation_context", selected_ids=list(plan.selected_ids),
+                        final_memory_count=len(plan.selected_ids), context_hash=plan.context_hash,
+                        request_hash=request_hash(plan.request_dict()), context_within_budget=plan.within_budget,
+                        generator_input_tokens_estimate=plan.token_count,
+                        token_count_is_estimate=plan.token_count_is_estimate,
+                        context_budget=plan.budget, context_budget_status=plan.budget_status)
                 response = generator.answer_plan(plan)
                 if not isinstance(response, str) or not response.strip():
                     raise ValueError("empty generator response")

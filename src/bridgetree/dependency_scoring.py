@@ -21,6 +21,7 @@ import numpy as np
 
 from .clients import _response_declares_truncation, build_rerank_payload, estimate_tokens
 from .diagnostic_identity import deployment_fingerprint
+from .diagnostic_observability import observe
 from .request_audit import current_audit_scope, document_descriptors, logical_request_scope, request_audit_scope
 from .types import Memory
 
@@ -828,20 +829,32 @@ class SetReranker:
             if key in self._scores:
                 self._memory_cache_hits += 1
                 source_by_key[key] = "memory_cache"
+                observe("scoring", "cache_lookup", ids=item.ids, cache_key=key,
+                        reason=reason, source="memory_cache", cache_hit=True,
+                        score=self._scores[key], estimated_input_tokens=item.estimated_input_tokens)
                 continue
             cached_score = self._load_persistent(item)
             if cached_score is not None:
                 self._scores[key] = cached_score
                 self._persistent_cache_hits += 1
                 source_by_key[key] = "persistent_cache"
+                observe("scoring", "cache_lookup", ids=item.ids, cache_key=key,
+                        reason=reason, source="persistent_cache", cache_hit=True,
+                        score=cached_score, estimated_input_tokens=item.estimated_input_tokens)
             else:
                 missing.append(item)
+                observe("scoring", "cache_lookup", ids=item.ids, cache_key=key,
+                        reason=reason, source="cache_miss", cache_hit=False,
+                        estimated_input_tokens=item.estimated_input_tokens)
 
         for offset in range(0, len(missing), self.batch_size):
             batch = missing[offset : offset + self.batch_size]
             documents = [item.document for item in batch]
             self._client_requests += 1
             self._client_samples += len(batch)
+            observe("scoring", "score_batch_started", reason=reason,
+                    batch_index=offset // self.batch_size, batch_documents=len(batch),
+                    logical_call_index=self._client_requests)
             started = time.perf_counter()
             try:
                 config = getattr(self.reranker, "config", None)
@@ -869,6 +882,15 @@ class SetReranker:
                 self._scores[item.cache_key] = validated
                 source_by_key[item.cache_key] = "reranker"
                 self._store_persistent(item, validated)
+                observe("scoring", "set_score_available", reason=reason, ids=item.ids,
+                        cache_key=item.cache_key, score=validated, source="reranker",
+                        estimated_input_tokens=item.estimated_input_tokens,
+                        token_count_is_estimate=True, objective_semantics="legacy_query_relevance",
+                        score_contract=self.score_contract, score_space=self.score_space,
+                        utility_validation_id=None)
+            observe("scoring", "score_batch_completed", reason=reason,
+                    batch_index=offset // self.batch_size, batch_documents=len(batch),
+                    logical_call_index=self._client_requests)
 
         scores_in_order = [self._scores[item.cache_key] for item in prepared]
         for key, item in distinct.items():
@@ -886,6 +908,7 @@ class SetReranker:
                     "utility_validation_id": None,
                 }
             )
+            observe("scoring", self.events[-1])
         return scores_in_order
 
     score_many = score_sets

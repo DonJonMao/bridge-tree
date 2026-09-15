@@ -12,6 +12,8 @@ from .diagnostic_runner import (_execute_item, _phase_budget, _phase_summary, _r
                                 atomic_json, load_manifest, make_scorer, plan_summary,
                                 run_lock, validate_online)
 from .root_tie_diagnostics import compare_root_tie_runs
+from .diagnostic_observability import observe
+from .request_audit import request_audit_scope
 
 
 def root_trial_plan(manifest: dict) -> list[dict]:
@@ -62,14 +64,16 @@ def run_root_diagnostics(root: str | Path, config_path: str | Path, *, execute: 
                 settings = config.dependency
                 try:
                     if case["question_id"] not in vectors:
-                        vectors[case["question_id"]] = embedding.encode([m.text for m in memories])
+                        with request_audit_scope({"stage": "memory_embedding"}):
+                            vectors[case["question_id"]] = embedding.encode([m.text for m in memories])
                     retriever = DependencyRetriever(case["query"], memories, embedding,
                         memory_vectors=vectors[case["question_id"]], initial_width=settings.initial_width,
                         initial_expansion_width=settings.initial_expansion_width, proposal_width=settings.proposal_width,
                         max_ann_calls=settings.max_ann_calls, fixed_pool=False,
                         query_instruction=config.models.embedding.query_instruction,
                         proposal_instruction=DEPENDENCY_PROPOSAL_INSTRUCTION)
-                    initial = retriever.build_initial_pool(expand=True)
+                    with request_audit_scope({"stage": "initial_retrieval"}):
+                        initial = retriever.build_initial_pool(expand=True)
                     scorer = make_scorer(case, config, ranker, root / "cache" / "root_scores", manifest["manifest_id"])
                     # Original reranker batch width is preserved for the search
                     # experiment, unlike the singleton frozen 28-score probe.
@@ -78,16 +82,24 @@ def run_root_diagnostics(root: str | Path, config_path: str | Path, *, execute: 
                         pair_rescue_width=settings.pair_rescue_width, fixed_pool=False,
                         max_scored_sets=settings.max_scored_sets,
                         root_tie_break=trial["root_tie_break"], root_tie_seed=trial["root_tie_seed"])
-                    archive = searcher.run(initial)
+                    with request_audit_scope({"stage": "dependency_search"}):
+                        archive = searcher.run(initial)
                     def feasible(ids):
                         plan = build_context_plan(case["query"], [records[i] for i in ids], case["all_options"],
                                                   generator_config=config.models.generator, strict=False, selected_ids=ids)
                         return {"feasible": plan.within_budget, "reason": plan.budget_status}
                     selector = DynamicBundleSelector(scorer, max_selection_sets=settings.max_selection_sets,
                                                       generation_feasible=feasible)
-                    selected = selector.select(archive)
+                    with request_audit_scope({"stage": "selection"}):
+                        selected = selector.select(archive)
                     final_plan = build_context_plan(case["query"], [records[i] for i in selected.selected_ids],
                         case["all_options"], generator_config=config.models.generator, selected_ids=selected.selected_ids)
+                    observe("context", "root_final_context", selected_ids=list(selected.selected_ids),
+                            final_memory_count=len(selected.selected_ids), context_hash=final_plan.context_hash,
+                            context_within_budget=final_plan.within_budget,
+                            generator_input_tokens_estimate=final_plan.token_count,
+                            token_count_is_estimate=final_plan.token_count_is_estimate,
+                            context_budget=final_plan.budget, context_budget_status=final_plan.budget_status)
                     return {"search": archive.public_dict(), "selection": selected.public_dict(),
                             "root_trace": searcher.root_tie_diagnostics(selected.selected_ids),
                             "context_plan": final_plan.public_dict(), "generation_calls": 0,

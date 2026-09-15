@@ -8,16 +8,9 @@
 
 推荐上传或更新完整仓库源码，不要复制本机 `.venv`。另行放置两份原始审计包 `chain-audit-full.tgz` / `chain-audit-detail.tgz`，以及同一 revision 的 `questions_32k.csv` / `shared_contexts_32k.jsonl`。已有文件可以复用，不必再次下载；审计包保持原字节和 SHA。
 
-在仓库根目录使用 Python 3.9 或以上创建服务器环境：
+服务器需已有 Python 3.9 或以上及可用的 `venv`。准备好下述配置后，一键脚本会新建或验证独立的 `.venv-diagnostics`，安装 `pip install -e` 的基础依赖，并委派后台管理器启动；不需要复制本机虚拟环境，也不需要为运行实验安装测试依赖。
 
-```bash
-python3 -m venv .venv-diagnostics
-.venv-diagnostics/bin/python -m pip install -e '.[test]'
-.venv-diagnostics/bin/python -m bridgetree --help
-.venv-diagnostics/bin/python -m pytest
-```
-
-当前远程 embedding / reranker / generator 配置不需要本机安装模型权重或 `local-models` 依赖。不要把密钥写进可提交配置；生成服务可使用 `BRIDGETREE_CHAT_API_KEY` 环境变量或现有私有凭据配置。
+当前远程 embedding / reranker / generator 配置不需要本机安装模型权重、CUDA 或 `local-models` 依赖。不要把密钥写进可提交配置；生成服务可使用 `BRIDGETREE_CHAT_API_KEY` 环境变量或现有私有凭据配置。
 
 复制 `configs/diagnostic_28.yaml` 为 `configs/diagnostic_28.server.yaml`，在服务器上编辑副本：
 
@@ -27,7 +20,19 @@ python3 -m venv .venv-diagnostics
 - 部署覆盖文件的顶层是 `models`，不能直接使用旧凭据文件的顶层 `generator` 格式，也不要加入 `base_config`。依赖实验 YAML 自己的 `base_config` 则按那个 YAML 的目录解析。
 - 数据或路径、源码、服务配置改完后再 `diagnostic-plan`。不要使用从本机复制的冻结目录执行线上实验，服务器必须建立自己的新 manifest。
 
-下文命令示例使用本机的 `.venv/bin/python` 和 `configs/diagnostic_28.yaml`；服务器请分别替换为 `.venv-diagnostics/bin/python` 和 `configs/diagnostic_28.server.yaml`，并选择一个新的输出目录。先运行不带 `--execute` 的三个预览入口确认预算，再显式执行。完整命令和调用上限见下文；无需改变评分、选择器或搜索规则。
+配置就绪后，在服务器仓库根目录执行：
+
+```bash
+bash scripts/start_diagnostics_linux.sh configs/diagnostic_28.server.yaml
+bash scripts/run_diagnostics.sh status
+bash scripts/run_diagnostics.sh log
+```
+
+第一条默认启动真实在线诊断，不是仅预览：历史分析 → 28 个 fresh-all 评分 → 310 个重复生成 trial → 独立评估 → 12 个根顺序消融 → 汇总。任务不训练、不更新权重。成功提交后台之后可断开 SSH；安装本身仍在前台进行。后台脱离终端不等于主机重启后自动恢复，也不能绕过集群调度器的作业回收规则。
+
+若只验收离线链路，在第一条末尾加 `--offline`。它仍可能联网安装 Python 依赖，但不会调用 embedding/reranker/generator；已有环境可设置 `BRIDGETREE_SKIP_INSTALL=true` 跳过安装。离线完成不代表 28/310/12 个在线项目完成。状态、模块日志、停止、续跑和四分区进度的完整说明见 [后台诊断操作手册](background_diagnostics.md)。
+
+下文保留逐阶段的手动命令，示例使用本机的 `.venv/bin/python` 和 `configs/diagnostic_28.yaml`；服务器请分别替换为 `.venv-diagnostics/bin/python` 和 `configs/diagnostic_28.server.yaml`。不带 `--execute` 的三个逐阶段入口只预览预算，这与默认会在线执行的一键后台入口不同。不要在同一冻结目录同时运行后台流水线和手动执行器。
 
 PDF 已在本机生成，可直接上传。服务器运行实验只需 Python，不依赖 Chrome 或 macOS PDFKit；本机的 PDF 构建脚本与 Swift 图像验收工具不是模型实验运行依赖。
 
@@ -75,6 +80,19 @@ PR2 可在尚未接入其他诊断入口时单独运行：
 
 ## 显式执行与续跑
 
+后台任务通常使用以下命令，不需要手动逐阶段执行：
+
+```bash
+bash scripts/run_diagnostics.sh module-log --module scoring
+bash scripts/run_diagnostics.sh module-log --module selection
+bash scripts/run_diagnostics.sh stop
+bash scripts/run_diagnostics.sh resume
+```
+
+`log` / `module-log` 是跟随查看，Ctrl+C 只退出查看，不会停止任务。停止须用 `stop`，再用 `status` 确认。`resume` 默认继承上次的在线/离线模式；如果上次是离线且冻结身份已经齐全，可用 `resume --online` 转为线上。若补身份或改模型导致配置发生变化，不能续用旧 manifest，须新建运行。终止失败不会因为 `resume` 获得额外重试，详见下文。
+
+下列为逐阶段手动执行方案，与后台流水线二选一：
+
 ```bash
 .venv/bin/python -m bridgetree diagnostic-score --run-dir outputs/diagnostics/frozen-run --config configs/diagnostic_28.yaml --execute
 .venv/bin/python -m bridgetree diagnostic-analyze --run-dir outputs/diagnostics/frozen-run --score-view fresh
@@ -90,6 +108,8 @@ PR2 可在尚未接入其他诊断入口时单独运行：
 
 ## 输出与解释
 
+- `progress.json`：后台约每 5 秒更新；每个 `score` / `generation` / `root` 阶段有互斥的 `success`、`failed`、`pending`、`unknown` 四个计数，四项之和等于该阶段 `planned`。`started`、`outcome_unknown` 是重叠辅助字段，不加入这四项。
+- `run.log`、`runtime.jsonl`：当前阶段、心跳和流水线完成状态；`modules/*.jsonl` 提供 proposal、scoring、activation、state、selection、stop、context、execution 的即时观测。
 - `manifest.json`：公开题目、严格可见历史、完整输入、部署身份、调用顺序和预算；无正确答案。
 - `offline_analysis.json`：历史分数来源、24/28 缺口、真实 bundle 可达性与预算感知历史回放。
 - `score/*.json`、`fresh_analysis.json`：本会话完整新评分或失败；不混入24个旧分。局部最高 R 不称全库最优。
@@ -97,6 +117,8 @@ PR2 可在尚未接入其他诊断入口时单独运行：
 - `root/*.json`、`root_summary.json`：每个预声明 seed 的完整/部分搜索、选择和 trace，最终集合差异；无答案生成。
 - `evaluation.json`：独立评价、固定 trial 分母、成功输出分母、解析失败、答案分布与原选择的分块配对。
 - `diagnostic_report.json`：统一汇总，包括未执行和 gate 阻断项；不是只统计成功样本。
+
+后台管理器外层 `state=completed` 只代表进程成功结束；还要查看内层 `completion.status` 是否为 `completed_with_failures` 或 `offline_complete`。HTTP 失败是执行失败，不是答错；只有独立评估的成功生成才有答题正确性。进度快照中的缓存和根搜索指标是观测摘要，不是所有失败重试的完整账单，完整传输成本仍以 `requests.jsonl` 为准。
 
 三例为事后选出的机制诊断案例，不是正式测试集；技术重复不是新的独立问题。新证据是否帮助回答、R是否错位、archive是否可构造、严格正路径是否存在和greedy是否找到分别报告。根 tie-only 消融仅测无语义次序敏感性，不保证根覆盖，也不实现轮询或根预算。
 

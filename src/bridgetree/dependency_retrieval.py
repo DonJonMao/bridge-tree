@@ -19,6 +19,7 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 import numpy as np
 
 from .index import ExactInnerProductIndex
+from .diagnostic_observability import observe
 from .types import Memory
 
 DEPENDENCY_PROPOSAL_INSTRUCTION = (
@@ -454,6 +455,7 @@ class DependencyRetriever:
                 "no_candidates",
             )
             self._batches.append(batch)
+            observe("proposal", batch, event="proposal_completed")
             return batch
         if self.max_ann_calls is not None and self.ann_calls >= self.max_ann_calls:
             batch = ProposalBatch(
@@ -470,8 +472,13 @@ class DependencyRetriever:
                 "ann_budget_exhausted",
             )
             self._batches.append(batch)
+            observe("proposal", batch, event="proposal_completed")
             return batch
 
+        observe("proposal", "proposal_started", probe_id=probe_id, stage=stage,
+                target_id=target_id, premise_ids=canonical_premises,
+                source_memory_ids=sources, domain_scope=domain_scope,
+                width=width, available_count=available_count, ann_calls=self.ann_calls)
         vector = _encode_query(self.embedder, probe_text, instruction)
         raw_hits = self.index.search(vector, width, exclude=excluded)
         self.ann_calls += 1
@@ -506,6 +513,7 @@ class DependencyRetriever:
                     premise_ids=canonical_premises,
                 )
             )
+        observe("proposal", batch, event="proposal_completed")
         return batch
 
     def retrieve_dense(self) -> ProposalBatch:

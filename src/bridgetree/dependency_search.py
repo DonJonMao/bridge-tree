@@ -19,6 +19,7 @@ from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
 import numpy as np
 
 from .dependency_retrieval import DependencyRetriever, InitialCandidatePool, ProposalBatch
+from .diagnostic_observability import observe
 from .root_tie_diagnostics import root_tie_order, summarize_root_tie_run, validate_root_tie_settings
 
 
@@ -773,6 +774,7 @@ class DependencySearcher:
                 "scored_sets_before": _scored_sets(self.scorer), "completed": False,
             }
             self._root_tie_trace.append(observation)
+            observe("state", observation, event="state_popped")
 
             proposal = self.retriever.propose(
                 state.target_id,
@@ -817,6 +819,7 @@ class DependencySearcher:
                     )
                 except _ScoringStop as exc:
                     skipped.append(SkippedMeasurement(state, (candidate_id,), exc.reason, exc.detail))
+                    observe("activation", skipped[-1], event="measurement_skipped")
                     if exc.reason == "score_budget_exhausted":
                         score_blocked = True
                         break
@@ -839,6 +842,7 @@ class DependencySearcher:
                         new_successors += 1
                         record = ActivationRecord(**{**record.__dict__, "queued": True})
                 activations.append(record)
+                observe("activation", record, event="activation_measured")
 
             # Pair rescue is deliberately finite.  Prefer the current new ANN
             # batch; if it is empty (for example in a tiny fake bank), fall
@@ -865,6 +869,7 @@ class DependencySearcher:
                         )
                     except _ScoringStop as exc:
                         skipped.append(SkippedMeasurement(state, (left, right), exc.reason, exc.detail))
+                        observe("activation", skipped[-1], event="measurement_skipped")
                         if exc.reason == "score_budget_exhausted":
                             score_blocked = True
                             break
@@ -890,6 +895,7 @@ class DependencySearcher:
                             new_successors += 1
                             record = ActivationRecord(**{**record.__dict__, "queued": True})
                     activations.append(record)
+                    observe("activation", record, event="activation_measured")
                 # A budget break in the pair loop is global and handled below.
 
             resource_detail: str | None = None
@@ -938,6 +944,11 @@ class DependencySearcher:
                 "ann_calls_after": int(getattr(self.retriever, "ann_calls", 0)),
                 "scored_sets_after": _scored_sets(self.scorer), "completed": True,
             })
+            observe("state", state_records[-1], event="state_completed", completed=True,
+                    state_event=state_records[-1].event,
+                    pop_index=observation["pop_index"],
+                    ann_calls_after=observation["ann_calls_after"],
+                    scored_sets_after=observation["scored_sets_after"])
             if resource_detail is not None:
                 stop_reason = resource_detail
                 break
@@ -958,6 +969,11 @@ class DependencySearcher:
             for ids in sorted(bundle_reasons, key=lambda value: (len(value), value))
         )
         self._root_tie_final = (int(getattr(self.retriever, "ann_calls", 0)), _scored_sets(self.scorer), stop_reason)
+        observe("stop", "search_stop", reason=stop_reason, signal_kind=self.signal,
+                visited_state_count=len(state_records), archived_bundle_count=len(frozen_bundles),
+                frontier_count=len(frontier), global_certificate=False,
+                initial_ann_calls=initial_ann_calls, final_ann_calls=self._root_tie_final[0],
+                initial_scored_sets=initial_scored_sets, final_scored_sets=self._root_tie_final[1])
         return SearchArchive(
             initial_target_ids=tuple(sorted(initial_ids)),
             bundles=frozen_bundles,
@@ -1253,6 +1269,7 @@ class DynamicBundleSelector:
                             True,
                         )
                     )
+                    observe("selection", rounds[-1], event="selection_round")
                 break
 
             unique_sets = _stable_unique_set_sequence((selected, *(item[1] for item in candidates)))
@@ -1288,6 +1305,7 @@ class DynamicBundleSelector:
                         False,
                     )
                 )
+                observe("selection", rounds[-1], event="selection_round")
                 stop = SelectionStop(exc.reason, round_index, exc.detail)
                 break
             score_by_set = dict(zip(unique_sets, scores))
@@ -1333,6 +1351,7 @@ class DynamicBundleSelector:
                         True,
                     )
                 )
+                observe("selection", rounds[-1], event="selection_round")
                 stop = SelectionStop("no_positive_marginal", round_index)
                 break
             rounds.append(
@@ -1345,11 +1364,12 @@ class DynamicBundleSelector:
                     True,
                 )
             )
+            observe("selection", rounds[-1], event="selection_round")
             selected = best_union
             self._partial_progress["selected_ids"] = selected
             round_index += 1
 
-        return SelectionResult(
+        result = SelectionResult(
             selected_ids=selected,
             rounds=tuple(rounds),
             stop=stop,
@@ -1357,6 +1377,9 @@ class DynamicBundleSelector:
             initial_scored_sets=initial_scored_sets,
             final_scored_sets=_scored_sets(self.scorer),
         )
+        observe("stop", stop, selected_ids=selected,
+                initial_scored_sets=initial_scored_sets, final_scored_sets=result.final_scored_sets)
+        return result
 
     run = select
 
