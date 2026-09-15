@@ -37,6 +37,8 @@ from .clients import (
 )
 from .dependency_config import DependencyRunConfig, load_dependency_config
 from .dependency_retrieval import DEPENDENCY_PROPOSAL_INSTRUCTION, DependencyRetriever
+from .diagnostic_identity import deployment_fingerprint, deployment_public, execution_hash, request_hash
+from .request_audit import JsonlAuditSink, request_audit_scope
 from .experiment import _visible_memory_records
 from .metrics import answer_accuracy, answer_parse_failed, extract_option_label
 from .personamem import (
@@ -70,6 +72,7 @@ MODULE_LOGS = (
     "context",
     "cost",
     "effectiveness",
+    "requests",
 )
 INTERACTION_SIGNAL_CAVEAT = (
     "positive interaction signals are measured reranker effects, not causal proof"
@@ -1695,6 +1698,7 @@ class DependencyTaskExecutor:
                     "model": self.config.models.embedding.model,
                     "endpoint": self.config.models.embedding.endpoint,
                     "backend": self.config.models.embedding.backend,
+                    "deployment_fingerprint": deployment_fingerprint(self.config.models.embedding),
                 },
                 "records": [_memory_public(memory) for memory in memories],
             }
@@ -1802,7 +1806,11 @@ class DependencyTaskExecutor:
     def execute(self, task: DependencyTask, example: PersonaMemExample) -> dict[str, Any]:
         self._last_partial_artifacts: dict[str, Any] = {}
         try:
-            return self._execute(task, example)
+            # PR1: inherits an optional durable sink/physical budget from the
+            # runner without changing the executor's public service API.
+            with request_audit_scope({"task_id": task.task_id, "question_id": task.question_id,
+                                      "persona_id": task.persona_id, "method_id": task.method_id}):
+                return self._execute(task, example)
         except BaseException as exc:
             # Preserve the original exception type for callers and transport
             # classification, while attaching already-realized retrieval,
@@ -1834,9 +1842,10 @@ class DependencyTaskExecutor:
         self._last_partial_artifacts = {"visible_memories": visible_artifact}
         method = task.method_id
         fixed_pool = method == "activation_fixed_pool"
-        retriever, memory_vector_cache_hit = self._retriever(
-            example, memories, fixed_pool=fixed_pool
-        )
+        with request_audit_scope({"stage": "retrieval"}):
+            retriever, memory_vector_cache_hit = self._retriever(
+                example, memories, fixed_pool=fixed_pool
+            )
         scorer: Any | None = None
         archive: Any | None = None
         selection: Any | None = None
@@ -1993,7 +2002,8 @@ class DependencyTaskExecutor:
 
         if method == "dense":
             try:
-                dense = retriever.retrieve_dense()
+                with request_audit_scope({"stage": "retrieval"}):
+                    dense = retriever.retrieve_dense()
             finally:
                 checkpoint("dense_retrieval")
             selected_ids, selection_events = _baseline_context(
@@ -2002,7 +2012,8 @@ class DependencyTaskExecutor:
             checkpoint("dense_selection")
         elif method == "dense_rerank":
             try:
-                dense = retriever.retrieve_dense()
+                with request_audit_scope({"stage": "retrieval"}):
+                    dense = retriever.retrieve_dense()
             finally:
                 checkpoint("dense_retrieval")
             scorer = self._scorer(task, example, records)
@@ -2029,7 +2040,8 @@ class DependencyTaskExecutor:
             from .dependency_search import DependencySearcher, DynamicBundleSelector
 
             try:
-                initial_pool = retriever.build_initial_pool(expand=True)
+                with request_audit_scope({"stage": "retrieval"}):
+                    initial_pool = retriever.build_initial_pool(expand=True)
             finally:
                 checkpoint("initial_pool_retrieval")
             scorer = self._scorer(task, example, records)
@@ -2047,7 +2059,8 @@ class DependencyTaskExecutor:
                 max_scored_sets=self.config.dependency.max_scored_sets,
             )
             try:
-                archive = searcher.run(initial_pool)
+                with request_audit_scope({"stage": "dependency_search"}):
+                    archive = searcher.run(initial_pool)
             except Exception as exc:
                 snapshot = searcher.partial_public_dict(
                     stop_reason="execution_error",
@@ -2102,6 +2115,12 @@ class DependencyTaskExecutor:
             checkpoint("context_plan_failed")
             raise
         checkpoint("context_plan_frozen", plan)
+        generator_fingerprint = deployment_fingerprint(self.config.models.generator)
+        generation_identity = {
+            "request_hash": request_hash(plan.request_dict()),
+            "execution_hash": execution_hash(plan.request_dict(), generator_fingerprint),
+            "deployment_fingerprint": generator_fingerprint,
+        }
         selected_memories = [records[identifier] for identifier in plan.selected_ids]
         scoring_events = [] if scorer is None else list(scorer.events)
         activation_events = (
@@ -2130,6 +2149,7 @@ class DependencyTaskExecutor:
             "event": "final_context",
             "context_plan": plan.public_dict(),
             "generation_status": "pending",
+            **generation_identity,
         }
         scorer_cost = {} if scorer is None else dict(scorer.cost)
         pre_generation_adapter = _counter_delta(self.adapter_cost, adapter_before)
@@ -2160,6 +2180,7 @@ class DependencyTaskExecutor:
             "cost": [{"event": "task_cost_partial", **partial_costs}],
         }
         partial_diagnostics = {
+            **generation_identity,
             "method_id": method,
             "fixed_pool": fixed_pool,
             "score_space": self.config.models.reranker.score_space,
@@ -2179,7 +2200,8 @@ class DependencyTaskExecutor:
         }
         # This is the only generator call and it consumes the exact frozen
         # ContextPlan used by feasibility and persisted below.
-        prediction = self._answer(plan, example, selected_memories)
+        with request_audit_scope({"stage": "generation"}):
+            prediction = self._answer(plan, example, selected_memories)
 
         # Evaluation begins only after all model requests have completed.
         accuracy = answer_accuracy(prediction, example.correct_answer)
@@ -2234,6 +2256,7 @@ class DependencyTaskExecutor:
             "event": "final_context",
             "context_plan": plan.public_dict(),
             "generation_status": "completed",
+            **generation_identity,
         }
         return {
             "status": "success",
@@ -2258,6 +2281,7 @@ class DependencyTaskExecutor:
                 "cost": [{"event": "task_cost", **costs}],
             },
             "diagnostics": {
+                **generation_identity,
                 "method_id": method,
                 "fixed_pool": fixed_pool,
                 "score_space": self.config.models.reranker.score_space,
@@ -3388,11 +3412,23 @@ def _run_dependency_experiment_impl(
         }
 
     attempt_number = previous_attempts + 1
+    # PR1: deployment metadata and streamed request events are separate from
+    # legacy module checkpoints.  An outer diagnostic scope may additionally
+    # impose one shared hard physical transport ceiling.
+    audit_sink = JsonlAuditSink(prepared.root / "modules" / "requests.jsonl")
+    audit_run = {"run_identity": prepared.manifest["identity"]["run_identity"],
+                 "execution_attempt": attempt_number}
+    with request_audit_scope(audit_run):
+        service_identities = {
+            name: deployment_public(getattr(prepared.config.models, name))
+            for name in ("embedding", "reranker", "generator")
+        }
     running_manifest = {
         **dict(prepared.manifest),
         "status": "running",
         "updated_at_epoch": time.time(),
         "execution_attempts": attempt_number,
+        "deployment_identities": service_identities,
     }
     _atomic_json(prepared.root / "run_manifest.json", running_manifest)
     _append_text(
@@ -3524,11 +3560,12 @@ def _run_dependency_experiment_impl(
             probe_attempt += 1
             probe_adapter_start = executor.adapter_cost
             try:
-                probe = _pointwise_service_probe(
-                    executor,
-                    first_pending,
-                    prepared.examples_by_id[first_pending.question_id],
-                )
+                with request_audit_scope({**audit_run, "stage": "service_probe", "probe_attempt": probe_attempt}, sink=audit_sink):
+                    probe = _pointwise_service_probe(
+                        executor,
+                        first_pending,
+                        prepared.examples_by_id[first_pending.question_id],
+                    )
             except Exception as exc:
                 infrastructure = _is_infrastructure_failure(exc)
                 retryable = bool(
@@ -3771,9 +3808,10 @@ def _run_dependency_experiment_impl(
                 task_adapter_start = executor.adapter_cost
                 retryable_infrastructure = False
                 try:
-                    result = executor.execute(
-                        task, prepared.examples_by_id[task.question_id]
-                    )
+                    with request_audit_scope({**audit_run, "task_attempt": task_attempt, "stage": "task_execution"}, sink=audit_sink):
+                        result = executor.execute(
+                            task, prepared.examples_by_id[task.question_id]
+                        )
                     outcome = _persist_success_attempt(
                         prepared,
                         task,

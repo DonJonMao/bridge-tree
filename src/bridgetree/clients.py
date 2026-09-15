@@ -15,6 +15,14 @@ from typing import Any, Callable, Dict, List, Mapping, Protocol, Sequence
 import numpy as np
 
 from .config import EmbeddingConfig, EndpointConfig, GeneratorConfig
+from .diagnostic_identity import (
+    canonical_request_payload, deployment_fingerprint, execution_hash, request_hash,
+    validate_provider_params, validate_request_param_credentials,
+)
+from .request_audit import (
+    TransportBudgetExceeded, current_audit_scope, document_descriptors,
+    emit_request_event, logical_request_scope, new_request_id, request_audit_scope,
+)
 from .information import StateBasisProvider
 from .math_utils import normalize_rows
 from .types import (
@@ -125,6 +133,10 @@ def build_context_plan(
         raise ValueError("ContextPlan memories must be a sequence")
     if not isinstance(query, str) or not isinstance(answer_options, str):
         raise ValueError("ContextPlan query and answer_options must be strings")
+    if request_params is not None:
+        # Explicit parameters retain the legacy allowance for canonical
+        # fields with identical values, but never for nested credentials.
+        validate_request_param_credentials(request_params)
 
     # Callers may provide a GeneratorConfig directly; explicit keyword values
     # remain useful for lightweight tests and custom HTTP adapters.  Resolve
@@ -142,6 +154,13 @@ def build_context_plan(
             raise ValueError("GeneratorConfig model and endpoint must be strings")
         model = model_value
         endpoint = endpoint_value
+        configured_params = validate_provider_params(config_value("provider_request_params", {}) or {})
+        if request_params is not None:
+            for key, value in request_params.items():
+                if key in configured_params and configured_params[key] != value:
+                    raise ValueError("explicit request_params conflict with configured provider parameters")
+                configured_params[key] = value
+        request_params = configured_params
         temperature = _strict_float_value(
             config_value("temperature", temperature),
             "ContextPlan temperature",
@@ -237,15 +256,6 @@ def build_context_plan(
         # hash from describing a value that the HTTP client later overwrites.
         for key, value in request_params.items():
             key = str(key)
-            if key.lower() in {
-                "api_key",
-                "api_key_env",
-                "authorization",
-                "token",
-                "password",
-                "secret",
-            }:
-                raise ValueError("request_params may not contain credentials")
             if key in request and key not in {"endpoint"} and request[key] != value:
                 raise ValueError(f"request_params conflicts with ContextPlan field {key}")
             request[key] = value
@@ -364,6 +374,45 @@ def _post_json(
     on_attempt: Callable[[int], None] | None = None,
     max_attempts: int = _HTTP_MAX_TRANSPORT_ATTEMPTS,
 ) -> Any:
+    # Existing call signatures/return values remain unchanged.  A scorer or
+    # service client owns the logical scope; split children stay inside it.
+    if not current_audit_scope().metadata.get("logical_call_id"):
+        operation = "reranker" if "documents" in payload else "generation" if "messages" in payload else "embedding"
+        documents = payload.get("documents", payload.get("input", []))
+        descriptors = document_descriptors(documents) if isinstance(documents, list) and all(isinstance(x, str) for x in documents) else None
+        with logical_request_scope(operation, payload, documents=descriptors):
+            return _post_json_transport(url, payload, timeout, headers, on_attempt=on_attempt, max_attempts=max_attempts)
+    return _post_json_transport(url, payload, timeout, headers, on_attempt=on_attempt, max_attempts=max_attempts)
+
+
+def _server_response_metadata(response: Any, headers: Any = None) -> dict[str, Any]:
+    raw = response if isinstance(response, Mapping) else {}
+    usage = raw.get("usage") if isinstance(raw.get("usage"), Mapping) else {}
+    def count(*keys):
+        for key in keys:
+            value = usage.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                return value
+        return None
+    server_id = None
+    if headers is not None:
+        server_id = headers.get("x-request-id") or headers.get("request-id")
+    return {
+        "server_request_id": server_id,
+        "server_reported_model": raw.get("model") if isinstance(raw.get("model"), str) else None,
+        "server_reported_input_tokens": count("prompt_tokens", "input_tokens"),
+        "server_reported_output_tokens": count("completion_tokens", "output_tokens"),
+        "server_reported_total_tokens": count("total_tokens"),
+        "server_token_source": "response.usage" if usage else None,
+    }
+
+
+def _post_json_transport(
+    url: str, payload: Dict[str, Any], timeout: float,
+    headers: Dict[str, str] | None = None, *,
+    on_attempt: Callable[[int], None] | None = None,
+    max_attempts: int = _HTTP_MAX_TRANSPORT_ATTEMPTS,
+) -> Any:
     max_attempts = _strict_int_value(
         max_attempts, "HTTP max_attempts", positive=True
     )
@@ -378,15 +427,52 @@ def _post_json(
     # Match datacenter's `curl --noproxy '*'`: these model IPs are private
     # service routes and must not be sent through an ambient HTTP(S) proxy.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    audit = current_audit_scope()
+    metadata = audit.metadata
+    request_id = metadata.get("request_id") or new_request_id()
+    indices = metadata.get("original_document_indices")
+    descriptors = metadata.get("documents", [])
+    if indices is not None:
+        descriptors = [item for item in descriptors if item.get("document_index") in indices]
+    physical = {
+        "request_id": request_id, "request_hash": request_hash(payload),
+        "execution_hash": execution_hash(payload, str(metadata.get("deployment_fingerprint", ""))),
+        "documents": descriptors, "batch_documents": len(payload.get("documents", payload.get("input", [])))
+        if isinstance(payload.get("documents", payload.get("input", [])), list) else None,
+        "server_reported_input_tokens": None, "server_reported_output_tokens": None,
+        "server_reported_total_tokens": None, "server_token_source": None,
+    }
+    emit_request_event("http_request_started", **physical)
     for attempt_index in range(max_attempts):
         attempt = attempt_index + 1
+        try:
+            budget_used = None if audit.budget is None else audit.budget.consume()
+        except TransportBudgetExceeded:
+            emit_request_event("http_budget_exhausted", **physical, transport_attempt=attempt,
+                               transport_budget_used=audit.budget.used,
+                               transport_budget_max=audit.budget.max_attempts)
+            raise
+        # Outside the transport try block: audit failures must not trigger an
+        # HTTP retry.  This durable start is the resume budget reservation.
+        emit_request_event("http_attempt_started", **physical, transport_attempt=attempt,
+                           transport_budget_used=budget_used,
+                           transport_budget_max=None if audit.budget is None else audit.budget.max_attempts)
         if on_attempt is not None:
             on_attempt(attempt)
+        started = time.perf_counter()
         try:
             with opener.open(request, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                result = json.loads(response.read().decode("utf-8"))
+                response_metadata = _server_response_metadata(result, getattr(response, "headers", None))
+                status_code = getattr(response, "status", 200)
         except urllib.error.HTTPError as exc:
             retryable = _retryable_http_status(exc.code)
+            error_metadata = _server_response_metadata(None, exc.headers)
+            emit_request_event("http_attempt_failed", **{**physical, **error_metadata},
+                               transport_attempt=attempt, status_code=exc.code,
+                               cause_type=type(exc).__name__, retryable=retryable,
+                               batch_reducible=exc.code in {413, 422, 500},
+                               elapsed_ms=(time.perf_counter() - started) * 1000)
             if not retryable or attempt == max_attempts:
                 raise HTTPTransportError(
                     attempts=attempt,
@@ -403,6 +489,9 @@ def _post_json(
             UnicodeDecodeError,
             http.client.HTTPException,
         ) as exc:
+            emit_request_event("http_attempt_failed", **physical, transport_attempt=attempt,
+                               status_code=None, cause_type=type(exc).__name__, retryable=True,
+                               batch_reducible=False, elapsed_ms=(time.perf_counter() - started) * 1000)
             if attempt == max_attempts:
                 raise HTTPTransportError(
                     attempts=attempt,
@@ -411,6 +500,13 @@ def _post_json(
                     cause_type=type(exc).__name__,
                 ) from exc
             time.sleep(_retry_delay_seconds(attempt, exc))
+        else:
+            # Again outside the network try: a completed request must not be
+            # resent merely because recording its result failed.
+            emit_request_event("http_attempt_completed", **{**physical, **response_metadata},
+                               transport_attempt=attempt, status_code=status_code,
+                               elapsed_ms=(time.perf_counter() - started) * 1000)
+            return result
     raise AssertionError("unreachable HTTP retry state")
 
 
@@ -430,11 +526,10 @@ class RemoteEmbeddingClient:
         expected_dimension: int | None = None
         for start in range(0, len(texts), batch_size):
             batch = list(texts[start : start + batch_size])
-            response = _post_json(
-                self.config.endpoint,
-                {"model": self.config.model, "input": batch},
-                self.config.timeout_seconds,
-            )
+            payload = {"model": self.config.model, "input": batch}
+            with logical_request_scope("embedding", payload, deployment_fingerprint(self.config),
+                                       documents=document_descriptors(batch, estimated_tokens=[estimate_tokens(x) for x in batch])):
+                response = _post_json(self.config.endpoint, payload, self.config.timeout_seconds)
             data = response.get("data") if isinstance(response, dict) else None
             if not isinstance(data, list):
                 raise ValueError("embedding response must contain a data list")
@@ -592,6 +687,16 @@ def _response_declares_truncation(value: Any) -> bool:
     return False
 
 
+def build_rerank_payload(config: Any, query: str, documents: Sequence[str], top_n: int) -> Dict[str, Any]:
+    """One canonical provider payload shared by execution and offline plans."""
+    payload: Dict[str, Any] = {"query": query, "documents": list(documents),
+                               "top_n": min(top_n, len(documents)), "return_documents": False}
+    model = getattr(config, "model", "")
+    if model:
+        payload["model"] = model
+    return payload
+
+
 class RerankerClient:
     def __init__(self, config: EndpointConfig):
         self.config = config
@@ -610,9 +715,6 @@ class RerankerClient:
         self.score_contract = str(getattr(config, "score_contract", "pointwise")).strip().lower()
         if self.score_contract not in {"pointwise", "listwise"}:
             raise ValueError("reranker score_contract must be pointwise or listwise")
-        self.model_fingerprint = str(
-            getattr(config, "model_fingerprint", "") or getattr(config, "model", "") or getattr(config, "endpoint", "")
-        )
         # These counters distinguish one caller-visible scoring operation from
         # the extra transport work caused by retrying a failed pointwise batch.
         # Search/set budgets remain the caller's responsibility and are never
@@ -627,6 +729,12 @@ class RerankerClient:
         self._split_events = 0
         self._split_recovered_calls = 0
         self._failed_calls = 0
+
+    @property
+    def model_fingerprint(self) -> str:
+        # Resolve unknown identity in the current run scope, not the process
+        # scope in which a reusable client happened to be constructed.
+        return deployment_fingerprint(self.config)
 
     @property
     def transport_stats(self) -> Dict[str, int]:
@@ -661,14 +769,7 @@ class RerankerClient:
     ) -> List[RerankItem]:
         """Issue and validate one physical batch without changing indices."""
 
-        payload: Dict[str, Any] = {
-            "query": query,
-            "documents": list(documents),
-            "top_n": min(top_n, len(documents)),
-            "return_documents": False,
-        }
-        if self.config.model:
-            payload["model"] = self.config.model
+        payload = build_rerank_payload(self.config, query, documents, top_n)
         self._batch_requests += 1
         self._batch_documents += len(documents)
 
@@ -736,20 +837,21 @@ class RerankerClient:
     ) -> tuple[List[RerankItem], bool]:
         """Bisect exhausted 5xx/oversized batches and restore original indices."""
 
-        pending: list[tuple[int, List[str], int | None]] = [
-            (0, list(documents), None)
+        pending: list[tuple[int, List[str], int | None, str, str | None, int]] = [
+            (0, list(documents), None, new_request_id(), None, 0)
         ]
         combined: list[RerankItem] = []
         split_used = False
         while pending:
-            offset, batch, max_transport_attempts = pending.pop()
+            offset, batch, max_transport_attempts, request_id, parent_id, split_depth = pending.pop()
             try:
-                local_items = self._rerank_batch(
-                    query,
-                    batch,
-                    min(top_n, len(batch)),
-                    max_transport_attempts=max_transport_attempts,
-                )
+                with request_audit_scope({"request_id": request_id, "parent_request_id": parent_id,
+                                          "split_depth": split_depth,
+                                          "original_document_indices": list(range(offset, offset + len(batch)))}):
+                    local_items = self._rerank_batch(
+                        query, batch, min(top_n, len(batch)),
+                        max_transport_attempts=max_transport_attempts,
+                    )
             except HTTPTransportError as exc:
                 # Splitting is valid only because this client enforces a
                 # pointwise score contract. A singleton proves the failure is
@@ -767,10 +869,15 @@ class RerankerClient:
                 # cannot multiply four retries at every bisection depth. A
                 # later task-level retry still provides bounded recovery.
                 child_attempts = _HTTP_SPLIT_CHILD_MAX_TRANSPORT_ATTEMPTS
+                left_id, right_id = new_request_id(), new_request_id()
+                emit_request_event("http_request_split", request_id=request_id,
+                                   parent_request_id=parent_id, split_depth=split_depth,
+                                   children=[{"request_id": left_id, "original_document_indices": list(range(offset, offset + midpoint))},
+                                             {"request_id": right_id, "original_document_indices": list(range(offset + midpoint, offset + len(batch)))}])
                 pending.append(
-                    (offset + midpoint, batch[midpoint:], child_attempts)
+                    (offset + midpoint, batch[midpoint:], child_attempts, right_id, request_id, split_depth + 1)
                 )
-                pending.append((offset, batch[:midpoint], child_attempts))
+                pending.append((offset, batch[:midpoint], child_attempts, left_id, request_id, split_depth + 1))
                 continue
             combined.extend(
                 RerankItem(index=offset + item.index, score=item.score)
@@ -779,6 +886,17 @@ class RerankerClient:
         return sorted(combined, key=lambda item: (-item.score, item.index))[:top_n], split_used
 
     def rerank(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
+        if not isinstance(query, str):
+            raise ValueError("query must be a string")
+        if isinstance(documents, (str, bytes)) or not isinstance(documents, Sequence) or any(not isinstance(x, str) for x in documents):
+            raise ValueError("documents must be a sequence of strings")
+        top_n = _strict_int_value(top_n, "top_n", nonnegative=True)
+        payload = build_rerank_payload(self.config, query, documents, top_n)
+        with logical_request_scope("reranker", payload, deployment_fingerprint(self.config),
+                                   documents=document_descriptors(documents, estimated_tokens=[estimate_tokens(query) + estimate_tokens(x) for x in documents])):
+            return self._rerank_impl(query, documents, top_n)
+
+    def _rerank_impl(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
         if not isinstance(query, str):
             raise ValueError("rerank query must be a string")
         if isinstance(documents, (str, bytes)) or not isinstance(documents, Sequence):
@@ -838,6 +956,15 @@ class GeneratorClient:
     def answer_plan(self, plan: ContextPlan) -> str:
         """Send exactly the messages in a frozen :class:`ContextPlan`."""
 
+        with request_audit_scope({"estimated_input_tokens": plan.token_count,
+                                  "token_count_is_estimate": True,
+                                  "token_estimator_id": "regex_word_or_punctuation_v1"}):
+            with logical_request_scope("generation", canonical_request_payload(plan.request_dict()),
+                                       deployment_fingerprint(self.config)):
+                return self._answer_plan_impl(plan)
+
+    def _answer_plan_impl(self, plan: ContextPlan) -> str:
+
         if not plan.within_budget:
             raise ContextPlanError("cannot send a ContextPlan that exceeds its declared budget")
         if plan.prompt_hash != generation_prompt_hash():
@@ -886,6 +1013,9 @@ class GeneratorClient:
             raise ContextPlanError("ContextPlan max_tokens differs from GeneratorClient configuration")
         if request_payload.get("messages") != [dict(message) for message in plan.messages]:
             raise ContextPlanError("ContextPlan messages differ from its declared request")
+        for key, value in self.config.provider_request_params.items():
+            if request_payload.get(key) != value:
+                raise ContextPlanError("ContextPlan provider parameters differ from GeneratorClient configuration")
         response = _post_json(
             self.config.endpoint,
             request_payload,
@@ -1128,12 +1258,11 @@ class GenerationCache:
         # provenance ``context_hash`` intentionally includes selector order,
         # but that order is not part of the chronological reader messages and
         # must not split an otherwise identical generation request.
-        request = dict(plan.request_dict())
-        request.pop("endpoint", None)
-        request.pop("endpoint_sha256", None)
+        request = canonical_request_payload(plan.request_dict())
         payload = {
-            "schema": 2,
+            "schema": 3,
             "request": request,
+            "deployment_fingerprint": deployment_fingerprint(client.config),
             # The endpoint is transport identity rather than JSON payload;
             # hash it so cache files do not expose internal service URLs.
             "endpoint_sha256": hashlib.sha256(str(client.config.endpoint).encode("utf-8")).hexdigest(),

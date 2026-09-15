@@ -19,7 +19,9 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 
-from .clients import _response_declares_truncation, estimate_tokens
+from .clients import _response_declares_truncation, build_rerank_payload, estimate_tokens
+from .diagnostic_identity import deployment_fingerprint
+from .request_audit import current_audit_scope, document_descriptors, logical_request_scope, request_audit_scope
 from .types import Memory
 
 EMPTY_SET_SERIALIZATION = "Personal memories: [No personal memories supplied.]"
@@ -484,6 +486,7 @@ class SetReranker:
             "task_instruction": str(getattr(config, "task_instruction", "")),
             "score_space": self.score_space,
             "score_contract": self.score_contract,
+            "deployment_fingerprint": deployment_fingerprint(config),
         }
         namespace_payload = {
             "schema": 1,
@@ -841,9 +844,24 @@ class SetReranker:
             self._client_samples += len(batch)
             started = time.perf_counter()
             try:
-                scores = _invoke_reranker(
-                    self.reranker, self.query, documents, self.score_space
+                config = getattr(self.reranker, "config", None)
+                payload = build_rerank_payload(config, self.query, documents, len(documents))
+                descriptors = document_descriptors(
+                    documents, set_ids=[item.ids for item in batch],
+                    estimated_tokens=[item.estimated_input_tokens for item in batch],
                 )
+                audit_stage = {
+                    "selection": "selection", "selection_round": "selection",
+                    "activation": "dependency_search", "search": "dependency_search",
+                    "dense_rerank": "dense_rerank", "diagnostic_fresh_all": "score",
+                }.get(reason, current_audit_scope().metadata.get("stage", "score"))
+                with request_audit_scope({"stage": audit_stage, "score_reason": reason,
+                                          "objective_semantics": "legacy_query_relevance",
+                                          "utility_validation_id": None}):
+                    with logical_request_scope("reranker", payload, deployment_fingerprint(config), documents=descriptors):
+                        scores = _invoke_reranker(
+                            self.reranker, self.query, documents, self.score_space
+                        )
             finally:
                 self._client_elapsed_ms += (time.perf_counter() - started) * 1000.0
             for item, score in zip(batch, scores):
@@ -864,6 +882,8 @@ class SetReranker:
                     "source": source_by_key.get(key, "memory_cache"),
                     "estimated_input_tokens": item.estimated_input_tokens,
                     "token_count_is_estimate": True,
+                    "objective_semantics": "legacy_query_relevance",
+                    "utility_validation_id": None,
                 }
             )
         return scores_in_order
@@ -934,6 +954,8 @@ class SetReranker:
     @property
     def cost(self) -> dict[str, Any]:
         return {
+            "objective_semantics": "legacy_query_relevance",
+            "utility_validation_id": None,
             "scored_sets": self.scored_sets,
             "set_budget": self._set_budget,
             "remaining_set_budget": self.remaining_budget,

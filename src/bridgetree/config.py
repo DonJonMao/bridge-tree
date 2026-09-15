@@ -13,6 +13,8 @@ from typing import Any, Dict, Mapping
 
 import yaml
 
+from .diagnostic_identity import DeploymentIdentity, validate_provider_params
+
 # ``dataclasses.replace`` passes every field explicitly to this custom
 # constructor.  A private sentinel lets us distinguish that case from a
 # caller omitting a semantic field, so profile defaults are applied only when
@@ -624,6 +626,7 @@ class EndpointConfig:
         object.__setattr__(self, "endpoint", endpoint)
         object.__setattr__(self, "model", model)
         object.__setattr__(self, "timeout_seconds", timeout)
+        object.__setattr__(self, "deployment_identity", DeploymentIdentity.from_value(getattr(self, "deployment_identity", {})))
 
 
 @dataclass(frozen=True)
@@ -634,6 +637,9 @@ class EmbeddingConfig(EndpointConfig):
     query_instruction: str = (
         "Instruct: Retrieve past personal interactions that help answer the current request\nQuery: "
     )
+    # Appended in each concrete dataclass to preserve its Python 3.9 legacy
+    # positional constructor (a new base field would shift all child fields).
+    deployment_identity: DeploymentIdentity = field(default_factory=DeploymentIdentity)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -660,6 +666,7 @@ class RerankerConfig(EndpointConfig):
     score_space: str = "unit_interval"
     score_contract: str = "pointwise"
     task_instruction: str = ""
+    deployment_identity: DeploymentIdentity = field(default_factory=DeploymentIdentity)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -690,6 +697,8 @@ class GeneratorConfig(EndpointConfig):
     temperature: float = 0.0
     max_tokens: int = 512
     context_token_budget: int = 8192
+    deployment_identity: DeploymentIdentity = field(default_factory=DeploymentIdentity)
+    provider_request_params: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -707,6 +716,7 @@ class GeneratorConfig(EndpointConfig):
         object.__setattr__(self, "temperature", temperature)
         object.__setattr__(self, "max_tokens", max_tokens)
         object.__setattr__(self, "context_token_budget", context_token_budget)
+        object.__setattr__(self, "provider_request_params", validate_provider_params(self.provider_request_params))
 
     def resolved_api_key(self) -> str:
         return os.environ.get(self.api_key_env) or self.api_key
