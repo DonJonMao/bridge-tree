@@ -80,7 +80,8 @@ def build_report(run_dir: Path, output: Path, acceptance: Path) -> dict:
 <h2>预算与故障语义</h2>
 <p>HTTP 重试和拆批共用物理上限，重启从已落盘 started 恢复额度。物理预算耗尽与审计写入错误必须作为诊断失败，不能被旧字符串识别误当正常集合预算停止。逻辑唯一集合额度和原算法规则不变，不填零，不提交未完成的四项测量或选择轮。</p>
 <aside><strong>不夸大工程修复</strong><p>新增审计不等于已经修好旧 HTTP500 根因，也不证明服务没有内部热切换。部分成功子批缓存不在本轮必要交付中；未测到的结果不会被补造。</p></aside>""")
-    rows = [[c['case_id'], len(c['universe_ids']), c['subset_count'], c['historical_score_count'],
+    case_labels = {'painting': '绘画', 'music': '音乐', 'book_club': '读书会'}
+    rows = [[case_labels.get(c['case_id'], c['case_id']), len(c['universe_ids']), c['subset_count'], c['historical_score_count'],
              ' / '.join(','.join(i.rsplit(':',1)[-1] for i in ids) for ids in c['missing_ids']) or '无'] for c in offline['cases']]
     page("03　PR2：真实历史恢复与预算感知回放", f"""
 <p>评分直接从 activation 的 P/Pe/PG/PGe 和 selection 的 base_score/combined_score 恢复，保留归档 SHA、成员、JSON位置、task 和重复观测。冲突、缺分、截断或身份错误都显式报告；不通过差分倒推或插值补分。</p>
@@ -97,7 +98,7 @@ def build_report(run_dir: Path, output: Path, acceptance: Path) -> dict:
 {table(['计划项','数量／上限'], [['完整小集合评分',manifest['counts']['score_logical_inputs']],['生成逻辑trial',manifest['counts']['generation_trials']],['每条件技术重复',manifest['repeats']],['评分物理尝试上限',b['score_transport_attempts']],['生成物理尝试上限',b['generation_transport_attempts']],['根消融物理尝试上限',b['root_transport_attempts']]])}
 <p>默认条件为28个子集加3个历史dense上下文，共31个；每条件10次，合计310个trial。长度匹配且不含关键事实的补入对照需人工预先指定来源和理由，目前没有自动编造。若额外加入3个对照，需重新冻结为340个trial并调整预算。</p>
 <h2>重复、缓存与续跑</h2>
-<p>按 repeat block 预先打乱条件顺序。不同 repeat 绕过响应缓存，发送实际请求；同一 trial 续跑读自己的完成记录。响应已落盘而 outcome 尚未原子提交时可以精确恢复，不额外调用。不因答错、解析失败或暂时有利的结果增加样本或提前停止。</p>
+<p>按 repeat block 预先打乱条件顺序。不同 repeat 绕过响应缓存，发送实际请求；同一 trial 续跑恢复已落盘成功或终止失败，即使 outcome 尚未原子提交也不额外调用。只有可重试且额度未耗尽的失败可以继续。不因答错、解析失败或暂时有利的结果增加样本或提前停止。</p>
 <p>失败重试不是新 repeat；超时可能已在服务端执行，结果未知要留档。物理上限是传输尝试约束，不是账单 token。真实服务是否存在内部缓存或调度相关性，不能由客户端请求数单独证明。</p>
 <aside><strong>评价边界</strong><p>gold 只在独立评价阶段读取。报告固定 trial 分母、成功输出分母、解析失败、标签分布及相对原选择的分块配对。三个事后案例重复10次仍是三个案例，不是正式 benchmark 准确率。</p></aside>""")
     page("05　PR4：仅根平局顺序消融，默认关闭", f"""
@@ -109,6 +110,7 @@ def build_report(run_dir: Path, output: Path, acceptance: Path) -> dict:
 <aside><strong>这不是新的调度机制</strong><p>没有轮询、根预算保留或覆盖保证。种子敏感说明有必要研究调度，不等于某个种子提高了方法质量；共享暖缓存下时延仍受方法执行顺序影响，逻辑预算才是受控维度。</p></aside>""")
     page("06　可执行交付与独立验收", f"""
 <h2>分开提交，不混入原有工作树改动</h2><p>{'<br>'.join(esc(c) for c in commits) or '提交清单尚未生成'}</p>
+<p class="small">PR1–PR4 为四项独立改造；PR3 后续提交只补失败恢复回归，并非 PR5。以上均为本地提交，未创建远程 PR。</p>
 <p>测试不仅在当前工作树运行，也在各提交独立 detached worktree 运行，确认导入隔离源码，不依赖后续PR或用户未提交修改。历史skip-failed工作区改动保留。</p>
 {table(['独立验收产物','测试数','失败/错误'], checks) if checks else '<p>独立提交验收尚未归档。</p>'}
 <h2>执行入口</h2><pre>python -m bridgetree diagnostic-plan --config CONFIG --output-dir RUN

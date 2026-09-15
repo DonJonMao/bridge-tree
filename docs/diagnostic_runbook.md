@@ -55,7 +55,7 @@ PR2 可在尚未接入其他诊断入口时单独运行：
 .venv/bin/python -m bridgetree diagnostic-report --run-dir outputs/diagnostics/frozen-run
 ```
 
-续跑始终以同一个预注册 trial_id 为单位，成功和已经终止的失败不会因再次执行命令获得额外样本或重试额度。不同 repeat 始终绕过响应缓存；相同 trial 的已落盘完成事件可以恢复 outcome，不重复调用。崩溃留下的 started 保守消耗一次任务/物理额度；已发请求但响应不明的情况不能计成“服务没执行”。错误答案与解析失败不触发重试。实际物理尝试额度从 durable 请求日志恢复，不能因进程重启清零。
+续跑始终以同一个预注册 trial_id 为单位，成功和已经终止的失败不会因再次执行命令获得额外样本或重试额度。不同 repeat 始终绕过响应缓存；相同 trial 的已落盘成功、不可重试失败或已耗尽任务次数的失败事件都可以恢复原 outcome，不重复调用或把已知错误改成 InterruptedAttempt。只有可重试且任务额度未耗尽的失败可以继续下一次尝试。崩溃留下的 started 保守消耗一次任务/物理额度；已发请求但响应不明的情况不能计成“服务没执行”。错误答案与解析失败不触发重试。实际物理尝试额度从 durable 请求日志恢复，不能因进程重启清零。
 
 请求前事件持久化、失败、拆批父子关系、原文档 index 和集合身份都在 `requests.jsonl`。默认不输出凭据、私网 endpoint 或记忆原文。评分文档和完整 reader 上下文在本地受控 manifest 中，和脱敏请求 hash 可关联。实际 token 不可获得时为 null，估算 token 不冒充实际 token。
 

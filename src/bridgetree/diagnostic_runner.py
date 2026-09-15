@@ -378,11 +378,16 @@ def _task_attempt(root: Path, phase: str, item_id: str, manifest: dict) -> tuple
     matched = [e for e in events if e.get("phase") == phase and e.get("item_id") == item_id]
     if any(e.get("manifest_id") != manifest["manifest_id"] for e in matched):
         raise ValueError("attempt ledger belongs to a different frozen manifest")
-    completed = [e for e in matched if e.get("event") == "task_attempt_completed"]
-    if completed:
-        # Recover a durable answer after a crash between completion-log fsync
-        # and the atomic per-item outcome, without making another model call.
-        restored = {k: v for k, v in completed[-1].items() if k not in {"event", "at_epoch"}}
+    terminal_events = [e for e in matched if e.get("event") == "task_attempt_completed"
+                       or (e.get("event") == "task_attempt_failed"
+                           and (not e.get("retryable", False)
+                                or e["task_attempt"] >= manifest["task_max_attempts"]))]
+    if terminal_events:
+        # Recover any durable terminal outcome after a crash between event
+        # fsync and the atomic result write. A known failure must retain its
+        # original error and must not gain a retry merely because of a crash.
+        # Only retryable failures with task attempts left can fall through.
+        restored = {k: v for k, v in terminal_events[-1].items() if k not in {"event", "at_epoch"}}
         atomic_json(path, restored)
         return 0, restored
     attempts = [e["task_attempt"] for e in matched]

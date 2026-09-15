@@ -445,6 +445,81 @@ def test_fsynced_completion_is_restored_after_crash_before_outcome_without_reexe
     assert len(fake.calls) == expected_count
 
 
+def _crash_after_failure_fsync(monkeypatch):
+    real_append_jsonl = runner.append_jsonl
+
+    def append_then_crash(path, value):
+        real_append_jsonl(path, value)
+        if value.get("event") == "task_attempt_failed":
+            raise KeyboardInterrupt("crash after failure fsync but before outcome write")
+
+    monkeypatch.setattr(runner, "append_jsonl", append_then_crash)
+    return real_append_jsonl
+
+
+@pytest.mark.parametrize("phase", ["score", "generation"])
+@pytest.mark.parametrize("http_status,task_attempts", [(400, 1), (400, 3), (503, 1)])
+def test_fsynced_terminal_failure_is_restored_without_retry_or_error_reclassification(
+        tmp_path, monkeypatch, phase, http_status, task_attempts):
+    fixture = _fixture(tmp_path, repeats=1, universe_size=1, dense=False, control=False,
+                       task_attempts=task_attempts)
+    runner.plan_diagnostics(fixture.config, fixture.run)
+    fake = _http(monkeypatch, status=http_status)
+    function = runner.run_scores if phase == "score" else runner.run_generations
+    real_append_jsonl = _crash_after_failure_fsync(monkeypatch)
+    with pytest.raises(KeyboardInterrupt, match="after failure fsync"):
+        function(fixture.run, fixture.config, execute=True)
+    failed = [e for e in runner.read_jsonl(fixture.run / "attempts.jsonl")
+              if e["event"] == "task_attempt_failed"]
+    assert len(failed) == 1
+    event = failed[0]
+    assert event["error_type"] == "HTTPTransportError" and event["http_status"] == http_status
+    assert event["retryable"] is (http_status == 503)
+    outcome_path = fixture.run / phase / (event["item_id"] + ".json")
+    assert not outcome_path.exists()
+    failed_call_count = len(fake.calls)
+    monkeypatch.setattr(runner, "append_jsonl", real_append_jsonl)
+    fake.status = None
+    summary = function(fixture.run, fixture.config, execute=True)
+    assert summary["success"] == 1 and summary["failed"] == 1
+    assert len(fake.calls) == summary["transport_attempts_used"] == failed_call_count + 1
+    restored = json.loads(outcome_path.read_text())
+    assert restored == {k: v for k, v in event.items() if k not in {"event", "at_epoch"}}
+    assert restored["task_attempt"] == 1 and restored["error_type"] != "InterruptedAttempt"
+    starts = [e for e in runner.read_jsonl(fixture.run / "attempts.jsonl")
+              if e["event"] == "task_attempt_started" and e["item_id"] == event["item_id"]]
+    assert len(starts) == 1
+    assert function(fixture.run, fixture.config, execute=True) == summary
+    assert len(fake.calls) == failed_call_count + 1
+
+
+@pytest.mark.parametrize("phase", ["score", "generation"])
+def test_fsynced_retryable_failure_with_budget_remaining_continues_next_attempt(tmp_path, monkeypatch, phase):
+    fixture = _fixture(tmp_path, repeats=1, universe_size=1, dense=False, control=False, task_attempts=3)
+    runner.plan_diagnostics(fixture.config, fixture.run)
+    fake = _http(monkeypatch, status=503)
+    function = runner.run_scores if phase == "score" else runner.run_generations
+    real_append_jsonl = _crash_after_failure_fsync(monkeypatch)
+    with pytest.raises(KeyboardInterrupt, match="after failure fsync"):
+        function(fixture.run, fixture.config, execute=True)
+    failed = [e for e in runner.read_jsonl(fixture.run / "attempts.jsonl")
+              if e["event"] == "task_attempt_failed"]
+    assert len(failed) == 1 and failed[0]["retryable"] is True and failed[0]["task_attempt"] == 1
+    failed_call_count = len(fake.calls)
+    monkeypatch.setattr(runner, "append_jsonl", real_append_jsonl)
+    fake.status = None
+    summary = function(fixture.run, fixture.config, execute=True)
+    assert summary["success"] == summary["planned"] == 2 and summary["failed"] == 0
+    assert len(fake.calls) == summary["transport_attempts_used"] == failed_call_count + 2
+    result = json.loads((fixture.run / phase / (failed[0]["item_id"] + ".json")).read_text())
+    assert result["status"] == "success" and result["task_attempt"] == 2
+    starts = [e["task_attempt"] for e in runner.read_jsonl(fixture.run / "attempts.jsonl")
+              if e["event"] == "task_attempt_started" and e["item_id"] == failed[0]["item_id"]]
+    assert starts == [1, 2]
+    assert function(fixture.run, fixture.config, execute=True) == summary
+    assert len(fake.calls) == failed_call_count + 2
+
+
 @pytest.mark.parametrize("ledger", ["requests.jsonl", "attempts.jsonl"])
 def test_truncated_ledger_is_rejected_not_silently_dropped(tmp_path, ledger):
     fixture = _fixture(tmp_path)
