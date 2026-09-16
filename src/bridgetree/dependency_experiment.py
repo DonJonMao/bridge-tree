@@ -1475,6 +1475,7 @@ def _method_metrics_event(
     tasks_attempted_this_attempt: int,
     unique_tasks_attempted_this_attempt: int,
     checkpoint: str,
+    tasks_skipped_this_attempt: int = 0,
 ) -> dict[str, Any]:
     summary = summarize_dependency_outcomes(tasks, outcomes)
     method_ids = list(dict.fromkeys(task.method_id for task in tasks))
@@ -1509,6 +1510,7 @@ def _method_metrics_event(
             0,
             tasks_attempted_this_attempt - unique_tasks_attempted_this_attempt,
         ),
+        "tasks_skipped_this_attempt": tasks_skipped_this_attempt,
         "tasks_attempted_unit": "executor_invocation",
         "task_unit": "method_x_question",
         "progress_cadence_unit": "unique_method_x_question",
@@ -3220,6 +3222,7 @@ def _finalize_interrupted_attempt(
     adapter_invocations: Mapping[str, int],
     active_task: DependencyTask | None = None,
     unique_tasks_attempted: int | None = None,
+    tasks_skipped: int = 0,
 ) -> dict[str, Any]:
     """Persist a resumable operator interruption before returning control."""
 
@@ -3263,6 +3266,7 @@ def _finalize_interrupted_attempt(
         "tasks_attempted_this_attempt": tasks_attempted,
         "unique_tasks_attempted_this_attempt": unique_attempted,
         "task_retries_this_attempt": max(0, tasks_attempted - unique_attempted),
+        "tasks_skipped_this_attempt": tasks_skipped,
         "error_type": type(exc).__name__,
         "error": message,
         "infrastructure_failure": False,
@@ -3316,6 +3320,7 @@ def _finalize_interrupted_attempt(
         "tasks_attempted_this_attempt": tasks_attempted,
         "unique_tasks_attempted_this_attempt": unique_attempted,
         "task_retries_this_attempt": max(0, tasks_attempted - unique_attempted),
+        "tasks_skipped_this_attempt": tasks_skipped,
         "model_calls_this_attempt": sum(adapter_invocations.values()),
         "adapter_invocations_this_attempt": dict(adapter_invocations),
         "resume_noop": False,
@@ -3340,7 +3345,9 @@ def _run_dependency_experiment_impl(
     No service object is constructed during ``preflight_only``.  On resume,
     all identities and the frozen plan are checked first; if every outcome is
     already successful, the function returns before constructing clients or
-    running the numerical protocol probe.
+    running the numerical protocol probe. Tasks that exhaust their transport
+    retry budget retain an error outcome while later tasks continue. A failed
+    service probe still stops execution before any task is attempted.
     """
 
     if not isinstance(resume, bool) or not isinstance(preflight_only, bool):
@@ -3410,6 +3417,7 @@ def _run_dependency_experiment_impl(
             "tasks_attempted_this_attempt": 0,
             "unique_tasks_attempted_this_attempt": 0,
             "task_retries_this_attempt": 0,
+            "tasks_skipped_this_attempt": 0,
             "resume_noop": True,
         }
 
@@ -3543,6 +3551,7 @@ def _run_dependency_experiment_impl(
                 "tasks_attempted_this_attempt": 0,
                 "unique_tasks_attempted_this_attempt": 0,
                 "task_retries_this_attempt": 0,
+                "tasks_skipped_this_attempt": 0,
             }
         raise
 
@@ -3783,21 +3792,27 @@ def _run_dependency_experiment_impl(
                 "tasks_attempted_this_attempt": 0,
                 "unique_tasks_attempted_this_attempt": 0,
                 "task_retries_this_attempt": 0,
+                "tasks_skipped_this_attempt": 0,
             }
         raise terminal_probe_error
     # ``tasks_attempted`` counts executor invocations, including in-process
     # retries. Keep a separate unique count so operational cost is explicit.
     tasks_attempted = 0
     unique_tasks_attempted = 0
-    infrastructure_stop: str | None = None
+    tasks_skipped = 0
     active_task: DependencyTask | None = None
     interruption: KeyboardInterrupt | None = None
     interruption_stage = "task_execution"
     try:
-        for task in prepared.tasks:
+        # A failed task is retried only within its bounded attempt budget for
+        # this run. Once skipped, advance through the plan; an explicit resume
+        # can retry errors later while preserving all successful outcomes.
+        tasks_to_execute = [
+            task for task in prepared.tasks
+            if task.task_id not in outcomes or outcomes[task.task_id].status != "success"
+        ]
+        for task_index, task in enumerate(tasks_to_execute):
             previous = outcomes.get(task.task_id)
-            if previous is not None and previous.status == "success":
-                continue
             unique_tasks_attempted += 1
             task_attempt = 1 if previous is None else previous.attempt + 1
             infrastructure_failures = 0
@@ -3911,14 +3926,17 @@ def _run_dependency_experiment_impl(
                     not retryable_infrastructure
                     or infrastructure_failures >= maximum_attempts
                 ):
-                    infrastructure_stop = (
-                        f"{outcome.error_type}: {outcome.error}"
+                    tasks_skipped += 1
+                    next_task = (
+                        tasks_to_execute[task_index + 1]
+                        if task_index + 1 < len(tasks_to_execute)
+                        else None
                     )
                     _emit_runtime_event(
                         prepared.root,
                         {
                             "schema_version": 1,
-                            "event": "infrastructure_circuit_opened",
+                            "event": "infrastructure_task_skipped",
                             "at_epoch": time.time(),
                             "scope": "task",
                             "execution_attempt": attempt_number,
@@ -3935,9 +3953,26 @@ def _run_dependency_experiment_impl(
                                 else "non_retryable_infrastructure_failure"
                             ),
                             "error_type": outcome.error_type,
+                            "error": outcome.error,
                             "retryable": retryable_infrastructure,
-                            "circuit_state": "open",
+                            "circuit_state": "closed",
+                            "action": "continue_to_next_task",
+                            "next_task_id": None if next_task is None else next_task.task_id,
+                            "next_question_id": None if next_task is None else next_task.question_id,
+                            "next_method_id": None if next_task is None else next_task.method_id,
+                            "tasks_skipped_this_attempt": tasks_skipped,
                         },
+                        module_name="stop",
+                    )
+                    # Publish the failed outcome and remaining work immediately
+                    # even when the periodic reporting interval has not elapsed.
+                    _write_run_views(
+                        prepared.root,
+                        prepared.tasks,
+                        outcomes,
+                        prepared.protocol_report,
+                        completion_status="running",
+                        inference_complete=False,
                     )
                     heartbeat.update(task=None, completed_tasks=len(outcomes))
                     active_task = None
@@ -3986,6 +4021,7 @@ def _run_dependency_experiment_impl(
                     "task_retries_this_attempt": max(
                         0, tasks_attempted - unique_tasks_attempted
                     ),
+                    "tasks_skipped_this_attempt": tasks_skipped,
                     "tasks_attempted_unit": "executor_invocation",
                     "unique_tasks_attempted_unit": "method_x_question",
                     "progress_cadence_unit": "unique_method_x_question",
@@ -4017,6 +4053,7 @@ def _run_dependency_experiment_impl(
                             unique_tasks_attempted
                         ),
                         checkpoint="periodic",
+                        tasks_skipped_this_attempt=tasks_skipped,
                     ),
                     module_name="effectiveness",
                 )
@@ -4028,8 +4065,6 @@ def _run_dependency_experiment_impl(
                     completion_status="running",
                     inference_complete=False,
                 )
-            if infrastructure_stop is not None:
-                break
     except KeyboardInterrupt as exc:
         partial = getattr(exc, "dependency_partial_artifacts", {})
         if active_task is not None and isinstance(partial, Mapping) and partial:
@@ -4064,6 +4099,7 @@ def _run_dependency_experiment_impl(
             adapter_invocations=adapter_invocations,
             active_task=active_task,
             unique_tasks_attempted=unique_tasks_attempted,
+            tasks_skipped=tasks_skipped,
         )
 
     summary_now = summarize_dependency_outcomes(prepared.tasks, outcomes)
@@ -4084,10 +4120,11 @@ def _run_dependency_experiment_impl(
                 tasks_attempted_this_attempt=tasks_attempted,
                 unique_tasks_attempted_this_attempt=unique_tasks_attempted,
                 checkpoint="attempt_end",
+                tasks_skipped_this_attempt=tasks_skipped,
             ),
             module_name="effectiveness",
         )
-    if infrastructure_stop is not None or pending:
+    if pending:
         status = "interrupted"
         inference_complete = False
     elif failures:
@@ -4109,9 +4146,7 @@ def _run_dependency_experiment_impl(
         status=status,
         attempt_number=attempt_number,
         summary=views["summary"],
-        stop_reason=(
-            "infrastructure_failure" if infrastructure_stop is not None else None
-        ),
+        stop_reason=None,
     )
     _append_text(
         prepared.root / "train.log",
@@ -4120,6 +4155,7 @@ def _run_dependency_experiment_impl(
             f"completed={views['summary']['completed_tasks']} "
             f"failed={views['summary']['failed_tasks']} "
             f"pending={views['summary']['pending_tasks']} "
+            f"tasks_skipped_this_attempt={tasks_skipped} "
             "optimizer_steps=0 weights_updated=false"
         ),
     )
@@ -4133,7 +4169,8 @@ def _run_dependency_experiment_impl(
             "tasks_attempted": tasks_attempted,
             "unique_tasks_attempted": unique_tasks_attempted,
             "task_retries": max(0, tasks_attempted - unique_tasks_attempted),
-            "infrastructure_stop": infrastructure_stop,
+            "infrastructure_stop": None,
+            "tasks_skipped_this_attempt": tasks_skipped,
             "completed_tasks": views["summary"]["completed_tasks"],
             "pending_tasks": views["summary"]["pending_tasks"],
         },
@@ -4143,14 +4180,13 @@ def _run_dependency_experiment_impl(
         "status": status,
         "run_dir": str(prepared.root),
         "summary": views["summary"],
-        "stop_reason": (
-            "infrastructure_failure" if infrastructure_stop is not None else None
-        ),
+        "stop_reason": None,
         "tasks_attempted_this_attempt": tasks_attempted,
         "unique_tasks_attempted_this_attempt": unique_tasks_attempted,
         "task_retries_this_attempt": max(
             0, tasks_attempted - unique_tasks_attempted
         ),
+        "tasks_skipped_this_attempt": tasks_skipped,
         "model_calls_this_attempt": sum(adapter_invocations.values()),
         "adapter_invocations_this_attempt": adapter_invocations,
         "resume_noop": False,
@@ -4298,6 +4334,7 @@ def _recover_outer_interruption(
         "tasks_attempted_this_attempt": None,
         "unique_tasks_attempted_this_attempt": None,
         "task_retries_this_attempt": None,
+        "tasks_skipped_this_attempt": None,
         "resume_noop": bool(resume and not pending and not failures),
         "recovered_after_interruption": True,
     }

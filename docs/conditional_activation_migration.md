@@ -253,10 +253,11 @@ run 搜索得比 cold run 更深。分别记录：
 和 pending 项，并拒绝配置、数据、源码或 protocol 身份变化。若所有 outcome 已
 成功，resume 在创建模型客户端和协议探针之前返回，模型调用为零。
 
-基础设施连接中断会先保存当前失败，并在原任务上执行下面的有界恢复；只有重试
-预算耗尽或故障被明确标为不可重试时才停止本次 attempt，其余任务继续保持
-pending，避免把同一服务故障重复花费在所有题上。失败仍在原计划分母中，不能
-删除后只按成功任务计算准确率。
+基础设施连接中断会先保存当前失败，并在原任务上执行下面的有界恢复。当前
+“方法×题”重试预算耗尽后，该任务保留为权威 failed outcome，但 worker 继续
+下一个计划任务，不再让一个稳定的输入相关 500 阻断其余数据。失败仍在原
+计划分母中，不能删除后只按成功任务计算准确率。pointwise service probe 则
+仍是每个 execution attempt 启动前的全局门禁：它失败时不进入批量任务。
 
 服务韧性分为互不混淆的三层：
 
@@ -265,7 +266,7 @@ pending，避免把同一服务故障重复花费在所有题上。失败仍在�
    408/425/429 和 5xx 最多发起 4 次物理请求。默认等待为 0.5、1、2 秒；若服务
    返回可解析的 `Retry-After`，等待可提高但最多采用 30 秒。除下面的 pointwise
    批次降级外，其他永久 4xx 只请求一次，标为 `retryable=false`，不会进入任务级
-   重试。
+   重试；若它发生在正式任务中，该任务会在这一次失败后直接跳过。
 2. 冻结 reranker 的契约为 pointwise，因此 413/422 可在第一次失败后直接把当前
    文档批次二分；500 则在该批次的 4 次 transport 请求仍失败后二分。子批次保持
    原索引并继续二分，直到成功或单文档仍失败。根批次一旦进入二分，所有层级的
@@ -275,18 +276,24 @@ pending，避免把同一服务故障重复花费在所有题上。失败仍在�
    重复扣除逻辑 scored-set、search 或 selection 配额。
 3. pointwise service probe 与当前“方法×题”任务分别执行有界重试。正式配置的
    `infrastructure_task_max_attempts=3`、初始等待 15 秒、倍率 4，因此三次执行之间
-   只等待 15 和 60 秒。第三次仍失败便打开 circuit、结束本次 execution attempt，
-   并让尚未开始的任务保持 pending；永久 4xx 等显式不可重试故障会立即打开
-   circuit，不等待 15 秒。等待可被 `SIGTERM`/`SIGINT` 中断并按可恢复终态落盘。
+   只等待 15 和 60 秒。任务第三次仍失败时写入
+   `infrastructure_task_skipped`，保留 failed outcome 并继续下一任务。永久 4xx 等显式
+   不可重试的任务故障只执行一次便直接跳过，不等待 15 秒。service probe 若在
+   自身重试预算后仍失败，仍写入 `infrastructure_circuit_opened` 并结束当前 execution
+   attempt；在启动探针尚未通过时不进入正式任务。等待可被 `SIGTERM`/`SIGINT`
+   中断并按可恢复终态落盘。
 
 `events.jsonl` 与 `train.log` 记录
 `infrastructure_retry_scheduled`、`infrastructure_retry_wait_completed`、
-`infrastructure_retry_recovered` 和 `infrastructure_circuit_opened`；事件包含
-`scope`、当前/下一 attempt、等待秒数、剩余次数、`retryable` 与 circuit 状态。
+`infrastructure_retry_recovered`、`infrastructure_task_skipped` 和
+`infrastructure_circuit_opened`；事件包含 `scope`、当前/下一 attempt、等待秒数、剩余次数、
+`retryable` 与后续动作。`infrastructure_task_skipped` 还记录下一任务身份及本次 attempt
+累计跳过数。
 每次失败仍追加到 `failures.jsonl`；探针的每次结果另保存在
 `service_probes.jsonl`，最新值原子写入 `service_probe.json`。任务结果与周期进度
-区分 `tasks_attempted_this_attempt`、`unique_tasks_attempted_this_attempt` 和
-`task_retries_this_attempt`。集合评分成本中的 `reranker_transport` 进一步区分
+区分 `tasks_attempted_this_attempt`、`unique_tasks_attempted_this_attempt`、
+`task_retries_this_attempt` 和 `tasks_skipped_this_attempt`。集合评分成本中的
+`reranker_transport` 进一步区分
 `logical_calls`/`logical_documents`、`batch_requests`/`batch_documents`、
 `transport_attempts`/`transport_document_attempts`、`failed_batch_requests`、
 `split_events`、`split_recovered_calls` 与 `failed_calls`，因此恢复性流量不会被误报
@@ -297,8 +304,11 @@ pending，避免把同一服务故障重复花费在所有题上。失败仍在�
 30 秒刷新 active-task heartbeat。10/25 的周期按本 execution attempt 内首次处理的
 unique `method×question` 计数；同一任务的基础设施 retry 不推进周期。进度和指标
 仍分别报告 `tasks_attempted_this_attempt`（单位为 executor invocation）、
-`unique_tasks_attempted_this_attempt` 与 `task_retries_this_attempt`，因此 cadence
-稳定而额外工作量保持可见。resume 后这些区间计数在新 attempt 内重新开始。
+`unique_tasks_attempted_this_attempt`、`task_retries_this_attempt` 与
+`tasks_skipped_this_attempt`，因此 cadence 稳定而额外工作量保持可见。resume 后这些
+区间计数在新 attempt 内重新开始。成功 outcome 始终跳过，只补跑 failed 和 pending
+任务。当所有计划任务都有 outcome 但仍有失败时，终态为 `completed_with_failures`；worker
+返回 0，后台状态为 `completed`，但失败数与分母下界仍明确保留。
 `optimizer_steps=0`、`weights_updated=false`，日志不伪装训练步骤。
 
 ## 8. Linux / 910B 运行
@@ -364,31 +374,33 @@ run directory，关闭 SSH 不影响 detached worker；`resume`
 使用自定义 venv/state/output 时，一键入口在成功输出中给出带绝对路径环境变量的
 可复制管理命令，避免新 shell 或重新登录后误用系统 Python。
 
-本次韧性策略同时改变源码身份和正式配置身份；旧 run 的冻结 manifest 因而不能
-由新版本 `resume`，身份校验会在模型调用前拒绝它。服务器不得删除或覆盖旧
-`outputs/background`、旧 run directory 或 `outputs/cache`。保留它们用于审计，
-并让内容寻址的模型缓存继续按自身 key 校验；新版本应使用隔离的后台状态和输出根
-启动一个全新 run：
+本次“失败任务跳过后继续”策略改变源码身份；旧 run 的冻结 manifest 因而不能由
+新版本 `resume`，身份校验会在模型调用前拒绝它。手动上传新 tar 时不要删除旧项目
+目录；保留私有 `configs/credentials.local.yaml`、`.venv` 和 `outputs`，再把不含这些
+路径的新包解压到原项目目录中替换源码。不要覆盖旧 `outputs/background`、旧 run directory
+或 `outputs/cache`；保留它们用于审计，并让内容寻址的模型缓存继续按自身 key 校验。
+核对新包 SHA-256 后可按下面方式覆盖包内源码并启动全新 run：
 
 ```bash
-BACKGROUND_STATE_DIR=outputs/background-resilient \
-OUTPUT_DIR=outputs/chain-resilient \
+cd ~/bt/bridge-tree-chain
+tar -xzf ../bridge-tree-chain.tar.gz -C .
+export BACKGROUND_STATE_DIR="$PWD/outputs/background-skip-failed"
+export OUTPUT_DIR="$PWD/outputs/chain-skip-failed"
 bash scripts/start_chain_linux.sh configs/chain_full.yaml
 ```
 
 后续管理命令必须带相同变量，例如：
 
 ```bash
-BACKGROUND_STATE_DIR=outputs/background-resilient \
-OUTPUT_DIR=outputs/chain-resilient \
+export BACKGROUND_STATE_DIR="$PWD/outputs/background-skip-failed"
+export OUTPUT_DIR="$PWD/outputs/chain-skip-failed"
 bash scripts/run_chain.sh status
 
-BACKGROUND_STATE_DIR=outputs/background-resilient \
-OUTPUT_DIR=outputs/chain-resilient \
 bash scripts/run_chain.sh module-log effectiveness-current
 ```
 
-这里应执行 `start` 创建新 run，而不是把新源码指向旧目录执行 `resume`。
+新登录 shell 不会保留 `export`，每次管理该任务前都必须设置相同的两个变量。这里应
+执行 `start` 创建新 run，而不是把新源码指向旧状态目录执行 `resume`。
 
 服务器包：
 

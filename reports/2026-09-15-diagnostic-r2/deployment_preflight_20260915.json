@@ -1,0 +1,65 @@
+{
+  "checked_at_utc": "2026-09-15T15:33:40.187002+00:00",
+  "kind": "read_only_deployment_metadata_preflight",
+  "diagnostic_manifest_id": "cc9016296f32e9076107b95f2ec301b28ed29ba3dd0fa046dd354a54083c1667",
+  "source_matches_manifest": true,
+  "deployment_override": null,
+  "metadata_get_attempts": 3,
+  "timeout_seconds_per_request": 5,
+  "automatic_redirects_enabled": false,
+  "model_inference_requests": 0,
+  "diagnostic_budget_consumed": false,
+  "queries_or_memories_transmitted": false,
+  "results": [
+    {
+      "role": "embedding",
+      "configured_model_alias": "qwen3-embedding-8b",
+      "method": "GET",
+      "path": "/v1/models",
+      "endpoint_sha256": "b28b98918e92a1369ceff290f0ddd63a4531ca99f29729b0aee4e90973aac97c",
+      "status": "timeout",
+      "http_status": null,
+      "verified_deployment_identity": null
+    },
+    {
+      "role": "reranker",
+      "configured_model_alias": "",
+      "method": "GET",
+      "path": "/openapi.json",
+      "endpoint_sha256": "0f4bf211ca62ab4bb885b8c00481759528c35285d8c88e931defbe2636fec129",
+      "status": "timeout",
+      "http_status": null,
+      "verified_deployment_identity": null
+    },
+    {
+      "role": "generator",
+      "configured_model_alias": "deepseek-v4-flash",
+      "method": "GET",
+      "path": "/v1/models",
+      "endpoint_sha256": "d3407d31b9401872116425bf8e8c02fa40befb7524e2b1b02adcc77b616b70c8",
+      "status": "timeout",
+      "http_status": null,
+      "verified_deployment_identity": null
+    }
+  ],
+  "local_evidence_audit": {
+    "scope": ["configs", "docs", "scripts", "README.md", "/Users/mao/chain-audit-full.tgz", "/Users/mao/chain-audit-detail.tgz"],
+    "checkpoint_or_weights_or_deployment_revision_found": false,
+    "quantization_or_tokenizer_deployment_evidence_found": false,
+    "actual_model_serving_command_found": false,
+    "client_alias_sources": ["configs/default.yaml", "chain-audit-full.tgz::resolved_config.json"],
+    "non_model_hashes_not_used_as_deployment_identity": true,
+    "service_probe_archive_contains_model_identity": false
+  },
+  "limitations": [
+    "A five-second metadata query timeout does not prove that a model inference service is down.",
+    "The reranker OpenAPI path is a conventional metadata probe, not a confirmed supported route.",
+    "Client aliases, code hashes and configuration hashes cannot establish a checkpoint or deployment revision.",
+    "These three read-only GET attempts are outside the frozen diagnostic inference experiment; its physical inference attempt count remains zero."
+  ],
+  "required_external_information": [
+    "Per-service actual checkpoint revision, weights checksum or deployment revision with its source.",
+    "Confirmation of a runtime environment able to access the configured services.",
+    "Confirmation that deployments remain frozen during the diagnostic run."
+  ]
+}

@@ -3,12 +3,14 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import urllib.error
 from dataclasses import replace
 
 import numpy as np
 import pytest
 
-from bridgetree.clients import RerankItem
+from bridgetree.clients import RerankerClient, RerankItem
+from bridgetree.config import EndpointConfig
 from bridgetree.dependency_config import (
     DependencyConfig,
     DependencyExecutionConfig,
@@ -1167,7 +1169,7 @@ def test_progress_cadence_counts_unique_tasks_not_retry_invocations(
     ) == 1
 
 
-def test_non_retryable_task_transport_failure_stops_without_sleep(
+def test_non_retryable_task_transport_failure_skips_without_sleep(
     monkeypatch, tmp_path
 ):
     import bridgetree.dependency_experiment as experiment_module
@@ -1178,7 +1180,7 @@ def test_non_retryable_task_transport_failure_stops_without_sleep(
         error=NonRetryableTransportError(
             "request failed after 1 transport attempt: HTTP status 401"
         ),
-        fail_count=10,
+        fail_count=1,
     )
     run_dir = tmp_path / "task-non-retryable"
 
@@ -1191,12 +1193,14 @@ def test_non_retryable_task_transport_failure_stops_without_sleep(
         generator=generator,
     )
 
-    assert result["status"] == "interrupted"
-    assert result["tasks_attempted_this_attempt"] == 1
+    assert result["status"] == "completed_with_failures"
+    assert result["tasks_attempted_this_attempt"] == 2
+    assert result["tasks_skipped_this_attempt"] == 1
+    assert result["summary"]["successful_tasks"] == 1
     assert result["summary"]["failed_tasks"] == 1
-    assert result["summary"]["pending_tasks"] == 1
+    assert result["summary"]["pending_tasks"] == 0
     assert waits == []
-    assert len(generator.calls) == 1
+    assert len(generator.calls) == 2
     failure = json.loads((run_dir / "failures.jsonl").read_text().splitlines()[0])
     assert failure["infrastructure_failure"] is True
     assert failure["retryable"] is False
@@ -1207,10 +1211,15 @@ def test_non_retryable_task_transport_failure_stops_without_sleep(
     assert not any(
         row["event"] == "infrastructure_retry_scheduled" for row in events
     )
-    opened = next(
-        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    skipped = next(
+        row for row in events if row["event"] == "infrastructure_task_skipped"
     )
-    assert opened["reason"] == "non_retryable_infrastructure_failure"
+    assert skipped["reason"] == "non_retryable_infrastructure_failure"
+    assert skipped["failed_attempts"] == 1
+    assert skipped["circuit_state"] == "closed"
+    assert not any(
+        row["event"] == "infrastructure_circuit_opened" for row in events
+    )
 
 
 def test_interrupt_during_task_retry_wait_is_finalized_and_resumable(
@@ -1273,7 +1282,7 @@ def test_interrupt_during_task_retry_wait_is_finalized_and_resumable(
     assert resumed["summary"]["successful_tasks"] == 2
 
 
-def test_transport_outage_retries_current_task_then_leaves_rest_pending(
+def test_transport_outage_exhausts_each_task_then_finishes_with_failures(
     monkeypatch, tmp_path
 ):
     import bridgetree.dependency_experiment as experiment_module
@@ -1300,39 +1309,54 @@ def test_transport_outage_retries_current_task_then_leaves_rest_pending(
         reranker=FakeReranker(),
         generator=generator,
     )
-    assert first["status"] == "interrupted"
-    assert first["summary"]["failed_tasks"] == 1
-    assert first["summary"]["pending_tasks"] == 1
-    assert first["tasks_attempted_this_attempt"] == 3
-    assert first["unique_tasks_attempted_this_attempt"] == 1
-    assert first["task_retries_this_attempt"] == 2
-    assert len(generator.calls) == 3
-    assert waits == [15.0, 60.0]
-    assert len(list((run_dir / "outcomes").glob("*.json"))) == 1
-    failed_outcome = json.loads(
-        next((run_dir / "outcomes").glob("*.json")).read_text()
-    )
-    assert failed_outcome["attempt"] == 3
-    assert failed_outcome["status"] == "error"
-    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 3
+    assert first["status"] == "completed_with_failures"
+    assert first["stop_reason"] is None
+    assert first["summary"]["failed_tasks"] == 2
+    assert first["summary"]["pending_tasks"] == 0
+    assert first["summary"]["successful_tasks"] == 0
+    assert first["summary"]["expected_tasks"] == 2
+    assert first["summary"]["final_accuracy"] == 0.0
+    assert first["tasks_attempted_this_attempt"] == 6
+    assert first["unique_tasks_attempted_this_attempt"] == 2
+    assert first["task_retries_this_attempt"] == 4
+    assert first["tasks_skipped_this_attempt"] == 2
+    assert len(generator.calls) == 6
+    assert waits == [15.0, 60.0, 15.0, 60.0]
+    outcomes = [
+        json.loads(path.read_text()) for path in (run_dir / "outcomes").glob("*.json")
+    ]
+    assert len(outcomes) == 2
+    assert all(row["attempt"] == 3 and row["status"] == "error" for row in outcomes)
+    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 6
+    assert (run_dir / "predictions.jsonl").read_text() == ""
     events = [
         json.loads(line)
         for line in (run_dir / "events.jsonl").read_text().splitlines()
     ]
     assert len(
         [row for row in events if row["event"] == "infrastructure_retry_scheduled"]
-    ) == 2
-    opened = next(
-        row for row in events if row["event"] == "infrastructure_circuit_opened"
+    ) == 4
+    skipped = [
+        row for row in events if row["event"] == "infrastructure_task_skipped"
+    ]
+    assert len(skipped) == 2
+    assert all(row["scope"] == "task" for row in skipped)
+    assert all(row["failed_attempts"] == row["max_attempts"] == 3 for row in skipped)
+    assert all(row["reason"] == "retry_budget_exhausted" for row in skipped)
+    assert skipped[0]["next_task_id"] == skipped[1]["task_id"]
+    assert skipped[1]["next_task_id"] is None
+    assert not any(
+        row["event"] == "infrastructure_circuit_opened" for row in events
     )
-    assert opened["scope"] == "task"
-    assert opened["failed_attempts"] == 3
     metrics = [row for row in events if row["event"] == "method_metrics"]
-    assert len(metrics) == 1
+    assert len(metrics) == 2
     assert metrics[0]["checkpoint"] == "periodic"
     assert metrics[0]["aggregate"]["failed_tasks"] == 1
+    assert metrics[1]["aggregate"]["failed_tasks"] == 2
+    assert metrics[1]["tasks_skipped_this_attempt"] == 2
     train_log = (run_dir / "train.log").read_text()
-    assert train_log.count("event=inference_progress") == 1
+    assert train_log.count("event=inference_progress") == 2
+    assert train_log.count('"event": "infrastructure_task_skipped"') == 2
     assert "tasks_attempted_unit=executor_invocation" in train_log
     assert "progress_cadence_unit=unique_method_x_question" in train_log
 
@@ -1347,8 +1371,185 @@ def test_transport_outage_retries_current_task_then_leaves_rest_pending(
     )
     assert resumed["status"] == "completed"
     assert resumed["summary"]["successful_tasks"] == 2
+    assert resumed["tasks_skipped_this_attempt"] == 0
+    assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 6
+    assert len((run_dir / "predictions.jsonl").read_text().splitlines()) == 2
+
+
+def test_exhausted_task_is_skipped_next_succeeds_and_resume_only_retries_failure(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr("bridgetree.dependency_experiment.time.sleep", lambda _seconds: None)
+    config = fake_config(tmp_path, ("dense",))
+    run_dir = tmp_path / "skip-then-resume"
+    generator = FakeGenerator(error=ConnectionError("bad request input"), fail_count=3)
+    items = [example("q1"), example("q2")]
+
+    first = run_dependency_experiment(
+        config,
+        run_dir,
+        examples=items,
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=generator,
+    )
+
+    assert first["status"] == "completed_with_failures"
+    assert first["stop_reason"] is None
+    assert first["tasks_attempted_this_attempt"] == 4
+    assert first["unique_tasks_attempted_this_attempt"] == 2
+    assert first["task_retries_this_attempt"] == 2
+    assert first["tasks_skipped_this_attempt"] == 1
+    assert first["summary"]["failed_tasks"] == 1
+    assert first["summary"]["successful_tasks"] == 1
+    assert first["summary"]["pending_tasks"] == 0
+    assert first["summary"]["final_accuracy"] == 0.5
+    assert len(generator.calls) == 4
+    outcomes = {
+        row["task"]["question_id"]: row
+        for path in (run_dir / "outcomes").glob("*.json")
+        for row in [json.loads(path.read_text())]
+    }
+    assert outcomes["q1"]["attempt"] == 3
+    assert outcomes["q1"]["status"] == "error"
+    assert outcomes["q2"]["attempt"] == 1
+    assert outcomes["q2"]["status"] == "success"
+    events = [
+        json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    skipped = next(row for row in events if row["event"] == "infrastructure_task_skipped")
+    assert skipped["task_id"] == outcomes["q1"]["task"]["task_id"]
+    assert skipped["next_task_id"] == outcomes["q2"]["task"]["task_id"]
+    assert skipped["action"] == "continue_to_next_task"
+    assert skipped["circuit_state"] == "closed"
+    assert skipped["error"] == "bad request input"
+    completion = json.loads((run_dir / "completion.json").read_text())
+    assert completion["status"] == "completed_with_failures"
+    assert json.loads((run_dir / "heartbeat.json").read_text())["active"] is False
+
+    resumed_generator = FakeGenerator()
+    resumed = run_dependency_experiment(
+        config,
+        run_dir,
+        resume=True,
+        examples=items,
+        embedder=FakeEmbedder(),
+        reranker=FakeReranker(),
+        generator=resumed_generator,
+    )
+
+    assert resumed["status"] == "completed"
+    assert resumed["tasks_attempted_this_attempt"] == 1
+    assert resumed["tasks_skipped_this_attempt"] == 0
+    assert resumed["summary"]["successful_tasks"] == 2
+    assert resumed["summary"]["failed_tasks"] == 0
+    assert len(resumed_generator.calls) == 1
+    updated = {
+        row["task"]["question_id"]: row
+        for path in (run_dir / "outcomes").glob("*.json")
+        for row in [json.loads(path.read_text())]
+    }
+    assert updated["q1"]["attempt"] == 4
+    assert updated["q1"]["status"] == "success"
+    assert updated["q2"] == outcomes["q2"]
     assert len((run_dir / "failures.jsonl").read_text().splitlines()) == 3
     assert len((run_dir / "predictions.jsonl").read_text().splitlines()) == 2
+
+
+def test_real_reranker_singleton_500_is_skipped_after_three_task_attempts(
+    monkeypatch, tmp_path
+):
+    class JsonResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    class InputDependentOpener:
+        def __init__(self):
+            self.requests = []
+
+        def open(self, request, timeout):
+            payload = json.loads(request.data)
+            self.requests.append(payload)
+            if payload["query"] == "POISON reranker input":
+                raise urllib.error.HTTPError(
+                    request.full_url, 500, "Internal Server Error", None, None
+                )
+            return JsonResponse({
+                "results": [
+                    {"index": index, "relevance_score": FakeReranker.score(document)}
+                    for index, document in enumerate(payload["documents"])
+                ]
+            })
+
+    opener = InputDependentOpener()
+    waits = []
+    monkeypatch.setattr("bridgetree.clients.urllib.request.build_opener", lambda *_args: opener)
+    monkeypatch.setattr("bridgetree.clients.time.sleep", waits.append)
+    config = fake_config(tmp_path, ("dense_rerank", "dense"))
+    run_dir = tmp_path / "singleton-500"
+    reranker = RerankerClient(EndpointConfig(endpoint="http://rerank.invalid"))
+    generator = FakeGenerator()
+    result = run_dependency_experiment(
+        config,
+        run_dir,
+        examples=[
+            example("q1"),
+            replace(example("q2"), query="POISON reranker input"),
+            example("q3"),
+        ],
+        embedder=FakeEmbedder(),
+        reranker=reranker,
+        generator=generator,
+    )
+
+    assert result["status"] == "completed_with_failures"
+    assert result["stop_reason"] is None
+    assert result["tasks_attempted_this_attempt"] == 8
+    assert result["unique_tasks_attempted_this_attempt"] == 6
+    assert result["task_retries_this_attempt"] == 2
+    assert result["tasks_skipped_this_attempt"] == 1
+    assert result["summary"]["successful_tasks"] == 5
+    assert result["summary"]["failed_tasks"] == 1
+    assert result["summary"]["pending_tasks"] == 0
+    assert len(generator.calls) == 5
+    assert [delay for delay in waits if delay >= 15] == [15.0, 60.0]
+    singleton_failures = [
+        request
+        for request in opener.requests
+        if request["query"] == "POISON reranker input"
+        and len(request["documents"]) == 1
+    ]
+    assert len(singleton_failures) == 3
+    assert reranker.transport_stats["failed_calls"] == 3
+    assert reranker.transport_stats["split_events"] == 3
+    failures = [
+        json.loads(line) for line in (run_dir / "failures.jsonl").read_text().splitlines()
+    ]
+    assert [row["attempt"] for row in failures] == [1, 2, 3]
+    assert all(row["error_type"] == "HTTPTransportError" for row in failures)
+    assert all("HTTP status 500" in row["error"] for row in failures)
+    events = [
+        json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()
+    ]
+    skipped = next(row for row in events if row["event"] == "infrastructure_task_skipped")
+    assert skipped["question_id"] == "q2"
+    assert skipped["method_id"] == "dense_rerank"
+    next_success = next(
+        row for row in events
+        if row["event"] == "task_success" and row["task_id"] == skipped["next_task_id"]
+    )
+    assert next_success["question_id"] == "q2"
+    assert next_success["method_id"] == "dense"
+    assert not any(row["event"] == "infrastructure_circuit_opened" for row in events)
 
 
 def test_keyboard_interrupt_finalizes_resumable_attempt(tmp_path):

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>BridgeTree 后台诊断服务</title><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#172b3b;font:10.3pt/1.55 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif}.page{width:210mm;height:297mm;padding:16mm 18mm;position:relative;break-after:page}.page:last-child{break-after:auto}.content{height:252mm}h1{font-size:23pt;line-height:1.2;margin:0 0 7mm;color:#174a65}h2{font-size:13pt;margin:5mm 0 2mm}p{margin:3mm 0}.subtitle{color:#5a7384}aside{background:#eaf3f6;border-left:3px solid #2c8199;padding:4mm;margin:4mm 0}pre{font:9pt/1.6 Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f5f6;padding:3mm}table{width:100%;border-collapse:collapse;font-size:9.4pt;margin:4mm 0}td,th{text-align:left;padding:2mm;border-bottom:1px solid #d9e1e5;overflow-wrap:anywhere}th{background:#e9f0f4}li{margin:2mm 0}ol{padding-left:6mm}.small{font-size:8pt;overflow-wrap:anywhere;color:#61798b}.footer{position:absolute;left:18mm;right:18mm;bottom:10mm;border-top:1px solid #cddbe3;padding-top:2mm;font-size:8pt;color:#61798b;display:flex;justify-content:space-between}#layout-qa{display:none}</style></head><body><section class="page"><div class="content"><h1>服务器一键后台诊断</h1>
+<p class="subtitle">BridgeTree · PR1–PR4 · 2026-09-16 操作补充</p>
+<aside>本服务执行无训练诊断，不更新模型权重。默认是 28 个集合评分、310 个生成 trial 和 12 次根顺序搜索消融；不是原 589 题 × 5 方法全量评测。</aside>
+<h2>首次上传与配置</h2>
+<p>上传完整源码，不上传本机虚拟环境。服务器须有 Python ≥ 3.9 和 venv；另行放置两份 chain-audit 归档，以及相同 revision 的 PersonaMem-v1 32k questions / shared_contexts 文件。</p>
+<pre>cp configs/diagnostic_28.yaml configs/diagnostic_28.server.yaml</pre>
+<p>编辑 server 副本的归档和数据路径；相对路径按 YAML 所在目录解析。保留归档 SHA。根据部署示例创建私有覆盖文件，将 deployment_override 指向它，填写三个服务的真实 endpoint、模型与部署 revision / 身份来源。未知身份不能编造。</p>
+<h2>准备好配置后，一条命令启动</h2>
+<pre>bash scripts/start_diagnostics_linux.sh   configs/diagnostic_28.server.yaml</pre>
+<p>首次自动创建独立 .venv-diagnostics，安装基础依赖，然后启动独立会话中的后台管理器与工作进程。命令返回后可以退出 SSH；不需要再加 nohup 或 &amp;。安装完成、后台启动信息返回之前，仍须保持终端连接。</p>
+<p>新运行自动冻结输入与调用预算，按历史分析 → 新评分 → 重复生成 → 事后评价 → 根消融 → 报告执行。正式模型调用前核对三个服务身份。门禁失败会保留失败状态，不冒充实验完成。</p>
+<h2>仅检查离线链路</h2>
+<pre>bash scripts/start_diagnostics_linux.sh   configs/diagnostic_28.server.yaml --offline</pre>
+<p>离线模式不发 embedding、reranker 或 generator 请求；它不验证真实服务连通性。完整准备步骤见 docs/diagnostic_runbook.md。</p>
+</div><div class="footer"><span>BridgeTree · 后台诊断服务</span><span>1 / 4</span></div></section><section class="page"><div class="content"><h1>后台管理与续跑</h1>
+<h2>日常命令：在仓库根目录执行</h2>
+<pre>bash scripts/run_diagnostics.sh status
+bash scripts/run_diagnostics.sh log
+bash scripts/run_diagnostics.sh module-log --module selection
+bash scripts/run_diagnostics.sh module-log --module activation
+bash scripts/run_diagnostics.sh stop
+bash scripts/run_diagnostics.sh resume</pre>
+<p>log / module-log 使用 tail -F 持续跟踪。Ctrl-C 只退出日志查看，不停止后台任务。stop 验证登记进程身份后请求优雅中断；等待 status 进入终态再 resume。</p>
+<h2>续跑不等于重新测一遍</h2>
+<p>同一 manifest 下成功 trial 和终止失败直接恢复，未用完且允许继续的尝试才续跑。物理请求额度从持久记录恢复，不因重启清零；错误答案不触发重试。若需要新增实验，应使用新目录重新冻结，不能覆盖旧结果。</p>
+<p>离线创建的运行，若配置与身份本来就已冻结为可执行部署，可显式 resume --online。若补填身份或修改了源码、配置、数据，必须新建运行，不能靠 resume 绕过漂移门禁。</p>
+<h2>路径与状态</h2>
+<pre>默认状态目录：outputs/background-diagnostics
+默认运行目录：outputs/diagnostics/diagnostic_时间_随机ID
+固定总日志：outputs/background-diagnostics/diagnostics.log
+运行目录指针：outputs/background-diagnostics/diagnostics.run_dir</pre>
+<p>可用 DIAGNOSTIC_STATE_DIR / DIAGNOSTIC_RUN_ROOT 指定独立目录，BRIDGETREE_VENV_DIR 指定 bootstrap 环境。启动输出包含带实际路径、运行 Python 的完整管理命令；自定义路径时直接复用它们。</p>
+<aside>保护边界：活跃任务不重复启动；坏状态、残缺虚拟环境和安装锁保守拒绝。后台脱离终端不等于开机自启，也不能绕过集群调度器或系统强制清理策略。</aside>
+</div><div class="footer"><span>BridgeTree · 后台诊断服务</span><span>2 / 4</span></div></section><section class="page"><div class="content"><h1>用日志定位下一步修改点</h1>
+<p>每个观测关联 run / phase / question / trial / attempt。modules/events.jsonl 汇总全部模块，各模块还单独追加写文件；模块事件即时刷新并持久化。请求正文和历史文本不进入这些观测日志。</p>
+<table><thead><tr><th>文件（相对运行目录）</th><th>重点看什么</th></tr></thead><tbody><tr><td>modules/proposal.jsonl</td><td>候选 IDs、检索域、ANN 计数；新发现了什么</td></tr><tr><td>modules/activation.jsonl</td><td>P / Pe / PG / PGe、交互值、是否入队；不是答案增益</td></tr><tr><td>modules/state.jsonl</td><td>target_id、深度、root pop、优先级；预算是否集中</td></tr><tr><td>modules/selection.jsonl</td><td>每轮比较、base / combined score、边际、可行性与入选</td></tr><tr><td>modules/stop.jsonl</td><td>预算耗尽、无正边际或执行错误；不要混为一类</td></tr><tr><td>modules/context.jsonl</td><td>最终 IDs、context / request hash、token 数与估算标记</td></tr><tr><td>requests.jsonl / attempts.jsonl</td><td>HTTP 状态、重试/拆批、物理额度、失败阶段</td></tr></tbody></table>
+<h2>四条诊断路线</h2>
+<ol><li>候选已在，但被负边际拒绝：对齐 28 格点评分和重复生成。只有补入历史稳定改善回答却降低 R，才形成直接的局部目标错位证据。</li>
+<li>大部分状态围绕少数 target：看 root_coverage 与 max_target_state_share，再比较全部预声明根顺序。低根覆盖不等于其他记忆从未作为 premise 或候选出现。</li>
+<li>ANN 多、外部候选多，最终 IDs 仍一样：检查 external_selected_count 与跨 seed 的最终集合 hash。发现候选和使用证据是两个环节。</li>
+<li>任务在生成前 HTTP500：先看请求身份、文档 hash、真实 token 可得性与服务错误。不能归因于生成模型能力，也不能用重试次数当独立样本。</li></ol>
+<p>相关性正信号、更多 bundle、更多调用均不是有效性证明。最终仍须用受控反事实和同配置生成验证。</p>
+</div><div class="footer"><span>BridgeTree · 后台诊断服务</span><span>3 / 4</span></div></section><section class="page"><div class="content"><h1>进度口径与本机验收</h1>
+<h2>先看运行，再看效果</h2>
+<p>run.log / runtime.jsonl 记录阶段、异常和心跳；默认每 5 秒更新 progress.json。心跳只说明进程还能记录状态，不代表请求取得进展。module_diagnostics 汇总已落盘 root 结果；当前正在展开的细节看实时模块日志。</p>
+<p>每阶段 success + failed + pending + unknown = planned。这里 success 是程序成功执行，不是回答正确；HTTP 错误是执行失败。started / outcome_unknown 是可重叠的补充指标，不可再次加入分母。</p>
+<p>正确性只来自独立 evaluation.json；未执行时准确率为 null，不能报 0%。310 次技术重复来自三个事后案例，不是 310 个独立问题，也不是全量 benchmark 成绩。成本中阶段增量不与总量相加；估算 token 和逻辑输入不冒充账单 token。</p>
+<table><thead><tr><th>终态</th><th>含义</th></tr></thead><tbody><tr><td>offline_complete</td><td>只完成离线分析，线上任务仍待执行</td></tr><tr><td>completed</td><td>冻结诊断阶段均已执行</td></tr><tr><td>completed_with_failures</td><td>流程走完，但存在失败项目，须看明细</td></tr><tr><td>interrupted / failed</td><td>中断或流程故障；保留部分产物</td></tr></tbody></table>
+<h2>本次实际验收</h2>
+<table><thead><tr><th>检查项</th><th>结果</th></tr></thead><tbody><tr><td>当前工作树测试</td><td>562 tests；0 failures/errors</td></tr><tr><td>真实归档后台离线运行</td><td>offline_complete</td></tr><tr><td>恢复历史分数</td><td>24 / 28；保留缺口</td></tr><tr><td>真实模型服务调用</td><td>本机未执行</td></tr><tr><td>训练权重</td><td>weights_updated=false；optimizer_steps=0</td></tr></tbody></table>
+<p>测试涵盖假 HTTP 全流程、未知身份零调用、续跑幂等、审计失败中止、独立会话日志实时可见、重复启动与安全停止。开启观测前后旧算法产物和模型请求一致；新增持久化会有 I/O 开销。</p>
+<p>实际 Linux 服务器的服务可用性、SSH/集群生命周期和吞吐须在部署后确认。源码或服务变更后应新建 manifest，不能续跑本机冻结目录。</p>
+<p class="small">离线运行身份：a9df55e7fffad55756896aee606077b96e7e7c2ca49f25902e1887251cc5484b<br>详细日志解释：docs/background_diagnostics.md</p>
+</div><div class="footer"><span>BridgeTree · 后台诊断服务</span><span>4 / 4</span></div></section><pre id="layout-qa">[{"page":1,"overflowPx":0},{"page":2,"overflowPx":0},{"page":3,"overflowPx":0},{"page":4,"overflowPx":0}]</pre><script>window.addEventListener('load',()=>{document.getElementById('layout-qa').textContent=JSON.stringify(Array.from(document.querySelectorAll('.content')).map((p,i)=>({page:i+1,overflowPx:p.scrollHeight-p.clientHeight})));});</script></body></html>

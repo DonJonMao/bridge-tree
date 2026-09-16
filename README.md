@@ -114,29 +114,44 @@ the root batch enters this fallback, every child batch gets only one transport
 attempt, preventing four retries from multiplying at each split depth. These
 physical retries and splits do not consume additional logical scored-set or
 search budget. The service probe and each current task additionally have at
-most three execution attempts, with default waits of 15 and 60 seconds; after
-that, the circuit opens and leaves remaining tasks pending for operator
-inspection. Periodic progress and method metrics advance by unique
-`method×question` tasks, not retry invocations, while separately reporting
-executor invocations and retries. Retry events, attempt histories, and
-logical-versus-physical reranker counters are persisted in the normal run
-artifacts described below.
+most three execution attempts, with default waits of 15 and 60 seconds. A
+probe that exhausts this budget remains a whole-attempt guard and stops before
+task execution. A task that exhausts it instead emits
+`infrastructure_task_skipped`, keeps an authoritative failed outcome, and
+continues with the next `method×question`; an explicitly non-retryable 4xx is
+attempted once and skipped immediately. Periodic progress and method metrics
+advance by unique tasks, not retry invocations, while separately reporting
+executor invocations, retries, and `tasks_skipped_this_attempt`. Retry/skip
+events, attempt histories, and logical-versus-physical reranker counters are
+persisted in the normal run artifacts described below. Failed outcomes remain
+in the frozen denominator and cannot improve accuracy. If every planned task
+has an outcome but one or more failed, the run ends as
+`completed_with_failures`; the worker exits successfully and the detached job
+state is `completed`, while the failure counts remain explicit. A later
+`resume` skips successful outcomes and retries only failed or pending tasks.
 
 Source and resolved-configuration hashes are part of the frozen run identity,
-so a run created before this resilience policy cannot be resumed with the new
-source/configuration. Keep the old run directories and `outputs/cache` for
-audit and safe keyed cache reuse, and start the upgraded run under isolated
-state and output roots:
+so a run created before this skip-failed policy cannot be resumed with the new
+source/configuration. For a manual tar upload, keep the existing project
+directory and preserve its private `configs/credentials.local.yaml`, `.venv`,
+and `outputs`; the server bundle omits those paths, so extracting the new
+source over that directory leaves them in place. Keep old run directories and
+`outputs/cache` for audit and safe keyed cache reuse, then start the upgraded
+code under isolated state and output roots:
 
 ```bash
-BACKGROUND_STATE_DIR=outputs/background-resilient \
-OUTPUT_DIR=outputs/chain-resilient \
+cd ~/bt/bridge-tree-chain
+tar -xzf ../bridge-tree-chain.tar.gz -C .
+export BACKGROUND_STATE_DIR="$PWD/outputs/background-skip-failed"
+export OUTPUT_DIR="$PWD/outputs/chain-skip-failed"
 bash scripts/start_chain_linux.sh configs/chain_full.yaml
 ```
 
-Use the same two environment variables with subsequent `run_chain.sh`
-`status`, `log`, `module-log`, and `stop` commands. Do not use `resume` against
-the old run directory.
+Upload and checksum filenames may differ; verify the supplied SHA-256 before
+extracting. Use the same two environment variables with every subsequent
+`run_chain.sh` `status`, `log`, `module-log`, `resume`, and `stop` command,
+including after a new login. Do not point the new source at the old state
+directory or attempt to resume an old run.
 
 This run is train-free inference/evaluation, not model-weight training:
 `optimizer_steps=0` and `weights_updated=false`. The one-command Linux launcher
@@ -151,6 +166,8 @@ for the mathematical contract, resource accounting, artifacts, limitations,
 and all lifecycle commands. The preserved acceptance contract is in
 [the implementation goal](docs/conditional_activation_goal.md), with the
 [original supplied text](docs/conditional_activation_goal_source.txt) beside it.
+The 281-test offline verification of the skip-failed policy is recorded in
+[the skip-failed validation report](docs/skip_failed_validation.json).
 
 ## One implementation, runtime-controlled modules
 

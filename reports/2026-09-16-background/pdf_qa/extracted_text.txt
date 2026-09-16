@@ -1,0 +1,188 @@
+
+
+--- PAGE 1 ---
+服务器一键后台诊断
+BridgeTree · PR1–PR4 · 2026-09-16 操作补充
+本服务执行
+无训练诊断，不更新模型权重。默认是
+搜索消融；不是原 589 题 × 5 方法全量评测。
+28 个集合评分、310 个生成 trial 和 12 次根顺序
+首次上传与配置
+上传完整源码，不上传本机虚拟环境。服务器须有
+Python ≥ 3.9 和 venv；另行放置两份 chain-audit 归
+档，以及相同 revision 的 P
+ersonaMem-v1 32k questions / shared_contexts 文件。
+cp configs/diagnostic_28.yaml configs/diagnostic_28.server.yaml
+编辑 server 副本的归档和数据路径；相对路径按 YAML 所在目录解析。
+建私有覆盖文件，将 deployment_override
+指向它，填写三个服务的真实
+revision / 身份来源。未知
+身份不能编造。
+保留归档 SHA。根据部署示例创
+endpoint、模型与部署
+准备好配置后，一条命令启动
+bash scripts/start_diagnostics_linux.sh configs/diagnostic_28.server.yaml
+首次自动创建独立 .venv-diagnostics，安装基础依赖，然后启动独立会话中的后台管理器与工作进程。命
+令返回后可以退出 SSH；不需要再加 nohup 或 &。安装完成、后台启动信息
+返回之前，仍须保持终端连
+接。
+新运
+行
+行自动冻结输入与调用预算，按历史分析 → 新评分 → 重复生成 → 事后评价 → 根消融 → 报告执
+。正式
+模型调用前核对三个服务身份。门禁失败会保留失败状态，不冒
+充实验完成。
+仅检查离线链路
+bash scripts/start_diagnostics_linux.sh configs/diagnostic_28.server.yaml --offline
+离线
+模式不发 embedding、reranker 或 generator 请求；它不验证真实服务连通性。完整准备步骤见
+docs/diagnostic_runbook.md。
+BridgeTree · 后台诊断服务 1 / 4
+
+--- PAGE 2 ---
+后台管理与续跑
+日常命令：在仓库根目录执行
+bash scripts/run_diagnostics.sh status
+bash scripts/run_diagnostics.sh log
+bash scripts/run_diagnostics.sh module-log --module selection
+bash scripts/run_diagnostics.sh module-log --module activation
+bash scripts/run_diagnostics.sh stop
+bash scripts/run_diagnostics.sh resume
+log / module-log 使用 tail -F 持续跟踪。Ctrl-C 只退出日志查看，不停止后台任务。stop 验证登记进
+程身份后请求优雅中断；等待 status 进入终态再 resume
+。
+续跑不等于重新测一遍
+同一 manifest 下成功 trial 和终止失败直接恢复，未用完且允许继续的尝试才续跑。物理请求额度从持久
+清零；错误答案不触发
+重试。若需要新增实验，应使用新目录重新冻结，不能覆盖旧
+记录恢复，不因重启
+结果。
+离线创建的
+运
+行，若配置与身份本来就已冻结为可执行
+部署，可显式
+改
+了
+源码、配置、数据，必须新建运
+行，不能靠 resume 绕过漂移门禁。
+resume --online
+。若补填身份或修
+路径与状态
+默认状态目录：outputs/background-diagnostics
+默认运
+运
+行目录：outputs/diagnostics/diagnostic_时间_
+随机ID
+固定总日志：outputs/background-diagnostics/diagnostics.log
+行目录指针：outputs/background-diagnostics/diagnostics.run_dir
+可用 DIAGNOSTIC_STATE_DIR / DIAGNOSTIC_RUN_ROOT 指定独立目录，BRIDGETREE_VENV_DIR
+指定 bootstrap 环境。
+启动输出包含带实际路径、运
+行
+Python 的完整管理命令；自定义路径时直接复用
+它们
+。
+保护边界：活跃任务不重复启动；坏状态、残
+缺
+虚拟环境和安装锁保
+机自启，也不能绕过集群调度器
+系
+或
+统强制清理策略。
+守拒绝
+。后台脱离终端不等于开
+BridgeTree · 后台诊断服务 2 / 4
+
+--- PAGE 3 ---
+用日志定位下一步修改点
+每个观测关联 run / phase / question / trial / attempt。modules/events.jsonl 汇总全
+还单
+独追加写文件；模块事件即时刷新并持久化。请求正文和历史文本不进入这些观测日志。
+部模块，各模块
+文件（相对运
+行目录） 重点看什么
+modules/proposal.jsonl 候选 IDs、检索域、ANN 计数；新发现
+了
+什么
+modules/activation.jsonl P / P
+e / PG / PGe、交互值、是否入
+队；不是
+答案增益
+modules/state.jsonl target_id、深度、root pop、优先级；预算
+是否集中
+modules/selection.jsonl每轮比较、base / combined score、边际、可行性与入选
+modules/stop.jsonl 预算耗尽、无正边际或执行错误；不要混为一类
+modules/context.jsonl 最终 IDs、context / request hash、token 数与估
+算标记
+requests.jsonl / attempts.jsonl HTTP 状态、重试/拆批、物理额度、失败阶段
+四条诊断路线
+1. 候选已在，但被负边际拒绝：对齐 28 格点评分和重复生成。只有补入历史
+定改善回答却降低 R，才
+稳
+形成直接的局部目标错位证据。
+2. 大部分状态围绕少数 target：看 root_coverage 与 max_target_state_share，再比较全
+部预声明根顺
+序。低根覆盖不等于其他记忆从未作
+为 premise
+或候选出现。
+3. ANN 多、外部候选多，最终 IDs 仍一样：检查 external_selected_count 与跨 seed 的最终集合
+hash。
+发现候选和使用证据是
+两个环节。
+4. 任务在生成前 HTTP500：先看请求身份、文档 hash、真实 token 可得性与服务错误。不能归因于生
+成模型能力，也不能用重试次数当独立样本。
+相关性正信号、更多 bundle、更多调用均不是有
+效性证明。最终仍须用受控反事实和同配置生成验证。
+BridgeTree · 后台诊断服务 3 / 4
+
+--- PAGE 4 ---
+进度口径与本机验收
+先看运
+行，再看效果
+run.log / runtime.jsonl 记录阶段、异常和心跳；默认每 5 秒更新 progress.json。心跳只说明进程还能记
+录状态，不代表请求取得进展
+。module_diagnostics 汇总已落盘 root 结果；当前正在展开的细节看实时
+模块日志。
+每阶段 success + failed + pending + unknown = planned。这
+里 success 是程序成功执行，不是回答
+正确；HTTP 错误是执行失败。started / outcome_unknown 是可重叠的补充指标，不可再次加入分母。
+正确性只来自独立 evaluation.json；未执行时准确率为 null，不能报 0%。310 次技术重复来自三个事后
+案例，不是
+和逻辑输入不冒
+310 个独立问题，也不是全量 benchmark 成绩。成本中阶段增量不与总量相加；估
+token
+充账单
+token。
+算
+终态 含义
+offline_complete 只完成离线分析，线上任务仍待执行
+completed 冻结诊断阶段均
+已执行
+completed_with_failures 流程走完，但存在失败项目，须看明细
+interrupted / failed 中断或流程故障；保留部分产物
+本次实际验收
+检查项 结果
+当前工作
+树测试 562 tests；0 failures/errors
+真实归档后台离线
+行
+运
+offline_complete
+恢复历史分数 24 / 28；保留缺口
+真实模型服务调用 本机未执行
+训练权重 we
+ights_updated=false；optimi
+zer_steps=0
+测试涵盖假 HTTP
+全流程、未知
+动与安全停止。开启观测前后旧算
+身份零调用、续跑幂等、审计失败中止、独立会话日志实时可见、重复启
+法产物和模型请求一致；新增持久化会有 I/O 开销。
+实际 Linux 服务器的服务可用性、SSH/集群生命周期和吞吐须在部署后确认。源码或服务变更后应新建
+manifest，不能续跑本机冻结目录。
+离线
+行
+运
+身份：a9df55e7fffad55756896aee606077b96e7e7c2ca49f25902e1887251cc5484b
+详细日志解释：docs/background_diagnostics.md
+BridgeTree · 后台诊断服务 4 / 4

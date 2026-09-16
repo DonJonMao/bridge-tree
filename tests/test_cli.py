@@ -96,6 +96,25 @@ def test_chain_run_returns_nonzero_for_unsuccessful_terminal_status(monkeypatch,
     ) == 1
 
 
+def test_chain_run_finishes_with_failed_tasks_without_hiding_them(monkeypatch, tmp_path, capsys):
+    from bridgetree import dependency_experiment
+
+    result = {
+        "status": "completed_with_failures",
+        "summary": {"successful_tasks": 1, "failed_tasks": 1, "pending_tasks": 0},
+    }
+    monkeypatch.setattr(
+        dependency_experiment,
+        "run_dependency_experiment",
+        lambda *args, **kwargs: result,
+    )
+    assert main([
+        "chain-run", "--config", "configs/chain_full.yaml",
+        "--output-dir", str(tmp_path / "with-failures"),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out) == result
+
+
 def test_tune_has_a_legacy_train_alias():
     parser = build_parser()
     assert parser.parse_args(["tune"]).command == "tune"

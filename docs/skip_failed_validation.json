@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-09-14T12:31:50Z",
+  "status": "offline_validation_passed",
+  "scope": "Continue the task plan after per-task infrastructure retry exhaustion",
+  "base_commit": "39efab3dd547c522c22e3739d03e9b1904661567",
+  "source_code_hash": "3a55adcae46c4bd7a1231b55736c8d381f2eac0a8ef57e5470a94c4dd6757b0c",
+  "checks": [
+    {
+      "command": ".venv/bin/python -m pytest --tb=short --show-capture=no",
+      "passed": 281
+    },
+    {
+      "command": ".venv/bin/ruff check src tests scripts reference",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "command": "bash -n scripts/run_chain.sh scripts/start_chain_linux.sh scripts/package_chain_server.sh",
+      "status": "passed"
+    }
+  ],
+  "verified_behavior": [
+    "Retryable task errors exhaust three task attempts, retain an error outcome and continue with the next method_x_question",
+    "A plan in which every task fails still visits all tasks with independent retry budgets",
+    "Real RerankerClient and HTTP retry/bisection code with a mocked HTTP opener reaches singleton HTTP 500 three times and then executes later methods and questions",
+    "Skip events include failed task, attempts, error, next task and per-attempt skip count in main, events and stop logs",
+    "Failed tasks remain in the frozen accuracy denominator and never produce fabricated scores or predictions",
+    "Resume retries failed tasks and preserves successful outcomes and append-only failure history",
+    "Worker and CLI return zero for completed_with_failures, and the background monitor reports completed while completion artifacts retain failure status and counts",
+    "Explicitly non-retryable task errors are skipped after one attempt",
+    "Startup service probe and operator interruption handling retain their existing stop behavior"
+  ],
+  "full_data_preflight": {
+    "cli_and_worker_agree": true,
+    "questions": 589,
+    "expected_tasks": 2945,
+    "pending_tasks": 2945,
+    "model_calls": 0,
+    "inference_complete": false,
+    "config_hash": "ab7c1417e7f93f27ae43ea6dd0e9aadf523a7ef162ef5f5dabfad200b0b368bf",
+    "run_identity": "59da4e2ed5ab5a1ad33de975958f15a7c5e367d1c6d62b8b36442e4bdfb71527"
+  },
+  "real_endpoints_contacted": false,
+  "deployment_note": "An old run has a different source identity. Preserve existing credentials, venv and outputs; launch the upgraded source under new state/output roots. The historical validation_report.json describes the previous release."
+}

@@ -591,7 +591,9 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             signal.signal(signal.SIGTERM, previous_sigterm)
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result.get("status") in {"completed", "preflight_complete"} else 1
+        return 0 if result.get("status") in {
+            "completed", "completed_with_failures", "preflight_complete"
+        } else 1
     if args.command == "chain-plan":
         query_path = Path(args.queries)
         if not query_path.is_file():
