@@ -319,11 +319,15 @@ class HTTPTransportError(RuntimeError):
         status_code: int | None,
         retryable: bool,
         cause_type: str,
+        retry_budget_exhausted: bool = False,
+        error_metadata: Mapping[str, Any] | None = None,
     ) -> None:
         self.attempts = int(attempts)
         self.status_code = status_code
         self.retryable = bool(retryable)
         self.cause_type = str(cause_type)
+        self.retry_budget_exhausted = retry_budget_exhausted
+        self.error_metadata = dict(error_metadata or {})
         detail = (
             f"HTTP status {status_code}"
             if status_code is not None
@@ -338,11 +342,60 @@ class HTTPTransportError(RuntimeError):
     def batch_reducible(self) -> bool:
         """Whether reducing a pointwise batch can plausibly recover the call."""
 
-        # 413/422 commonly describe batch payload shape or size, while this
-        # deployment's 500 has been observed only for real multi-document
-        # reranker batches. Gateway/unavailable statuses (502/503/504) point
-        # to an endpoint-wide outage, so subdividing would only amplify load.
+        if (self.error_metadata.get("service_retryable") is False
+                or self.error_metadata.get("server_execution_unknown")):
+            return False
+        # Unknown legacy 413/422/500 may be batch-dependent. An explicit
+        # single-input capacity/format error cannot be repaired by splitting.
         return self.status_code in {413, 422, 500}
+
+
+def _http_error_metadata(exc: urllib.error.HTTPError) -> dict[str, Any]:
+    """Bounded structural response summary; never retain arbitrary echoed text."""
+    try:
+        raw = exc.read(65537) if exc.fp is not None else b""
+    except (OSError, http.client.HTTPException):
+        raw = b""
+    finally:
+        if exc.fp is not None:
+            exc.close()
+    result = _server_response_metadata(None, exc.headers)
+    server_id = result.get("server_request_id")
+    if not isinstance(server_id, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", server_id):
+        result["server_request_id"] = None
+    result.update(response_body_sha256=hashlib.sha256(raw[:65536]).hexdigest(),
+                  response_body_truncated=len(raw) > 65536,
+                  capacity_verification="unverified", actual_input_tokens=None)
+    try:
+        body = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return result
+    detail = body.get("detail", body.get("error", body)) if isinstance(body, dict) else {}
+    if not isinstance(detail, dict):
+        return result
+    if type(detail.get("retryable")) is bool:
+        result["service_retryable"] = detail["retryable"]
+    for source, target in (("code", "service_error_code"), ("reason", "service_error_reason"),
+                           ("error_type", "service_error_type"),
+                           ("upstream_error_code", "upstream_error_code"),
+                           ("upstream_error_type", "upstream_error_type"),
+                           ("upstream_reason", "upstream_reason"),
+                           ("upstream_request_id", "upstream_request_id"),
+                           ("proxy_request_id", "proxy_request_id"),
+                           ("token_count_source", "server_token_source")):
+        value = detail.get(source)
+        if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", value):
+            result[target] = value
+    for source, target in (("input_tokens", "actual_input_tokens"),
+                           ("document_index", "document_index"),
+                           ("reserved_output_tokens", "reserved_output_tokens"),
+                           ("effective_max_model_len", "effective_max_model_len")):
+        value = detail.get(source)
+        if type(value) is int and value >= 0:
+            result[target] = value
+    if result.get("actual_input_tokens") is not None and result.get("server_token_source"):
+        result["capacity_verification"] = "server_reported"
+    return result
 
 
 def _retryable_http_status(status_code: int) -> bool:
@@ -467,18 +520,29 @@ def _post_json_transport(
                 status_code = getattr(response, "status", 200)
         except urllib.error.HTTPError as exc:
             retryable = _retryable_http_status(exc.code)
-            error_metadata = _server_response_metadata(None, exc.headers)
+            error_metadata = _http_error_metadata(exc)
+            # Service declarations may stop retries, never turn a 4xx into
+            # a retryable failure merely by saying retryable=true.
+            if error_metadata.get("service_retryable") is False:
+                retryable = False
+            timeout_unknown = "documents" in payload and (
+                exc.code in {408, 504} or error_metadata.get("service_error_type") == "TimeoutError"
+            )
+            error_metadata["server_execution_unknown"] = timeout_unknown
             emit_request_event("http_attempt_failed", **{**physical, **error_metadata},
                                transport_attempt=attempt, status_code=exc.code,
                                cause_type=type(exc).__name__, retryable=retryable,
-                               batch_reducible=exc.code in {413, 422, 500},
+                               batch_reducible=exc.code in {413, 422, 500} and error_metadata.get("service_retryable") is not False and not timeout_unknown,
+                               retry_budget_exhausted=not retryable or timeout_unknown or attempt == max_attempts,
                                elapsed_ms=(time.perf_counter() - started) * 1000)
-            if not retryable or attempt == max_attempts:
+            if not retryable or timeout_unknown or attempt == max_attempts:
                 raise HTTPTransportError(
                     attempts=attempt,
                     status_code=exc.code,
                     retryable=retryable,
                     cause_type=type(exc).__name__,
+                    retry_budget_exhausted=True,
+                    error_metadata=error_metadata,
                 ) from exc
             time.sleep(_retry_delay_seconds(attempt, exc))
         except (
@@ -489,15 +553,30 @@ def _post_json_transport(
             UnicodeDecodeError,
             http.client.HTTPException,
         ) as exc:
+            invalid_response = "documents" in payload and isinstance(exc, (json.JSONDecodeError, UnicodeDecodeError))
+            timeout_unknown = "documents" in payload and (
+                isinstance(exc, TimeoutError) or
+                isinstance(getattr(exc, "reason", None), TimeoutError)
+            )
+            # A timed-out scoring request may still run on the backend.
+            # End this call instead of immediately duplicating the work.
+            retryable = not invalid_response
+            exhausted = invalid_response or timeout_unknown or attempt == max_attempts
+            error_metadata = {"server_execution_unknown": timeout_unknown,
+                              "capacity_verification": "unverified",
+                              "actual_input_tokens": None}
             emit_request_event("http_attempt_failed", **physical, transport_attempt=attempt,
-                               status_code=None, cause_type=type(exc).__name__, retryable=True,
+                               **error_metadata, retry_budget_exhausted=exhausted,
+                               status_code=None, cause_type=type(exc).__name__, retryable=retryable,
                                batch_reducible=False, elapsed_ms=(time.perf_counter() - started) * 1000)
-            if attempt == max_attempts:
+            if exhausted:
                 raise HTTPTransportError(
                     attempts=attempt,
                     status_code=None,
-                    retryable=True,
+                    retryable=retryable,
                     cause_type=type(exc).__name__,
+                    retry_budget_exhausted=True,
+                    error_metadata=error_metadata,
                 ) from exc
             time.sleep(_retry_delay_seconds(attempt, exc))
         else:
@@ -729,6 +808,32 @@ class RerankerClient:
         self._split_events = 0
         self._split_recovered_calls = 0
         self._failed_calls = 0
+        self._capacity_contract: dict[str, Any] | None = None
+
+    def verify_capacity_contract(self) -> dict[str, Any]:
+        """Verify server enforcement, without claiming local exact token counts."""
+        expected = getattr(self.config, "required_max_model_len", None)
+        if expected is None:
+            return {"capacity_verification": "unverified", "actual_input_tokens": None}
+        if self._capacity_contract is None:
+            from urllib.parse import urlsplit, urlunsplit
+            parts = urlsplit(self.config.endpoint)
+            url = urlunsplit((parts.scheme, parts.netloc, "/health", "", ""))
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(url, timeout=self.config.timeout_seconds) as response:
+                health = json.loads(response.read())
+            fields = ("declared_max_model_len", "backend_max_model_len", "effective_max_model_len")
+            if (not isinstance(health, dict) or any(health.get(k) != expected for k in fields)
+                    or health.get("reserved_output_tokens") != 1
+                    or health.get("truncation_policy") != "reject_without_truncation"
+                    or health.get("token_count_source") != "submitted_prompt_token_ids"):
+                raise ValueError("reranker service capacity contract does not match frozen config")
+            self._capacity_contract = {k: health[k] for k in fields}
+            self._capacity_contract.update(
+                capacity_verification="server_enforced", actual_input_tokens=None,
+                reserved_output_tokens=1, server_token_source="submitted_prompt_token_ids",
+                truncation_policy="reject_without_truncation")
+        return dict(self._capacity_contract)
 
     @property
     def model_fingerprint(self) -> str:
@@ -837,8 +942,10 @@ class RerankerClient:
     ) -> tuple[List[RerankItem], bool]:
         """Bisect exhausted 5xx/oversized batches and restore original indices."""
 
+        width = getattr(self.config, "max_batch_documents", None) or len(documents)
         pending: list[tuple[int, List[str], int | None, str, str | None, int]] = [
-            (0, list(documents), None, new_request_id(), None, 0)
+            (offset, list(documents[offset:offset + width]), None, new_request_id(), None, 0)
+            for offset in reversed(range(0, len(documents), width))
         ]
         combined: list[RerankItem] = []
         split_used = False
@@ -866,8 +973,7 @@ class RerankerClient:
                 # than creating a full retry storm during a persistent outage.
                 # The parent already exhausted its normal transport retry
                 # budget. Probe each degraded child once so a persistent 500
-                # cannot multiply four retries at every bisection depth. A
-                # later task-level retry still provides bounded recovery.
+                # cannot multiply four retries at every bisection depth.
                 child_attempts = _HTTP_SPLIT_CHILD_MAX_TRANSPORT_ATTEMPTS
                 left_id, right_id = new_request_id(), new_request_id()
                 emit_request_event("http_request_split", request_id=request_id,
@@ -894,7 +1000,10 @@ class RerankerClient:
         payload = build_rerank_payload(self.config, query, documents, top_n)
         with logical_request_scope("reranker", payload, deployment_fingerprint(self.config),
                                    documents=document_descriptors(documents, estimated_tokens=[estimate_tokens(query) + estimate_tokens(x) for x in documents])):
-            return self._rerank_impl(query, documents, top_n)
+            contract = self.verify_capacity_contract() if documents and top_n else {}
+            with request_audit_scope(contract):
+                emit_request_event("reranker_capacity_contract", **contract)
+                return self._rerank_impl(query, documents, top_n)
 
     def _rerank_impl(self, query: str, documents: Sequence[str], top_n: int) -> List[RerankItem]:
         if not isinstance(query, str):

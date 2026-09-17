@@ -1456,7 +1456,7 @@ def test_exhausted_task_is_skipped_next_succeeds_and_resume_only_retries_failure
     assert len((run_dir / "predictions.jsonl").read_text().splitlines()) == 2
 
 
-def test_real_reranker_singleton_500_is_skipped_after_three_task_attempts(
+def test_real_reranker_singleton_500_does_not_reset_transport_budget(
     monkeypatch, tmp_path
 ):
     class JsonResponse:
@@ -1513,28 +1513,28 @@ def test_real_reranker_singleton_500_is_skipped_after_three_task_attempts(
 
     assert result["status"] == "completed_with_failures"
     assert result["stop_reason"] is None
-    assert result["tasks_attempted_this_attempt"] == 8
+    assert result["tasks_attempted_this_attempt"] == 6
     assert result["unique_tasks_attempted_this_attempt"] == 6
-    assert result["task_retries_this_attempt"] == 2
+    assert result["task_retries_this_attempt"] == 0
     assert result["tasks_skipped_this_attempt"] == 1
     assert result["summary"]["successful_tasks"] == 5
     assert result["summary"]["failed_tasks"] == 1
     assert result["summary"]["pending_tasks"] == 0
     assert len(generator.calls) == 5
-    assert [delay for delay in waits if delay >= 15] == [15.0, 60.0]
+    assert [delay for delay in waits if delay >= 15] == []
     singleton_failures = [
         request
         for request in opener.requests
         if request["query"] == "POISON reranker input"
         and len(request["documents"]) == 1
     ]
-    assert len(singleton_failures) == 3
-    assert reranker.transport_stats["failed_calls"] == 3
-    assert reranker.transport_stats["split_events"] == 3
+    assert len(singleton_failures) == 1
+    assert reranker.transport_stats["failed_calls"] == 1
+    assert reranker.transport_stats["split_events"] == 1
     failures = [
         json.loads(line) for line in (run_dir / "failures.jsonl").read_text().splitlines()
     ]
-    assert [row["attempt"] for row in failures] == [1, 2, 3]
+    assert [row["attempt"] for row in failures] == [1]
     assert all(row["error_type"] == "HTTPTransportError" for row in failures)
     assert all("HTTP status 500" in row["error"] for row in failures)
     events = [

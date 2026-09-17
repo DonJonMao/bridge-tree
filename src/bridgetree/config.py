@@ -667,9 +667,15 @@ class RerankerConfig(EndpointConfig):
     score_contract: str = "pointwise"
     task_instruction: str = ""
     deployment_identity: DeploymentIdentity = field(default_factory=DeploymentIdentity)
+    max_batch_documents: int | None = None
+    required_max_model_len: int | None = None
 
     def __post_init__(self) -> None:
         super().__post_init__()
+        for name in ("max_batch_documents", "required_max_model_len"):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, _strict_int(value, "reranker " + name, positive=True))
         cache_dir = _strict_string(self.cache_dir, "reranker cache_dir")
         score_space = _strict_string(self.score_space, "reranker score_space").strip().lower().replace("-", "_")
         score_contract = _strict_string(self.score_contract, "reranker score_contract").strip().lower()

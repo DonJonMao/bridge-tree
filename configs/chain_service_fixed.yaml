@@ -1,0 +1,19 @@
+# A new run after the 2026-09-17 service repair. Method settings inherit
+# chain_full unchanged; these overrides affect only physical execution.
+base_config: chain_full.yaml
+models:
+  reranker:
+    max_batch_documents: 4
+    timeout_seconds: 180
+    required_max_model_len: 8192
+    deployment_identity:
+      model_id: Qwen3-Reranker-8B
+      tokenizer_id: Qwen2Tokenizer
+      serving_engine: vllm-ascend
+      serving_version: v0.20.2rc1-310p
+      deployment_revision: proxy-ef5da1dd44485cd5-start-9150f425de611613-len8192-fp16-seqs4
+      identity_source: operator_declared
+      verification_evidence_id: validation_20260917_145455_9de6b2a8
+runtime:
+  output_dir: outputs/chain-service-fixed
+  cache_dir: outputs/cache-service-fixed

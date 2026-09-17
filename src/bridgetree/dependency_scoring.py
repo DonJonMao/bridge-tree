@@ -638,10 +638,12 @@ class SetReranker:
         return self._prepare(memory_ids).estimated_input_tokens
 
     def feasible(self, memory_ids: Iterable[str]) -> bool:
-        """Whether the exact query/document input fits model capacity.
+        """Whether the set fits the frozen *estimated* experiment input budget.
 
-        Logical scoring quota is intentionally separate; callers selecting a
-        complete comparison round should use :meth:`preflight` for both.
+        This is not a physical tokenizer check. The reranker service validates
+        the complete template and reserved output against its runtime capacity
+        before scoring. An over-capacity input fails explicitly, without
+        truncation or silently changing the search's feasibility rule.
         """
 
         return self._prepare(memory_ids).estimated_input_tokens <= self.max_input_tokens

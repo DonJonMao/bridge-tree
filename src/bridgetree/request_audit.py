@@ -49,6 +49,12 @@ class TransportBudget:
 
 
 _FIELDS = {
+    "service_retryable", "service_error_code", "service_error_reason", "service_error_type",
+    "upstream_error_code", "upstream_error_type", "upstream_reason",
+    "upstream_request_id", "proxy_request_id", "response_body_sha256", "response_body_truncated",
+    "retry_budget_exhausted", "server_execution_unknown", "capacity_verification",
+    "actual_input_tokens", "reserved_output_tokens", "effective_max_model_len",
+    "declared_max_model_len", "backend_max_model_len", "truncation_policy",
     "schema_version", "event", "event_id", "at_epoch", "run_identity", "cache_scope",
     "task_id", "persona_id", "question_id", "method_id", "execution_attempt", "task_attempt", "attempt",
     "stage", "phase", "operation", "logical_call_id", "request_id", "parent_request_id", "split_depth",

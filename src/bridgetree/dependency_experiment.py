@@ -2310,6 +2310,8 @@ def _is_infrastructure_failure(exc: BaseException) -> bool:
 def _is_retryable_infrastructure_failure(exc: BaseException) -> bool:
     """Respect a transport adapter's explicit retry decision when present."""
 
+    if getattr(exc, "retry_budget_exhausted", False):
+        return False
     declared = getattr(exc, "retryable", None)
     if isinstance(declared, bool):
         return declared
@@ -3120,6 +3122,8 @@ def _persist_failure_attempt(
         "error": str(exc),
         "infrastructure_failure": infrastructure,
         "retryable": retryable,
+        "retry_budget_exhausted": getattr(exc, "retry_budget_exhausted", False),
+        "transport_error": getattr(exc, "error_metadata", {}),
         "costs": resolved_costs,
     }
     _append_jsonl(prepared.root / "failures.jsonl", error_event)
