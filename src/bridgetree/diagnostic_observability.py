@@ -21,7 +21,8 @@ import uuid
 from .request_audit import AuditWriteError, current_audit_scope
 
 
-MODULES = frozenset({"proposal", "scoring", "activation", "state", "selection", "stop", "context", "execution"})
+MODULES = frozenset({"proposal", "scoring", "activation", "state", "selection", "stop", "context", "execution",
+                     "planner", "scheduler", "target", "archive", "evidence", "feedback"})
 _FIELDS = frozenset({
     "schema_version", "event", "event_id", "at_epoch", "sequence", "module", "run_identity",
     "task_id", "persona_id", "question_id", "method_id", "diagnostic_id", "case_id",
@@ -52,6 +53,35 @@ _FIELDS = frozenset({
     "parse_failed", "generator_calls", "context_budget_status", "score_reason",
     "deployment_fingerprint", "request_id", "logical_call_id", "transport_budget_used",
     "transport_budget_max", "model_calls", "error_type", "infrastructure_failure",
+    "root_order", "root_selection", "coverage_roots", "exploration_roots", "reserved_sets", "full_score_cap",
+    "phase_score_cap", "quantum_score_cap", "ann_cap", "action", "lane", "resumed",
+    "measurement_cursor", "measurement_cursor_before", "remaining_measurements", "measurements_completed",
+    "consecutive_quanta", "decision", "pivot_depth", "speculative_depth", "old_target_id", "new_target_id",
+    "replacement_ids", "removed_ids", "target_path", "pivot_count", "speculative_count", "pending_workspaces",
+    "requirement_id", "requirement_ids", "requirements_count", "mapping_count", "mapped_candidate_count",
+    "candidate_count", "covered_count", "missing_count", "ambiguous_count", "partial_count", "coverage_status",
+    "missing_requirement_ids", "covered_requirement_ids", "quote_start", "quote_end", "role", "evidence_kind",
+    "support_ids", "mapping_ids", "chunk_id", "chunk_start", "chunk_end", "input_tokens_estimate",
+    "output_tokens_estimate", "llm_calls", "call_index", "response_hash", "prompt_hash", "validation_status",
+    "repair_index", "revision", "feedback_round", "new_candidate_ids", "added_ids", "token_count", "budget",
+    "reasoning_elapsed_ms", "map_batch", "method_version",
+    "record_kind", "event_index", "requirements", "requirements_hash", "query_hash", "id", "necessary",
+    "input_token_budget", "max_llm_calls", "evidence_llm_calls", "repairs_used", "revisions_used",
+    "character_count", "unit_ids", "memory_ids", "ranges", "complete_raw_coverage", "mappings",
+    "evidence_id", "relation", "kind", "quote_verified", "quote_occurrences", "start", "end",
+    "source_message_indices", "observed_order", "time_metadata", "unit_id", "coverage", "previous_coverage",
+    "observed_start", "observed_end", "event_start", "event_end", "validity", "time_source",
+    "coverage_basis", "evidence_ids", "supporting_ids", "round_index", "selected_before",
+    "generation_feasibility", "missing_requirements", "returned_ids", "new_ids", "duplicate_ids",
+    "costs", "diagnostics", "evidence_json_repairs", "evidence_input_tokens_estimate",
+    "evidence_output_tokens_estimate", "evidence_llm_elapsed_ms", "evidence_elapsed_ms",
+    "evidence_calls_by_operation", "evidence_candidates", "evidence_mapped_candidates",
+    "evidence_plan", "evidence_map", "evidence_select", "evidence_plan_repair", "evidence_map_repair",
+    "evidence_select_repair", "token_count_is_estimate",
+    "evidence_unmapped_candidates", "evidence_units", "evidence_verified_mappings", "evidence_requirements",
+    "evidence_covered_requirements", "evidence_partial_requirements", "evidence_missing_requirements",
+    "evidence_ambiguous_requirements", "evidence_validation_failures", "evidence_selection_revisions",
+    "evidence_feedback_rounds", "evidence_selected_count", "evidence_coverage_is_model_judgement",
 })
 _TOKEN = re.compile(r"[\w.:/@+\-]{0,512}\Z", re.ASCII)
 _SECRET = re.compile(r"https?://|Bearer\s|sk-[A-Za-z0-9_-]{8,}", re.I)
@@ -64,6 +94,14 @@ _REASONS = frozenset({
     "archive_exhausted", "not_scored_incomplete_round", "ranked_candidates_exhausted",
     "execution_error", "infrastructure_failure", "retry_budget_exhausted", "transport_budget_exhausted",
     "audit_failure", "interrupted",
+    "measured_P", "measured_Pe", "measured_PG", "measured_PGe", "completed_score_snapshot",
+    "positive_conditional_target", "state_already_seen", "nonpositive_activation", "speculative_depth_limit",
+    "speculative_state_limit", "bounded_negative_target_exploration", "pivot_limit", "pivot_depth_limit",
+    "target_cycle", "target_replaced", "external_discovery", "mid_search_release", "quantum_measurement_limit",
+    "quantum_set_limit", "reserved_score_limit", "workspace_completed", "within_budget",
+    "fairness_release", "no_alternative_target", "requirements_covered", "necessary_requirements_covered",
+    "unresolved_without_feedback",
+    "feedback_round_budget_exhausted", "feedback_no_new_candidates", "planning_error",
 })
 _INTERPRETATION = "Measured reranker interactions are not causal proof or answer-accuracy improvement."
 _CURRENT: ContextVar[Callable[[Mapping[str, Any]], None] | None] = ContextVar(

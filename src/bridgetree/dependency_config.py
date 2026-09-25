@@ -18,6 +18,7 @@ from typing import Any, Mapping, Sequence
 import yaml
 
 from .config import AppConfig, load_config
+from .evidence_config import EvidenceBridgeConfig, EvidenceSearchConfig, EvidenceSelectionConfig
 from .root_tie_diagnostics import validate_root_tie_settings
 
 DEFAULT_DEPENDENCY_METHODS = (
@@ -30,6 +31,7 @@ DEFAULT_DEPENDENCY_METHODS = (
 OPTIONAL_DEPENDENCY_METHODS = (
     "activation_no_pairs",
     "activation_singleton_selection",
+    "evidence_bridge",
 )
 ALL_DEPENDENCY_METHODS = frozenset(DEFAULT_DEPENDENCY_METHODS + OPTIONAL_DEPENDENCY_METHODS)
 
@@ -222,6 +224,7 @@ class DependencyRunConfig:
     app: AppConfig
     dependency: DependencyConfig = field(default_factory=DependencyConfig)
     execution: DependencyExecutionConfig = field(default_factory=DependencyExecutionConfig)
+    evidence_bridge: EvidenceBridgeConfig = field(default_factory=EvidenceBridgeConfig)
 
     def __post_init__(self) -> None:
         if not isinstance(self.app, AppConfig):
@@ -229,6 +232,10 @@ class DependencyRunConfig:
         self.app.validate()
         if self.app.models.reranker.score_contract != "pointwise":
             raise ValueError("dependency scoring requires models.reranker.score_contract=pointwise")
+        if not isinstance(self.evidence_bridge, EvidenceBridgeConfig):
+            raise ValueError("evidence_bridge must be EvidenceBridgeConfig")
+        if "evidence_bridge" in self.methods and self.evidence_bridge.gap_ann_calls >= self.dependency.max_ann_calls:
+            raise ValueError("gap_ann_calls must leave an ANN budget for initial retrieval and search")
 
     @property
     def app_config(self) -> AppConfig:
@@ -272,7 +279,7 @@ class DependencyRunConfig:
         if self.dependency.root_tie_break == "legacy_lexical":
             dependency.pop("root_tie_break")
             dependency.pop("root_tie_seed")
-        return {
+        result = {
             "seed": self.app.seed,
             "models": models,
             "data": asdict(self.app.data),
@@ -280,6 +287,10 @@ class DependencyRunConfig:
             "dependency": dependency,
             "execution": asdict(self.execution),
         }
+        if "evidence_bridge" in self.methods:
+            result["evidence_bridge"] = asdict(self.evidence_bridge)
+            result["evidence_method_version"] = "evidence_bridge_v1"
+        return result
 
     def config_hash(self) -> str:
         payload = json.dumps(self.resolved_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -292,7 +303,8 @@ DependencyResourceConfig = DependencyConfig
 ExecutionConfig = DependencyExecutionConfig
 
 
-_TOP_LEVEL_FIELDS = {"base_config", "seed", "models", "data", "runtime", "dependency", "execution", "methods"}
+_TOP_LEVEL_FIELDS = {"base_config", "seed", "models", "data", "runtime", "dependency", "execution", "methods",
+                     "evidence_bridge"}
 _LEGACY_OVERLAY_FIELDS = {"chain", "retrieval", "bridge_rerank"}
 _EXECUTION_FIELDS = set(DependencyExecutionConfig.__dataclass_fields__)
 _RUNTIME_FIELDS = {"device", "cache_dir", "output_dir"}
@@ -370,8 +382,18 @@ def _apply_overlay(base: DependencyRunConfig, raw_overlay: Mapping[str, Any], *,
             raise ValueError("methods cannot be set both top-level and in execution")
         execution_updates["methods"] = raw["methods"]
     execution = replace(base.execution, **execution_updates) if execution_updates else base.execution
-
-    result = DependencyRunConfig(app=app, dependency=dependency, execution=execution)
+    evidence_bridge = base.evidence_bridge
+    if "evidence_bridge" in raw:
+        values = _strict_mapping(raw["evidence_bridge"], "evidence_bridge")
+        _reject_unknown(values, set(EvidenceBridgeConfig.__dataclass_fields__), "evidence_bridge")
+        for name, cls in (("search", EvidenceSearchConfig), ("selection", EvidenceSelectionConfig)):
+            if name in values:
+                nested = _strict_mapping(values[name], f"evidence_bridge.{name}")
+                _reject_unknown(nested, set(cls.__dataclass_fields__), f"evidence_bridge.{name}")
+                values[name] = replace(getattr(evidence_bridge, name), **nested)
+        evidence_bridge = replace(evidence_bridge, **values)
+    result = DependencyRunConfig(app=app, dependency=dependency, execution=execution,
+                                 evidence_bridge=evidence_bridge)
     return result
 
 

@@ -13,6 +13,7 @@ or exposed through diagnostics before the question's cutoff is applied.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from numbers import Integral
 from typing import Any, Iterable, Mapping, Protocol, Sequence
 
@@ -386,6 +387,42 @@ class DependencyRetriever:
         self._edges: list[ProposalEdge] = []
         self._dense_batch: ProposalBatch | None = None
         self._initial_pool: InitialCandidatePool | None = None
+        self.information_needs: tuple[dict[str, Any], ...] = ()
+
+    def set_information_needs(self, requirements: Sequence[Mapping[str, Any]]) -> None:
+        """Attach q-only planning to conditional proposals, not the scorer/query baseline."""
+        needs = []
+        for requirement in requirements:
+            if not isinstance(requirement, Mapping):
+                raise ValueError("information requirements must be mappings")
+            value = {key: requirement[key] for key in ("id", "description", "time_scope") if key in requirement}
+            if not isinstance(value.get("description"), str) or not value["description"].strip():
+                raise ValueError("information requirement needs a description")
+            needs.append(value)
+        self.information_needs = tuple(needs)
+
+    def retrieve_missing(
+        self, requirements: Sequence[Mapping[str, Any]], *, exclude: Iterable[str] = (),
+        source_memory_ids: Sequence[str] = (), width: int | None = None,
+    ) -> ProposalBatch:
+        """Spend the ordinary ANN budget on an explicitly missing evidence need."""
+        missing = []
+        for requirement in requirements:
+            if not isinstance(requirement, Mapping) or not isinstance(requirement.get("description"), str):
+                raise ValueError("missing requirements need descriptions")
+            missing.append({key: requirement[key] for key in ("id", "description", "time_scope") if key in requirement})
+        sources = tuple(str(identifier) for identifier in source_memory_ids)
+        if set(sources).difference(self.memory_by_id):
+            raise ValueError("feedback sources must belong to the visible bank")
+        # Source IDs preserve provenance. Do not feed a guessed answer back
+        # into retrieval as a fact or expose reader options in this probe.
+        text = (f"User query:\n{self.query}\n\nMissing historical information:\n"
+                + json.dumps(missing, ensure_ascii=False, sort_keys=True))
+        return self._run_probe(
+            stage="evidence_gap", probe_text=text,
+            width=self.proposal_width if width is None else width,
+            exclude=exclude, source_memory_ids=sources, instruction=self.proposal_instruction,
+        )
 
     @property
     def remaining_ann_calls(self) -> int | None:
@@ -627,9 +664,14 @@ class DependencyRetriever:
             self.build_initial_pool(expand=True)
         allowed = self.initial_candidate_ids if use_fixed_pool else None
         records = [self.memory_by_id[identifier] for identifier in premises]
+        text = conditional_probe_text(self.query, self.memory_by_id[target], records)
+        if self.information_needs:
+            text += "\n\nInformation needed to answer the query:\n" + json.dumps(
+                self.information_needs, ensure_ascii=False, sort_keys=True
+            )
         return self._run_probe(
             stage="conditional",
-            probe_text=conditional_probe_text(self.query, self.memory_by_id[target], records),
+            probe_text=text,
             width=self.proposal_width if width is None else width,
             exclude=(target, *premises),
             allowed_ids=allowed,

@@ -1,0 +1,43 @@
+# Frozen-model evidence-driven BridgeTree. No optimizer or weight training.
+# Deployment-only overrides may be supplied with --override-config.
+base_config: chain_service_fixed.yaml
+
+execution:
+  methods: [dense, activation, evidence_bridge]
+  log_every_questions: 1
+  evaluate_every_questions: 10
+  heartbeat_seconds: 30
+
+evidence_bridge:
+  gap_ann_calls: 2
+  gap_proposal_width: 4
+  search:
+    coverage_roots: 6
+    exploration_roots: 4
+    quantum_new_sets: 24
+    quantum_measurements: 8
+    max_consecutive_quanta: 2
+    exploration_fraction: 0.5
+    reserve_score_fraction: 0.25
+    max_pivots: 4
+    max_pivot_depth: 2
+    max_speculative_depth: 2
+    max_speculative_states: 8
+    max_pairs_per_state: 6
+    marginal_epsilon: 0.0
+    root_selection: diverse
+  selection:
+    max_requirements: 6
+    max_llm_calls: 24
+    max_json_repairs: 1
+    max_selection_revisions: 2
+    input_token_budget: 16384
+    map_batch_token_budget: 6144
+    output_max_tokens: 4096
+    max_quote_chars: 400
+    max_feedback_rounds: 2
+
+runtime:
+  device: cpu
+  cache_dir: outputs/cache-evidence-bridge
+  output_dir: outputs/evidence-bridge

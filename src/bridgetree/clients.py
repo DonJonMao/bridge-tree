@@ -1041,6 +1041,53 @@ class GeneratorClient:
     def __init__(self, config: GeneratorConfig):
         self.config = config
 
+    def complete_messages(
+        self, messages: Sequence[Mapping[str, str]], *, operation: str, max_tokens: int
+    ) -> str:
+        """Frozen chat inference for evidence reasoning, distinct from the reader.
+
+        The method owns evidence schemas and input budgets. This transport
+        sends exactly its complete messages and preserves physical request
+        accounting, provider parameters, and model identity. It never injects
+        reader options, prompts, or cached answers.
+        """
+        if not isinstance(operation, str) or not re.fullmatch(r"evidence_[a-z_]+", operation):
+            raise ValueError("structured reasoning operation must use the evidence_ prefix")
+        if isinstance(messages, (str, bytes)) or not messages:
+            raise ValueError("evidence messages must be a non-empty sequence")
+        wire_messages = []
+        for message in messages:
+            if not isinstance(message, Mapping) or set(message) != {"role", "content"}:
+                raise ValueError("evidence messages require exactly role and content")
+            if message["role"] not in {"system", "user", "assistant"} or not isinstance(message["content"], str):
+                raise ValueError("invalid evidence message")
+            wire_messages.append(dict(message))
+        payload = {
+            "model": self.config.model,
+            "messages": wire_messages,
+            "temperature": self.config.temperature,
+            "max_tokens": _strict_int_value(max_tokens, "evidence max_tokens", positive=True),
+            **dict(self.config.provider_request_params),
+        }
+        estimate = estimate_tokens(json.dumps(wire_messages, ensure_ascii=False))
+        with request_audit_scope({"stage": operation, "estimated_input_tokens": estimate,
+                                  "token_count_is_estimate": True,
+                                  "token_estimator_id": "regex_word_or_punctuation_v1"}):
+            with logical_request_scope(operation, canonical_request_payload(payload),
+                                       deployment_fingerprint(self.config)):
+                response = _post_json(
+                    self.config.endpoint, payload, self.config.timeout_seconds,
+                    headers={"Authorization": f"Bearer {self.config.resolved_api_key()}"},
+                )
+        choices = response.get("choices") if isinstance(response, dict) else None
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], Mapping):
+            raise ValueError("evidence chat response has no choices")
+        message = choices[0].get("message")
+        content = message.get("content") if isinstance(message, Mapping) else None
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("evidence chat response has no text content")
+        return content.strip()
+
     def answer(self, query: str, memories: Sequence[Memory], answer_options: str = "") -> str:
         """Build and send one exact generation plan.
 

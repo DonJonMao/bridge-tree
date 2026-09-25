@@ -37,6 +37,7 @@ from .clients import (
 )
 from .dependency_config import DependencyRunConfig, load_dependency_config
 from .dependency_retrieval import DEPENDENCY_PROPOSAL_INSTRUCTION, DependencyRetriever
+from .diagnostic_observability import ModuleEventRecorder, observation_scope
 from .diagnostic_identity import deployment_fingerprint, deployment_public, execution_hash, request_hash
 from .request_audit import JsonlAuditSink, request_audit_scope
 from .experiment import _visible_memory_records
@@ -63,6 +64,12 @@ DEFAULT_METHODS = (
     "activation_fixed_pool",
 )
 MODULE_LOGS = (
+    "planner",
+    "scheduler",
+    "target",
+    "archive",
+    "evidence",
+    "feedback",
     "scoring",
     "activation",
     "proposal",
@@ -968,6 +975,7 @@ def _module_effectiveness_event(
     """Build a compact, label-safe audit view from one authoritative attempt."""
 
     artifact_value = dict(artifacts or {})
+    evidence_method = task.method_id == "evidence_bridge"
     visible = artifact_value.get("visible_memories")
     visible_value = dict(visible) if isinstance(visible, Mapping) else {}
     candidate = artifact_value.get("candidate_pool")
@@ -1160,6 +1168,7 @@ def _module_effectiveness_event(
         "status": outcome.status,
         "partial": outcome.status != "success",
         "authoritative_at_write": True,
+        "evidence_bridge": diagnostics.get("evidence_bridge_summary") if evidence_method else None,
         "retrieval": {
             "available": bool(retrieval_value),
             "visible_memory_count": len(visible_value.get("visible_memory_ids", ())),
@@ -1280,7 +1289,8 @@ def _module_effectiveness_event(
                 dynamic_selection or baseline_rows or outcome.status == "success"
             ),
             "mode": (
-                "dynamic_bundle_marginal" if dynamic_selection else "baseline_rank_order"
+                "evidence_requirement_set_selection" if evidence_method
+                else "dynamic_bundle_marginal" if dynamic_selection else "baseline_rank_order"
             ),
             "round_count": len(selection_rounds),
             "complete_round_count": sum(
@@ -1289,11 +1299,11 @@ def _module_effectiveness_event(
             "incomplete_round_count": sum(
                 row.get("complete") is False for row in selection_rounds
             ),
-            "comparison_count": len(comparisons),
-            "feasible_comparison_count": feasible_comparisons,
-            "positive_marginal_count": sum(value > 0.0 for value in marginals),
-            "accepted_decision_count": accepted_decisions,
-            "accepted_bundle_count": accepted_decisions if dynamic_selection else None,
+            "comparison_count": None if evidence_method else len(comparisons),
+            "feasible_comparison_count": None if evidence_method else feasible_comparisons,
+            "positive_marginal_count": None if evidence_method else sum(value > 0.0 for value in marginals),
+            "accepted_decision_count": None if evidence_method else accepted_decisions,
+            "accepted_bundle_count": accepted_decisions if dynamic_selection and not evidence_method else None,
             "accepted_baseline_memory_count": (
                 accepted_decisions if not dynamic_selection else None
             ),
@@ -1301,7 +1311,7 @@ def _module_effectiveness_event(
             "max_accepted_marginal": (
                 max(accepted_marginals) if accepted_marginals else None
             ),
-            "accepted_marginal_sequence": accepted_marginals,
+            "accepted_marginal_sequence": None if evidence_method else accepted_marginals,
             "logical_unique_sets_charged_delta": selection_value.get(
                 "scored_sets"
             ),
@@ -1656,6 +1666,7 @@ class DependencyTaskExecutor:
             {
                 "answer": "generator_adapter_invocations",
                 "answer_plan": "generator_adapter_invocations",
+                "complete_messages": "evidence_adapter_invocations",
                 "__call__": "generator_adapter_invocations",
             },
         )
@@ -1663,6 +1674,7 @@ class DependencyTaskExecutor:
             cache_dir if cache_dir is not None else config.runtime.cache_dir
         ) / "dependency_set_scores"
         self._memory_vector_cache: dict[str, np.ndarray] = {}
+        self.evidence_snapshot_sink = None
 
     @property
     def adapter_cost(self) -> dict[str, int]:
@@ -1807,19 +1819,54 @@ class DependencyTaskExecutor:
 
     def execute(self, task: DependencyTask, example: PersonaMemExample) -> dict[str, Any]:
         self._last_partial_artifacts: dict[str, Any] = {}
+        self._active_evidence_selector = None
         try:
             # PR1: inherits an optional durable sink/physical budget from the
             # runner without changing the executor's public service API.
             with request_audit_scope({"task_id": task.task_id, "question_id": task.question_id,
                                       "persona_id": task.persona_id, "method_id": task.method_id}):
-                return self._execute(task, example)
+                result = self._execute(task, example)
+                self._attach_evidence_details(result)
+                return result
         except BaseException as exc:
             # Preserve the original exception type for callers and transport
             # classification, while attaching already-realized retrieval,
             # scoring and context artifacts for failure persistence.
+            self._attach_evidence_details(self._last_partial_artifacts)
             with suppress(AttributeError, TypeError):
                 exc.dependency_partial_artifacts = self._last_partial_artifacts
             raise
+
+    def _attach_evidence_details(self, artifacts: dict[str, Any]) -> None:
+        """Publish method traces for both successful and interrupted tasks."""
+        selector = self._active_evidence_selector
+        if selector is None:
+            return
+        from .evidence_diagnostics import evidence_bridge_summary
+
+        candidate = artifacts.setdefault("candidate_pool", {})
+        value = candidate.get("selection")
+        if not isinstance(value, Mapping):
+            value = selector.partial_public_dict()
+        value = dict(value or {})
+        candidate["evidence_selection"] = value
+        candidate["selection"] = value
+        costs = artifacts.setdefault("costs", {})
+        costs["evidence_reasoning"] = dict(value.get("costs", {}))
+        costs["evidence_calls"] = costs.get("adapter_invocations", {}).get("evidence_adapter_invocations", 0)
+        modules = artifacts.setdefault("module_events", {})
+        search = candidate.get("search") or {}
+        modules["scheduler"] = list(search.get("scheduler_events", ()))
+        modules["target"] = list(search.get("target_events", ()))
+        modules["archive"] = [{"event": "measured_set_archived", **dict(row)}
+                              for row in search.get("measured_sets", ()) if isinstance(row, Mapping)]
+        events = value.get("events", value.get("steps", ()))
+        for module in ("planner", "evidence", "feedback"):
+            modules[module] = [dict(event) for event in events
+                               if isinstance(event, Mapping) and event.get("module") == module]
+        artifacts.setdefault("diagnostics", {})["evidence_bridge_summary"] = evidence_bridge_summary(
+            candidate, costs, artifacts.get("selected_ids", ())
+        )
 
     def _execute(self, task: DependencyTask, example: PersonaMemExample) -> dict[str, Any]:
         if task.question_id != str(example.question_id) or task.persona_id != str(example.persona_id):
@@ -2038,6 +2085,115 @@ class DependencyTaskExecutor:
                 self.config, example, records, ranked
             )
             checkpoint("dense_rerank_selection")
+        elif method == "evidence_bridge":
+            from .diagnostic_observability import observe
+            from .evidence_search import EvidenceBridgeSearcher
+            from .evidence_selection import EvidenceSelector
+
+            settings = self.config.evidence_bridge
+
+            def evidence_feasible(ids: tuple[str, ...]) -> dict[str, Any]:
+                reader_plan = _generation_plan_for_ids(self.config, example, records, ids, strict=False)
+                return {
+                    "feasible": reader_plan.within_budget,
+                    "reason": "within_budget" if reader_plan.within_budget else "generator_input_capacity",
+                    "token_count": reader_plan.token_count,
+                    "budget": self.config.models.generator.context_token_budget,
+                    "context_hash": reader_plan.context_hash,
+                }
+
+            def record_evidence_event(event):
+                observe(event["module"], event)
+                # A durable full method snapshot retains raw model responses
+                # and source quotations even if the worker is later killed.
+                # The compact live event stream intentionally contains IDs
+                # and counters instead of arbitrary text.
+                if callable(self.evidence_snapshot_sink) and self._active_evidence_selector is not None:
+                    self.evidence_snapshot_sink(event, self._active_evidence_selector.partial_public_dict())
+
+            selector = EvidenceSelector(
+                self.generator, settings.selection, generation_feasible=evidence_feasible,
+                event_sink=record_evidence_event,
+            )
+            self._active_evidence_selector = selector
+            try:
+                with request_audit_scope({"stage": "evidence_planning"}):
+                    requirements = selector.plan(example.query)
+                retriever.set_information_needs(requirements)
+                # Initial expansion shares the search part of the ANN cap;
+                # it must not consume the later evidence-gap reservation.
+                search_ann_cap = max(0, self.config.dependency.max_ann_calls - settings.gap_ann_calls)
+                total_ann_cap = retriever.max_ann_calls
+                try:
+                    retriever.max_ann_calls = search_ann_cap
+                    with request_audit_scope({"stage": "retrieval"}):
+                        initial_pool = retriever.build_initial_pool(expand=True)
+                finally:
+                    retriever.max_ann_calls = total_ann_cap
+                    checkpoint("evidence_initial_pool")
+                scorer = self._scorer(task, example, records)
+                searcher = EvidenceBridgeSearcher(
+                    scorer, retriever, settings=settings.search,
+                    max_scored_sets=self.config.dependency.max_scored_sets,
+                    pair_rescue_width=self.config.dependency.pair_rescue_width,
+                    max_ann_calls=search_ann_cap,
+                )
+                try:
+                    with request_audit_scope({"stage": "evidence_search"}):
+                        archive = searcher.run(initial_pool)
+                except BaseException as exc:
+                    partial_search = searcher.partial_public_dict(
+                        stop_reason="interrupted" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "execution_error",
+                        detail=type(exc).__name__,
+                    )
+                    raise
+                finally:
+                    checkpoint("evidence_search")
+
+                candidate_ids = list(initial_pool.candidate_ids)
+                for batch in retriever.proposal_batches:
+                    for identifier in batch.ids:
+                        if identifier not in candidate_ids:
+                            candidate_ids.append(identifier)
+                seen = set(candidate_ids)
+                gap_calls = 0
+
+                def expand_missing(missing_requirements, selected_ids):
+                    nonlocal gap_calls
+                    if gap_calls >= settings.gap_ann_calls or retriever.remaining_ann_calls == 0:
+                        return ()
+                    gap_calls += 1
+                    with request_audit_scope({"stage": "evidence_gap"}):
+                        batch = retriever.retrieve_missing(
+                            missing_requirements, exclude=seen, source_memory_ids=selected_ids,
+                            width=settings.gap_proposal_width,
+                        )
+                    seen.update(batch.ids)
+                    return batch.ids
+
+                with request_audit_scope({"stage": "evidence_selection"}):
+                    selection = selector.select(
+                        example.query, records, candidate_ids,
+                        requirements=requirements, expand=expand_missing,
+                    )
+                selected_ids = tuple(selection.selected_ids)
+                selection_events = [step.public_dict() for step in selection.steps]
+                selection_events.append(selection.stop.public_dict())
+            except BaseException as exc:
+                partial_selection = selector.partial_public_dict(
+                    stop_reason="interrupted" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "execution_error",
+                    detail=type(exc).__name__,
+                )
+                checkpoint("evidence_method_failed")
+                terminal_event = {
+                    "module": "evidence", "event": "evidence_method_failed",
+                    "stop_reason": partial_selection["stop_reason"], "error_type": type(exc).__name__,
+                }
+                observe("evidence", terminal_event)
+                if callable(self.evidence_snapshot_sink):
+                    self.evidence_snapshot_sink(terminal_event, partial_selection)
+                raise
+            checkpoint("evidence_selection")
         else:
             from .dependency_search import DependencySearcher, DynamicBundleSelector
 
@@ -3002,6 +3158,7 @@ def _persist_task_artifacts(
                     "method_id": task.method_id,
                     "attempt": attempt,
                     "partial": partial,
+                    "record_kind": "task_snapshot",
                     **dict(event),
                 },
             )
@@ -3112,6 +3269,16 @@ def _persist_failure_attempt(
     resolved_costs = dict(costs or {})
     resolved_costs["elapsed_ms"] = max(0.0, (finished - started_at) * 1000.0)
     resolved_costs["elapsed_ms_scope"] = "complete_failed_task_attempt"
+    diagnostics = (
+        dict(artifacts.get("diagnostics", {}))
+        if isinstance(artifacts, Mapping) and isinstance(artifacts.get("diagnostics"), Mapping)
+        else {}
+    )
+    if task.method_id == "evidence_bridge" and isinstance(artifacts, Mapping):
+        from .evidence_diagnostics import evidence_bridge_summary
+        diagnostics["evidence_bridge_summary"] = evidence_bridge_summary(
+            artifacts.get("candidate_pool", {}), resolved_costs, artifacts.get("selected_ids", ())
+        )
     error_event = {
         "schema_version": 1,
         "event": "task_failure",
@@ -3168,12 +3335,7 @@ def _persist_failure_attempt(
         error=str(exc),
         infrastructure_failure=infrastructure,
         costs=resolved_costs,
-        diagnostics=(
-            dict(artifacts.get("diagnostics", {}))
-            if isinstance(artifacts, Mapping)
-            and isinstance(artifacts.get("diagnostics"), Mapping)
-            else {}
-        ),
+        diagnostics=diagnostics,
     )
     effectiveness = _module_effectiveness_event(task, outcome, artifacts)
     outcome = replace(
@@ -3829,7 +3991,22 @@ def _run_dependency_experiment_impl(
                 task_adapter_start = executor.adapter_cost
                 retryable_infrastructure = False
                 try:
-                    with request_audit_scope({**audit_run, "task_attempt": task_attempt, "stage": "task_execution"}, sink=audit_sink):
+                    recorder = None
+                    if task.method_id == "evidence_bridge":
+                        recorder = ModuleEventRecorder(
+                            prepared.root, run_identity=audit_run["run_identity"],
+                            metadata={"record_kind": "live", "task_attempt": task_attempt},
+                        )
+
+                        def persist_evidence_snapshot(event, snapshot):
+                            _atomic_json(prepared.root / "evidence_live" / f"{task.task_id}.json", {
+                                "task": task.public_dict(), "attempt": task_attempt,
+                                "event": event["event"], "at_epoch": time.time(),
+                                "evidence_selection": snapshot,
+                            })
+
+                        executor.evidence_snapshot_sink = persist_evidence_snapshot
+                    with request_audit_scope({**audit_run, "task_attempt": task_attempt, "stage": "task_execution"}, sink=audit_sink), observation_scope(recorder):
                         result = executor.execute(
                             task, prepared.examples_by_id[task.question_id]
                         )

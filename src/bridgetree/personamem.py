@@ -299,6 +299,14 @@ def messages_to_memories(
         indices = list(current["indices"])
         times = list(current.get("times", []))
         parts = [f"{current['role'].capitalize()}:\n{current['content']}"]
+        # Preserve the actual construction boundaries: a role-looking marker
+        # inside user content must never be reinterpreted as an assistant turn.
+        source_segments = [{
+            "role": current["role"],
+            "start": len(f"{current['role'].capitalize()}:\n"),
+            "end": len(parts[0]),
+            "source_message_indices": list(current["indices"]),
+        }]
         if (
             memory_granularity == "user_assistant_pair"
             and current["role"] == "user"
@@ -310,6 +318,12 @@ def messages_to_memories(
             indices.extend(following["indices"])
             times.extend(following.get("times", []))
             parts.append(f"Assistant:\n{following['content']}")
+            following_start = len(parts[0]) + len("\n\nAssistant:\n")
+            source_segments.append({
+                "role": "assistant", "start": following_start,
+                "end": following_start + len(following["content"]),
+                "source_message_indices": list(following["indices"]),
+            })
             cursor += 2
         else:
             cursor += 1
@@ -324,6 +338,7 @@ def messages_to_memories(
                 metadata={
                     "roles": roles,
                     "source_message_indices": indices,
+                    "source_segments": source_segments,
                     # Message indices are an ordered observation scale, never
                     # calendar dates.  Explicit event annotations, when a
                     # caller supplies them, may replace this entry upstream.

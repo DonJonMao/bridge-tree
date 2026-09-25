@@ -706,6 +706,27 @@ class SetReranker:
     def scored_sets(self) -> int:
         return len(self._logical_seen)
 
+    def measured_sets_snapshot(self) -> tuple[dict[str, Any], ...]:
+        """Return actually available scores, including a partially failed batch.
+
+        Logical charging precedes transport and therefore is deliberately not
+        evidence that a score exists.  This public view exposes only completed
+        scores, including persistent-cache hits, without performing I/O or
+        changing the task's logical budget.  A caller must still require all
+        four members before computing an activation.
+        """
+        return tuple(
+            {
+                "ids": list(prepared.ids),
+                "score": self._scores[prepared.cache_key],
+                "cache_key": prepared.cache_key,
+                "estimated_input_tokens": prepared.estimated_input_tokens,
+                "objective_semantics": "legacy_query_relevance",
+            }
+            for prepared in sorted(self._prepared.values(), key=lambda item: (len(item.ids), item.ids))
+            if prepared.cache_key in self._logical_seen and prepared.cache_key in self._scores
+        )
+
     @property
     def budget_limit(self) -> int | None:
         return self._set_budget

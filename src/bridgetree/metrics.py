@@ -13,7 +13,7 @@ from .types import Branch, RetrievalResult, TreeNode
 
 _OPTION_PATTERNS = (
     re.compile(r"\(([a-z])\)", re.IGNORECASE),
-    re.compile(r"\boption\s*([a-z])\b", re.IGNORECASE),
+    re.compile(r"\boption\s+([a-z])\b", re.IGNORECASE),
     re.compile(r"选\s*([a-z])", re.IGNORECASE),
     re.compile(r"\banswer\s*(?:is|:)\s*([a-z])\b", re.IGNORECASE),
     re.compile(r"^\s*([a-z])(?:\s*$|[.):]\s*)", re.IGNORECASE),

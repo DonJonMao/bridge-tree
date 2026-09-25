@@ -1,6 +1,26 @@
 # BridgeTree Preference-RAG
 
-This directory is a self-contained, portable implementation of the 2026-09-01 design **“BridgeTree: 面向 Preference-RAG 的桥接感知路径条件临时记忆树检索方法”**. It keeps source code, immutable raw data, normalized data, caches, and run artifacts in separate directories so the directory can be copied to an Ascend 910B host without depending on the parent `datacenter` package.
+This directory is a self-contained, portable implementation of the 2026-09-01 design **“BridgeTree: 面向 Preference-RAG 的桥接感知路径条件临时记忆树检索方法”**, with the 2026-09-23 Evidence BridgeTree revision below. It keeps source code, immutable raw data, normalized data, caches, and run artifacts in separate directories so the directory can be copied to an Ascend 910B host without depending on the parent `datacenter` package.
+
+## Evidence BridgeTree (2026-09-23)
+
+The new `evidence_bridge` method combines budgeted multi-target search, conditional target retention/pivot, and frozen-model information requirements with source-grounded whole-set evidence selection. It uses additional LLM inference during retrieval; model weights remain frozen. The default comparison is `dense`, legacy `activation`, and `evidence_bridge`: 589 questions / 1,767 tasks.
+
+```bash
+# Package source, fixed data, documents and PDF; credentials are excluded.
+bash scripts/package_evidence_bridge.sh
+# On Linux, from the unpacked project root:
+bash scripts/start_evidence_bridge_linux.sh
+bash scripts/run_evidence_bridge.sh status
+bash scripts/run_evidence_bridge.sh module-log scheduler
+bash scripts/run_evidence_bridge.sh summary
+# Resume the same run after interruption:
+bash scripts/run_evidence_bridge.sh resume
+```
+
+See the [method specification](docs/evidence_bridge_implementation.md), [source audit and validation](docs/evidence_bridge_review.md), [Linux runbook and log reference](docs/evidence_bridge_runbook.md), and [log analysis/literature/revision PDF](output/pdf/BridgeTree_Mechanism_Revision_20260923.pdf). The runbook explains endpoint/credential setup, costs, failure behavior and exact-directory resume. Local verification does not establish real-model accuracy improvements.
+
+## Earlier retrieval families
 
 The repository now contains two deliberately separate retrieval families. The
 legacy, certificate-oriented BridgeTree path remains available unchanged:
@@ -11,7 +31,7 @@ coarse ANN -> effective-rank spherical clustering -> centroid probe
 -> certified log-det greedy selection -> one generator call
 ```
 
-Centroids are never inserted as memories. Retrieval makes zero LLM calls. A generator is called exactly once only when `--generate` is enabled. There is one `BridgeTreeRetriever`; Core, +Path, +Certificate and Full-current are runtime parameter combinations, not separate classes or code profiles. The project intentionally has no distillation, RL, online Judge, retrieval LLM, or model-weight training stage.
+Centroids are never inserted as memories. For this legacy family, retrieval makes zero LLM calls. A generator is called exactly once only when `--generate` is enabled. There is one `BridgeTreeRetriever`; Core, +Path, +Certificate and Full-current are runtime parameter combinations, not separate classes or code profiles. This legacy family has no distillation, RL, online Judge, retrieval LLM, or model-weight training stage.
 
 The accuracy-first path uses BridgeTree only for candidate discovery:
 
