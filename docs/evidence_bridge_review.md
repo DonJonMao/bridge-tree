@@ -1,5 +1,7 @@
 # Evidence BridgeTree 源码对照审查与验证记录
 
+> 历史文档：本文记录 2026-09-23 的 v1。v2 当前行为以 [实现契约](evidence_bridge_implementation.md) 和 [v2 验证记录](evidence_bridge_v2_validation.md) 为准；v1 的全量映射、禁止截表和一次全局修复规则已被替代。
+
 日期：2026-09-23。验收对象为 [实现契约](evidence_bridge_implementation.md) 的 R1-R13。审查采用源码阅读、搜索与证据模块交叉检查、正式 executor 的本地服务替身测试，以及真实 detached 进程/打包/解包演练。这里的“通过”指实现与契约一致，**不表示新版方法已经取得真实模型准确率提升**。
 
 ## 1. 逐项对照

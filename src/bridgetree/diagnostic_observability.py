@@ -82,6 +82,12 @@ _FIELDS = frozenset({
     "evidence_covered_requirements", "evidence_partial_requirements", "evidence_missing_requirements",
     "evidence_ambiguous_requirements", "evidence_validation_failures", "evidence_selection_revisions",
     "evidence_feedback_rounds", "evidence_selected_count", "evidence_coverage_is_model_judgement",
+    "reliability_status", "selection_input_truncated", "partially_mapped", "unavailable_unit_count",
+    "input_tokens_before", "input_tokens_after", "selection_payload_limit", "policy_version", "truncated",
+    "retained_evidence_ids", "dropped_evidence_ids", "candidate_count_before", "candidate_count_after",
+    "alias_to_evidence_id", "omitted_evidence_by_requirement", "failure_category", "reserved_calls",
+    "split_for_retry", "eligible", "eligible_memory_count", "span_id", "span_ids", "fragments",
+    "source_hash", "source_text_hash", "premise_id", "omitted_evidence_count", "evidence_visibility",
 })
 _TOKEN = re.compile(r"[\w.:/@+\-]{0,512}\Z", re.ASCII)
 _SECRET = re.compile(r"https?://|Bearer\s|sk-[A-Za-z0-9_-]{8,}", re.I)
@@ -111,6 +117,19 @@ _CURRENT: ContextVar[Callable[[Mapping[str, Any]], None] | None] = ContextVar(
 
 def _sanitize(value: Any, field: str = "") -> Any:
     if isinstance(value, Mapping):
+        if field in {"alias_to_evidence_id", "omitted_evidence_by_requirement"}:
+            # These are ID-indexed maps, unlike ordinary fixed-schema events.
+            # Keep only short safe keys and the expected hash/count values.
+            return {
+                key: item for key, item in value.items()
+                if isinstance(key, str) and _TOKEN.fullmatch(key) and not _SECRET.search(key)
+                and (
+                    isinstance(item, str) and field == "alias_to_evidence_id"
+                    and re.fullmatch(r"ev_[a-f0-9]{20}", item)
+                    or field == "omitted_evidence_by_requirement"
+                    and isinstance(item, int) and not isinstance(item, bool) and item >= 0
+                )
+            }
         return {key: _sanitize(item, key) for key, item in value.items() if isinstance(key, str) and key in _FIELDS}
     if isinstance(value, (tuple, list)):
         return [_sanitize(item, field) for item in value]

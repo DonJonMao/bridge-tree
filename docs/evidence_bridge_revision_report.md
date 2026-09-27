@@ -1,4 +1,6 @@
 # BridgeTree 机制修订
+
+> 历史文档：本文记录 2026-09-23 的 v1。v2 当前行为以 [实现契约](evidence_bridge_implementation.md) 和 [v2 验证记录](evidence_bridge_v2_validation.md) 为准；v1 的全量映射、禁止截表和一次全局修复规则已被替代。
 ## 从部分运行日志到 Evidence BridgeTree
 
 2026-09-23 · 方法设计与实现说明 · evidence_bridge_v1

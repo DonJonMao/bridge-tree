@@ -1,6 +1,18 @@
 # Evidence BridgeTree：Linux 实验、日志与续跑文档
 
-版本：2026-09-23，配套 [代码修改设计](evidence_bridge_implementation.md)。当前方法使用冻结 embedding、reranker 和聊天模型，**不更新权重、不运行优化器**。本文件中的“一键运行实验”是完整 PersonaMem-32k 的检索、证据推理、reader 推理和评测；不会在本机提前调用用户模型服务。
+版本：v2 / 2026-09-27，配套 [代码修改设计](evidence_bridge_implementation.md)。当前方法使用冻结 embedding、reranker 和聊天模型，**不更新权重、不运行优化器**。本文件中的“一键运行实验”是完整 PersonaMem-32k 的检索、证据推理、reader 推理和评测；Linux 启动脚本默认拒绝在非 Linux 系统启动整套实验。
+
+## 从 v1 切换到 v2
+
+保留旧项目和日志，不删除旧文件夹，也不把新源码覆盖进正在运行的目录。v2 默认独立使用 `outputs/background-evidence-bridge-v2` 与 `outputs/evidence-bridge-v2`；即使同一 checkout 更新，也不会读取 v1 的 run 指针。源码、协议和预算参与已有冻结运行身份，v2 必须新建 run，不能 resume v1。
+
+服务器先在旧项目目录停止 v1，并确认状态为 `interrupted` 或已终止，再到新目录启动：
+
+```bash
+cd /home/sn_maozhifang/bt/bridge-tree-evidence-20260923 && bash scripts/run_evidence_bridge.sh stop && bash scripts/run_evidence_bridge.sh status
+```
+
+如果状态还是 `running`，等待并再次执行 `status`；`stop_requested` 只是信号已发出。新目录可复制旧目录的 `configs/credentials.local.yaml`（如存在）或重新导出环境密钥，不要复制 `.venv` 与 `outputs`。如之前显式设置过 `BACKGROUND_STATE_DIR` / `OUTPUT_DIR`，切换目录后先 `unset BACKGROUND_STATE_DIR OUTPUT_DIR`，避免覆盖默认隔离设置。这里仅给出操作命令，不代表已在服务器停止旧实验。
 
 ## 1. 交付包和服务器条件
 
@@ -10,7 +22,7 @@
 bash scripts/package_evidence_bridge.sh
 ```
 
-得到 `dist/evidence-bridge-server/bridge-tree-evidence.tar.gz`、同名 `.sha256` 和 `package_manifest.json`。脚本要求新 PDF、设计文档、运行文档及正式配置均存在，缺一项即失败，不产生“没有文档的完整交付”。包内包含源码、测试、脚本、配置、固定 revision 的 32k 原始与 processed 数据，以及 `output/pdf/BridgeTree_Mechanism_Revision_20260923.pdf`。包中不含 `.venv`、本机凭据、`.local.` 配置、软链接、缓存或任何旧 `outputs/`。**不能把本机 `.venv` 搬到 Linux 使用。**
+得到 `dist/evidence-bridge-v2-server/bridge-tree-evidence-v2.tar.gz`、同名 `.sha256` 和 `package_manifest.json`。脚本要求机制背景 PDF、设计文档、运行文档及正式配置均存在，缺一项即失败，不产生“没有文档的完整交付”。v1 已分发压缩包保持原样，新文件名和 dist 目录不会覆盖它。包内包含源码、测试、脚本、配置、固定 revision 的 32k 原始与 processed 数据，以及 `output/pdf/BridgeTree_Mechanism_Revision_20260923.pdf`。PDF 保留 v1 机制背景；v2 的片段引用、局部恢复和选择输入截断以当前设计文档及修订计划为准，不能用旧 PDF 的禁止截断条款解释 v2。包中不含 `.venv`、本机凭据、`.local.` 配置、软链接、缓存或任何旧 `outputs/`。**不能把本机 `.venv` 搬到 Linux 使用。**
 
 Linux 要求 Python >= 3.9、bash、可用的 venv/pip、足够写入完整日志的磁盘，且能访问三个推理服务。纯远程模式仅安装 numpy 和 PyYAML，无本地模型下载、CUDA/NPU 依赖。实际内存与磁盘用量取决于请求日志及原文长度；此前完整原文日志已达 GB 级，应持续查看磁盘剩余空间。三个 API 继续使用项目现有协议：embedding、pointwise reranker、OpenAI-compatible chat completions。证据模块和最终 reader 共用冻结 chat 部署，但调用、预算、日志分别记录。
 
@@ -18,10 +30,8 @@ Linux 要求 Python >= 3.9、bash、可用的 venv/pip、足够写入完整日�
 
 ```bash
 cd /path/to/archive-directory
-sha256sum -c bridge-tree-evidence.tar.gz.sha256
-mkdir -p ~/bridge-tree-evidence
-tar -xzf bridge-tree-evidence.tar.gz -C ~/bridge-tree-evidence
-cd ~/bridge-tree-evidence
+sha256sum -c bridge-tree-evidence-v2.tar.gz.sha256
+mkdir -p ~/bt/bridge-tree-evidence-v2-20260927 && tar -xzf bridge-tree-evidence-v2.tar.gz -C ~/bt/bridge-tree-evidence-v2-20260927 && cd ~/bt/bridge-tree-evidence-v2-20260927
 ```
 
 校验文件和压缩包须放在同一目录。解包后的项目根目录包含 `pyproject.toml`。
@@ -50,13 +60,12 @@ models:
 如更换了部署，同步在 `models.<name>.deployment_identity` 中记录真实已知身份；未知字段保留未知，不沿用已失效的修复服务标记。override 不可再声明 `base_config`。凭据在服务器注入，例如：
 
 ```bash
-read -r -s -p "Chat API key: " BRIDGETREE_CHAT_API_KEY
-export BRIDGETREE_CHAT_API_KEY
+read -r -s -p "Chat API key: " BRIDGETREE_CHAT_API_KEY; export BRIDGETREE_CHAT_API_KEY
 export BRIDGETREE_DEPLOYMENT_CONFIG="$PWD/configs/server.local.yaml"
 bash scripts/start_evidence_bridge_linux.sh
 ```
 
-服务不需要密钥时不必设置 `BRIDGETREE_CHAT_API_KEY`。沿用默认地址时不必设置 deployment override。第一次启动会创建本地 `.venv`、安装依赖、执行**不调用模型**的数据预检，然后启动独立后台 monitor 和 worker。数据预检核查固定数据 revision、589 题、非 synthetic、方法表和任务数；随后正式 worker 才检查服务并运行。返回 `Detached inference submitted` 只代表后台提交成功；以 `status` 与实际日志确认服务检查和任务执行。
+服务不需要密钥时不必设置 `BRIDGETREE_CHAT_API_KEY`。沿用默认地址时不必设置 deployment override。第一次启动会创建本地 `.venv`、安装依赖、执行**不调用模型**的数据预检，再执行一次 evidence 规划协议服务探测；通过后启动独立后台 monitor 和 worker。探测使用固定的非私有问题、当前配置的输出协议和当前部署，不在 plain/json_object/json_schema 间静默切换；失败则不提交实验。它产生一次额外逻辑模型调用（底层 HTTP 可重试），属于部署预检，不计入实验任务成本。仅证明规划协议的烟雾检查通过，不证明所有真实任务都可靠。数据预检核查固定数据 revision、589 题、非 synthetic、方法表和任务数；随后正式 worker 才检查服务并运行。返回 `Detached inference submitted` 只代表后台提交成功；以 `status` 与实际日志确认服务检查和任务执行。
 
 关闭 SSH 不会终止已 detached 的实验。无需再加 `nohup` 或 `&`。完整过程：
 
@@ -66,6 +75,8 @@ bash scripts/run_evidence_bridge.sh log
 bash scripts/run_evidence_bridge.sh module-log scheduler
 bash scripts/run_evidence_bridge.sh module-log evidence
 bash scripts/run_evidence_bridge.sh module-log effectiveness-current
+bash scripts/run_evidence_bridge.sh summary
+bash scripts/run_evidence_bridge.sh export
 ```
 
 `log` / `module-log` 的 Ctrl+C 只退出 tail，不停止实验。重复 `start` 在已有 live monitor 时返回 `already_running`，不会同时启动第二份任务。
@@ -79,8 +90,8 @@ bash scripts/run_evidence_bridge.sh module-log effectiveness-current
 | `BRIDGETREE_SKIP_INSTALL` | `false`；已安装依赖时可设 `true` |
 | `BRIDGETREE_BASE_PYTHON` | 管理脚本默认 `.venv/bin/python`；自定义 venv 管理时传其 Python |
 | `BRIDGETREE_DEPLOYMENT_CONFIG` | 首次启动使用的私有覆盖配置路径 |
-| `BACKGROUND_STATE_DIR` | `outputs/background-evidence-bridge` |
-| `OUTPUT_DIR` | `outputs/evidence-bridge`，每次 start 新建子目录 |
+| `BACKGROUND_STATE_DIR` | `outputs/background-evidence-bridge-v2` |
+| `OUTPUT_DIR` | `outputs/evidence-bridge-v2`，每次 start 新建子目录 |
 
 使用自定义 state 目录/venv 时，后续 status/stop/resume 必须继续传相同变量。方法参数修改应写一份新的 YAML，使用 `bash scripts/start_evidence_bridge_linux.sh configs/your_method.yaml`。不要修改正在运行的 YAML 或源码。
 
@@ -100,17 +111,18 @@ monitor 状态 `completed` 表示 worker 正常退出；**仍要查看运行目�
 
 ## 4. 日志目录与权威来源
 
-固定管理目录 `outputs/background-evidence-bridge/`：
+固定管理目录 `outputs/background-evidence-bridge-v2/`：
 
 | 文件 | 用途 |
 |---|---|
 | `evidence_bridge.status.json` | monitor 当前 PID、状态、run_dir、退出信息 |
 | `evidence_bridge.log` | stdout/stderr、heartbeat、后台结果 |
 | `evidence_bridge.spec.json` | 原启动参数，resume 从此恢复 |
+| `evidence_protocol_probe.json` | 最近一次启动前协议服务探测结果，不含原始密钥或响应全文 |
 | `evidence_bridge.run_dir` | 当前实际运行目录，只有一行绝对路径 |
 | `history/` | 重新启动/恢复前的管理状态与主日志 |
 
-每个 `outputs/evidence-bridge/start_<日期>_<PID>/`：
+每个 `outputs/evidence-bridge-v2/start_<日期>_<PID>/`：
 
 | 文件/目录 | 用途与判读 |
 |---|---|
@@ -140,13 +152,13 @@ monitor 状态 `completed` 表示 worker 正常退出；**仍要查看运行目�
 | 目标约束/转向 | `target`, `activation` | 四项 R、A、M_before/M_after/M_group；retain/speculate/reject；pivot 是否确实删除旧 e、新根来自哪里、有无去重；汇总 pivot_count 只计 queued，尝试和拒绝分开 |
 | 检索提案 | `proposal` | 原 query/桥接/条件/缺口查询各次 ANN、返回 IDs、池外发现、重复和额度耗尽 |
 | 全集评分与归档 | `scoring`, `state`, `archive` | 已完成集合及预算；archive 保存完整 P/Pe/PG/PGe；未完整测量不得生成 A |
-| 原文证据映射 | `evidence` | 全候选全文分片暴露、原文 quote/offset/role 校验、support/partial/contradiction、explicit/inference；不能只看有效证据条数忽略未映射候选 |
-| 整体选择 | `selection` | 冻结需求的覆盖/缺失/歧义、支撑 IDs、每轮 added/removed IDs、实际完整输入预算和修订；不能把不满足 R 正边际当自动拒绝理由 |
+| 原文证据映射 | `evidence` | 原文 source span 暴露、模型引用 span ID、代码回取原文及 offset/role 校验、support/partial/contradiction、explicit/inference；不能只看有效证据条数忽略未映射候选 |
+| 整体选择 | `selection` | 冻结需求的覆盖/缺失/歧义、支撑 IDs、每轮 added/removed IDs、实际可见证据子集、被预算裁掉的记录、输入预算和修订；不能把不满足 R 正边际当自动拒绝理由 |
 | 缺口检索 | `feedback` | 哪项需求缺失、targeted query、ANN 计费、返回新/旧 ID、是否重映射、无新证据或预算耗尽终态 |
 | 最终输入与答案 | `context`, `effectiveness-current` | 最终原始 Memory、ContextPlan、请求 hash、答案解析/正误；old/new 方法相同 payload 也可能得到不同输出 |
 | 成本与失败 | `cost`, `requests`, `stop` | 逻辑 ANN/集合/证据 LLM 调用 vs 物理 HTTP 重试、缓存命中、预算耗尽、typed error；token estimate 不冒充 tokenizer 真值 |
 
-证据阶段默认最多 24 次 LLM 调用，包括规划、全文映射、整体选择、最多一次 JSON 修复及有限反馈/预算修订；最终 reader 调用另计。这是冻结提示推理新增开销，不属于原 selection 512 次 R 集合预算。证据整表过大或不合法会产生 typed failure，不能认为“分片了”就一定可以容纳所有映射。
+证据阶段默认最多 24 次 LLM 调用，包括规划、全文映射、整体选择、局部修复及有限反馈/预算修订；每个逻辑请求最多 2 次修复、整题最多 6 次，均计入总调用额度，最终 reader 调用另计。选择阶段可在预算内按完整记录裁剪 ledger；有效但部分映射的候选可进入选择。未评估部分保持 unavailable，不能当无关；被裁掉的证据不能引用。没有合法最终选择仍记为失败，不自动回退其他方法。
 
 证据选择 artifact 中的具体字段如下，查原始记录时使用实际字段名，不通过文字描述猜测：
 
@@ -156,19 +168,22 @@ monitor 状态 `completed` 表示 worker 正常退出；**仍要查看运行目�
 | `evidence_selection.diagnostics` | `evidence_candidates`, `evidence_mapped_candidates`, `evidence_unmapped_candidates`, `evidence_units`, `evidence_verified_mappings`, `evidence_requirements` |
 | 覆盖与修订诊断 | `evidence_covered_requirements`, `evidence_partial_requirements`, `evidence_missing_requirements`, `evidence_ambiguous_requirements`, `evidence_validation_failures`, `evidence_selection_revisions`, `evidence_feedback_rounds`, `evidence_selected_count` |
 | `evidence_selection.coverage[]` | `requirement_id`, `status`, `evidence_ids`, `kind`, `explanation`, `supporting_ids` |
+| 完成类型 | `reliability_status` 为 `normal` / `truncated` / `partially_mapped` / `truncated_and_partially_mapped`；另记 `selection_input_truncated`, `partially_mapped`, `unavailable_unit_count` |
 | 完整任务级记录 | `requests`（messages/raw_response/validation）, `exposures`, `selection_rounds`, `mappings` |
 
-`evidence_unmapped_candidates > 0` 表示执行/映射没有完成，应结合任务失败状态分析；`evidence_validation_failures` 包括可修复的非法输出，不能只看终态成功就认为模型每次响应都合规。
+`evidence_unmapped_candidates > 0` 表示未完整映射，可同时存在有效的部分证据，应结合任务状态与 `partially_mapped` 分析；`evidence_validation_failures` 包括可修复的非法输出，不能只看终态成功就认为模型每次响应都合规。
 
 ## 6. 汇总和定位一条错误
 
 ```bash
 bash scripts/run_evidence_bridge.sh summary
 # 或指定一个旧目录，不改变当前 run
-.venv/bin/python scripts/summarize_evidence_bridge.py outputs/evidence-bridge/start_YYYYMMDD_HHMMSS_PID
+.venv/bin/python scripts/summarize_evidence_bridge.py outputs/evidence-bridge-v2/start_YYYYMMDD_HHMMSS_PID
 ```
 
 汇总读取冻结计划及 `outcomes/`，不累加 append-only 重试事件。`diagnostics.evidence_bridge_summary` 的每个数值指标输出 `observed_tasks/missing_tasks/sum/mean/min/max`，cost 同样单列；缺字段不会当 0。旧 dense/activation 没有新方法 summary 是预期缺失。schema/任务身份错误列入 `invalid_outcome_files`，命令返回非零。运行中生成的汇总不是跨文件事务快照，应在完成后重新执行一次。
+
+标准 `summary.json` 的 evidence_bridge 方法行和 `mechanism_summary.json` 均包含 `evidence_reliability.completion_cohorts`：分别统计四种完成类型的题数、答对数、准确率与成本。旧日志没有版本诊断时记 `unknown`，不冒充正常完成；失败题成本独列 `failure_cost_metrics`。各组题目不相同，不能据此直接声称方法更有效。
 
 新摘要同时保留 selector.diagnostics，例如全文映射完成数、校验失败、集合修订和反馈轮次。removed_memories 只计实际接受的整体集合变更，不能把 proposed 与 accepted 重复累加或把预算拒绝当成已经删除。
 
@@ -180,21 +195,26 @@ bash scripts/run_evidence_bridge.sh summary
 4. 对照 `feedback`，确认缺失需求是否触发预算内真实 ANN，新候选是否进入映射和新集合。
 5. 对照最终 ContextPlan 和实际 reader request，确认选出的原文确实进入模型。若相同 payload 的答案不同，标明 reader 波动，避免把变化全归因于搜索。模型自报 `covered` 只表示经引用校验的覆盖判断，不等于 gold evidence recall 或真实答案贡献。
 
-可以用下面脚本列出当前错误，无需扫描数 GB 请求历史：
+当前进度用一行命令查看：
 
 ```bash
-.venv/bin/python - <<'PY'
-import json
-from pathlib import Path
-state = Path('outputs/background-evidence-bridge/evidence_bridge.run_dir')
-root = Path(state.read_text().strip())
-for path in sorted((root / 'outcomes').glob('*.json')):
-    row = json.loads(path.read_text())
-    if row.get('status') == 'success' and row.get('correct') is False:
-        task = row['task']
-        print(task['method_id'], task['question_id'], task['task_id'], row['attempt'], row['selected_ids'])
-PY
+python3 -c 'import json; from pathlib import Path; r=Path(Path("outputs/background-evidence-bridge-v2/evidence_bridge.run_dir").read_text().strip()); print((r/"progress.json").read_text())'
 ```
+
+导出当前运行的全部方法分析日志：
+
+```bash
+bash scripts/run_evidence_bridge.sh export
+```
+
+默认写到 `outputs/exports/evidence_logs_<run>_<时间>_<PID>.tar.gz` 和同名 `.sha256`。包含权威 outcomes、完整候选/证据原始请求响应、实时快照、模块日志、已脱敏配置及冻结任务计划；不包含项目私有配置、环境变量、旧实验目录或软链接。`export_manifest.json` 记录每个成员的实际字节数和 SHA256。原始记忆和模型文本用于分析，仍应按实验数据管理。可以在运行期间导出；这不是跨文件事务快照，正在追加的 JSONL 末行可能不完整。最终分析应在停止或完成后再次导出。
+
+也能导出已停止的 v1 运行，供检查 49 个 JSON 和 13 个跨需求引用错误（用真实旧 run_dir 替换路径）：
+
+```bash
+.venv/bin/python scripts/export_evidence_bridge_logs.py /home/sn_maozhifang/bt/bridge-tree-evidence-20260923/outputs/evidence-bridge/start_实际运行目录
+```
+
 
 ## 7. 本地验收与真实服务器评测的边界
 

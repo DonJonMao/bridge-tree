@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -10,6 +11,7 @@ import sys
 import tarfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -70,6 +72,7 @@ def test_summary_uses_current_outcomes_and_missing_fields(tmp_path):
         "max": 4,
     }
     assert row["success_accuracy"] == 1.0
+    assert row["evidence_reliability"]["completion_cohorts"]["unknown"]["tasks"] == 1
     # Wrong identity must be visible, never silently counted as a valid task.
     (outcomes / "c.json").write_text(json.dumps({"task": {**plan[2], "method_id": "other"}, "status": "success"}))
     assert len(module.summarize(tmp_path)["invalid_outcome_files"]) == 1
@@ -103,6 +106,114 @@ def test_package_contains_data_pdf_and_excludes_private_state(tmp_path):
     assert not any(module.excluded(Path(name)) for name in names)
     assert "configs/link.yaml" not in names
     assert len(checksum.read_text().split()[0]) == 64
+    assert archive.name == "bridge-tree-evidence-v2.tar.gz"
+
+
+def test_completion_cohorts_preserve_unknown_and_do_not_count_retries(tmp_path):
+    from bridgetree.evidence_diagnostics import evidence_bridge_summary, reliability_cohorts
+
+    statuses = ["normal", "truncated", "partially_mapped", "truncated_and_partially_mapped"]
+    rows = []
+    for index, status in enumerate(statuses):
+        diagnostics = {
+            "reliability_status": status,
+            "selection_input_truncated": "truncated" in status,
+            "partially_mapped": "partially_mapped" in status,
+            "unavailable_unit_count": index,
+        }
+        summary = evidence_bridge_summary({"evidence_selection": {"diagnostics": diagnostics}}, {}, [])
+        assert summary["reliability"] == diagnostics
+        rows.append({
+            "status": "success", "correct": index % 2 == 0, "attempt": 4,
+            "diagnostics": {"evidence_bridge_summary": summary},
+            "costs": {"evidence_calls": index + 1, "missing_metric": None},
+        })
+    rows.extend([
+        {"status": "success", "correct": False, "diagnostics": {}, "costs": {}},
+        {"status": "error", "costs": {"evidence_calls": 24}},
+    ])
+    result = reliability_cohorts(rows)
+    assert (result["successful_tasks"], result["failed_tasks"]) == (5, 1)
+    assert sum(value["tasks"] for value in result["completion_cohorts"].values()) == 5
+    for index, name in enumerate(statuses):
+        group = result["completion_cohorts"][name]
+        assert group["tasks"] == 1
+        assert group["accuracy"] == (1.0 if index % 2 == 0 else 0.0)
+        assert group["cost_metrics"]["evidence_calls"]["sum"] == index + 1
+        assert "missing_metric" not in group["cost_metrics"]
+    assert result["failure_cost_metrics"]["evidence_calls"]["sum"] == 24
+
+
+def test_standard_summary_includes_current_evidence_completion_cohorts():
+    from bridgetree.dependency_experiment import DependencyOutcome, DependencyTask, summarize_dependency_outcomes
+
+    task = DependencyTask("rev", "32k", "persona", "q", "evidence_bridge", "cfg", "data", "source", "protocol")
+    outcome = DependencyOutcome(
+        task, "success", 3, 0, 1, prediction="(a)", correct=True,
+        diagnostics={"evidence_bridge_summary": {"reliability": {"reliability_status": "partially_mapped"}}},
+        costs={"evidence_calls": 6},
+    )
+    summary = summarize_dependency_outcomes([task], [outcome])
+    cohorts = summary["methods"][0]["evidence_reliability"]["completion_cohorts"]
+    assert cohorts["partially_mapped"]["tasks"] == 1
+    assert cohorts["normal"]["tasks"] == 0
+    assert cohorts["partially_mapped"]["cost_metrics"]["evidence_calls"]["sum"] == 6
+
+
+def test_new_source_modules_affect_identity_with_git_and_in_extracted_package(tmp_path, monkeypatch):
+    from bridgetree import protocol
+
+    root = tmp_path / "repo"
+    names = ("src/bridgetree/evidence_protocol.py", "src/bridgetree/evidence_spans.py")
+    for name in names:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("version = 1\n")
+    monkeypatch.setattr(protocol, "__file__", str(root / "src/bridgetree/protocol.py"))
+    git_available = True
+
+    def git_files(*args, **kwargs):
+        return SimpleNamespace(returncode=0 if git_available else 1, stdout="\n".join(names))
+
+    monkeypatch.setattr(protocol.subprocess, "run", git_files)
+    before = protocol._source_package_snapshot()
+    git_available = False
+    assert protocol._source_package_snapshot() == before
+    for name in names:
+        (root / name).write_text("version = 2\n")
+        after = protocol._source_package_snapshot()
+        assert after != before
+        git_available = True
+        assert protocol._source_package_snapshot() == after
+        git_available = False
+        before = after
+
+
+def test_log_export_includes_raw_artifacts_but_not_project_secrets(tmp_path):
+    module = load_script("export_evidence_bridge_logs")
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "planned_tasks.jsonl").write_text('{"task_id":"a"}\n')
+    for name in ("outcomes/a.json", "candidate_pool/a.json", "evidence_live/a.json", "modules/evidence.jsonl"):
+        path = run / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text('{"raw_response":"evidence fixture"}\n')
+    private = run / "credentials.local.yaml"
+    private.write_text("secret-value")
+    (run / "candidate_pool/private.json").symlink_to(private)
+    archive, checksum = module.export_logs(run, tmp_path / "export")
+    with tarfile.open(archive) as handle:
+        names = handle.getnames()
+        assert "run/evidence_live/a.json" in names
+        assert not any("private" in name or "credential" in name for name in names)
+        manifest = json.load(handle.extractfile("export_manifest.json"))
+        assert manifest["transactional_snapshot"] is False
+        assert manifest["skipped"] == [{"path": "candidate_pool/private.json", "reason": "symlink"}]
+        for record in manifest["files"]:
+            payload = handle.extractfile("run/" + record["path"]).read()
+            assert hashlib.sha256(payload).hexdigest() == record["sha256"]
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == checksum.read_text().split()[0]
+    assert archive.stat().st_mode & 0o777 == 0o600
 
 
 FAKE_WORKER = """from pathlib import Path
@@ -146,6 +257,13 @@ def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
         shutil.copy2(ROOT / name, target)
     (repo / "src/bridgetree/__init__.py").write_text("")
     (repo / "scripts/chain_worker.py").write_text(FAKE_WORKER)
+    (repo / "scripts/probe_evidence_protocol.py").write_text(
+        "import argparse,json,os\nfrom pathlib import Path\n"
+        "p=argparse.ArgumentParser();p.add_argument('--config');p.add_argument('--override-config');"
+        "p.add_argument('--output');a=p.parse_args();"
+        "Path(a.output).write_text(json.dumps(vars(a)));"
+        "raise SystemExit(1 if os.environ.get('FAKE_PROTOCOL_INVALID') else 0)\n"
+    )
     (repo / "configs").mkdir()
     config = repo / "configs/evidence_bridge.yaml"
     config.write_text("fixture: true\n")
@@ -198,6 +316,8 @@ def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
             check=True,
         )
         assert "Detached inference submitted" in launch.stdout
+        probe = json.loads((state / "evidence_protocol_probe.json").read_text())
+        assert probe["override_config"] == str(deployment)
         status = poll(lambda s: s["state"] == "running")
         run = Path(status["run_dir"])
         deadline = time.monotonic() + 5
@@ -232,6 +352,14 @@ def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
         assert invalid.returncode != 0
         assert "full 32k data-only preflight failed" in invalid.stderr
         assert json.loads(command("status").stdout)["run_dir"] == str(run)
+        del env["FAKE_PREFLIGHT_INVALID"]
+        env["FAKE_PROTOCOL_INVALID"] = "1"
+        invalid_protocol = subprocess.run(
+            ["bash", "scripts/start_evidence_bridge_linux.sh"], cwd=repo, env=env,
+            capture_output=True, text=True,
+        )
+        assert invalid_protocol.returncode != 0
+        assert json.loads(command("status").stdout)["run_dir"] == str(run)
     finally:
         command("stop")
 
@@ -263,3 +391,22 @@ def test_controller_bootstrap_needs_no_installed_scientific_packages(tmp_path):
         env={**os.environ, "BACKGROUND_STATE_DIR": str(tmp_path / "fresh-state")},
     )
     assert json.loads(result.stdout)["state"] == "not_started"
+
+
+def test_v2_default_management_does_not_read_v1_state(tmp_path):
+    repo = tmp_path / "repo"
+    for name in ("scripts/evidence_bridge_control.py", "src/bridgetree/background.py"):
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / name, path)
+    old = repo / "outputs/background-evidence-bridge"
+    old.mkdir(parents=True)
+    state_file = old / "evidence_bridge.status.json"
+    state_file.write_text(json.dumps({"state": "interrupted", "run_dir": "/v1-run"}))
+    env = {key: value for key, value in os.environ.items() if key not in {"BACKGROUND_STATE_DIR", "OUTPUT_DIR"}}
+    result = subprocess.run(
+        [sys.executable, "-S", "scripts/evidence_bridge_control.py", "status"],
+        cwd=repo, capture_output=True, text=True, env=env, check=True,
+    )
+    assert json.loads(result.stdout)["state"] == "not_started"
+    assert json.loads(state_file.read_text())["run_dir"] == "/v1-run"

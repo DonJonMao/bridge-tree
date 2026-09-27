@@ -60,20 +60,39 @@ class EvidenceSearchConfig:
 class EvidenceSelectionConfig:
     max_requirements: int = 6
     max_llm_calls: int = 24
-    max_json_repairs: int = 1
+    max_json_repairs: int = 6
+    max_repairs_per_request: int = 2
     max_selection_revisions: int = 2
     input_token_budget: int = 16384
     map_batch_token_budget: int = 6144
     output_max_tokens: int = 4096
     max_quote_chars: int = 400
     max_feedback_rounds: int = 2
+    response_format: str = "plain"
+    selection_input_margin: int = 256
 
     def __post_init__(self):
-        zero = {"max_json_repairs", "max_selection_revisions", "max_feedback_rounds"}
+        zero = {
+            "max_json_repairs",
+            "max_repairs_per_request",
+            "max_selection_revisions",
+            "max_feedback_rounds",
+            "selection_input_margin",
+        }
         for name in self.__dataclass_fields__:
+            if name == "response_format":
+                continue
             object.__setattr__(self, name, _integer(getattr(self, name), name, 0 if name in zero else 1))
         if self.map_batch_token_budget > self.input_token_budget:
             raise ValueError("map_batch_token_budget cannot exceed input_token_budget")
+        if not isinstance(self.response_format, str) or self.response_format not in {
+            "plain",
+            "json_object",
+            "json_schema",
+        }:
+            raise ValueError("response_format must be plain, json_object, or json_schema")
+        if self.selection_input_margin >= self.input_token_budget:
+            raise ValueError("selection_input_margin must be smaller than input_token_budget")
 
 
 @dataclass(frozen=True)

@@ -60,14 +60,14 @@ def recorded_run(state: Path) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "action", choices=("start", "preflight", "status", "stop", "resume", "log", "module-log", "summary")
+        "action", choices=("start", "preflight", "status", "stop", "resume", "log", "module-log", "summary", "export")
     )
     parser.add_argument(
-        "argument", nargs="?", help="config for start/preflight; module for module-log; run dir for summary"
+        "argument", nargs="?", help="config for start/preflight; module for module-log; run dir for summary/export"
     )
     args = parser.parse_args()
-    state = Path(os.environ.get("BACKGROUND_STATE_DIR", REPO / "outputs/background-evidence-bridge")).resolve()
-    run_root = Path(os.environ.get("OUTPUT_DIR", REPO / "outputs/evidence-bridge")).resolve()
+    state = Path(os.environ.get("BACKGROUND_STATE_DIR", REPO / "outputs/background-evidence-bridge-v2")).resolve()
+    run_root = Path(os.environ.get("OUTPUT_DIR", REPO / "outputs/evidence-bridge-v2")).resolve()
     status = read_job_status(state, JOB)
     if args.action == "status":
         result = status
@@ -93,9 +93,10 @@ def main() -> int:
         if not path.is_file():
             raise FileNotFoundError(f"log has not been created: {path}")
         os.execvp("tail", ["tail", "-n", "100", "-F", str(path)])
-    elif args.action == "summary":
+    elif args.action in {"summary", "export"}:
         run = Path(args.argument).resolve() if args.argument else recorded_run(state)
-        return subprocess.call([sys.executable, str(REPO / "scripts/summarize_evidence_bridge.py"), str(run)])
+        script = "summarize_evidence_bridge.py" if args.action == "summary" else "export_evidence_bridge_logs.py"
+        return subprocess.call([sys.executable, str(REPO / "scripts" / script), str(run)])
     else:
         if status.get("state") in ACTIVE_STATES:
             print(json.dumps({**status, "launch_result": "already_running"}, ensure_ascii=False, indent=2))

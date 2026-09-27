@@ -172,6 +172,32 @@ def test_unknown_single_token_reason_is_not_treated_as_safe_error_text(tmp_path)
     assert "PRIVATE" not in recorder.path.read_text()
 
 
+def test_evidence_v2_budget_and_recovery_fields_survive_without_payload_text(tmp_path):
+    recorder = ModuleEventRecorder(tmp_path)
+    evidence_id = "ev_" + "a" * 20
+    with observation_scope(recorder):
+        observe(
+            "selection", "evidence_selection_input_prepared", truncated=True,
+            policy_version="requirement_memory_round_robin_v2", input_tokens_before=20000,
+            input_tokens_after=15000, selection_payload_limit=15872,
+            retained_evidence_ids=[evidence_id], dropped_evidence_ids=["ev_" + "b" * 20],
+            alias_to_evidence_id={"r1_e1": evidence_id, "api_key": "PRIVATE_KEY"},
+            omitted_evidence_by_requirement={"r1": 2, "r2": 0, "password": "PRIVATE_PASSWORD"},
+            failure_category="evidence_relation", reserved_calls=2, split_for_retry=True,
+            eligible=True, eligible_memory_count=1, quote="PRIVATE_QUOTE",
+        )
+    event = read_events(recorder.path)[0]
+    assert event["input_tokens_before"] == 20000
+    assert event["truncated"] is True
+    assert event["alias_to_evidence_id"] == {"r1_e1": evidence_id}
+    assert event["omitted_evidence_by_requirement"] == {"r1": 2, "r2": 0}
+    assert event["failure_category"] == "evidence_relation"
+    assert event["reserved_calls"] == 2
+    assert event["split_for_retry"] is True
+    assert event["eligible"] is True
+    assert "PRIVATE_" not in recorder.path.read_text()
+
+
 def test_sink_failure_raises_existing_audit_error_and_scope_restores():
     def failing_sink(event):
         raise OSError("disk full")

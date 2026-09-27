@@ -29,7 +29,10 @@ evidence_bridge:
   selection:
     max_requirements: 6
     max_llm_calls: 24
-    max_json_repairs: 1
+    max_json_repairs: 6
+    max_repairs_per_request: 2
+    response_format: plain
+    selection_input_margin: 256
     max_selection_revisions: 2
     input_token_budget: 16384
     map_batch_token_budget: 6144
@@ -39,5 +42,5 @@ evidence_bridge:
 
 runtime:
   device: cpu
-  cache_dir: outputs/cache-evidence-bridge
-  output_dir: outputs/evidence-bridge
+  cache_dir: outputs/cache-evidence-bridge-v2
+  output_dir: outputs/evidence-bridge-v2

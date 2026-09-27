@@ -1468,7 +1468,14 @@ def summarize_dependency_outcomes(
     aggregate = _metric_row(tasks, by_id, method_id="all", role="all_data")
     methods = []
     for method in dict.fromkeys(task.method_id for task in tasks):
-        methods.append(_metric_row(tasks, by_id, method_id=method, role="all_data"))
+        row = _metric_row(tasks, by_id, method_id=method, role="all_data")
+        if method == "evidence_bridge":
+            from .evidence_diagnostics import reliability_cohorts
+            row["evidence_reliability"] = reliability_cohorts([
+                by_id[task.task_id].public_dict() for task in tasks
+                if task.method_id == method and task.task_id in by_id
+            ])
+        methods.append(row)
     return {
         **{key: value for key, value in aggregate.items() if key not in {"method_id", "role"}},
         "methods": methods,

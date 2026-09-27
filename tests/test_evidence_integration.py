@@ -186,11 +186,149 @@ def test_invalid_evidence_response_keeps_partial_artifacts_and_never_calls_reade
     output = json.loads(next((root / "outcomes").glob("*.json")).read_text())
     assert output["status"] == "error"
     assert output["infrastructure_failure"] is False
-    assert generator.calls == 2
+    assert generator.calls == 1 + config.evidence_bridge.selection.max_repairs_per_request
     artifact = json.loads(next((root / "candidate_pool").glob("*.json")).read_text())
-    assert len(artifact["evidence_selection"]["requests"]) == 2
+    assert len(artifact["evidence_selection"]["requests"]) == generator.calls
     assert all(r["validation_status"] == "invalid" for r in artifact["evidence_selection"]["requests"])
     assert output["diagnostics"]["evidence_bridge_summary"]["selection"]["available"] is True
+
+
+def test_formal_runner_partially_mapped_memory_reaches_reader_and_cohort(tmp_path):
+    from test_dependency_experiment import FakeEmbedder, FakeReranker, example, fake_config
+    from test_evidence_selection import ScriptedBackend
+
+    from bridgetree.dependency_experiment import run_dependency_experiment
+
+    raw_text = "I prefer quiet places. I previously tried a crowded cafe."
+
+    class PartiallyValidReader(ScriptedBackend):
+        def __init__(self):
+            super().__init__(map_response=self.map_partial)
+            self.reader_plans = []
+            self.invalid_span = None
+
+        def map_partial(self, payload):
+            response = self.map_all(payload)
+            for unit, row in zip(payload["units"], response["units"]):
+                if "crowded" in unit["text"]:
+                    self.invalid_span = unit["span_id"]
+                    row["assessments"][0]["span_ids"] = ["s_never_supplied"]
+            return response
+
+        def answer_plan(self, plan):
+            self.reader_plans.append(plan)
+            assert raw_text in plan.serialized_context
+            return "(a) Library."
+
+    config = fake_config(tmp_path, methods=("evidence_bridge",))
+    config = replace(config, evidence_bridge=replace(
+        config.evidence_bridge,
+        selection=replace(config.evidence_bridge.selection, max_json_repairs=0, max_quote_chars=36),
+    ))
+    item = replace(example(), messages=[{"role": "user", "content": raw_text}], end_index=1)
+    reader = PartiallyValidReader()
+    root = tmp_path / "partial"
+    run_dependency_experiment(
+        config, root, examples=[item], embedder=FakeEmbedder(), reranker=FakeReranker(), generator=reader,
+    )
+    outcome = json.loads(next((root / "outcomes").glob("*.json")).read_text())
+    assert outcome["status"] == "success", outcome.get("error")
+    assert outcome["correct"] is True
+    assert len(reader.reader_plans) == outcome["costs"]["generator_calls"] == 1
+    assert len(outcome["selected_ids"]) == 1
+    artifact = json.loads(next((root / "candidate_pool").glob("*.json")).read_text())["evidence_selection"]
+    assert artifact["mapped_candidate_ids"] == []
+    assert artifact["eligible_memory_ids"] == outcome["selected_ids"]
+    assert artifact["costs"]["evidence_json_repairs"] == 0
+    assert artifact["diagnostics"]["reliability_status"] == "partially_mapped"
+    assert artifact["diagnostics"]["unavailable_unit_count"] == 1
+    assert any(e["unit_id"] == reader.invalid_span and e["status"] == "unavailable" for e in artifact["exposures"])
+    assert all(reader.invalid_span not in fact["span_ids"] for fact in artifact["mappings"])
+    assert any(fragment["quote"].strip() == "I prefer quiet places."
+               for fact in artifact["mappings"] for fragment in fact["fragments"])
+    # The model uses visible short aliases; persistent coverage keeps verified
+    # source-based IDs. The rejected span cannot become a valid source row.
+    select_request = next(r for r in artifact["requests"] if r["operation"] == "evidence_select")
+    sent = json.loads(select_request["messages"][1]["content"])
+    returned = json.loads(select_request["raw_response"])
+    alias_map = artifact["selection_inputs"][-1]["alias_to_evidence_id"]
+    aliases = returned["coverage"][0]["evidence_ids"]
+    assert set(aliases) <= {row["evidence_id"] for row in sent["evidence_ledger"]}
+    assert artifact["coverage"][0]["evidence_ids"] == [alias_map[alias] for alias in aliases]
+    assert outcome["diagnostics"]["evidence_bridge_summary"]["reliability"]["partially_mapped"] is True
+    standard = json.loads((root / "summary.json").read_text())["methods"][0]
+    cohorts = standard["evidence_reliability"]["completion_cohorts"]
+    assert cohorts["partially_mapped"]["tasks"] == cohorts["partially_mapped"]["correct"] == 1
+    assert cohorts["partially_mapped"]["accuracy"] == 1.0
+    assert cohorts["normal"]["tasks"] == 0
+
+
+def test_formal_runner_truncated_ledger_keeps_visible_citations_and_original_reader_context(tmp_path):
+    from test_dependency_experiment import FakeEmbedder, FakeReranker, extended_example, fake_config
+    from test_evidence_selection import ScriptedBackend
+
+    from bridgetree.dependency_experiment import run_dependency_experiment
+
+    class VerboseMapperReader(ScriptedBackend):
+        def __init__(self):
+            super().__init__(map_response=self.map_verbose)
+            self.reader_plans = []
+
+        def map_verbose(self, payload):
+            result = self.map_all(payload)
+            for row in result["units"]:
+                for assessment in row["assessments"]:
+                    assessment["claim"] += " verbose mapping explanation" * 120
+            return result
+
+        def answer_plan(self, plan):
+            self.reader_plans.append(plan)
+            assert "verbose mapping explanation" not in plan.serialized_context
+            return "(a) Library."
+
+    config = fake_config(tmp_path, methods=("evidence_bridge",))
+    config = replace(
+        config, dependency=replace(config.dependency, initial_width=4),
+        evidence_bridge=replace(config.evidence_bridge, selection=replace(
+            config.evidence_bridge.selection, input_token_budget=4000, map_batch_token_budget=3500,
+        )),
+    )
+    root = tmp_path / "truncated"
+    reader = VerboseMapperReader()
+    run_dependency_experiment(
+        config, root, examples=[extended_example()], embedder=FakeEmbedder(), reranker=FakeReranker(), generator=reader,
+    )
+    outcome = json.loads(next((root / "outcomes").glob("*.json")).read_text())
+    assert outcome["status"] == "success", outcome.get("error")
+    assert len(reader.reader_plans) == outcome["costs"]["generator_calls"] == 1
+    assert reader.reader_plans[0].selected_ids == tuple(outcome["selected_ids"])
+    assert outcome["selected_ids"]
+    artifact = json.loads(next((root / "candidate_pool").glob("*.json")).read_text())["evidence_selection"]
+    assert artifact["diagnostics"]["reliability_status"] == "truncated"
+    assert set(artifact["mapped_candidate_ids"]) == set(artifact["candidate_ids"])
+    audit = artifact["selection_inputs"][-1]
+    assert audit["input_tokens_before"] > audit["input_token_budget"]
+    assert audit["input_tokens_after"] <= audit["selection_payload_limit"]
+    assert audit["dropped_evidence_ids"]
+    assert audit["retained_evidence_ids"]
+    assert len(artifact["mappings"]) == len(audit["retained_evidence_ids"]) + len(audit["dropped_evidence_ids"])
+    for row in artifact["coverage"]:
+        assert set(row["evidence_ids"]) <= set(audit["retained_evidence_ids"])
+        assert not set(row["evidence_ids"]) & set(audit["dropped_evidence_ids"])
+    for request in artifact["requests"]:
+        if request["operation"] == "evidence_select":
+            assert request["input_tokens_estimate"] <= config.evidence_bridge.selection.input_token_budget
+            payload = json.loads(request["messages"][1]["content"])
+            assert set(payload["candidate_ids"]) == {row["memory_id"] for row in payload["evidence_ledger"]}
+            assert all(alias in audit["alias_to_evidence_id"] for alias in
+                       json.loads(request["raw_response"])["coverage"][0]["evidence_ids"])
+    standard = json.loads((root / "summary.json").read_text())["methods"][0]
+    cohort = standard["evidence_reliability"]["completion_cohorts"]["truncated"]
+    assert cohort["tasks"] == cohort["correct"] == 1
+    live = [json.loads(line) for line in (root / "modules/selection.jsonl").read_text().splitlines()]
+    event = next(row for row in live if row.get("event") == "evidence_selection_input_prepared")
+    assert event["dropped_evidence_ids"] == audit["dropped_evidence_ids"]
+    assert event["alias_to_evidence_id"] == audit["alias_to_evidence_id"]
 
 
 def test_reader_failure_keeps_evidence_and_counts_attempted_reader_separately(tmp_path):

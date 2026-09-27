@@ -1,10 +1,10 @@
 # Evidence BridgeTree 方法修改设计与验收文档
 
-版本：2026-09-23 / evidence_bridge_v1。本文是本轮实现契约，取代此前 PR1-PR4 文档对“不修改算法”的历史范围限制。用户要求直接完成方法修改，不再以先跑消融结果作为实施前提。本方法仍使用冻结模型推理，没有参数训练；服务器的一键“实验”指完整数据集推理评测。
+版本：2026-09-27 / evidence_bridge_v2。本文是本轮实现契约，取代此前 PR1-PR4 文档对“不修改算法”的历史范围限制。用户要求直接完成方法修改，不再以先跑消融结果作为实施前提。本方法仍使用冻结模型推理，没有参数训练；服务器的一键“实验”指完整数据集推理评测。
 
 ## 1. 目标与交付
 
-- 新 PDF：本轮日志现象、机制解释、2025-2026 文献和本次具体改法；明确已观测和待验证收益。
+- 2026-09-23 PDF 保留为 v1 机制背景；v2 引用协议、局部恢复与预算截断以本文及可靠性修订记录为准。
 - 本文：三个方向的算法、接口、预算、日志、异常及逐项验证要求。
 - 正式新方法 `evidence_bridge`，接入现有 `chain-run` 数据、任务计划、reader 和评估流程，不能停留于孤立 demo 或 fake 分支。
 - 保留 legacy 方法用于复现；新版完整方法默认打开三个方向，不能默认退回旧 R 选择器。
@@ -23,8 +23,8 @@
 2. 用一次 q-only LLM 调用生成至多 6 条信息需求；输入只有 query 和通用个性化任务说明。需求冻结，避免看候选后改变评价标准。记录原始响应及校验结果。
 3. 复用原 query dense/bridge 初始池。条件 proposal 可携带冻结需求，原 R 始终对原 query 评分，不把 R 重命名为效用。
 4. 运行多目标双预算搜索，保存每个完整测量集合；目标边际约束深入资格，有限 pivot 可以脱离旧目标。
-5. 将全部已发现候选（不只正后继）按完整原文分批做证据映射；分片不截断、不丢尾部，每段记录 memory ID、说话人、字符范围和覆盖。
-6. 在完整已校验证据表上选择整个集合，显式覆盖/缺失/歧义、时间阶段与来源。集合允许删除/替换，不需要满足旧 R 正边际。
+5. 将全部已发现候选（不只正后继）全文划分为来源片段；按调用与输入预算分批映射。有限恢复后失败/未评估片段明确记为 unavailable，不冒充无关。已有合法证据的记忆可继续参与选择。
+6. 从已校验证据表按必要需求、记忆轮转构造预算内完整记录子集，再选择整个记忆集合。明确记录省略的证据和各需求状态；允许删除/替换，不需要满足旧 R 正边际。
 7. 尚未覆盖的必要需求可使用预留最多 2 次 ANN 发起有针对性的检索；新增候选必须经过同样映射，再重新整体选择。循环有确定预算和终态。
 8. ContextPlan 检查最终原始记忆集合；必要时在有限次数内整体修订。最终 reader 只收到原始 Memory，和原有公开选项；预测产生后才能读取 gold。
 
@@ -61,7 +61,7 @@
 
 ## 6. 方向三：冻结需求、来源证据映射、可修订集合
 
-实现 `evidence_selection.py`。settings 来自 `EvidenceSelectionConfig`；backend 约定 `complete_messages(messages, *, operation, max_tokens)->str`。此接口使用冻结 generator 配置对应的聊天服务，独立标记为 evidence 调用，不冒充 reader 调用。
+实现 `evidence_selection.py`。settings 来自 `EvidenceSelectionConfig`；实际服务 backend 使用 `complete_evidence_messages(messages, *, operation, max_tokens, response_format, json_schema)->dict`，保留原始 content、finish_reason、refusal、usage、response_id、protocol。测试/旧后端可提供 plain 模式的 `complete_messages(...)->str`，元数据缺失记为 unknown。此接口使用冻结 generator 配置对应的聊天服务，独立标记为 evidence 调用，不冒充 reader 调用。
 
 ### 6.1 数据与接口
 
@@ -77,15 +77,17 @@
 
 `messages_to_memories` 新增 authoritative `metadata.source_segments`，每段含 role、start、end、source_message_indices，offset 指向 Memory.text 实际内容。旧记录缺少可靠边界时允许 unknown，不凭模糊的 User/Assistant 标记宣称用户明示。
 
-映射必须遍历全部候选全文；超映射批预算的单条按原文字符范围分片，可保留重叠，暴露范围需可重建全覆盖。LLM 输出引用必须是实际传入的原文子串，记录全局 offset，并由代码核验说话人。不得归一化或改写引用再宣称 exact match。
+代码沿权威说话人区间和句段边界划分不超过 `max_quote_chars=400` 字符的稳定 span。所有字符均有来源位置，包括结构性 unknown 间隙；超长句再分片，不改变原文。source hash、原文偏移、角色、消息索引和相邻 span ID 均保留。正文中的角色字样不能覆盖权威元数据。
 
-每条映射包括 requirement_id、memory_id、quote、offset、role、explicit/inference、support/contradiction/partial、阶段/时间说明。跨多条事实的推断可被整体选择采用，但必须保留多个引用，推断解释与原话分开；“先后发生”不自动证明因果。
+模型返回 `requirement_id、span_ids、claim、kind、relation、time_scope`，不复写 quote。每项 assessment 必须引用所属 unit，其他引用只能来自本次实际可见的同一 memory。代码从 span 原文构造 `fragments`，每片保存准确 quote/start/end/role/premise_group_ids；未知、不可见、跨 memory、空白引用拒绝。一个 assessment 可包含多个片段，以保留否定或时间条件，不将其拼接为伪造的连续引用。
+
+`fully_mapped_ids` 表示全部 unit 成功评估；`eligible_memory_ids` 表示已有合法来源证据。局部修复保存有效 assessment，仅请求失败 unit/assessment；修复保留必要的可见原文 context_units。失败或额度不足只影响对应片段，完整 ledger 留在 artifact。未评估不等于 irrelevant，来源验证不等于语义支持验证。
 
 ### 6.3 整体选择与缺口反馈
 
-选择器读冻结需求和全部已验证映射，选择满足必要信息且少冗余的完整集合，输出各需求的支持 IDs 和 covered/partial/missing/ambiguous。覆盖必须有有效来源且最终 ID 集合包含其证据，模型自报 covered 不能绕过代码核验。
+选择器读冻结需求和本轮实际展示的已验证映射，选择满足必要信息且少冗余的完整集合，输出各需求的支持 IDs 和 covered/partial/missing/ambiguous。覆盖必须有有效来源且最终 ID 集合包含其证据，模型自报 covered 不能绕过代码核验。
 
-覆盖依据保存为 `coverage_basis`：mapped_support、inference_with_mapped_support、joint_inference 或 unresolved。多条 partial 可以共同构成 covered，但必须标为 inference、至少引用两条不同证据，且不能仅凭 contradiction 或单条 partial 通过。引用与结构校验不代替语义真值验证。
+覆盖依据保存为 `coverage_basis`：mapped_support、inference_with_mapped_support、joint_inference 或 unresolved。多条 partial 可以共同构成 covered，但必须标为 inference、至少引用两条不同证据，且不能仅凭 contradiction 或单条 partial 通过。代码保守合并相同 assessment、重叠原文或同一句强制分片的前提；两个 span 不自动构成两个独立事实。同一 memory 可分别映射到多个需求，但 coverage 只能使用对应 requirement 下的映射，不能移植其他需求的支持标签。引用与结构校验不代替语义真值验证。
 
 允许引用互相矛盾但属于不同阶段的事实，不默认 latest-wins；同文 query 记忆不一律删除，它只是不能无依据填补历史原因。
 
@@ -95,9 +97,17 @@
 
 ### 6.4 推理预算与失败
 
-默认 query-only planning 1 次、映射按实际全文分批、整体选择和有限反馈/修订；整题 `max_llm_calls=24`，格式修复最多 1 次，输入预算 16384、映射批预算 6144、单次输出上限 4096（这些为当前确定的 token estimate 预算，不是物理 tokenizer 保证）。所有调用包括格式修复都计费。
+默认 query-only planning、映射、整体选择和有限反馈/修订共享 `max_llm_calls=24`。每逻辑请求最多 2 次局部修复、整题最多 6 次修复；输出明确截断的映射批次优先拆小，重分批仍计入 24 次总调用。映射为最终选择和剩余 reader 预算修订预留额度。输入预算 16384、映射批预算 6144、输出上限 4096；这些是确定性估算预算，不是物理 tokenizer 保证。保留实际服务 usage 供分析。
 
-全量映射表超输入预算、LLM 调用额度耗尽、非法引用、未知 ID、无法生成可行集合均有 typed error 与 partial artifact；不可 top-k 截表、吞异常返回成功或编造支持。这与暂缓旧 embedding/reranker 超长专项不冲突。
+响应格式单独配置为 plain/json_object/json_schema，默认 plain，不假定兼容服务支持 schema；实际协议进入运行身份。启动前对配置协议执行一次真实 planner 预检，无静默格式回退。reader 不继承 evidence 的格式限制。解析器只接受完整唯一 JSON 对象及确定包装，拒绝缺尾、重复键、非有限值和多个竞争对象，不自动补字段/括号。仅 `finish_reason=length` 明确认定服务输出截断，其余记录实际类别。
+
+选择输入按完整 ledger 记录裁至预算并预留 `selection_input_margin=256` 的修复空间。先轮转必要需求，再处理可选需求；每个需求内部轮转不同 memory，保留原发现次序，不引入新的语义分数。候选清单、成本、需求下可引用短别名随之同步。原 query、冻结需求、格式与 reader 预算不切割；固定部分仍超限则显式失败。修复附加字段也必须通过预算检查。
+
+选择请求使用按需求分组的短别名，artifact 保存别名到稳定 evidence ID 的映射。只允许引用该请求可见证据。覆盖行局部修复冻结已验证 coverage 和 selected_ids，仅重做失败需求；reader 预算拒绝则是一次新的整体选择，可以删/换集合。
+
+每次选择记录截断前后 token 估算、保留/删除 evidence IDs、受影响需求及策略版本。coverage 和缺口反馈区分“未找到映射”与“已找到但预算未展示”。成功结果标为 normal、truncated、partially_mapped 或 truncated_and_partially_mapped；仍无合法最终选择时明确失败，无 dense 回退或编造支持。最终 reader 继续读取所选原始 Memory，不在这里截断其原文。
+
+这改变了 v1 的“完整映射、全表选择”保证，因此是方法的 v2 运行变体；不可称为完全不影响方法。搜索调度、A 算术、retain/pivot 以及 reader 任务保持本轮之前的定义。旧 embedding/reranker 物理超长专项仍暂缓。
 
 ## 7. 配置、集成与日志
 
@@ -125,7 +135,7 @@
 
 ## 8. Linux 运行与打包
 
-新增一键 Linux 启动，安装必要远程推理依赖，离线数据预检后以 detached worker 后台运行，无旧 regression bundle/批准环节依赖。支持部署 override、环境凭据、start/status/log/module-log/summary/stop/resume，恢复使用原 config 和 exact run 目录。
+新增一键 Linux 启动，安装必要远程推理依赖，离线数据预检和一次实际协议预检后以 detached worker 后台运行，无旧 regression bundle/批准环节依赖。支持部署 override、环境凭据、start/status/log/module-log/summary/stop/resume，恢复使用原 config 和 exact run 目录。
 
 打包包含源码、配置模板、32k原始与processed数据、必要脚本、设计/运行文档及PDF；排除 .venv、缓存、旧outputs和本地凭据。默认无需下载本地模型或启动训练优化器。
 
@@ -139,12 +149,12 @@
 - [x] R4：完整四项原子计费、pair不被正singleton跳过、暖缓存逻辑计费。
 - [x] R5：M_after留存、有界speculation、真实pivot去旧目标、循环去重。
 - [x] R6：所有完整已测非空集合归档，部分失败有效分数保全。
-- [x] R7：全部候选全文被映射，角色/quote/offset校验，推断与明示分开。
+- [x] R7：全文划分 span，已验证映射/未评估分别记录；角色、ID、offset及独立前提校验，推断与明示分开。
 - [x] R8：整体选择实际支持delete/replace，覆盖与最终ID一致，预算修订不静默截断。
 - [x] R9：缺口反馈实际ANN、额度计费、新证据映射、可解释终态。
 - [x] R10：关键节点事件无allowlist丢失，完整任务artifact与当前汇总一致，失败仍留证据。
 - [x] R11：有意义的边界/机制测试、端到端真实路径本地模拟、全套相关回归；不声称未做的真实模型评估。
 - [x] R12：Linux一键后台/状态/停止/恢复/汇总/打包演练；文档命令与实际脚本一致。
-- [x] R13：PDF生成并逐页视觉核验；源码逐项审查记录和未解决问题透明。
+- [x] R13：保留已核验的 v1 机制 PDF，v2 文档明确覆盖规则变化；源码审查和验证边界透明。
 
-以上项目已逐项审查，源码/代表性测试/验证证据与方法限制见 [源码对照审查记录](evidence_bridge_review.md)。后台流程经过本地真实进程与解包预检，尚未调用用户 Linux 服务器的真实模型。
+v1 原始验收见 [历史源码对照审查记录](evidence_bridge_review.md)；v2 的变更、验证和未解决限制见 [v2 可靠性修订记录](evidence_bridge_v2_validation.md)。文档中的离线测试不能代替服务器真实模型表现。

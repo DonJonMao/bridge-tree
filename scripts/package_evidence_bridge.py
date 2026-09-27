@@ -31,7 +31,11 @@ REQUIRED = (
     "configs/evidence_bridge.yaml",
     "docs/evidence_bridge_implementation.md",
     "docs/evidence_bridge_runbook.md",
+    "docs/evidence_bridge_reliability_plan.md",
+    "docs/evidence_bridge_v2_validation.md",
     "scripts/start_evidence_bridge_linux.sh",
+    "scripts/export_evidence_bridge_logs.py",
+    "scripts/probe_evidence_protocol.py",
     PDF,
     "data/raw/personamem-v1/questions_32k.csv",
     "data/raw/personamem-v1/shared_contexts_32k.jsonl",
@@ -59,7 +63,7 @@ def package(repo: Path, destination: Path) -> tuple[Path, Path]:
         if not (repo / name).is_file():
             raise FileNotFoundError(f"required package artifact missing: {name}")
     destination.mkdir(parents=True, exist_ok=True)
-    archive = destination / "bridge-tree-evidence.tar.gz"
+    archive = destination / "bridge-tree-evidence-v2.tar.gz"
     files = []
     for name in ROOTS:
         root = repo / name
@@ -77,12 +81,14 @@ def package(repo: Path, destination: Path) -> tuple[Path, Path]:
     checksum = archive.with_suffix(archive.suffix + ".sha256")
     checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
     manifest = {
+        "method_release": "evidence_bridge_v2",
         "archive": archive.name,
         "sha256": digest,
         "files": [str(p) for _, p in files],
         "excludes": "local credentials, virtualenvs, caches, old outputs, symlinks",
         "raw_and_processed_32k_included": True,
         "pdf_included": PDF,
+        "pdf_scope": "v1 mechanism background; v2 behavior is specified by current implementation/runbook documents",
     }
     (destination / "package_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

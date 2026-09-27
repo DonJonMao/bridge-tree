@@ -19,8 +19,8 @@ if [[ "$(uname -s)" != Linux && "$allow_non_linux" != true ]]; then
 fi
 test -f "$config" || { echo "Missing config: $config" >&2; exit 1; }
 "$setup_python" -c 'import sys; assert sys.version_info >= (3,9), "Python >=3.9 required"'
-export BACKGROUND_STATE_DIR="${BACKGROUND_STATE_DIR:-$repo_dir/outputs/background-evidence-bridge}"
-export OUTPUT_DIR="${OUTPUT_DIR:-$repo_dir/outputs/evidence-bridge}"
+export BACKGROUND_STATE_DIR="${BACKGROUND_STATE_DIR:-$repo_dir/outputs/background-evidence-bridge-v2}"
+export OUTPUT_DIR="${OUTPUT_DIR:-$repo_dir/outputs/evidence-bridge-v2}"
 export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
 status_json="$(BRIDGETREE_BASE_PYTHON="$setup_python" bash scripts/run_evidence_bridge.sh status)"
 state="$("$setup_python" -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<<"$status_json")"
@@ -56,10 +56,16 @@ checks = [v.get("status")=="preflight_complete", v.get("model_calls")==0,
           v.get("summary",{}).get("pending_tasks")==589*len(methods)]
 if not all(checks): raise SystemExit("full 32k data-only preflight failed; experiment not started")
 ' <<<"$preflight_json"
+mkdir -p "$BACKGROUND_STATE_DIR"
+protocol_args=(--config "$config" --output "$BACKGROUND_STATE_DIR/evidence_protocol_probe.json")
+if [[ -n "${BRIDGETREE_DEPLOYMENT_CONFIG:-}" ]]; then
+  protocol_args+=(--override-config "$BRIDGETREE_DEPLOYMENT_CONFIG")
+fi
+"$BRIDGETREE_BASE_PYTHON" scripts/probe_evidence_protocol.py "${protocol_args[@]}"
 bash scripts/run_evidence_bridge.sh start "$config"
 printf '%s\n' \
   "Detached inference submitted; closing SSH will not stop it." \
   "Mode: train_free; optimizer_steps=0; weights_updated=false." \
-  "Manage: bash scripts/run_evidence_bridge.sh {status|log|summary|stop|resume}" \
+  "Manage: bash scripts/run_evidence_bridge.sh {status|log|summary|export|stop|resume}" \
   "Modules: bash scripts/run_evidence_bridge.sh module-log scheduler" \
   "Retain custom BACKGROUND_STATE_DIR and BRIDGETREE_BASE_PYTHON for management commands."

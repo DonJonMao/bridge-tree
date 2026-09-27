@@ -56,6 +56,19 @@ def estimate_tokens(text: str) -> int:
     return len(re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE))
 
 
+def estimate_evidence_tokens(text: str) -> int:
+    """Evidence-only heuristic that does not count all unspaced CJK as one.
+
+    The UTF-8 byte term also accounts for long IDs and emoji. Taking the
+    larger estimate preserves punctuation-heavy input accounting. This is
+    neither the provider tokenizer nor a guaranteed upper bound; actual
+    response usage and configured input margin remain independently logged.
+    Reader and search budgets keep their original ``estimate_tokens`` rule.
+    """
+    words = estimate_tokens(text)
+    return max(words, (len(text.encode("utf-8")) + 2) // 3)
+
+
 def context_token_count(memories: Sequence[Memory]) -> int:
     return sum(estimate_tokens(memory.text) for memory in memories)
 
@@ -441,6 +454,9 @@ def _post_json(
 def _server_response_metadata(response: Any, headers: Any = None) -> dict[str, Any]:
     raw = response if isinstance(response, Mapping) else {}
     usage = raw.get("usage") if isinstance(raw.get("usage"), Mapping) else {}
+    choices = raw.get("choices")
+    choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], Mapping) else {}
+    message = choice.get("message") if isinstance(choice.get("message"), Mapping) else {}
     def count(*keys):
         for key in keys:
             value = usage.get(key)
@@ -452,6 +468,11 @@ def _server_response_metadata(response: Any, headers: Any = None) -> dict[str, A
         server_id = headers.get("x-request-id") or headers.get("request-id")
     return {
         "server_request_id": server_id,
+        "server_response_id": raw.get("id") if isinstance(raw.get("id"), str) else None,
+        "server_finish_reason": choice.get("finish_reason") if isinstance(choice.get("finish_reason"), str) else None,
+        # Refusal text can contain user content. The payload-free request
+        # audit records presence only; evidence artifacts retain its value.
+        "server_refusal": bool(message["refusal"]) if "refusal" in message else None,
         "server_reported_model": raw.get("model") if isinstance(raw.get("model"), str) else None,
         "server_reported_input_tokens": count("prompt_tokens", "input_tokens"),
         "server_reported_output_tokens": count("completion_tokens", "output_tokens"),
@@ -1044,41 +1065,9 @@ class GeneratorClient:
     def complete_messages(
         self, messages: Sequence[Mapping[str, str]], *, operation: str, max_tokens: int
     ) -> str:
-        """Frozen chat inference for evidence reasoning, distinct from the reader.
-
-        The method owns evidence schemas and input budgets. This transport
-        sends exactly its complete messages and preserves physical request
-        accounting, provider parameters, and model identity. It never injects
-        reader options, prompts, or cached answers.
-        """
-        if not isinstance(operation, str) or not re.fullmatch(r"evidence_[a-z_]+", operation):
-            raise ValueError("structured reasoning operation must use the evidence_ prefix")
-        if isinstance(messages, (str, bytes)) or not messages:
-            raise ValueError("evidence messages must be a non-empty sequence")
-        wire_messages = []
-        for message in messages:
-            if not isinstance(message, Mapping) or set(message) != {"role", "content"}:
-                raise ValueError("evidence messages require exactly role and content")
-            if message["role"] not in {"system", "user", "assistant"} or not isinstance(message["content"], str):
-                raise ValueError("invalid evidence message")
-            wire_messages.append(dict(message))
-        payload = {
-            "model": self.config.model,
-            "messages": wire_messages,
-            "temperature": self.config.temperature,
-            "max_tokens": _strict_int_value(max_tokens, "evidence max_tokens", positive=True),
-            **dict(self.config.provider_request_params),
-        }
-        estimate = estimate_tokens(json.dumps(wire_messages, ensure_ascii=False))
-        with request_audit_scope({"stage": operation, "estimated_input_tokens": estimate,
-                                  "token_count_is_estimate": True,
-                                  "token_estimator_id": "regex_word_or_punctuation_v1"}):
-            with logical_request_scope(operation, canonical_request_payload(payload),
-                                       deployment_fingerprint(self.config)):
-                response = _post_json(
-                    self.config.endpoint, payload, self.config.timeout_seconds,
-                    headers={"Authorization": f"Bearer {self.config.resolved_api_key()}"},
-                )
+        """Legacy text-only evidence interface; preserves its existing contract."""
+        payload = self._evidence_payload(messages, operation=operation, max_tokens=max_tokens)
+        response = self._send_evidence_payload(payload, operation=operation)
         choices = response.get("choices") if isinstance(response, dict) else None
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], Mapping):
             raise ValueError("evidence chat response has no choices")
@@ -1087,6 +1076,103 @@ class GeneratorClient:
         if not isinstance(content, str) or not content.strip():
             raise ValueError("evidence chat response has no text content")
         return content.strip()
+
+    def complete_evidence_messages(
+        self, messages: Sequence[Mapping[str, str]], *, max_tokens: int, operation: str,
+        response_format: str = "plain", json_schema: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Return raw evidence output and metadata without a protocol fallback.
+
+        ``json_schema`` is the caller's raw object schema. Evidence format
+        constraints are applied only to this request; reader configuration is
+        untouched. Even empty or malformed model output reaches the selector
+        with finish metadata so it can distinguish truncation from syntax or
+        refusal. Transport failures continue through the normal HTTP policy.
+        """
+        payload = self._evidence_payload(messages, operation=operation, max_tokens=max_tokens)
+        if response_format not in ("plain", "json_object", "json_schema"):
+            raise ValueError("evidence response_format must be plain, json_object, or json_schema")
+        if json_schema is not None and response_format != "json_schema":
+            raise ValueError("evidence json_schema requires json_schema response_format")
+        payload.pop("response_format", None)
+        if response_format == "json_object":
+            payload["response_format"] = {"type": "json_object"}
+        elif response_format == "json_schema":
+            if not isinstance(json_schema, Mapping) or json_schema.get("type") != "object":
+                raise ValueError("evidence json_schema must be a JSON object schema")
+            try:
+                schema = json.loads(json.dumps(dict(json_schema), ensure_ascii=False, allow_nan=False))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("evidence json_schema must contain finite JSON values") from exc
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": operation, "strict": True, "schema": schema},
+            }
+        raw = self._send_evidence_payload(payload, operation=operation, protocol=response_format)
+        response = raw if isinstance(raw, Mapping) else {}
+        choices = response.get("choices")
+        choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], Mapping) else {}
+        message = choice.get("message") if isinstance(choice.get("message"), Mapping) else {}
+        content = message.get("content")
+        error = None
+        if not choice:
+            error = "missing_choices"
+        elif not message:
+            error = "missing_message"
+        elif not isinstance(content, str):
+            error = "nontext_content"
+        elif not content.strip():
+            error = "empty_content"
+        return {
+            "content": content,
+            "finish_reason": choice.get("finish_reason"),
+            "refusal": message.get("refusal"),
+            "usage": response.get("usage") if isinstance(response.get("usage"), Mapping) else None,
+            "response_id": response.get("id"),
+            # This is the format actually sent, not a claim that the provider
+            # obeyed it. Schema/semantic validation remains the caller's job.
+            "protocol": response_format,
+            "response_error": error,
+        }
+
+    def _evidence_payload(
+        self, messages: Sequence[Mapping[str, str]], *, operation: str, max_tokens: int,
+    ) -> dict[str, Any]:
+        if not isinstance(operation, str) or not re.fullmatch(r"evidence_[a-z_]+", operation):
+            raise ValueError("structured reasoning operation must use the evidence_ prefix")
+        if isinstance(messages, (str, bytes)) or not isinstance(messages, Sequence) or not messages:
+            raise ValueError("evidence messages must be a non-empty sequence")
+        wire_messages = []
+        for message in messages:
+            if not isinstance(message, Mapping) or set(message) != {"role", "content"}:
+                raise ValueError("evidence messages require exactly role and content")
+            if message["role"] not in {"system", "user", "assistant"} or not isinstance(message["content"], str):
+                raise ValueError("invalid evidence message")
+            wire_messages.append(dict(message))
+        return {
+            "model": self.config.model,
+            "messages": wire_messages,
+            "temperature": self.config.temperature,
+            "max_tokens": _strict_int_value(max_tokens, "evidence max_tokens", positive=True),
+            **dict(self.config.provider_request_params),
+        }
+
+    def _send_evidence_payload(
+        self, payload: dict[str, Any], *, operation: str, protocol: str | None = None,
+    ) -> Any:
+        estimate = estimate_evidence_tokens(json.dumps(payload["messages"], ensure_ascii=False))
+        if "response_format" in payload:
+            estimate += estimate_evidence_tokens(json.dumps(payload["response_format"], ensure_ascii=False))
+        with request_audit_scope({"stage": operation, "estimated_input_tokens": estimate,
+                                  "response_protocol": protocol,
+                                  "token_count_is_estimate": True,
+                                  "token_estimator_id": "regex_or_utf8_bytes_div3_v2"}):
+            with logical_request_scope(operation, canonical_request_payload(payload),
+                                       deployment_fingerprint(self.config)):
+                return _post_json(
+                    self.config.endpoint, payload, self.config.timeout_seconds,
+                    headers={"Authorization": f"Bearer {self.config.resolved_api_key()}"},
+                )
 
     def answer(self, query: str, memories: Sequence[Memory], answer_options: str = "") -> str:
         """Build and send one exact generation plan.

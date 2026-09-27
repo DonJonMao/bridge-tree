@@ -12,6 +12,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from bridgetree.evidence_diagnostics import reliability_cohorts
+
 
 def numeric_leaves(value: dict, prefix: str = "") -> dict[str, float]:
     result = {}
@@ -111,8 +113,10 @@ def summarize(root: Path) -> dict[str, Any]:
             "cost_metrics": aggregate(costs, len(outcomes)),
             "failure_types": dict(errors),
         }
+        if method == "evidence_bridge":
+            methods[method]["evidence_reliability"] = reliability_cohorts(outcomes)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at_epoch": time.time(),
         "run_dir": str(root),
         "source": "frozen planned_tasks.jsonl and one current outcomes file per task",
@@ -145,6 +149,16 @@ def markdown(result: dict) -> str:
             f"| {row['correct']} | {accuracy} | {row['mechanism_summary_absent_tasks']} |"
         )
     for method, row in result["methods"].items():
+        if "evidence_reliability" in row:
+            lines.extend([
+                "", "## 证据方法完成类型", "",
+                "仅比较当前成功任务；截断、部分映射会改变可用证据。各组题目不同，准确率差异不证明机制改进。",
+                "", "| 完成类型 | 任务 | 正确 | 准确率 |", "|---|---:|---:|---:|",
+            ])
+            for name, cohort in row["evidence_reliability"]["completion_cohorts"].items():
+                accuracy = "未产生" if cohort["accuracy"] is None else f"{100 * cohort['accuracy']:.2f}%"
+                lines.append(f"| {name} | {cohort['tasks']} | {cohort['correct']} | {accuracy} |")
+            lines.extend(["", "各完成类型与失败任务的成本分别见 JSON 的 evidence_reliability。"])
         lines.extend(
             [
                 "",

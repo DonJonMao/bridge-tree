@@ -63,6 +63,7 @@ _FIELDS = {
     "request_hash", "logical_request_hash", "execution_hash", "deployment_fingerprint",
     "transport_attempt", "transport_budget_used", "transport_budget_max", "status_code", "cause_type",
     "elapsed_ms", "retryable", "batch_reducible", "server_request_id", "server_reported_model",
+    "response_protocol", "server_response_id", "server_finish_reason", "server_refusal",
     "server_reported_input_tokens", "server_reported_output_tokens", "server_reported_total_tokens",
     "server_token_source", "children", "probe_attempt", "diagnostic_id", "repetition", "scope",
     "score_reason", "objective_semantics", "utility_validation_id",
