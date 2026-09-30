@@ -23,7 +23,7 @@ v3 默认开启：
 | 全套 pytest | `.venv/bin/python -m pytest`：981 passed in 36.97s。记录 `outputs/diagnostics/evidence_v3_full_pytest_final.log`。此前全测发现的 3 项失败已确认是旧测试未适配 bool 配置与选择调用预留，修正条件后完整重跑通过 |
 | Ruff、compileall、bash -n、diff check | 21 个修改/新增 src/scripts/tests Python 文件逐条对照 HEAD：新增 Ruff 问题 0；11 个既有问题原样存在于 dependency_experiment 与 diagnostic_observability，不宣称全仓库 lint 无问题。compileall、三份运行/打包 shell 的 bash -n、git diff --check 均通过，记录 `outputs/diagnostics/evidence_v3_static_checks.json` |
 | 固定数据 589 题/3 方法/1767 任务、0 模型预检 | 2026-09-30 通过：官方固定 32k / revision `fd7c30f071d5c2ee2a211506783be222d7b6002e`，589 题，dense/activation/evidence_bridge 共 1767 任务全部 pending；`model_calls=0`、`inference_complete=false`、`optimizer_steps=0`、`weights_updated=false`。命令及 identity 见 `outputs/diagnostics/evidence_v3_preflight.json` |
-| 新包成员与源码一致、无私有文件、解包预检 | 首次 v3 构包逐个核对 220 个成员，全部字节与工作区相同；无凭据/私有配置/缓存/虚拟环境/旧输出/软链接。解包后的 import 确认来自解包目录，source hash 与工作区同为 `7b08ab55da1c9ce0d000424a82ff54d48492e0ad28d62f33d074b663bb1e530f`；解包后再次数据预检为 589 题/1767 任务/0 模型调用。最终仅补齐本文验收记录后重新构包并复核成员 |
+| 新包成员与源码一致、无私有文件、解包预检 | 首次 v3 构包逐个核对 220 个成员，全部字节与工作区相同；无凭据/私有配置/缓存/虚拟环境/旧输出/软链接。解包后的 import 确认来自解包目录，source hash 与工作区同为 `7b08ab55da1c9ce0d000424a82ff54d48492e0ad28d62f33d074b663bb1e530f`；解包后再次数据预检为 589 题/1767 任务/0 模型调用。最终交付使用该相同源码，封入定稿文档与开发验证报告；实际成员列表与压缩包校验值分别见 package_manifest.json 和配套 .sha256 |
 
 正式执行路径与回归已确认：raw-memory 复核输入含原始记忆与权威角色/观测顺序；mapped/unmapped 不被当成 relevant/irrelevant 真值；选择输入截断不会给未暴露 ID 合法引用资格；覆盖修复耗尽保留 unassessed，不能引入假的语义结论；新增请求和 token 成本进入任务日志。protocol normal 与 semantic sufficiency 仍须分开解读。
 
@@ -74,9 +74,9 @@ PYTHONPATH=src .venv/bin/python scripts/replay_evidence_v3.py --run-dir outputs/
 - 当前默认状态目录：`outputs/background-evidence-bridge-v3`。
 - 当前默认运行根目录：`outputs/evidence-bridge-v3`。
 - 当前默认缓存：`outputs/cache-evidence-bridge-v3`。
-- 新包目标：`dist/evidence-bridge-v3-server/bridge-tree-evidence-v3.tar.gz`，附 `.sha256` 与 `package_manifest.json`；源文件和解包预检已完成，文档定稿后再更新最终校验值。
+- 新包：`dist/evidence-bridge-v3-server/bridge-tree-evidence-v3.tar.gz`，附 `.sha256` 与 `package_manifest.json`；源文件和解包预检已完成，压缩包校验值以配套文件为准。
 - v1/v2 已分发压缩包与校验值保留，不覆盖；旧服务器项目与输出保留。v3 必须新 run，不能 resume 已冻结的 v2。
 - JOB 仍为 `evidence_bridge`，管理命令不变：`bash scripts/run_evidence_bridge.sh {status|log|summary|export|stop|resume}`。
 - 旧 PDF 仅作 v1 机制背景，v3 当前行为由本轮方案、实现契约及运行文档规定，不重写历史实验结论。
 
-Git 最终提交与远端推送验证：待填写。服务器操作步骤不会冒充已替用户停止/启动了远程进程。
+Git 代码提交为 `c4b04c97550bbb5c83185cc946bc4332e3b2396b`，已推送至 `origin/codex/conditional-activation`；`git ls-remote` 返回相同提交，远端核对通过。其后仅以文档提交补齐本交付记录，不改变上述 source hash。服务器操作步骤是供用户执行的手册，本轮未停止或启动用户服务器上的完整实验。
