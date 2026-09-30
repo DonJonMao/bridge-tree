@@ -158,7 +158,29 @@ def markdown(result: dict) -> str:
             for name, cohort in row["evidence_reliability"]["completion_cohorts"].items():
                 accuracy = "未产生" if cohort["accuracy"] is None else f"{100 * cohort['accuracy']:.2f}%"
                 lines.append(f"| {name} | {cohort['tasks']} | {cohort['correct']} | {accuracy} |")
-            lines.extend(["", "各完成类型与失败任务的成本分别见 JSON 的 evidence_reliability。"])
+            for key, title, explanation in (
+                (
+                    "evidence_state_cohorts", "证据方法原文使用状态",
+                    "按最终选中记忆是否具有有效映射划分：empty 无记忆；mapped_only 全有映射；"
+                    "raw_only 全无映射；mixed 两者都有。原文选入不等于覆盖已验证。",
+                ),
+                (
+                    "coverage_validation_cohorts", "证据方法覆盖验证状态",
+                    "complete 表示覆盖字段通过协议校验；unassessed 表示有覆盖未评估；"
+                    "unknown 表示缺少版本诊断。协议通过不等于证据语义充分或答案正确。",
+                ),
+            ):
+                if key not in row["evidence_reliability"]:
+                    continue
+                lines.extend(["", f"## {title}", "", explanation, "",
+                              "| 状态 | 任务 | 正确 | 准确率 |", "|---|---:|---:|---:|"])
+                for name, cohort in row["evidence_reliability"][key].items():
+                    accuracy = "未产生" if cohort["accuracy"] is None else f"{100 * cohort['accuracy']:.2f}%"
+                    lines.append(f"| {name} | {cohort['tasks']} | {cohort['correct']} | {accuracy} |")
+            lines.extend([
+                "", "三套分组各自统计同一批成功任务，不可相加；"
+                "各组及失败任务成本见 JSON 的 evidence_reliability。",
+            ])
         lines.extend(
             [
                 "",

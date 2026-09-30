@@ -8,7 +8,9 @@ from typing import Any, Mapping, Sequence
 
 RELIABILITY_STATUSES = (
     "normal", "truncated", "partially_mapped", "truncated_and_partially_mapped",
+    "coverage_unassessed",
 )
+EVIDENCE_STATES = ("empty", "mapped_only", "raw_only", "mixed")
 
 
 def _numeric_costs(value: Mapping[str, Any], prefix: str = "") -> dict[str, float]:
@@ -27,14 +29,30 @@ def reliability_cohorts(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]
     successful = [row for row in outcomes if row.get("status") == "success"]
     failed = [row for row in outcomes if row.get("status") == "error"]
 
-    def status(row):
+    def reliability(row):
         value = row
         for name in ("diagnostics", "evidence_bridge_summary", "reliability"):
             value = value.get(name) if isinstance(value, Mapping) else None
-        if not isinstance(value, Mapping):
-            return "unknown"
-        result = value.get("reliability_status")
+        return value if isinstance(value, Mapping) else {}
+
+    def coverage_state(row):
+        value = reliability(row)
+        if (value.get("coverage_validation_complete") is False
+                or value.get("reliability_status") == "coverage_unassessed"
+                or (value.get("unassessed_requirement_count") or 0) > 0):
+            return "unassessed"
+        return "complete" if value.get("coverage_validation_complete") is True else "unknown"
+
+    def status(row):
+        # A stale normal label must not hide explicitly unassessed coverage.
+        if coverage_state(row) == "unassessed":
+            return "coverage_unassessed"
+        result = reliability(row).get("reliability_status")
         return result if result in RELIABILITY_STATUSES else "unknown"
+
+    def evidence_state(row):
+        value = reliability(row).get("evidence_state")
+        return value if value in EVIDENCE_STATES else "unknown"
 
     def summarize(rows):
         costs = [_numeric_costs(row.get("costs", {})) for row in rows]
@@ -53,13 +71,21 @@ def reliability_cohorts(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]
         }
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scope": "current authoritative evidence_bridge outcomes; attempts are not accumulated",
         "successful_tasks": len(successful),
         "failed_tasks": len(failed),
         "completion_cohorts": {
             name: summarize([row for row in successful if status(row) == name])
             for name in (*RELIABILITY_STATUSES, "unknown")
+        },
+        "evidence_state_cohorts": {
+            name: summarize([row for row in successful if evidence_state(row) == name])
+            for name in (*EVIDENCE_STATES, "unknown")
+        },
+        "coverage_validation_cohorts": {
+            name: summarize([row for row in successful if coverage_state(row) == name])
+            for name in ("complete", "unassessed", "unknown")
         },
         "failure_cost_metrics": summarize(failed)["cost_metrics"],
     }
@@ -113,8 +139,29 @@ def evidence_bridge_summary(
             "reliability_status", "selection_input_truncated", "partially_mapped", "unavailable_unit_count",
         )
     }
+    for key in (
+        "evidence_state", "evidence_empty_context", "coverage_validation_complete", "unassessed_requirement_count",
+    ):
+        if key in diagnostics:
+            reliability[key] = diagnostics[key]
+    unassessed_rows = [row for row in coverage if row.get("validation_complete") is False]
+    if (unassessed_rows or reliability.get("coverage_validation_complete") is False
+            or (reliability.get("unassessed_requirement_count") or 0) > 0
+            or reliability.get("reliability_status") == "coverage_unassessed"):
+        reliability["reliability_status"] = "coverage_unassessed"
+        reliability["coverage_validation_complete"] = False
+        reliability["unassessed_requirement_count"] = max(
+            len(unassessed_rows), reliability.get("unassessed_requirement_count") or 0,
+        )
+    baseline = set(selection.get("baseline_ids", ()))
+    baseline_count = len(baseline) if "baseline_ids" in selection else diagnostics.get("evidence_baseline_count")
+    baseline_selected = (
+        len(baseline & selected) if "baseline_ids" in selection
+        else diagnostics.get("evidence_baseline_selected_count")
+    )
+    dispositions = _rows(selection.get("candidate_dispositions"))
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "interpretation": "Observed search/coverage proxies; covered is not externally verified answer sufficiency.",
         "reliability": reliability,
         "search": {
@@ -150,6 +197,26 @@ def evidence_bridge_summary(
             "coverage": coverage_value,
             "coverage_counts": dict(Counter(str(row.get("status")) for row in coverage)),
             "selected_memory_count": len(selected),
+            "baseline_ids": selection.get("baseline_ids"),
+            "baseline_count": baseline_count,
+            "baseline_selected_count": baseline_selected,
+            "baseline_retention_rate": (
+                baseline_selected / baseline_count
+                if baseline_count and baseline_selected is not None else None
+            ),
+            "raw_review_ids": selection.get("raw_review_ids"),
+            "raw_review_count": diagnostics.get("evidence_raw_review_count"),
+            "raw_selected_count": diagnostics.get("evidence_raw_selected_count"),
+            "empty_context": diagnostics.get("evidence_empty_context"),
+            "evidence_state": diagnostics.get("evidence_state"),
+            "coverage_validation_complete": reliability.get("coverage_validation_complete"),
+            "unassessed_requirement_count": reliability.get("unassessed_requirement_count"),
+            "candidate_dispositions": dispositions,
+            "candidate_disposition_counts": dict(Counter(str(row.get("disposition")) for row in dispositions)),
+            "coverage_kind_normalizations": [
+                {key: row.get(key) for key in ("requirement_id", "declared_kind", "kind", "normalization_reason")}
+                for row in coverage if row.get("normalization_reason")
+            ],
             "external_discovered": len(discovered - initial),
             "external_selected": len(selected - initial),
             "gap_probes": sum(row.get("stage") == "evidence_gap" for row in proposals),

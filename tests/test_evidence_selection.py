@@ -330,7 +330,7 @@ def test_covered_without_quoted_support_is_rejected():
 
     selector = make_selector(
         ScriptedBackend(map_response=mapping, select_response=choose),
-        replace(EvidenceSelectionConfig(), max_json_repairs=0),
+        replace(EvidenceSelectionConfig(), max_json_repairs=0, allow_unassessed_coverage=False),
     )
     with pytest.raises(EvidenceValidationError, match="supporting evidence"):
         selector.select("Why?", bank, list(bank))
@@ -451,8 +451,11 @@ def test_inference_is_not_promoted_to_explicit_coverage():
         ScriptedBackend(map_response=mapping, select_response=choose),
         replace(EvidenceSelectionConfig(), max_json_repairs=0),
     )
-    with pytest.raises(EvidenceValidationError, match="cannot become explicit"):
-        selector.select("Why?", bank, list(bank))
+    result = selector.select("Why?", bank, list(bank))
+    assert result.coverage[0]["declared_kind"] == "explicit"
+    assert result.coverage[0]["kind"] == "inference"
+    assert result.coverage[0]["normalization_reason"] == "cited_inferential_mapping"
+    assert result.costs["evidence_json_repairs"] == 0
 
 
 def test_selection_cannot_cite_evidence_from_removed_memory():
@@ -464,7 +467,8 @@ def test_selection_cannot_cite_evidence_from_removed_memory():
         return value
 
     selector = make_selector(
-        ScriptedBackend(select_response=choose), replace(EvidenceSelectionConfig(), max_json_repairs=0)
+        ScriptedBackend(select_response=choose),
+        replace(EvidenceSelectionConfig(), max_json_repairs=0, allow_unassessed_coverage=False)
     )
     with pytest.raises(EvidenceValidationError, match="outside final selected set"):
         selector.select("Why?", bank, list(bank))
@@ -537,7 +541,7 @@ def test_unknown_feedback_id_is_never_mapped_or_selected():
     "relations,kind,passes",
     [
         (["partial", "partial"], "inference", True),
-        (["partial", "partial"], "explicit", False),
+        (["partial", "partial"], "explicit", True),
         (["partial"], "inference", False),
         (["contradiction", "contradiction"], "inference", False),
     ],
@@ -561,11 +565,12 @@ def test_joint_partial_evidence_can_cover_only_as_distinct_inference(relations, 
 
     selector = make_selector(
         ScriptedBackend(map_response=mapping, select_response=choose),
-        replace(EvidenceSelectionConfig(), max_json_repairs=0),
+        replace(EvidenceSelectionConfig(), max_json_repairs=0, allow_unassessed_coverage=False),
     )
     if passes:
         result = selector.select("Why?", bank, list(bank))
         assert result.coverage[0]["coverage_basis"] == "joint_inference"
+        assert result.coverage[0]["kind"] == "inference"
         assert result.diagnostics["evidence_coverage_is_model_judgement"] is True
     else:
         with pytest.raises(EvidenceValidationError, match="supporting evidence"):
@@ -795,7 +800,8 @@ def test_forced_sentence_splits_cannot_turn_one_partial_premise_into_covered_inf
         return value
 
     selector = make_selector(ScriptedBackend(map_response=mapping, select_response=choose),
-                             replace(EvidenceSelectionConfig(), max_quote_chars=40, max_json_repairs=0))
+                             replace(EvidenceSelectionConfig(), max_quote_chars=40, max_json_repairs=0,
+                                     allow_unassessed_coverage=False))
     with pytest.raises(EvidenceValidationError, match="supporting evidence"):
         selector.select("Why?", bank, list(bank))
     assert len(selector.mappings) > 2

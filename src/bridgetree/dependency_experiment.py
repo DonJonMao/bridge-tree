@@ -1674,6 +1674,7 @@ class DependencyTaskExecutor:
                 "answer": "generator_adapter_invocations",
                 "answer_plan": "generator_adapter_invocations",
                 "complete_messages": "evidence_adapter_invocations",
+                "complete_evidence_messages": "evidence_adapter_invocations",
                 "__call__": "generator_adapter_invocations",
             },
         )
@@ -1860,7 +1861,13 @@ class DependencyTaskExecutor:
         candidate["selection"] = value
         costs = artifacts.setdefault("costs", {})
         costs["evidence_reasoning"] = dict(value.get("costs", {}))
-        costs["evidence_calls"] = costs.get("adapter_invocations", {}).get("evidence_adapter_invocations", 0)
+        # The selector owns the task's logical evidence attempts, including
+        # failed responses. Keep the summary aligned with its saved requests;
+        # adapter counters remain separate from final-reader invocations.
+        costs["evidence_calls"] = costs["evidence_reasoning"].get(
+            "evidence_llm_calls",
+            costs.get("adapter_invocations", {}).get("evidence_adapter_invocations", 0),
+        )
         modules = artifacts.setdefault("module_events", {})
         search = candidate.get("search") or {}
         modules["scheduler"] = list(search.get("scheduler_events", ()))
@@ -2179,9 +2186,12 @@ class DependencyTaskExecutor:
                     return batch.ids
 
                 with request_audit_scope({"stage": "evidence_selection"}):
+                    baseline_ids, _ = _baseline_context(
+                        self.config, example, records, retriever.retrieve_dense().ids
+                    )
                     selection = selector.select(
                         example.query, records, candidate_ids,
-                        requirements=requirements, expand=expand_missing,
+                        baseline_ids=baseline_ids, requirements=requirements, expand=expand_missing,
                     )
                 selected_ids = tuple(selection.selected_ids)
                 selection_events = [step.public_dict() for step in selection.steps]

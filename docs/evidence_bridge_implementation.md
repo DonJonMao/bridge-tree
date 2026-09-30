@@ -1,6 +1,8 @@
 # Evidence BridgeTree 方法修改设计与验收文档
 
-版本：2026-09-27 / evidence_bridge_v2。本文是本轮实现契约，取代此前 PR1-PR4 文档对“不修改算法”的历史范围限制。用户要求直接完成方法修改，不再以先跑消融结果作为实施前提。本方法仍使用冻结模型推理，没有参数训练；服务器的一键“实验”指完整数据集推理评测。
+版本：2026-09-30 / evidence_bridge_v3。本文是当前实现契约；本轮详细计划见 [v3 修改计划](evidence_bridge_v3_plan.md)，实测验收见 [v3 验证记录](evidence_bridge_v3_validation.md)。用户要求直接完成方法修改，本方法仍使用冻结模型推理，没有参数训练；服务器的一键“实验”指完整数据集推理评测。
+
+v3 根据真实日志修正个性化需求定义，为 dense 召回原文提供独立复核资格，保守派生覆盖类型，并增加紧凑修复和透明的覆盖未评估完成状态。没有改变搜索调度、A 算术和 reader 预算；不能把 v2/v3 混入同一个 run。
 
 ## 1. 目标与交付
 
@@ -20,11 +22,11 @@
 ## 3. 完整数据流与信息边界
 
 1. 载入当前题 cutoff 内原始记忆，构建真实说话人原文边界，禁止未来历史或派生未来摘要。
-2. 用一次 q-only LLM 调用生成至多 6 条信息需求；输入只有 query 和通用个性化任务说明。需求冻结，避免看候选后改变评价标准。记录原始响应及校验结果。
+2. 用一次 q-only LLM 调用生成至多 6 条个人历史需求；输入只有 query 和个性化任务说明。用户近况不自动变成名称/日期/地点查询，推荐任务接受用户偏好作为依据而非要求原文已有推荐答案。需求冻结，记录原始响应及校验结果。
 3. 复用原 query dense/bridge 初始池。条件 proposal 可携带冻结需求，原 R 始终对原 query 评分，不把 R 重命名为效用。
 4. 运行多目标双预算搜索，保存每个完整测量集合；目标边际约束深入资格，有限 pivot 可以脱离旧目标。
 5. 将全部已发现候选（不只正后继）全文划分为来源片段；按调用与输入预算分批映射。有限恢复后失败/未评估片段明确记为 unavailable，不冒充无关。已有合法证据的记忆可继续参与选择。
-6. 从已校验证据表按必要需求、记忆轮转构造预算内完整记录子集，再选择整个记忆集合。明确记录省略的证据和各需求状态；允许删除/替换，不需要满足旧 R 正边际。
+6. 按 dense 相同规则构造预算可行 baseline 原文。启用 raw_memory_review 时先在选择输入中展示这些完整原文，再从已校验证据表按必要需求、记忆轮转填充预算。可选范围是可见原文与可见映射的并集；零映射不再自动淘汰已展示原文。仍允许删除/替换，不强制全留 dense，不创建虚假 coverage。
 7. 尚未覆盖的必要需求可使用预留最多 2 次 ANN 发起有针对性的检索；新增候选必须经过同样映射，再重新整体选择。循环有确定预算和终态。
 8. ContextPlan 检查最终原始记忆集合；必要时在有限次数内整体修订。最终 reader 只收到原始 Memory，和原有公开选项；预测产生后才能读取 gold。
 
@@ -68,7 +70,7 @@
 `EvidenceSelector(backend, settings, *, generation_feasible, event_sink=None)`：
 
 - `.plan(query)` 返回冻结需求，每项有 ID、需要的信息、必要性和所需阶段/时间说明；至少一项为必要需求，schema 严格校验，无答案选项。
-- `.select(query, records, candidate_ids, *, requirements=None, expand=None)` 返回 `EvidenceSelectionResult`，包括 selected_ids、requirements、原文映射、coverage、events/costs、stop；已有 plan 不重复调用。
+- `.select(query, records, candidate_ids, *, baseline_ids=(), requirements=None, expand=None)` 返回 `EvidenceSelectionResult`，包括 selected_ids、requirements、原文映射、coverage、events/costs、stop；已有 plan 不重复调用。baseline 必须来自同题可见已发现候选。
 - `expand(missing_requirements, selected_ids)` 只返回可见真实候选 ID，调用次数受 gap ANN 总额度限制。新候选必须映射，未有新 ID 有明确终止事件。
 - `.partial_public_dict()` 在异常后仍可取得已完成需求/映射/候选暴露/选择修订/费用和失败原因。
 - 结果可通过 `.public_dict()`、`.steps` 和 `.stop.public_dict()` 接入当前 executor，不改变最后 ContextPlan/reader 请求。
@@ -81,33 +83,37 @@
 
 模型返回 `requirement_id、span_ids、claim、kind、relation、time_scope`，不复写 quote。每项 assessment 必须引用所属 unit，其他引用只能来自本次实际可见的同一 memory。代码从 span 原文构造 `fragments`，每片保存准确 quote/start/end/role/premise_group_ids；未知、不可见、跨 memory、空白引用拒绝。一个 assessment 可包含多个片段，以保留否定或时间条件，不将其拼接为伪造的连续引用。
 
-`fully_mapped_ids` 表示全部 unit 成功评估；`eligible_memory_ids` 表示已有合法来源证据。局部修复保存有效 assessment，仅请求失败 unit/assessment；修复保留必要的可见原文 context_units。失败或额度不足只影响对应片段，完整 ledger 留在 artifact。未评估不等于 irrelevant，来源验证不等于语义支持验证。
+`fully_mapped_ids` 表示全部 unit 成功评估；`eligible_memory_ids` 表示已有合法来源证据，并非最终可选 ID 的完整集合。`raw_review_ids` 是本轮实际展示的 baseline 原文，即使无映射也可选择。原文保留 text、权威 source_segments 与观测顺序，不把助手建议变成用户事实。未评估不等于 irrelevant，来源验证不等于语义支持验证。
+
+局部映射修复保存有效 assessment，仅请求失败 unit/assessment；修复保留必要的可见原文 context_units。失败或额度不足只影响对应片段，完整 ledger 留在 artifact。raw_memory_review=false 提供独立消融；最终 reader 仍只接收所选真实 Memory。
 
 ### 6.3 整体选择与缺口反馈
 
-选择器读冻结需求和本轮实际展示的已验证映射，选择满足必要信息且少冗余的完整集合，输出各需求的支持 IDs 和 covered/partial/missing/ambiguous。覆盖必须有有效来源且最终 ID 集合包含其证据，模型自报 covered 不能绕过代码核验。
+选择器读冻结需求、本轮实际展示的已验证映射和完整 baseline 原文，选择有助个性化回复的集合。直接复核原文时，不将 mapper 的未映射等同无关。输出各需求的支持 IDs 和 covered/partial/missing/ambiguous。覆盖引用仍只能来自已验证、同需求且属于最终 ID 集合的 ledger；单凭选中了原文不能创建 covered。
 
-覆盖依据保存为 `coverage_basis`：mapped_support、inference_with_mapped_support、joint_inference 或 unresolved。多条 partial 可以共同构成 covered，但必须标为 inference、至少引用两条不同证据，且不能仅凭 contradiction 或单条 partial 通过。代码保守合并相同 assessment、重叠原文或同一句强制分片的前提；两个 span 不自动构成两个独立事实。同一 memory 可分别映射到多个需求，但 coverage 只能使用对应 requirement 下的映射，不能移植其他需求的支持标签。引用与结构校验不代替语义真值验证。
+覆盖依据保存为 `coverage_basis`：mapped_support、inference_with_mapped_support、joint_inference 或 unresolved。引用中存在 inferential fact 时，模型声明的 explicit 由代码保守降为 inference；两个独立 partial 的联合覆盖同样规范化为 inference。记录 declared_kind、有效 kind 和 normalization_reason。不会把 inference 升级为 explicit，不改变 status/relation 或制造 support。单 partial、contradiction、重叠片段不能伪造联合支持；同一 memory 支持不同需求时仍需对应映射。引用与结构校验不代替语义真值验证。
 
 允许引用互相矛盾但属于不同阶段的事实，不默认 latest-wins；同文 query 记忆不一律删除，它只是不能无依据填补历史原因。
 
 在必要需求为 missing/partial/ambiguous 时可调用 expand：以未覆盖的必要需求发起 targeted probe，最多 2 次 ANN，不另开超预算通道。必要需求全部覆盖、但可选需求仍缺失时，以 necessary_requirements_covered 明确终止，不消耗缺口额度。重新映射新候选并进行整体选择。已选集合可删除/替换任何旧项，日志记录每轮 added_ids/removed_ids 与覆盖变化。
 
-最终用实际 generation_feasible 检查。超 reader 预算允许最多 2 次整体修订，不能事后静默截断 selected_ids。最终没有证据可明确输出空集合和缺失覆盖，但必须真实记录；不因模型格式错误静默回退 dense 或旧 R。
+最终用实际 generation_feasible 检查。超 reader 预算允许最多 2 次整体修订，不能事后静默截断 selected_ids。最终没有证据可明确输出空集合和缺失覆盖，但必须真实记录为 evidence_state=empty；不因模型格式错误静默回退 dense 或旧 R。
 
 ### 6.4 推理预算与失败
 
-默认 query-only planning、映射、整体选择和有限反馈/修订共享 `max_llm_calls=24`。每逻辑请求最多 2 次局部修复、整题最多 6 次修复；输出明确截断的映射批次优先拆小，重分批仍计入 24 次总调用。映射为最终选择和剩余 reader 预算修订预留额度。输入预算 16384、映射批预算 6144、输出上限 4096；这些是确定性估算预算，不是物理 tokenizer 保证。保留实际服务 usage 供分析。
+默认 query-only planning、映射、整体选择和有限反馈/修订共享 `max_llm_calls=24`。每逻辑请求最多 2 次局部修复、整题最多 6 次修复；输出明确截断的映射批次优先拆小，重分批仍计入 24 次总调用。映射为最终选择、剩余 reader 预算修订及最多两次覆盖修复预留调用，同时保留相应全局 repair 额度。输入预算 16384、映射批预算 6144、输出上限 4096；这些是确定性估算预算，不是物理 tokenizer 保证。保留实际服务 usage 供分析。
 
 响应格式单独配置为 plain/json_object/json_schema，默认 plain，不假定兼容服务支持 schema；实际协议进入运行身份。启动前对配置协议执行一次真实 planner 预检，无静默格式回退。reader 不继承 evidence 的格式限制。解析器只接受完整唯一 JSON 对象及确定包装，拒绝缺尾、重复键、非有限值和多个竞争对象，不自动补字段/括号。仅 `finish_reason=length` 明确认定服务输出截断，其余记录实际类别。
 
-选择输入按完整 ledger 记录裁至预算并预留 `selection_input_margin=256` 的修复空间。先轮转必要需求，再处理可选需求；每个需求内部轮转不同 memory，保留原发现次序，不引入新的语义分数。候选清单、成本、需求下可引用短别名随之同步。原 query、冻结需求、格式与 reader 预算不切割；固定部分仍超限则显式失败。修复附加字段也必须通过预算检查。
+选择输入按完整原文/ledger 记录裁至预算，仍保留 selection_input_margin=256 作为额外余量，不再假定该常数足够容纳完整修复。先按 dense 原排名容纳完整 baseline 原文，再轮转必要/可选需求的完整 ledger 记录。超长记忆作为整条省略并记 omitted_raw_review_ids，不切割原文或序列化 JSON。候选清单、成本、短别名同步；固定 query/需求/格式仍超限时明确失败。
 
-选择请求使用按需求分组的短别名，artifact 保存别名到稳定 evidence ID 的映射。只允许引用该请求可见证据。覆盖行局部修复冻结已验证 coverage 和 selected_ids，仅重做失败需求；reader 预算拒绝则是一次新的整体选择，可以删/换集合。
+选择请求使用按需求分组的短别名，artifact 保存别名到稳定 evidence ID 的映射。只允许引用该请求可见证据。覆盖行修复冻结已验证 coverage 和 selected_ids，仅重做失败需求；修复输入仅含 pending 需求与所选记忆的合法相关 ledger，不重发全部原文/候选成本。实际附加反馈后再次检查预算，仍超限明确记为 repair 输入超限。reader 预算拒绝则是新的整体选择，可以删/换集合。
 
-每次选择记录截断前后 token 估算、保留/删除 evidence IDs、受影响需求及策略版本。coverage 和缺口反馈区分“未找到映射”与“已找到但预算未展示”。成功结果标为 normal、truncated、partially_mapped 或 truncated_and_partially_mapped；仍无合法最终选择时明确失败，无 dense 回退或编造支持。最终 reader 继续读取所选原始 Memory，不在这里截断其原文。
+启用 allow_unassessed_coverage 时，仅有合法选集 header 且恢复失败局限于覆盖说明的任务，可以继续 reader 容量检查：保留有效 coverage 行，其余内部标为 unassessed、kind=unknown、validation_complete=false，记录原错误。不会虚写 missing/partial/covered，也不会因未验证的 coverage 再发起 gap。选集未知 ID、非法 header、全局 JSON 不可解析、拒答和服务失败仍明确终止。
 
-这改变了 v1 的“完整映射、全表选择”保证，因此是方法的 v2 运行变体；不可称为完全不影响方法。搜索调度、A 算术、retain/pivot 以及 reader 任务保持本轮之前的定义。旧 embedding/reranker 物理超长专项仍暂缓。
+每次选择记录截断前后 tokens、原文/证据可见与省略 IDs、baseline 保留率、候选去向和恢复状态。新增 reliability_status=coverage_unassessed，原部分映射/截断布尔值仍保留；其他四类完成状态不变。另按 evidence_state=empty/mapped_only/raw_only/mixed 及 coverage_validation_complete 汇总。normal 不等于证据充分。最终 reader 读取所选原始 Memory，不在这里截断原文。
+
+这是 v3 方法变体：它改变了 v2 的映射资格硬门控和覆盖注释失败行为，不能称为纯兼容修复。搜索调度、A 算术、retain/pivot 及 reader 任务保持不变。旧 embedding/reranker 物理超长专项仍暂缓。
 
 ## 7. 配置、集成与日志
 
@@ -157,4 +163,4 @@
 - [x] R12：Linux一键后台/状态/停止/恢复/汇总/打包演练；文档命令与实际脚本一致。
 - [x] R13：保留已核验的 v1 机制 PDF，v2 文档明确覆盖规则变化；源码审查和验证边界透明。
 
-v1 原始验收见 [历史源码对照审查记录](evidence_bridge_review.md)；v2 的变更、验证和未解决限制见 [v2 可靠性修订记录](evidence_bridge_v2_validation.md)。文档中的离线测试不能代替服务器真实模型表现。
+v1 原始验收见 [历史源码对照审查记录](evidence_bridge_review.md)；v2 历史见 [v2 可靠性修订记录](evidence_bridge_v2_validation.md)。上方历史 R1–R13 清单不替代本轮验收，v3 完成状态以 [v3 修改计划](evidence_bridge_v3_plan.md) 和 [v3 验证记录](evidence_bridge_v3_validation.md) 为准。离线测试不能代替真实模型效果评估。

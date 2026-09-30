@@ -88,6 +88,15 @@ _FIELDS = frozenset({
     "alias_to_evidence_id", "omitted_evidence_by_requirement", "failure_category", "reserved_calls",
     "split_for_retry", "eligible", "eligible_memory_count", "span_id", "span_ids", "fragments",
     "source_hash", "source_text_hash", "premise_id", "omitted_evidence_count", "evidence_visibility",
+    "baseline_ids", "raw_review_ids", "omitted_raw_review_ids", "pending_requirement_ids",
+    "candidate_dispositions", "dispositions", "baseline", "fully_mapped", "mapped", "raw_review_visible",
+    "selected", "disposition", "declared_kind", "effective_kind", "normalization_reason",
+    "coverage_status_changed",
+    "validation_complete", "coverage_validation_complete", "unassessed_requirement_count",
+    "evidence_state", "evidence_empty_context", "evidence_baseline_count", "evidence_baseline_selected_count",
+    "evidence_raw_review_count", "evidence_raw_selected_count",
+    "excluded_evidence_ids", "requirements_before", "requirements_after",
+    "evidence_records_before", "evidence_records_after",
 })
 _TOKEN = re.compile(r"[\w.:/@+\-]{0,512}\Z", re.ASCII)
 _SECRET = re.compile(r"https?://|Bearer\s|sk-[A-Za-z0-9_-]{8,}", re.I)
@@ -108,6 +117,7 @@ _REASONS = frozenset({
     "fairness_release", "no_alternative_target", "requirements_covered", "necessary_requirements_covered",
     "unresolved_without_feedback",
     "feedback_round_budget_exhausted", "feedback_no_new_candidates", "planning_error",
+    "coverage_unassessed", "cited_inferential_mapping", "joint_partial_inference",
 })
 _INTERPRETATION = "Measured reranker interactions are not causal proof or answer-accuracy improvement."
 _CURRENT: ContextVar[Callable[[Mapping[str, Any]], None] | None] = ContextVar(

@@ -99,12 +99,26 @@ def test_unknown_schema_operation_is_rejected(operation):
 
 
 @pytest.mark.parametrize("field", [
-    name for name in EvidenceSelectionConfig.__dataclass_fields__ if name != "response_format"
+    name for name, field in EvidenceSelectionConfig.__dataclass_fields__.items()
+    if isinstance(field.default, int) and not isinstance(field.default, bool)
 ])
 @pytest.mark.parametrize("bad_value", [True, 1.5, float("nan"), -1, "2"])
 def test_evidence_numeric_settings_are_strict(field, bad_value):
     with pytest.raises(ValueError):
         EvidenceSelectionConfig(**{field: bad_value})
+
+
+@pytest.mark.parametrize("field", ["raw_memory_review", "allow_unassessed_coverage"])
+@pytest.mark.parametrize("bad_value", [0, 1, 0.0, 1.0, None, "true", "false", [], {}])
+def test_evidence_method_switches_require_actual_booleans(field, bad_value):
+    with pytest.raises(ValueError, match=field + " must be boolean"):
+        EvidenceSelectionConfig(**{field: bad_value})
+
+
+@pytest.mark.parametrize("field", ["raw_memory_review", "allow_unassessed_coverage"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_evidence_method_switches_accept_both_boolean_states(field, enabled):
+    assert getattr(EvidenceSelectionConfig(**{field: enabled}), field) is enabled
 
 
 @pytest.mark.parametrize("mode", [None, True, [], {}, "auto", "JSON_OBJECT"])
@@ -134,7 +148,9 @@ def test_selection_can_repair_using_calls_reserved_before_mapping():
         return "invalid JSON" if attempt == 1 else ScriptedBackend.select_all(payload)
 
     backend = ScriptedBackend(select_response=select_response)
-    settings = replace(EvidenceSelectionConfig(), max_llm_calls=5, max_selection_revisions=2)
+    # One planner and one mapper call must fit before the v3 reservation:
+    # one selection + two possible set revisions + two local repairs = five.
+    settings = replace(EvidenceSelectionConfig(), max_llm_calls=7, max_selection_revisions=2)
     selector = make_selector(backend, settings)
     bank = records("I learned that jasmine tea is my favorite.")
     result = selector.select("Which tea do I prefer?", bank, list(bank))

@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -98,7 +100,11 @@ def test_package_contains_data_pdf_and_excludes_private_state(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture\n")
     (repo / "configs" / "link.yaml").symlink_to(repo / "configs/credentials.local.yaml")
-    archive, checksum = module.package(repo, tmp_path / "dist")
+    destination = tmp_path / "dist"
+    destination.mkdir()
+    old_archive = destination / "bridge-tree-evidence-v2.tar.gz"
+    old_archive.write_bytes(b"previously distributed v2 archive")
+    archive, checksum = module.package(repo, destination)
     with tarfile.open(archive) as handle:
         names = handle.getnames()
     assert all(name in names for name in module.REQUIRED)
@@ -106,7 +112,10 @@ def test_package_contains_data_pdf_and_excludes_private_state(tmp_path):
     assert not any(module.excluded(Path(name)) for name in names)
     assert "configs/link.yaml" not in names
     assert len(checksum.read_text().split()[0]) == 64
-    assert archive.name == "bridge-tree-evidence-v2.tar.gz"
+    assert archive.name == "bridge-tree-evidence-v3.tar.gz"
+    manifest = json.loads((archive.parent / "package_manifest.json").read_text())
+    assert manifest["method_release"] == "evidence_bridge_v3"
+    assert old_archive.read_bytes() == b"previously distributed v2 archive"
 
 
 def test_completion_cohorts_preserve_unknown_and_do_not_count_retries(tmp_path):
@@ -243,7 +252,8 @@ while True: time.sleep(.01)
 """
 
 
-def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
+@pytest.mark.parametrize("custom_paths", [False, True])
+def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path, custom_paths):
     repo = tmp_path / "repo with spaces"
     for name in (
         "scripts/run_evidence_bridge.sh",
@@ -274,18 +284,19 @@ def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
     (venv / "bin/python").write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n')
     (venv / "bin/python").chmod(0o755)
     (venv / "pyvenv.cfg").write_text("fixture\n")
-    state = tmp_path / "state"
+    state = tmp_path / "state" if custom_paths else repo / "outputs/background-evidence-bridge-v3"
+    run_root = tmp_path / "runs" if custom_paths else repo / "outputs/evidence-bridge-v3"
     env = {
-        **os.environ,
+        **{key: value for key, value in os.environ.items() if key not in {"BACKGROUND_STATE_DIR", "OUTPUT_DIR"}},
         "BRIDGETREE_SETUP_PYTHON": sys.executable,
         "BRIDGETREE_BASE_PYTHON": sys.executable,
         "BRIDGETREE_VENV_DIR": str(venv),
         "BRIDGETREE_SKIP_INSTALL": "true",
         "BRIDGETREE_ALLOW_NON_LINUX": "true",
         "BRIDGETREE_DEPLOYMENT_CONFIG": str(deployment),
-        "BACKGROUND_STATE_DIR": str(state),
-        "OUTPUT_DIR": str(tmp_path / "runs"),
     }
+    if custom_paths:
+        env.update(BACKGROUND_STATE_DIR=str(state), OUTPUT_DIR=str(run_root))
 
     def command(*args):
         return subprocess.run(
@@ -320,6 +331,7 @@ def test_real_detached_start_stop_resume_and_linux_bootstrap(tmp_path):
         assert probe["override_config"] == str(deployment)
         status = poll(lambda s: s["state"] == "running")
         run = Path(status["run_dir"])
+        assert run.parent == run_root
         deadline = time.monotonic() + 5
         while not (run / "begun").exists() and time.monotonic() < deadline:
             time.sleep(0.01)
@@ -393,20 +405,23 @@ def test_controller_bootstrap_needs_no_installed_scientific_packages(tmp_path):
     assert json.loads(result.stdout)["state"] == "not_started"
 
 
-def test_v2_default_management_does_not_read_v1_state(tmp_path):
+def test_v3_default_management_does_not_read_v1_or_v2_state(tmp_path):
     repo = tmp_path / "repo"
     for name in ("scripts/evidence_bridge_control.py", "src/bridgetree/background.py"):
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / name, path)
-    old = repo / "outputs/background-evidence-bridge"
-    old.mkdir(parents=True)
-    state_file = old / "evidence_bridge.status.json"
-    state_file.write_text(json.dumps({"state": "interrupted", "run_dir": "/v1-run"}))
+    old_states = []
+    for suffix, run_dir in (("", "/v1-run"), ("-v2", "/v2-run")):
+        old = repo / f"outputs/background-evidence-bridge{suffix}"
+        old.mkdir(parents=True)
+        state_file = old / "evidence_bridge.status.json"
+        state_file.write_text(json.dumps({"state": "interrupted", "run_dir": run_dir}))
+        old_states.append((state_file, run_dir))
     env = {key: value for key, value in os.environ.items() if key not in {"BACKGROUND_STATE_DIR", "OUTPUT_DIR"}}
     result = subprocess.run(
         [sys.executable, "-S", "scripts/evidence_bridge_control.py", "status"],
         cwd=repo, capture_output=True, text=True, env=env, check=True,
     )
     assert json.loads(result.stdout)["state"] == "not_started"
-    assert json.loads(state_file.read_text())["run_dir"] == "/v1-run"
+    assert all(json.loads(path.read_text())["run_dir"] == run_dir for path, run_dir in old_states)

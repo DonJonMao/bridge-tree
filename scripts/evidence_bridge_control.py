@@ -66,8 +66,8 @@ def main() -> int:
         "argument", nargs="?", help="config for start/preflight; module for module-log; run dir for summary/export"
     )
     args = parser.parse_args()
-    state = Path(os.environ.get("BACKGROUND_STATE_DIR", REPO / "outputs/background-evidence-bridge-v2")).resolve()
-    run_root = Path(os.environ.get("OUTPUT_DIR", REPO / "outputs/evidence-bridge-v2")).resolve()
+    state = Path(os.environ.get("BACKGROUND_STATE_DIR", REPO / "outputs/background-evidence-bridge-v3")).resolve()
+    run_root = Path(os.environ.get("OUTPUT_DIR", REPO / "outputs/evidence-bridge-v3")).resolve()
     status = read_job_status(state, JOB)
     if args.action == "status":
         result = status

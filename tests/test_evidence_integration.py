@@ -319,7 +319,10 @@ def test_formal_runner_truncated_ledger_keeps_visible_citations_and_original_rea
         if request["operation"] == "evidence_select":
             assert request["input_tokens_estimate"] <= config.evidence_bridge.selection.input_token_budget
             payload = json.loads(request["messages"][1]["content"])
-            assert set(payload["candidate_ids"]) == {row["memory_id"] for row in payload["evidence_ledger"]}
+            assert set(payload["candidate_ids"]) == (
+                {row["memory_id"] for row in payload["evidence_ledger"]}
+                | {row["memory_id"] for row in payload["raw_memory_candidates"]}
+            )
             assert all(alias in audit["alias_to_evidence_id"] for alias in
                        json.loads(request["raw_response"])["coverage"][0]["evidence_ids"])
     standard = json.loads((root / "summary.json").read_text())["methods"][0]

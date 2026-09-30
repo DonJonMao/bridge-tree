@@ -19,8 +19,8 @@ if [[ "$(uname -s)" != Linux && "$allow_non_linux" != true ]]; then
 fi
 test -f "$config" || { echo "Missing config: $config" >&2; exit 1; }
 "$setup_python" -c 'import sys; assert sys.version_info >= (3,9), "Python >=3.9 required"'
-export BACKGROUND_STATE_DIR="${BACKGROUND_STATE_DIR:-$repo_dir/outputs/background-evidence-bridge-v2}"
-export OUTPUT_DIR="${OUTPUT_DIR:-$repo_dir/outputs/evidence-bridge-v2}"
+export BACKGROUND_STATE_DIR="${BACKGROUND_STATE_DIR:-$repo_dir/outputs/background-evidence-bridge-v3}"
+export OUTPUT_DIR="${OUTPUT_DIR:-$repo_dir/outputs/evidence-bridge-v3}"
 export PYTHONPATH="$repo_dir/src${PYTHONPATH:+:$PYTHONPATH}"
 status_json="$(BRIDGETREE_BASE_PYTHON="$setup_python" bash scripts/run_evidence_bridge.sh status)"
 state="$("$setup_python" -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<<"$status_json")"

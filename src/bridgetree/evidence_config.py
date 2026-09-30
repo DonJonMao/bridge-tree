@@ -70,6 +70,8 @@ class EvidenceSelectionConfig:
     max_feedback_rounds: int = 2
     response_format: str = "plain"
     selection_input_margin: int = 256
+    raw_memory_review: bool = True
+    allow_unassessed_coverage: bool = True
 
     def __post_init__(self):
         zero = {
@@ -81,6 +83,10 @@ class EvidenceSelectionConfig:
         }
         for name in self.__dataclass_fields__:
             if name == "response_format":
+                continue
+            if name in {"raw_memory_review", "allow_unassessed_coverage"}:
+                if not isinstance(getattr(self, name), bool):
+                    raise ValueError(f"{name} must be boolean")
                 continue
             object.__setattr__(self, name, _integer(getattr(self, name), name, 0 if name in zero else 1))
         if self.map_batch_token_budget > self.input_token_budget:

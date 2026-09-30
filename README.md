@@ -1,10 +1,10 @@
 # BridgeTree Preference-RAG
 
-This directory is a self-contained, portable implementation of the 2026-09-01 design **“BridgeTree: 面向 Preference-RAG 的桥接感知路径条件临时记忆树检索方法”**, with the Evidence BridgeTree v2 revision (2026-09-27) below. It keeps source code, immutable raw data, normalized data, caches, and run artifacts in separate directories so the directory can be copied to an Ascend 910B host without depending on the parent `datacenter` package.
+This directory is a self-contained, portable implementation of the 2026-09-01 design **“BridgeTree: 面向 Preference-RAG 的桥接感知路径条件临时记忆树检索方法”**, with the Evidence BridgeTree v3 revision (2026-09-30) below. It keeps source code, immutable raw data, normalized data, caches, and run artifacts in separate directories so the directory can be copied to an Ascend 910B host without depending on the parent `datacenter` package.
 
-## Evidence BridgeTree v2 (2026-09-27)
+## Evidence BridgeTree v3 (2026-09-30)
 
-The `evidence_bridge` v2 method combines budgeted multi-target search, conditional target retention/pivot, and frozen-model information requirements with source-grounded whole-set evidence selection. It uses additional LLM inference during retrieval; model weights remain frozen. The default comparison is `dense`, legacy `activation`, and `evidence_bridge`: 589 questions / 1,767 tasks.
+The `evidence_bridge` v3 method combines budgeted multi-target search, conditional target retention/pivot, and frozen-model information requirements with source-grounded whole-set evidence selection. It uses additional LLM inference during retrieval; model weights remain frozen. The default comparison is `dense`, legacy `activation`, and `evidence_bridge`: 589 questions / 1,767 tasks.
 
 ```bash
 # Package source, fixed data, documents and PDF; credentials are excluded.
@@ -18,9 +18,11 @@ bash scripts/run_evidence_bridge.sh summary
 bash scripts/run_evidence_bridge.sh resume
 ```
 
-V2 uses code-grounded source-span IDs, bounded local recovery, and explicitly logged budgeted evidence selection. Partially mapped and truncated completions are reported separately. Deploy to a new run; never resume v1 with changed source.
+V3 retains code-grounded source-span IDs and bounded local recovery. It gives the budget-feasible dense baseline memories independent raw-text review and selection eligibility even without a successful requirement mapping; the selector still decides which memories reach the reader. When only coverage validation remains unresolved after bounded recovery, a legal selection may continue with an explicit `coverage_unassessed` status. Partially mapped, truncated and unassessed completions, raw-memory selections, and empty contexts are reported separately; protocol completion does not establish semantic sufficiency.
 
-See the [method specification](docs/evidence_bridge_implementation.md), [v2 validation and limits](docs/evidence_bridge_v2_validation.md), [Linux runbook and log reference](docs/evidence_bridge_runbook.md), and [historical v1 mechanism PDF](output/pdf/BridgeTree_Mechanism_Revision_20260923.pdf). The runbook explains endpoint/credential setup, costs, failure behavior and exact-directory resume. Local verification does not establish real-model accuracy improvements.
+The default state, run and cache roots are `outputs/background-evidence-bridge-v3`, `outputs/evidence-bridge-v3` and `outputs/cache-evidence-bridge-v3`. Deploy v3 to a new run and preserve v1/v2 outputs; source or configuration changes cannot be resumed into an old frozen run.
+
+See the [method specification](docs/evidence_bridge_implementation.md), [v3 design](docs/evidence_bridge_v3_plan.md), [v3 validation and limits](docs/evidence_bridge_v3_validation.md), and [Linux runbook and log reference](docs/evidence_bridge_runbook.md). The [v2 validation](docs/evidence_bridge_v2_validation.md) and [v1 mechanism PDF](output/pdf/BridgeTree_Mechanism_Revision_20260923.pdf) are historical references. The runbook explains endpoint/credential setup, costs, failure behavior and exact-directory resume. Local verification does not establish real-model accuracy improvements.
 
 ## Earlier retrieval families
 
