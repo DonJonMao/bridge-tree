@@ -1,0 +1,40 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:55226/rerank",
+  "payload": {
+    "model": "fixture-pointwise",
+    "query": "Which country is the author from?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"d0\", \"source_id\": \"d0\"}]\nTitle 0\nEntity fact number 0.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"d0\", \"source_id\": \"d0\"}]\nTitle 0\nEntity fact number 0.\n\n[Passage {\"doc_id\": \"d1\", \"source_id\": \"d1\"}]\nTitle 1\nEntity fact number 1."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "2"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790164182.8841898,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790164182.884741
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.22000000000000003
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.15000000000000002
+      }
+    ]
+  }
+}

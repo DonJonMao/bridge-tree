@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1945\", \"source_id\": \"hotpotqa:1945\"}]\nLittle Children (film)\nLittle Children is a 2006 American drama film directed by Todd Field. It is based on the novel of the same name by Tom Perrotta, who along with Field wrote the screenplay. It stars Kate Winslet, Patrick Wilson, Jennifer Connelly, Jackie Earle Haley, Noah Emmerich, Gregg Edelman, Phyllis Somerville and Will Lyman. The original music score is composed by Thomas Newman. The film screened at the 44th New York Film Festival organized by the Film Society of Lincoln Center. It earned 3 nominations at the 79th Academy Awards: Best Actress for Winslet, Best Supporting Actor for Haley, and Best Adapted Screenplay for Field and Perrotta.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1945\", \"source_id\": \"hotpotqa:1945\"}]\nLittle Children (film)\nLittle Children is a 2006 American drama film directed by Todd Field. It is based on the novel of the same name by Tom Perrotta, who along with Field wrote the screenplay. It stars Kate Winslet, Patrick Wilson, Jennifer Connelly, Jackie Earle Haley, Noah Emmerich, Gregg Edelman, Phyllis Somerville and Will Lyman. The original music score is composed by Thomas Newman. The film screened at the 44th New York Film Festival organized by the Film Society of Lincoln Center. It earned 3 nominations at the 79th Academy Awards: Best Actress for Winslet, Best Supporting Actor for Haley, and Best Adapted Screenplay for Field and Perrotta.\n\n[Passage {\"doc_id\": \"hotpotqa:5994\", \"source_id\": \"hotpotqa:5994\"}]\nAmy Madigan\nAmy Marie Madigan (born September 11, 1950) is an American actress, producer, and singer. She was nominated for the Academy Award for Best Supporting Actress for the 1985 film \"Twice in a Lifetime\". Her other film credits include \"Love Child\" (1982), \"Places in the Heart\" (1984), \"Field of Dreams\" (1989), \"Uncle Buck\" (1989), \"The Dark Half\" (1993), \"Pollock\" (2000), and \"Gone Baby Gone\" (2007). Madigan won the Golden Globe Award for Best Supporting Actress on Television and was nominated for the Primetime Emmy Award for Outstanding Lead Actress in a Miniseries or a Movie for her portrayal of Sarah Weddington in the 1989 television film \"Roe vs. Wade\"."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "22",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791598944.725861,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791598946.375932
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0016662570435494579
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.001200134707355834
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1556,
+      "completion_tokens": 4,
+      "total_tokens": 1560
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

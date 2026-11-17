@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator.\n\n[Passage {\"doc_id\": \"hotpotqa:9513\", \"source_id\": \"hotpotqa:9513\"}]\nVaniusha and The Giant\nVaniusha and The Giant (Russian: Ванюша и великан ) is a 1993 Russian stop-motion animation film by Vladimir Danilevich. This film was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> The film is the fourth film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The first three films are \"The Newcomer in The Cabbage\", \"Vaniusha The Newcomer\" and \"Vaniusha and The Space Pirate\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "170",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599216.090684,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599216.945436
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.9886682442983812
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 962,
+      "completion_tokens": 2,
+      "total_tokens": 964
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
