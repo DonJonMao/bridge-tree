@@ -1,0 +1,846 @@
+        Query Decomposition for RAG: Balancing Exploration-Exploitation
+
+              Roxana Petcu1 , Kenton Murray2 , Daniel Khashabi2 , Evangelos Kanoulas1 ,
+                          Maarten de Rijke1 , Dawn Lawrie2 , Kevin Duh2
+                              1
+                          University of Amsterdam, 2 Johns Hopkins University
+               r.m.petcu@uva.nl, kenton@jhu.edu, danielk@cs.jhu.edu, e.kanoulas@uva.nl,
+                        m.derijke@uva.nl, lawrie@jhu.edu, kevinduh@cs.jhu.edu
+
+
+                           Abstract                               (Kim et al., 2025). This is problematic in two ways.
+                                                                  First, too many documents cannot fit in the con-
+        Retrieval-augmented generation (RAG) sys-
+        tems address complex user requests by decom-
+                                                                  text window of an LLM, without being arbitrarily
+        posing them into subqueries, retrieving poten-            truncated, potentially removing vital information.
+        tially relevant documents for each, and then              Second, including a large proportion of irrelevant
+        aggregating them to generate an answer. Ef-               documents introduces noise in the generation (Jin
+        ficiently selecting informative documents re-             et al., 2024). Mitigating these problems involves
+        quires balancing a key trade-off: (i) retrieving          filtering by either human annotators or LLM agents.
+        broadly enough to capture all the relevant mate-          This motivates our core question: how to efficiently
+        rial, and (ii) limiting retrieval to avoid excessive
+                                                                  identify which sub-queries are likely to retrieve
+        noise and computational cost. We formulate
+        query decomposition and document retrieval                relevant information and what constitutes an ap-
+        in an exploitation-exploration setting, where             propriate retrieval depth for each sub-query?
+        retrieving one document at a time builds a be-                Existing approaches to sub-query decomposition
+        lief about the utility of a given sub-query and           and document retrieval lack a principled mecha-
+        informs the decision to continue exploiting or            nism for allocating documents, with most methods
+        exploring an alternative. We experiment with a            retrieving a fixed number of documents regardless
+        variety of bandit learning methods and demon-             of sub-query utility. Meanwhile, we want to study
+        strate their effectiveness in dynamically select-
+        ing the most informative sub-queries. Our main
+                                                                  a method that adaptively decides, under a fixed
+        finding is that estimating document relevance             budget, whether to continue retrieving documents
+        using rank information and human judgments                from an observed, promising sub-query or to ex-
+        yields a 35% gain in document-level precision,            plore alternatives that may yield more relevant evi-
+        15% increase in α-nDCG, and better perfor-                dence, while avoiding irrelevant overlap. A multi-
+        mance on the downstream task of long-form                 armed bandit framework naturally captures this
+        generation. Code is available on GitHub.1                 process: each sub-query is treated as an arm, for
+1       Introduction                                              which each observed document provides evidence
+                                                                  of its utility. Framing query decomposition and
+Complex user queries usually involve discourse op-                document selection as a bandit problem addresses
+erators such as the exclusion of information (Zhang               two core challenges of complex information needs.
+et al., 2025), negation (Petcu et al., 2025; Weller               First, retrieval is inherently sequential and budget-
+et al., 2024; van den Elsen et al., 2025), or missing             constrained, as it is impossible to verify all doc-
+entities (Qi et al., 2019; Bhargav et al., 2022), and             uments. Second, the relevance of a sub-query is
+often require retrieving evidence found in multi-                 initially uncertain, while our belief of its relevance
+ple documents. One way to handle them is to de-                   builds with each retrieved document.
+compose the request into atomic sub-queries (Khot                     Figure 1 illustrates our setting. We estimate the
+et al., 2023), as shown in Figure 1. Retrieving doc-              utility of each sub-query, modeled as an arm, by
+uments independently for each sub-query leads to                  observing the relevance of one document at a time.
+coverage of complex information needs by max-                     The choice of assessment directly influences the
+imizing recall. However, it may result in a large                 cost. By estimating utility under a fixed budget, i.e.,
+number of documents, of which many are irrelevant                 at each step the system makes a choice between
+    1
+    https://anonymous.4open.science/r/                            going down the ranked list of a certain sub-query
+query-decomposition-bandits-2A0D                                  or retrieving from a new one, the process becomes
+                                                               6857
+           Proceedings of the 19th Conference of the European Chapter of the Association for Computational Linguistics
+                                            Volume 1: Long Papers, pages 6857–6871
+                               March 24-29, 2026 ©2026 Association for Computational Linguistics
+                         1.    Query decomposition                                                 2.   Bandit learning
+
+ User request: How do theories and debates about Machu Picchu’s                                         Choose arm qi
+ construction methods and architecture reflect uncertainties about the
+ site and its structural features?
+
+                                                                                                        Time t = 1, 2, .., T
+ ARM 1: How high is            ARM 2: What geological   ARM 3: What are the                                                    Select next
+                                                                                       Update qi
+ the mountain ridge of         features facilitated     most remarkable views                              Multi-armed         document down
+                                                                                       posterior
+ Machu Picchu?                 Machu Picchu?            of Machu Picchu?                                 bandit algorithm      ranked list Di, j
+                                                                                                                                        …
+                    3.        Final answer generation
+
+          Documents                                         LLM
+          selected by                                     generated                                     Check
+            bandits                                        answer                                       relevance ri, j
+
+
+Figure 1: A user request is first decomposed into sub-queries. Bandit learning iteratively selects a sub-query (arm),
+retrieves a document down its ranked list, observes its relevance, and updates the sub-query posterior belief over
+time. The selected documents across iterations are then used as evidence in a RAG setting to generate a grounded
+answer, balancing exploration (more sub-queries) and exploitation (more documents per sub-query).
+
+
+considerably more efficient. This perspective is                                2   Related Work
+complementary to recent approaches on efficient
+selection under computational constraints, such as                              RAG systems. RAG systems extend language
+compute-efficient re-ranking (Podolak et al., 2025)                             models with access to external knowledge from
+and training data selection (Petcu and Maji, 2024).                             retrieved evidence (Lewis et al., 2021; Asai et al.,
+In the example shown in Figure 1 we assume ac-                                  2020; Soudani et al., 2024). While this approach
+cess to a user request, its decomposition, document                             brings advantages in grounding the generation into
+relevance (assessed by either LLM judges or hu-                                 real information (Askari et al., 2025), it treats the
+man annotators), and a search engine We aim to                                  query as a unitary piece of information. There
+answer the following research questions:                                        are variants of RAG systems that handle complex
+(RQ1) How can query selection be framed as a                                    queries, such as multi-step RAG systems which
+        multi-armed bandit problem? Does bandit                                 perform iterative retrieval (Gu et al., 2025), or
+        learning outperform full exploitation and                               feedback-based retrieval implemented with RLHF
+        full exploration strategies? What strategies                            or model-estimated policies for re-generating the
+        best balance exploration with exploitation?                             query until a satisfying answer can be composed by
+(RQ2) Does document selection using multi-                                      the system (Deng et al., 2022; Rafailov et al., 2024;
+        armed bandits improve evaluation metrics                                Jin et al., 2025). This line of work follows earlier ef-
+        on the downstream task of report genera-                                forts in RL-based query reformulation (Buck et al.,
+        tion?                                                                   2018), which have been extended to multi-modal
+(RQ3) Can bandit learning be used to guide hier-                                and retrieval tasks (Odijk et al., 2015).
+        archical sub-query decomposition?                                       Query decomposition. Research in discourse phe-
+For answering RQ1, we model query decompo-                                      nomena such as exclusion (Zhang et al., 2025),
+sition and document retrieval in an efficient way                               negation (Weller et al., 2024; Petcu et al., 2025),
+using reinforcement learning (RL) policies in a                                 and compositions of logic operators (Zhang et al.,
+multi-armed bandit setting, demonstrating that es-                              2024) shows that such formulations are difficult to
+timating Bernoulli distributions boosts relevance                               encode by retrieval models (Krasakis et al., 2025).
+estimates by 17% compared to simply going down                                  These cases often benefit from decomposing the
+the ranked list. With RQ2, we look into the perfor-                             original request into simpler, unitary sub-queries
+mance of using an optimal subset of documents for                               (Yao et al., 2023). Query decomposition can be per-
+report generation, in which we improve on evalua-                               formed semantically using external models (Khot
+tion metrics such as nugget coverage and sentence                               et al., 2023). However, naively splitting a complex
+support. With RQ3, we examine the use of hi-                                    query and retrieving documents for each sub-query
+erarchical, multi-level sub-query decomposition,                                does not necessarily improve results: longer con-
+which yields a 30% precision gain over selecting                                texts can degrade downstream performance (Shao
+all documents from a single-level decomposition.                                et al., 2025). To address this, we propose an
+                                                                        6858
+                                                            Algorithm 1: Thompson Sampling in Discrete Space
+                                                             Input :Sub-queries S = {s1 , . . . , sK }; Budget b
+                                                         1 for i = 1, . . . , K do
+                                                         2      Define Beta priors αi ← 1, βi ← 1
+                                                         3 Initialize observation set O ← ∅;
+                                                         4 for t = 1, . . . , b do
+                                                         5      for i = 1, . . . , K do
+                                                         6            Sample θi ∼ Beta(αi , βi )
+                                                          7       Select arm at ← arg maxi θi ;
+                                                          8       Pick next document dat ,n ∈ Dat where
+                                                          9         n ← min{ j ∈ {1, . . . , N } | (at , j) ∈
+                                                                                                            / O };
+                                                         10       Observe reward r(at , n);
+                                                         11       Update posterior:
+                                                         12         αat ← αat + r(at , n);
+                                                                   βat ← βat + (1 − r(at , n));
+Figure 2: Exploration–exploitation across n subqueries   13       Save observation O ← O ∪ {(at , n)};
+and m documents in an offline setting; colors indicate
+document relevance, and arrows show how exploitation,
+exploration, and bandit-based policies allocate effort
+across sub-queries.                                      3.2     Bandit learning for query decomposition
+                                                         Figure 2 illustrates the setting of our prob-
+                                                         lem: given a user request Q and its decom-
+adaptive allocation of retrieval budgets across sub-     position {q1 , q2 , . . . , qK }, we retrieve a ranked
+queries.                                                 list of N documents for each sub-query qi as
+Research gap. We position our work at the inter-         {di,1 , di,2 , . . . , di,N }. We observe one document
+section of query decomposition, using LLMs for           at a time -we retrieve a document, assess its rele-
+unitary information needs, and efficient retrieval of    vance with respect to Q, and store it as an evalu-
+documents by observing and modeling relevance-           ated document- while trying to maximize observed
+aware distributions for each decomposed sub-query.       relevance while not going over a budget of b docu-
+The closest existing work applies multi-armed ban-       ments, where b < N ·K. We model each sub-query
+dits and active learning techniques for document         qi as an arm, where its associated set Di has an un-
+selection for large-scale evaluation, and for build-     known distribution over relevance labels w.r.t. Q.
+ing fair IR test collections (Li and Kanoulas, 2017;     We treat each arm as an unknown distribution over
+Rahman et al., 2020; Voorhees, 2018).                    Di for which we maintain a posterior over its ex-
+                                                         pected utility. We initialize the distribution with
+                                                         an uninformative (flat) prior and update the pos-
+3   Methodology                                          terior after each observation over Di . We employ
+                                                         Thompson sampling, a standard multi-armed ban-
+3.1 The exploitation-exploration problem                 dits (MAB) algorithm, both in discrete (Algorithm
+                                                         1) and continuous space (Algorithm 2).
+The exploration-exploitation dilemma is a funda-            In discrete space, we model a Bernoulli distri-
+mental decision-making concept that balances the         bution with a Beta conjugate prior, while in con-
+act of exploiting known low-risk options with ex-        tinuous space, we model Gaussians with Gaussian
+ploring unknown high-risk alternatives. A popular        priors. Importantly, (i) we model the multi-armed
+paradigm for this setting is the multi-armed bandit      bandit problem on query decomposition, where the
+problem, which assumes access to multiple fixed          arm chosen at time t is denoted as at , (ii) each ob-
+choices, called arms, observed iteratively by a deci-    servation is represented by the next document d:,j
+sion maker. The properties of each arm are initially     down a ranked list, and (iii) the reward is calculated
+uncertain, and the belief about their relevance is re-   at the document level, i.e., dat ,j for the chosen arm
+fined as more evidence is observed. A fundamental        at and document rank j.
+aspect of the bandit problem is that sampling from
+an arm does not affect the underlying distribution       3.3     Assumptions
+of that arm or any other. It can be seen as a set of     We make several assumptions throughout this work.
+real distributions B = {R1 , R2 , . . . , RK }, where    First, we formulate the problem in an offline su-
+each observed value is associated with a reward.         pervised setting, where relevance labels for re-
+                                                     6859
+trieved documents are available and can be directly                         How do current theories and ongoing debates about Machu Picchu’s
+                                                                            construction methods and architectural design reflect uncertainties
+
+used to compute rewards. Alternatively, in an on-                              about the site and the significance of its structural features?
+
+
+line setting, the reward can be derived from other                                                     if
+
+
+document-level signals such as retrieval scores (see
+                                                             How high is the mountain              What geological feature          What are the most remarkable
+                                                              ridge on which Machu              facilitated the construction of      aspects of the construction
+                                                                   Picchu sits?                          Machu Picchu?               structure of Machu Picchu?
+our Gaussian reward in Table 1), LLM judges, or
+user clicks. Secondly, we assume that the ranked                                        What terrain
+                                                                                         is Machu
+                                                                                                             Geological
+                                                                                                             features of
+                                                                                                                               Who
+                                                                                                                           constructed
+
+documents represent a good estimate of absolute                                           Picchu?           Machu Picchu    the Machu
+                                                                                                                             Picchu?
+
+
+document relevance, implying that the underlying
+ranking system operates at a sufficiently high level      Figure 3: Hierarchical query decomposition with corre-
+of performance. When this assumption does not             lated bandits, where informative sub-queries are decom-
+hold, noise introduced by imperfect rankings prop-        posed into arms with inherited posterior beliefs.
+agate into the reward signal and perturb the esti-
+mated query representations.
+                                                          Algorithm 1:
+
+3.4 Methods and rewards                                          r(at , n) =
+                                                                               n+k−1
+                                                                           1 X
+We study different properties that we hypothesize                                  Relevance(dat ,i ) ·
+to play an important role in the task of sub-query-                        k
+                                                                             i=n
+                                                                                                            
+dependent document retrieval for RAG:                                            max cos(dat ,n , di,j ) + 1                                                (1)
+Rank information: Each sub-query qi is asso-                               1 − (i,j)∈O                      
+ciated with a ranked list of retrieved documents,                                            2
+whose order encodes an implicit estimate of rel-                               r
+                                                                                  log2 (n + 1)
+evance. To incorporate this rank-based signal,                             +c·                 , with c → 0.
+we calculate the reward for the sub-query at cho-                                       n
+sen at time t as the average relevance over a             3.5        Hierarchical query decomposition with
+local window      of k documents down the ranked                     Correlated MAB
+      1 Pn+k−1
+list: k i=n Relevance(dat ,i ), where dat ,i rep-
+                                                          In hierarchical decompositions, a complex user re-
+resents the i-th document retrieved for subquery
+                                                          quest is iteratively split into smaller subqueries,
+chosen at time t, n is the current position in the
+                                                          where each can be further decomposed into more
+ranked list, and Relevance(dat ,i ) represents the rel-
+                                                          fine-grained information needs (see Figure 3). As a
+evance of one document, either as a binary label
+                                                          result, the retrieval space forms a hierarchy of sub-
+(from human or LLM judges), or a continuous rele-
+                                                          queries and their associated document distributions,
+vance signal (ranking score).
+                                                          where each child sub-query inherits properties from
+Diversity of documents: We want the retrieved
+                                                          its parent. As some sub-queries may be more infor-
+documents to be diverse; retrieving a relevant doc-
+                                                          mative than others, instead of uniform expansion,
+ument that has a high content overlap with a pre-
+                                                          we selectively expand those that demonstrate high
+viously observed one does not bring new infor-
+                                                          utility according to their posterior estimates. A
+mation. To encourage this, we estimate the nov-
+                                                          sub-query qi is highly informative when its esti-
+elty of the currently observed document dat ,i with
+                                                          mated value is above a set informativeness thresh-
+respect to the set of previously observed docu-
+                                                          old Eqi = αiα+β  i
+                                                                               > τ and when it has been ob-
+ments O; we model this by estimating the nov-                                i
+                                                          served at least n times. If an informative sub-query
+elty of each sub-query using cosine similarity:
+      max(i,j)∈O cos(dat ,n ,di,j )+1                     qi is expanded, its children {qi,1 , qi,2 , ..., qi,m } be-
+1−                 2                  .                   come new arms in the multi-armed bandit formal-
+Exploration: We want to explore each sub-query            ization, whose distributions are correlated with
+at least once; we enforce thisqusing an upper confi-      their parent sub-query qi . This correlation is cap-
+dence bound (UCB) term c · n1 log2 (n + 1), with          tured by an inheritance factor λ ∈ (0, 1], i.e. a
+c → 0. This term diverges to infinity for subqueries      parent with posterior Beta(αi , βi ) will yield a child
+with no observations, i.e., when n → 0.                   sub-query initialized as Beta(λαi , λβi ). By mod-
+These factors compose our final reward policy,            eling hierarchical decomposition with correlated
+which we propose as a Bernoulli top-k UCB                 bandits, we do not assume independence between
+diversity-aware estimate in Eq. 1, used on line 9 in      them.
+                                                      6860
+4       Experimental Setup                             4.3    Implementation Details
+                                                       Rewards. We experiment with the reward intro-
+We run our experiments on two datasets, which
+                                                       duced in Equation 1 and with several alternatives
+come with different properties and challenges.
+                                                       and baselines described in Table 1. We sample doc-
+                                                       uments up to a budget b ∈ {10%, 20%, . . . , 100%}
+4.1 NeuCLIR
+                                                       out of the total document set of size N × K. For
+Dataset. The NeuCLIR dataset (Lawrie et al.,           b = 100% we expect all policies and baselines
+2025) features decomposable user requests; the         to converge to the same performance. To elimi-
+sub-queries are generated in a serialized manner,      nate noise from random policy starts, we run each
+i.e., a one-level decomposition. NeuCLIR is part of    experiment 1000 times. Moreover, as we decom-
+TREC (Text Retrieval Conference) and is designed       pose the user request using LLM calls, we run the
+to evaluate information retrieval models on multi-     decomposition 10 times for each user request, lead-
+lingual data. More precisely, the dataset contains     ing to a total of 19 × 10 × 1000 experiments over
+complex user requests and a corpus of documents        which we average for each budget. For the Gaus-
+in Chinese (∼3M documents), Russian (∼5M doc-          sian reward, we experiment with both the RFF and
+uments), and Persian (2M documents). 2 For the         PLAID-X ranking scores, depending on the search
+purpose of this study, all documents have been         engine used. For the diversity concave reward, we
+translated into English. We run our experiments on     set hyperparameters a = 5 and b = 15.
+the entirety of the human-annotated nugget parti-      Metrics. We evaluate performance using precision
+tion of the dataset. The average length of each user   and α-nDCG (Clarke et al., 2008) for document
+request is 51.95 ± 19.46 words.                        selection. For long-form report generation, we use
+Retrieval. We decompose NeuCLIR user requests          the Auto-ARGUE framework (Walden et al., 2025).
+into k = 16 sub-queries using LLM calls as spec-
+ified in prompts 6 and 7. For each generated sub-      5     Empirical Results
+query, we run a search engine to retrieve n = 10
+                                                       Our experiments are designed to answer the re-
+documents. The retriever used in this study is a
+                                                       search questions presented in Section 1. We answer
+combination of PLAID-X, a dual encoder with
+                                                       RQ1 (can we frame document selection as a multi-
+late interaction (Nair et al., 2022; Yang et al.,
+                                                       armed bandit problem?) through experiments on
+2024), learned sparse retrieval (LSR) (Nguyen
+                                                       NeuCLIR and ResearchyQuestions in Section 5.1.
+et al., 2023), which combines sparse retrieval with
+                                                       We answer RQ2 (do policy-observed documents
+contextualized dense embeddings, and a Qwen re-
+                                                       lead to better performance on downstream tasks?)
+triever (Bai et al., 2023; Yang et al., 2025).
+                                                       by long-form generation of reports on NeuCLIR in
+                                                       Section 5.2. We answer RQ3 (can we apply bandit-
+4.2 ResearchyQuestions                                 learning on hierarchical sub-queries?) by modeling
+Dataset. ResearchyQuestions (Rosset et al., 2024)      correlated bandits on existing sub-query splits from
+is composed of 100k complex Bing questions that        ResearchyQuestions in Section 5.3.
+are non-factoid, multi-perspective, and require de-
+composition. Each instance in the dataset is de-       5.1    Document selection as a multi-armed
+composed into sub-queries hierarchically over two             bandit problem
+levels: headers (first-level sub-queries), and sub-    Figure 4 illustrates macro-precision over document
+queries (second-level). We build the corpus by ag-     budget. We highlight the main findings in Fig-
+gregating all documents marked as relevant across      ure 4, while Figures 8 and 9 in the Appendix
+the entire ResearchyQuestions dataset.                 present all results. Exploitation and exploration-
+Retrieval. We apply BM25 to retrieve top 10 doc-       only policies perform similarly to our baselines:
+uments for each query. Since some instances have       the exploitation-only policy returns a precision of
+limited document coverage, we filter the data and      0.57 and exploration-only a precision of 0.55 on
+keep only those where at least 10% of the retrieved    NeuCLIR, while both exploitation and exploitation-
+documents are labeled as relevant. The final dataset   only achieve 0.14 precision on ResearchyQues-
+used for evaluation consists of 140 instances.         tions. Based on results on our proposed rewards,
+                                                       we observe that: (i) reward policies effectively
+    2
+        https://huggingface.co/neuclir                 model sub-query relevance; (ii) ϵ-greedy performs
+                                                   6861
+Reward type                      Formula
+Baseline random                  r(at ) = Relevance(dat ,n ) where at ∼ unif(a1 , ..., aK ), n ∼ unif(rank1 , rank2 , ..rankm )
+Baseline random rank-aware       r(at , n) = Relevance(dat , n) where at ∼ unif(a1 , ..., aK )
+
+ϵ-greedy                         r(at , n) = Relevance(dat ,n ) if Relevance(dat ,n−1 ) is 1 else at ∼ unif(a1 , ..., aK )
+Bernoulli                        r(at , n) = Relevance(dat ,n )
+                                                                     q
+Bernoulli UCB                    r(at , n) = Relevance(dat ,n ) + c · log2 (n+1)
+                                                                           n                     with c → 0
+                                               P
+Bernoulli top-k                  r(at , n) = k1 n+k−1
+                                                 i=n   Relevance(dat ,i )
+                                               Relevance(dat ,n )
+Bernoulli rank-aware             r(at , n) =      log2 (n+2)
+Gaussian                         r(at , n) = RFF(dat ,n )           or   ColBERT(dat ,n )
+                                                                                                           !
+                                                                                max cos(dat ,n ,di,j )+1
+                                                                               (i,j)∈O
+Diversity                        r(at , n) = Relevance(dat ,n ) ·         1−                 2
+                                                                         
+                                                                         
+                                                                         1,                                        if max cos(dat ,n , dat ,j ) < 0
+                                                                                                             !        j<n
+Diversity concave             r(at , n) = Relevance(dat ,n ) ·                                            b
+                                                               
+                                                                                                               , otherwise
+                                                               exp −a · (i,j)∈O
+                                                                               max cos(dat ,n , di,j ))
+                                                                                                            !        q
+                                            P                                     max cos(dat ,n ,di,j ))+1
+                                                                                                                       log2 (n+1)
+Bernoulli top-k UCB diversity r(at , n) = k1 n+k−1
+                                                                                (i,j)∈O
+                                              i=n   Relevance(d   at ,i ) · 1 −            2                  +  c ·        n     , with c → 0
+
+
+Table 1: Reward policies used for evaluating sub-query selection strategies. For all but the baseline random, we
+assume n = min{j ∈ {1, . . . , N } | (at , j) ∈
+                                              / O}. For the diversity concave policy, we assume a = 5 and b = 15.
+
+
+
+
+Figure 4: Precision scores on NeuCLIR24 and ResearchyQuestions for baselines and reward policies, evaluated
+across varying budgets of observed documents. The budgets are expressed as percentages of the total available
+corpus. Modelling the queries using Bernoulli distribution considering the top ranked k documents performs the best
+across budgets, with all policies reaching the same performance as the budget covers the whole space of actions.
+
+
+best when using 10–20% of the budget, likely be-                                  sub-queries.
+cause early exploitation of high-relevance arms is                                  Table 3 shows results for multiple values of
+optimal; and (iii) using rank-information gives a                                 α-nDCG. We observe that α-nDCG achieves
+noticeable advantage. All rewards achieve the same                                higher values for baselines and all policies for
+macro-precision as the budget reaches maximum                                     budget K ∈ [5, 10, 20]. As the budget grows, all
+value, due to coverage of the same set of documents                               baselines and policies converge towards the same
+by all policies and baselines. Figure 10 (in the Ap-                              pool of documents, reducing marginal novelty, as
+pendix) shows similar insights on recall w.r.t. the                               α-nDCG punishes redundant content. Out of all
+total amount of relevant documents retrieved for all                              policies, notably the ϵ-greedy, UCB, and ranked
+                                                                             6862
+                                          Budget b = 20%                                            Budget b = 30%
+                           Citation              Nugget                 Sentence       Citation         Nugget         Sentence
+                           Support              Coverage                Support        Support         Coverage        Support
+ Full                       0.788                0.461                   0.780          0.788           0.461           0.780
+
+ Random                 0.826 ± 0.043 0.477 ± 0.055 0.822 ± 0.045 0.827 ± 0.054 0.446 ± 0.052 0.837 ± 0.055
+ Rank                   0.834 ± 0.038 0.462 ± 0.045 0.819 ± 0.045 0.818 ± 0.053 0.462 ± 0.060 0.791 ± 0.067
+
+ ϵ-greedy               0.823 ± 0.042       0.490 ± 0.053         0.809 ± 0.049     0.799 ± 0.071   0.478 ± 0.080    0.775 ± 0.077
+ Bernoulli UCB          0.834 ± 0.031       0.477 ± 0.042         0.823 ± 0.037     0.830 ± 0.051   0.497 ± 0.071    0.798 ± 0.080
+ Bernoulli k = 4        0.866 ± 0.037       0.463 ± 0.044         0.855 ± 0.039     0.834 ± 0.060   0.480 ± 0.075    0.817 ± 0.075
+ Bernoulli k = 5        0.849 ± 0.035       0.492 ± 0.045         0.839 ± 0.038     0.831 ± 0.056   0.500 ± 0.064    0.819 ± 0.072
+ Top-K UCB Div.         0.837 ± 0.031       0.463 ± 0.040         0.836 ± 0.030     0.835 ± 0.046   0.475 ± 0.050    0.826 ± 0.061
+
+Table 2: Report Generation results for budgets b = 20% and b = 30% with their confidence intervals. Selecting a
+relevant subset of documents boosts downstream report generation performance with 6.0–9.9% increase in citation
+support, 6.7–8.5% in nugget coverage, and 7.3–9.6% in sentence support.
+
+
+                            α-nDCG ↑                     α-nDCG ↑            5.2   Impact on report generation
+                            NeuCLIR24                    Researchy
+                K=5 K=10 K=20 K=40 K=50 K=5 K=10                             We generate reports on NeuCLIR24 using docu-
+Random          0.411 0.454     0.479   0.263   0.311 0.134 0.127
+                                                                             ment subsets retrieved by our policies for budgets
+Rank            0.426 0.462     0.476   0.265   0.313 0.172 0.137            b = [20%; 30%], which provided the best trade-
+ϵ-greedy        0.500   0.539   0.546   0.286   0.314   0.207   0.145        off between evidence coverage and precision in
+Bernoulli       0.445   0.508   0.543   0.246   0.282   0.210   0.157        preliminary experiments (Figure 4). Evaluations
+Bernoulli UCB 0.460     0.517   0.545   0.248   0.279   0.210   0.164        are conducted with the Auto-ARGUE framework,
+Bernoulli k = 4 0.461   0.536   0.551   0.275   0.283   0.240   0.153
+                                                                             which measures four aspects of grounded genera-
+Bernoulli k = 5 0.448   0.523   0.555   0.267   0.291   0.232   0.156
+Bernoulli Rank 0.437    0.481   0.523   0.264   0.289   0.208   0.156        tion: citation relevance (quality of cited sources),
+Diversity       0.444   0.505   0.541   0.260   0.281   0.210   0.154        citation support (alignment between claims and
+Diversity Conc. 0.442   0.512   0.540   0.260   0.283   0.211   0.149        citations), nugget coverage (proportion of unique
+Top-k UCB Div. 0.469    0.537   0.552   0.253   0.285   0.222   0.154
+                                                                             information units), and sentence support (share of
+Table 3: Comparison of α-nDCG over different budgets                         sentences with appropriate evidence). An exam-
+k for NeuCLIR24 and ResearchyQuestions. Bernoulli                            ple report is provided in Appendix A.3. As shown
+posteriors are the best to estimate document relevance                       in Table 2, top-k Bernoulli policies achieve the
+regardless the value of k for α-nDCG, with an additional                     strongest performance in both nugget coverage and
+performance boost when considering the top k ranked                          factual support. Citation relevance is omitted, as
+documents. UCB also brings an advantage. Div. in the                         it remains constant across policies. Results show
+last metrics refers to Diversity.                                            that selecting documents using multi-armed ban-
+                                                                             dits improves downstream report generation. The
+                                                                             strongest performance gains follow the rank-aware
+Bernoulli rewards perform the best.                                          top-k Bernoulli policies, including top-k UCB with
+   We frame query decomposition and document                                 diversity citation support at b=30% (0.835).
+selection as a stochastic multi-armed bandit where
+each subquery is an independent arm, and pulling                             5.3   Bandit learning for hierarchical
+an arm corresponds to observing a document                                         sub-queries
+down the ranked list. Each observation receives                              We use ResearchyQuestions to evaluate our corre-
+a Bernoulli reward based on relevance, updating                              lated bandits formulation. Results in Table 4 show
+the subquery’s relevance distribution. Across exper-                         clear improvements over policies for a small bud-
+iments, we show that bandit learning outperforms                             get b = 10%. We pick the three hyperparameters
+full exploitation and exploration, and that a pol-                           described in Section 3.5 through Bayesian hyper-
+icy combining rank-information, diversity, and an                            parameter search. The results are presented in Fig-
+upper confidence bound (Equation 1) outperforms                              ure 12 in the Appendix, given which we chose a
+other variants in Table 1.                                                   minimal number of observations n = 4, informa-
+                                                                        6863
+tiveness threshold τ = 0.77, and inheritance factor              negatively correlated with the relevance of the doc-
+λ = 0.91.                                                        uments. Figure 5 shows that very few instances
+   Table 4 shows that we can use bandit-learning to              have a negative slope, indicating that the ranked
+model hierarchical query decomposition. For bud-                 lists are not always consistent with relevance.
+get b = 10%, there is a clear performance boost
+when using the hierarchical structure compared
+to treating all subqueries at the same serial level.
+Performance using Bernoulli increases by 21.6%,
+while top-k = 5 has a performance boost of 32.3%,
+and RL top-k UCB diversity a gain of 20.4%. As
+the budget increases, the gains converge. These re-
+sults indicate that hierarchy-aware (correlated) ban-
+dits best balance exploration/exploitation early by
+focusing on promising branches of the sub-query
+tree, yielding higher precision under small budgets.
+
+                                b = 10%          b = 20%
+                               Ser.    Hier.   Ser.   Hier.      Figure 5: Fitting linear regression functions y =
+ Baseline Random               0.157   0.159   0.137 0.136       α+ Pβx  + ϵ between the mean reciprocal ranks r̄i =
+                                                                      K
+                                                                      k=1 ri,k for each user request in NeuCLIR24 (rep-
+                                                                  1
+ Baseline Rank-aware           0.263   0.264   0.191 0.193       K
+ ϵ-greedy strategy             0.306   0.306   0.223 0.223       resented by a point).
+ Bernoulli                     0.305   0.371   0.237 0.246
+ Bernoulli UCB                 0.306   0.368   0.234 0.245
+                                                                                           α-nDCG ↑                   α-nDCG ↑
+ Bernoulli Top k = 3           0.325   0.391   0.260 0.250                                 NeuCLIR24                  Researchy
+ Bernoulli Top k = 4           0.317   0.398   0.261 0.2512                     K=5 K=10 K=20 K=40 K=50 K=5 K=10
+ Bernoulli Top k = 5           0.303   0.401   0.257 0.250
+                                                                 Bernoulli      0.445 0.508    0.543   0.246   0.282 0.210 0.157
+ Bernoulli Rank-Aware          0.304   0.375   0.232 0.242
+                                                                 Gaussian       0.413 0.442    0.468   0.252   0.281 0.172 0.140
+ Gaussian                      0.260   0.264   0.200 0.197
+                                                                 Gaussian ING   0.409 0.445    0.463   0.259   0.284 0.170 0.135
+ Gaussian ING                  0.264   0.263   0.201 0.189
+                                                                 Bernoulli k = 3 0.462 0.531   0.556   0.264   0.285 0.230 0.155
+ Bernoulli Diversity           0.305   0.371   0.237 0.247
+                                                                 Bernoulli k = 4 0.461 0.536   0.551   0.275   0.283 0.240 0.153
+ Bernoulli Diversity Concave   0.306   0.371   0.236 0.247       Bernoulli k = 5 0.448 0.523   0.555   0.267   0.291 0.232 0.156
+ RL Top-k UCB diversity        0.324   0.390   0.256 0.249
+                                                                 Table 5: Comparison of α-nDCG for NeuCLIR24 and
+Table 4: Comparison of precision under budgets b =               ResearchyQuestions. Gaussian vs. Bernoulli modelling.
+10% and b = 20% for both serialized (Ser.) and hi-
+erarchical (Hier.) document selection strategies with            Top-k. We explore different values of the top k
+correlated bandits. For all discrete estimate policies,          documents in a ranked list. More precisely, we
+selecting a subset of documents by taking into account
+                                                                 investigate performance for values of k ∈ [3, 4, 5].
+sub-query hierarchies yields better performance, with
+Bernoulli top k = 5 having a 24% performance boost               We observed that any Bernoulli taking into account
+over the serialized representation, where we use the             top-k documents outperforms all the other rewards
+number of observations n = 4, informativeness thresh-            across budget, and therefore we report only top-k
+old τ = 0.77 and inheritance factor λ = 0.91                     for k = 3 in the main tables. In Table 5 we report
+                                                                 the values for all experiments as reference. For
+                                                                 analysis on Gaussian distributions, check A.2.
+5.4 NeuCLIR analysis
+                                                                 6    Conclusions
+Rank information. We run our experiments in
+a setting where each sub-query corresponds to a                  This study proposes reframing query decomposi-
+ranked list of documents. Therefore, we make the                 tion and document retrieval for complex query an-
+assumption that the ranked list is a good reflection             swering as an exploitation–exploration problem
+of document relevance. To verify this hypothesis,                under a multi-armed bandit setting. We conduct ex-
+we calculate the mean reciprocal rank and fit a                  tensive empirical studies across a range of policies
+linear regression to estimate whether the rank is                and discover that, when having access to binary
+                                                              6864
+relevance labels, Bernoulli distributions with rank
+information perform best for selecting relevant con-
+tent under a constrained budget. These results are
+demonstrated on two datasets, NeuCLIR24 and Re-
+searchyQuestions. We further show that modeling
+correlations between sub-queries in a hierarchical
+setting consistently boosts performance across all
+rewards. We also stress that such an approach per-
+forms robustly, while the choice of budget is data-
+dependent w.r.t. the real distribution of relevance
+across retrieved documents.
+   We propose further analyses into correlated and
+contextualized bandits where correlations need not
+be explicit in the data but may instead emerge nat-
+urally in the representational space of sub-queries.
+Another direction would be to train a retrieval
+model optimized for relevance, document diver-
+sity, exploration, or long-form generation within a
+policy-learning framework.
+Future Work. We believe that our approach can be
+used in an online setting by applying other signals
+such as clicks or LLM judgments calculated on the
+fly. Furthermore, it can also be applied to more
+cost-efficient online evaluation pipelines such as
+(Ju et al., 2026).
+
+
+
+
+                                                   6865
+Limitations                                               Christian Buck, Jannis Bulian, Massimiliano Cia-
+                                                            ramita, Wojciech Gajewski, Andrea Gesmundo, Neil
+Our work proposes a reframing of an existing                Houlsby, and Wei Wang. 2018. Ask the right ques-
+paradigm in a popular experimental setup. The               tions: Active question reformulation with reinforce-
+study comes with a couple of challenges and lim-            ment learning. In 6th International Conference on
+                                                            Learning Representations, ICLR 2018, Vancouver,
+itations: when a retrieval module is involved, the          BC, Canada, April 30 - May 3, 2018, Conference
+rewards directly depend on the performance of the           Track Proceedings. OpenReview.net.
+retriever; moreover, the performance over budgets
+directly depends on the real distribution of obser-       Charles L.A. Clarke, Maheedhar Kolla, Gordon V.
+                                                            Cormack, Olga Vechtomova, Azin Ashkan, Stefan
+vations. In a dynamic setting, often a set of sub-          Büttcher, and Ian MacKinnon. 2008. Novelty and
+queries is not pre-defined, such as in the NeuCLIR          diversity in information retrieval evaluation. In Pro-
+dataset, which introduces noise by regenerating             ceedings of the 31st Annual International ACM SI-
+sub-queries every time. In addition, often the sub-         GIR Conference on Research and Development in
+queries are not only not generated, but they are            Information Retrieval, SIGIR ’08, page 659–666,
+                                                            New York, NY, USA. Association for Computing
+samples from an unbounded search space for a                Machinery.
+given user request.
+                                                          Mingkai Deng, Jianyu Wang, Cheng-Ping Hsieh, Yihan
+Acknowledgments                                             Wang, Han Guo, Tianmin Shu, Meng Song, Eric P.
+                                                            Xing, and Zhiting Hu. 2022. Rlprompt: Optimizing
+This research was (partially) supported by the              discrete text prompts with reinforcement learning.
+Dutch Research Council (NWO), under project                 Preprint, arXiv:2205.12548.
+numbers 024.004.022, NWA.1389.20.183, and
+                                                          Zhanzhong Gu, Wenjing Jia, Massimo Piccardi,
+KICH3.LTP.20.006, and the European Union under              and Ping Yu. 2025.       Empowering large lan-
+grant agreements No. 101070212 (FINDHR) and                 guage models for automated clinical assessment
+No. 101201510 (UNITE).                                      with generation-augmented retrieval and hierar-
+   Views and opinions expressed are those of the            chical chain-of-thought. Artif. Intell. Medicine,
+                                                            162:103078.
+authors only and do not necessarily reflect those of
+their respective employers, funders and/or granting       Bowen Jin, Jinsung Yoon, Jiawei Han, and Sercan O.
+authorities.                                                Arik. 2024. Long-context llms meet rag: Over-
+                                                            coming challenges for long inputs in rag. Preprint,
+                                                            arXiv:2410.05983.
+References
+                                                          Bowen Jin, Hansi Zeng, Zhenrui Yue, Jinsung Yoon,
+Akari Asai, Kazuma Hashimoto, Hannaneh Hajishirzi,          Sercan Arik, Dong Wang, Hamed Zamani, and Jiawei
+  Richard Socher, and Caiming Xiong. 2020. Learn-           Han. 2025. Search-r1: Training llms to reason and
+  ing to retrieve reasoning paths over wikipedia graph      leverage search engines with reinforcement learning.
+  for question answering. In 8th International Confer-      Preprint, arXiv:2503.09516.
+  ence on Learning Representations, ICLR 2020, Addis
+  Ababa, Ethiopia, April 26-30, 2020. OpenReview.net.     Jia-Huei Ju, Suzan Verberne, Maarten de Rijke, and
+                                                             Andrew Yates. 2026. Controlled retrieval-augmented
+Arian Askari, Roxana Petcu, Chuan Meng, Moham-               context evaluation for long-form rag. Preprint,
+  mad Aliannejadi, Amin Abolghasemi, Evangelos               arXiv:2506.20051.
+  Kanoulas, and Suzan Verberne. 2025. Self-seeding
+  and multi-intent self-instructing llms for generating   Tushar Khot, Harsh Trivedi, Matthew Finlayson, Yao
+  intent-aware information-seeking dialogs. Preprint,       Fu, Kyle Richardson, Peter Clark, and Ashish Sab-
+  arXiv:2402.11633.                                         harwal. 2023. Decomposed prompting: A modu-
+Jinze Bai, Shuai Bai, Yunfei Chu, Zeyu Cui, Kai Dang,       lar approach for solving complex tasks. Preprint,
+   Xiaodong Deng, Yang Fan, Wenbin Ge, Yu Han, Fei          arXiv:2210.02406.
+   Huang, Binyuan Hui, Luo Ji, Mei Li, Junyang Lin,
+   Runji Lin, Dayiheng Liu, Gao Liu, Chengqiang Lu,       Takyoung Kim, Kyungjae Lee, Young Rok Jang, Ji Yong
+   Keming Lu, and 29 others. 2023. Qwen technical           Cho, Gangwoo Kim, Minseok Cho, and Moon-
+   report. Preprint, arXiv:2309.16609.                      tae Lee. 2025. Learning to explore and select for
+                                                            coverage-conditioned retrieval-augmented genera-
+Samarth Bhargav, Georgios Sidiropoulos, and Evange-         tion. Preprint, arXiv:2407.01158.
+  los Kanoulas. 2022. ‘It’s on the tip of my tongue’: A
+  new dataset for known-item retrieval. In WSDM ’22:      Antonios Minas Krasakis, Andrew Yates, and Evange-
+  The Fifteenth ACM International Conference on Web         los Kanoulas. 2025. Constructing set-compositional
+  Search and Data Mining, Virtual Event / Tempe, AZ,        and negated representations for first-stage ranking.
+  USA, February 21 - 25, 2022, pages 48–56. ACM.            Preprint, arXiv:2501.07679.
+                                                      6866
+Dawn Lawrie, Sean MacAvaney, James Mayfield, Paul           Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano
+  McNamee, Douglas W. Oard, Luca Soldaini, and Eu-            Ermon, Christopher D. Manning, and Chelsea Finn.
+  gene Yang. 2025. Overview of the trec 2024 neuclir          2024. Direct preference optimization: Your lan-
+  track. Preprint, arXiv:2509.14355.                          guage model is secretly a reward model. Preprint,
+                                                              arXiv:2305.18290.
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+  Petroni, Vladimir Karpukhin, Naman Goyal, Hein-           Md Mustafizur Rahman, Mucahid Kutlu, Tamer El-
+  rich Küttler, Mike Lewis, Wen tau Yih, Tim Rock-           sayed, and Matthew Lease. 2020. Efficient test col-
+  täschel, Sebastian Riedel, and Douwe Kiela. 2021.          lection construction via active learning. In Proceed-
+  Retrieval-augmented generation for knowledge-              ings of the 2020 ACM SIGIR on International Con-
+  intensive nlp tasks. Preprint, arXiv:2005.11401.           ference on Theory of Information Retrieval, ICTIR
+                                                             ’20, page 177–184. ACM.
+Dan Li and Evangelos Kanoulas. 2017. Active sampling
+  for large-scale information retrieval evaluation. In      Corby Rosset, Ho-Lam Chung, Guanghui Qin, Ethan C.
+  Proceedings of the 2017 ACM on Conference on In-            Chau, Zhuo Feng, Ahmed Awadallah, Jennifer
+  formation and Knowledge Management, CIKM ’17,               Neville, and Nikhil Rao. 2024. Researchy ques-
+  page 49–58. ACM.                                            tions: A dataset of multi-perspective, decompo-
+                                                              sitional questions for llm web agents. Preprint,
+Suraj Nair, Eugene Yang, Dawn Lawrie, Kevin Duh,              arXiv:2402.17896.
+  Paul McNamee, Kenton Murray, James Mayfield,              Rulin Shao, Rui Qiao, Varsha Kishore, Niklas Muen-
+  and Douglas W. Oard. 2022. Transfer learning ap-            nighoff, Xi Victoria Lin, Daniela Rus, Bryan
+  proaches for building cross-language dense retrieval        Kian Hsiang Low, Sewon Min, Wen tau Yih,
+  models. In Proceedings of the 44th European Con-            Pang Wei Koh, and Luke Zettlemoyer. 2025. Rea-
+  ference on Information Retrieval (ECIR).                    sonir: Training retrievers for reasoning tasks.
+                                                              Preprint, arXiv:2504.20595.
+Thong Nguyen, Sean MacAvaney, and Andrew Yates.
+  2023. A unified framework for learned sparse re-          Heydar Soudani, Roxana Petcu, Evangelos Kanoulas,
+  trieval. Preprint, arXiv:2303.13416.                        and Faegheh Hasibi. 2024. A survey on recent ad-
+                                                              vances in conversational data generation. Preprint,
+Daan Odijk, Edgar Meij, Isaac Sijaranamual, and               arXiv:2405.13003.
+  Maarten de Rijke. 2015. Dynamic query modeling
+  for related content finding. In Proceedings of the 38th   Coen van den Elsen, Francien Barkhof, Thijmen Ni-
+  International ACM SIGIR Conference on Research              jdam, Simon Lupart, and Mohammad Aliannejadi.
+  and Development in Information Retrieval, Santiago,         2025. Reproducing nevir: Negation in neural infor-
+  Chile, August 9-13, 2015, pages 33–42. ACM.                 mation retrieval. In Proceedings of the 48th Inter-
+                                                              national ACM SIGIR Conference on Research and
+Roxana Petcu, Samarth Bhargav, Maarten de Rijke,              Development in Information Retrieval, SIGIR 2025,
+  and Evangelos Kanoulas. 2025. A comprehensive               Padua, Italy, July 13-18, 2025, pages 3346–3356.
+  taxonomy of negation for nlp and neural retrievers.         ACM.
+  Preprint, arXiv:2507.22337.
+                                                            Ellen M. Voorhees. 2018. On building fair and reusable
+Roxana Petcu and Subhadeep Maji. 2024. Efficient               test collections using bandit techniques. In Proceed-
+  data selection employing semantic similarity-based           ings of the 27th ACM International Conference on In-
+  graph structures for model training. Preprint,               formation and Knowledge Management, CIKM ’18,
+  arXiv:2402.14888.                                            page 407–416, New York, NY, USA. Association for
+                                                               Computing Machinery.
+Jakub Podolak, Leon Perić, Mina Janićijević, and Rox-    William Walden, Marc Mason, Orion Weller, Laura
+   ana Petcu. 2025. Beyond reproducibility: Advancing         Dietz, Hannah Recknor, Bryan Li, Gabrielle Kaili-
+   zero-shot llm reranking efficiency with setwise inser-     May Liu, Yu Hou, James Mayfield, and Eugene Yang.
+   tion. In Proceedings of the 48th International ACM         2025. Auto-argue: Llm-based report generation eval-
+  SIGIR Conference on Research and Development in             uation. Preprint, arXiv:2509.26184.
+  Information Retrieval, SIGIR ’25, page 3205–3213,
+   New York, NY, USA. Association for Computing             Orion Weller, Dawn J. Lawrie, and Benjamin Van
+   Machinery.                                                 Durme. 2024. Nevir: Negation in neural informa-
+                                                              tion retrieval. In Proceedings of the 18th Conference
+Peng Qi, Xiaowen Lin, Leo Mehr, Zijian Wang, and              of the European Chapter of the Association for Com-
+  Christopher D. Manning. 2019. Answering complex             putational Linguistics, EACL 2024 - Volume 1: Long
+  open-domain questions through iterative query gen-          Papers, St. Julian’s, Malta, March 17-22, 2024, pages
+  eration. In Proceedings of the 2019 Conference on           2274–2287. Association for Computational Linguis-
+  Empirical Methods in Natural Language Processing            tics.
+  and the 9th International Joint Conference on Nat-
+  ural Language Processing, EMNLP-IJCNLP 2019,              An Yang, Baosong Yang, Beichen Zhang, Binyuan
+  Hong Kong, China, November 3-7, 2019, pages 2590–           Hui, Bo Zheng, Bowen Yu, Chengyuan Li, Dayi-
+  2602. Association for Computational Linguistics.            heng Liu, Fei Huang, Haoran Wei, Huan Lin, Jian
+                                                        6867
+    Yang, Jianhong Tu, Jianwei Zhang, Jianxin Yang, Ji-       Algorithm 2: Thompson Sampling in Continuous
+    axi Yang, Jingren Zhou, Junyang Lin, Kai Dang, and        Space
+    23 others. 2025. Qwen2.5 technical report. Preprint,       Input :Sub-queries S = {s1 , . . . , sK }
+    arXiv:2412.15115.                                          Input :Budget b
+
+Eugene Yang, Dawn Lawrie, James Mayfield, Dou-             1 for i = 1, . . . , K do
+                                                           2      Define Gaussian priors N (µ0 , σ02 ) where
+  glas W. Oard, and Scott Miller. 2024. Translate-
+  distill: Learning cross-language dense retrieval by               µ0 ← 0 and σ02 ← 1
+  translation and distillation. In Proceedings of the      3 for t = 1, . . . , b do
+  46th European Conference on Information Retrieval        4      for i = 1, . . . , K do
+  (ECIR).                                                  5           Sample from posterior θi ∼ N (µi , σi2 )
+                                                            6      Select arm (sub-query): at ← arg maxi θi
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak            7      Pick next document dat ,n ∈ Dat where
+  Shafran, Karthik R. Narasimhan, and Yuan Cao. 2023.       8         n = min{j ∈ {1, . . . , N } | (at , j) ∈
+                                                                                                             / O}
+  React: Synergizing reasoning and acting in language       9      Observe the likelihood: r(at , n)
+  models. In The Eleventh International Conference         10      Update posterior:
+                                                                             q
+  on Learning Representations, ICLR 2023, Kigali,          11         σa2t = ( σ12 + n)−1
+  Rwanda, May 1-5, 2023. OpenReview.net.                                          0
+                                                                                   P
+                                                           12         µat = σa2t · r∈Sa r
+                                                                                          t
+Wenhao Zhang, Mengqi Zhang, Shiguang Wu, Jiahuan
+  Pei, Zhaochun Ren, Maarten de Rijke, Zhumin Chen,
+  and Pengjie Ren. 2025. Excluir: Exclusionary neural
+  information retrieval. In AAAI-25, Sponsored by the      detail [5]. He is often associated with the “iceberg
+ Association for the Advancement of Artificial Intelli-    theory,” the idea that most meaning lies beneath
+  gence, February 25 - March 4, 2025, Philadelphia,        the surface while only a small portion is stated ex-
+ PA, USA, pages 13295–13303. AAAI Press.
+                                                           plicitly [3], [5]. Hemingway’s years as a journalist
+Zongmeng Zhang, Jinhua Zhu, Wen gang Zhou, Xiang           shaped this approach: he learned to write concise,
+  Qi, Peng Zhang, and Houqiang Li. 2024. BoolQues-         unadorned prose that focuses on essentials [2]. He
+  tions: Does dense retrieval understand boolean logic
+  in language? In Conference on Empirical Methods
+                                                           also insisted on authenticity—“never write about
+  in Natural Language Processing.                          what you do not know”—and favored describing
+                                                           observable actions while letting readers infer the
+A     Appendix                                             emotions behind them [1]. This restrained, lucid
+                                                           style has been widely emulated and is a major rea-
+A.1 Prompts for Query Decomposition
+                                                           son he is regarded as one of the most influential
+The NeuCLIR dataset contains complex user re-              writers of the twentieth century [4].
+quests and associated nuggets with annotated doc-
+uments. We thus generate our own query decom-              A.4     Complete results on NeuCLIR and
+position using LLM calls. We decompose each                        ResearchyQuestions
+NeuCLIR user request into k = 16 sub-queries               Figures 8–11 report precision and recall across bud-
+using prompts 6 and 7.                                     gets for all baselines and bandit policies we intro-
+                                                           duce in Table 1. Figure 13 compared serial and
+A.2 Gaussian Distributions
+                                                           hierarchy-aware document selection.
+Gaussian estimates. The finding in Figure 5 serves
+as an explanation to the Gaussian policies perform-
+ing considerably poorly compared to the Bernoulli
+ones, as seen Table 5. This suggests that Gaus-
+sian distributions may not be suited to capturing
+relevance when the ranking signal is noisy.
+
+A.3 Report Generation Example
+In this section, we show an example of a report
+generated and evaluated using Auto-ARGUE.
+Query. What characterizes Ernest Hemingway’s
+writing style, and what is the “iceberg theory”?
+Generated report. Ernest Hemingway was a
+renowned American writer known for a distinc-
+tive style built on simplicity, clarity, and concrete
+                                                       6868
+Prompt for generating Problem Definition Search Queries
+You are an assistant that receives a complex user request and must generate search queries whose
+answers: (1) define the user’s request, and (2) define all key entities mentioned in the request.
+
+  1. Consider any current events, recent developments, or specific details mentioned in the context to
+     enhance the queries (if context is provided).
+
+  2. Write up to «no_queries» objective Google search queries related to the request.
+     The queries should be general and high-level (e.g., encyclopedic or definitional in nature).
+     Avoid narrow or overly specific phrasings. Queries should be phrased as something someone
+     would realistically search for.
+
+  3. Assume the current date is «current_date» if required by the request.
+
+  4. Return the queries as a JSON list of strings in the format:
+     ["query 1", "query 2", "query 3"].
+     The response must contain only this list.
+
+                      Figure 6: Prompt for Generating Problem Definition Queries
+
+
+
+
+Prompt for Generating Specialized Information Search Queries
+You are a seasoned research assistant tasked with generating search queries that ask highly specialized
+and detailed information about a user request. You have access to a context formed of multiple
+supporting documents.
+
+  1. Use the context (if provided) to identify aspects of the request that would benefit from more
+     specific, in-depth, or expert-level information.
+     Consider any current events, real-time developments, or precise facts that can be used to craft
+     better questions.
+
+  2. Write up to «no_queries» objective Google search queries related to the request.
+     These queries should be highly specific and targeted—something a person wouldn’t know from
+     general knowledge.
+     Each query should reflect a concrete sub-aspect or follow-up inquiry about the original request.
+
+  3. Assume the current date is «current_date» if required by the request.
+
+  4. Return the queries as a JSON list of strings in the format:
+     ["query 1", "query 2", "query 3"].
+     The response must contain only this list.
+
+                    Figure 7: Prompt for Generating Specialized Information Queries
+
+
+
+
+                                                 6869
+Figure 8: Precision applying baselines and reward policies for query selection for different budgets over observed
+documents. The budget is calculated as a percentage over the total amount of available documents. Modelling the
+queries using Bernoulli distribution considering the top ranked k documents performs the best across budgets, with
+all policies reaching the same performance as the budget covers the whole space of actions.
+
+
+
+
+Figure 9: Precision applying baselines and reward policies for query selection for different budgets over observed
+documents in ResearchyQuestions. The budget is calculated as a percentage over the total amount of available
+documents. Modeling the queries using Bernoulli distribution considering the top ranked k documents performs
+the best across budgets, with all policies reaching the same performance as the budget covers the whole space of
+actions.
+
+
+
+
+Figure 10: Recall applying baselines and reward policies for query selection for different budgets over observed
+documents. The budget is calculated as a percentage over the total amount of available documents. Modelling the
+queries using Bernoulli distribution considering the top ranked k documents performs the best across budgets, with
+all policies reaching the same performance as the budget covers the whole space of actions.
+
+
+                                                      6870
+Figure 11: Recall applying baselines and reward policies for query selection for different budgets over observed
+documents in ResearchyQuestions. The budget is calculated as a percentage over the total amount of available
+documents. Modeling the queries using Bernoulli distribution considering the top ranked k documents performs
+the best across budgets, with all policies reaching the same performance as the budget covers the whole space of
+actions.
+
+
+
+
+Figure 12: Visualization of hyperparameter search space with Bayesian optimization on the precision objective of
+the RL top k = 5 approach on the Researchy dataset. Each line corresponds to a trial with specific values of the three
+hyperparameters, colored according to the achieved objective.
+
+
+
+
+Figure 13: Precision applying baselines and reward policies for query selection for different budgets over observed
+documents on the ResearchyQuestions dataset: serial vs correlated.
+
+
+
+                                                        6871
+

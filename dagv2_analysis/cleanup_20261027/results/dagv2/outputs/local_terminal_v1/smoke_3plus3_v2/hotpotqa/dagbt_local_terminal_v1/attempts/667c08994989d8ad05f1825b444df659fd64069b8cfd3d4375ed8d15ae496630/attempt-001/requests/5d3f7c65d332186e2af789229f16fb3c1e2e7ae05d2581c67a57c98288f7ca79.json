@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:171\", \"source_id\": \"hotpotqa:171\"}]\nAdam Pascal\nAdam Pascal (born October 25, 1970) is an American actor, singer, and musician, known for his performance as Roger Davis in the original cast of Jonathan Larson's musical \"Rent\" on Broadway 1996, the 2005 movie version of the musical, and the Broadway Tour of \"Rent\" in 2009. He is also known for originating the role of Radames in Elton John and Tim Rice's \"Aida\", for playing the Emcee from the 1998 revival of \"Cabaret\", and for playing Huey Calhoun in the Broadway Company of \"Memphis\". Most recently, he played William Shakespeare in the Tony Award-winning musical \"Something Rotten!\"\n\n[Passage {\"doc_id\": \"hotpotqa:9566\", \"source_id\": \"hotpotqa:9566\"}]\nFreeloaders (film)\nFreeloaders is an American ensemble comedy film directed by Dan Rosen and written by Rosen and singer Dave Gibbs. The film is produced by the Broken Lizard comedy troupe and is independently financed. \"Freeloaders\" stars Clifton Collins Jr., Josh Lawson, Kevin Sussman, Zoe Boyle, Nat Faxon, Warren Hutcherson, Jane Seymour, Olivia Munn, Dave Foley and Counting Crows lead singer Adam Duritz. It follows a group of friends who find their luxurious lifestyle threatened when the rock star they freeload off decides to sell his home."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "238",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599289.1022232,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599289.974585
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0017107005506289822
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 858,
+      "completion_tokens": 2,
+      "total_tokens": 860
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

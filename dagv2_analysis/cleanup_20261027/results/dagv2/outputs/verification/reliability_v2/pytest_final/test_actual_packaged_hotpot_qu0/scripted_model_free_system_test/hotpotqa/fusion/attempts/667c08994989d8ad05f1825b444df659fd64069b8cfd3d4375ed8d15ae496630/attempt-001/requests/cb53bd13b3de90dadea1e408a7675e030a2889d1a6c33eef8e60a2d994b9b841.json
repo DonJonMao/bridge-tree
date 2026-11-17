@@ -1,0 +1,49 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://127.0.0.1:53988/v1/chat/completions",
+  "payload": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"what is one of the stars of  The Newcomers known for\""
+      }
+    ],
+    "max_tokens": 4096,
+    "model": "qwen3.8-27b",
+    "temperature": 0,
+    "top_p": 1,
+    "seed": 20260918
+  },
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498199.860058,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1790498199.86348
+    }
+  ],
+  "response": {
+    "choices": [
+      {
+        "message": {
+          "content": "{\"steps\": [{\"question\": \"what is one of the stars of  The Newcomers known for\", \"output_slot\": \"answer\", \"answer_type\": \"answer\", \"inputs\": []}]}"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "unit_id": "defecce2-ff39-438e-ae41-90f3bcf9cb48",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\nThis task is a personalized reply. Plan retrieval of relevant personal history, not a questionnaire for missing external facts. Keep independent history needs independent; do not block them on guessed names.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"I found a mentor who helped me make the connection between music theory and my cultural background, which made it more relatable and enjoyable. This mentorship was a pivotal experience for me, bridging the gap between the academic concepts I learned and the cultural narratives that shape my identity. My mentor, with a rich knowledge of both traditional sounds and contemporary styles, utilized examples from our Pacific Island heritage that sparked a deeper appreciation in me. Together, we explored various rhythms and how they reflect the stories and values of our people, making every lesson feel not just educational but also deeply personal. The joy I felt in discovering this connection has genuinely revitalized my passion for music and creative exploration.\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791547634.4228969,
+      "retry_index": 1,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    },
+    {
+      "started_unix": 1791547641.4337559,
+      "retry_index": 2,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    },
+    {
+      "started_unix": 1791547650.443854,
+      "retry_index": 3,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    }
+  ]
+}

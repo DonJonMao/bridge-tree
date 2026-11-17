@@ -1,0 +1,74 @@
+{
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\nThis task is a personalized reply. Plan retrieval of relevant personal history, not a questionnaire for missing external facts. Keep independent history needs independent; do not block them on guessed names.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"I recently attended an event where there was a unique blend of modern beats with Pacific sounds.\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791536053.875128,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791536057.815147
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-93cd99e5fd129201",
+    "object": "chat.completion",
+    "created": 1791536053,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"Which event did I recently attend that had a unique blend of modern beats with Pacific sounds?\",\n      \"output_slot\": \"event\",\n      \"answer_type\": \"event\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What is the name of the event {event}?\",\n      \"output_slot\": \"event_name\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"event\"]\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 447,
+      "total_tokens": 553,
+      "completion_tokens": 106,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  }
+}

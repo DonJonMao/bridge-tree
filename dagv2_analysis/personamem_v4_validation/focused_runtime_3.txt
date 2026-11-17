@@ -1,0 +1,95 @@
+........FF.F..........F..............F.F................................ [ 49%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_all_failures_cannot_stop_on_one_witness _________________
+
+    def test_all_failures_cannot_stop_on_one_witness():
+     row,requests,e=demo.run_demo('all_failures')
+>    assert row['answer']['status']=='ok' and row['answer']['semantic_answer']==['D','A']
+E    AssertionError: assert ('budget_exhausted' == 'ok'
+E      
+E      - ok
+E      + budget_exhausted)
+
+tests/test_residual_runtime.py:94: AssertionError
+________ test_fixed_plan_joint_control_has_no_short_circuit_visitation _________
+
+    def test_fixed_plan_joint_control_has_no_short_circuit_visitation():
+     residual,_,_=demo.run_demo();joint,_,_=demo.run_demo(method=JOINT)
+>    assert joint['answer']['status']=='ok' and joint['answer']['semantic_answer']==residual['answer']['semantic_answer']
+E    AssertionError: assert ('budget_exhausted' == 'ok'
+E      
+E      - ok
+E      + budget_exhausted)
+
+tests/test_residual_runtime.py:101: AssertionError
+_____________ test_corrected_V7_does_not_bind_V8_deletion_failure ______________
+
+    def test_corrected_V7_does_not_bind_V8_deletion_failure():
+     row,_,e=demo.run_demo(correction=True)
+     assert 'return_age' not in e.fact_state.valid()[0]
+>    assert row['answer']['semantic_answer']['reason']!='D'
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E    TypeError: 'NoneType' object is not subscriptable
+
+tests/test_residual_runtime.py:118: TypeError
+_____ test_last_read_and_reserved_audit_can_exhaust_llm_then_free_publish ______
+
+    def test_last_read_and_reserved_audit_can_exhaust_llm_then_free_publish():
+     row,_,_=demo.run_demo(llm_calls=7)
+>    assert row['answer']['status']=='ok' and row['diagnostics']['ledger']['remaining']['llm']==0
+E    AssertionError: assert ('budget_exhausted' == 'ok'
+E      
+E      - ok
+E      + budget_exhausted)
+
+tests/test_residual_runtime.py:217: AssertionError
+_____________ test_four_controls_and_fixed_pool_residual_isolation _____________
+
+    def test_four_controls_and_fixed_pool_residual_isolation():
+     rows={m:demo.run_demo(method=m)[0] for m in (LOCAL,UNSCORED,JOINT,RESIDUAL)}
+>    assert all(r['answer']['status']=='ok' for r in rows.values())
+E    assert False
+E     +  where False = all(<generator object test_four_controls_and_fixed_pool_residual_isolation.<locals>.<genexpr> at 0x10ae44a00>)
+
+tests/test_residual_runtime.py:373: AssertionError
+__ test_mid_observation_checkpoint_resumes_same_frontier_without_dense_replay __
+
+    def test_mid_observation_checkpoint_resumes_same_frontier_without_dense_replay():
+     from dagbt.engine import Engine
+     from dagbt.bridge import BridgeSession
+     from dagbt.residual_control import ResidualControl
+     from dagbt.transport import digest
+     _,_,e=demo.run_demo()
+     client=demo.SourcesOnly(demo.rule_plan('one_reason'))
+     fresh=Engine(e.q,(e.docs,e.ids,e.vectors,e.index,e.tokenizer),client,e.config,RESIDUAL)
+     fresh.plan();fresh.fixed_pool=None
+     fresh.bridge=BridgeSession(fresh.q['question'],fresh.docs,fresh.ids,fresh.vectors,fresh.tokenizer,fresh.calls,fresh.config,fresh.ledger)
+     c=ResidualControl(fresh);fresh.residual_control=c
+     st=fresh.steps[0];query=st['question']
+     identity={'algorithm':RESIDUAL,'query':query,'node_id':'rules','program_revision':0,
+      'program_identity':digest(fresh.fact_state.program),'initial_dag_identity':digest(fresh.steps),'bindings':{},
+      'contract_identity':digest(fresh.fact_state.contract)}
+     found=fresh.bridge.step(query,'rules',[{'id':'rules','description':query,'necessary':True}],[],identity=identity)
+     fresh.add_candidates(found['local_candidate_ids']);c.local_pools['rules']=found['local_candidate_ids']
+     c.reader.read(st,query,['rule'],found['local_candidate_ids'],digest(identity))
+     snapshot=json.loads(json.dumps(c.snapshot()));new_client=demo.SourcesOnly(demo.rule_plan('one_reason'))
+     resumed=Engine(e.q,(e.docs,e.ids,e.vectors,e.index,e.tokenizer),new_client,e.config,RESIDUAL)
+     row=resumed.resume(snapshot)
+     assert row['answer']['status']=='ok'
+     assert not any(r['stage'][0]=='planner' for r in new_client.requests)
+>    assert new_client.requests[0]['url'].endswith('/embeddings')
+E    AssertionError: assert False
+E     +  where False = <built-in method endswith of str object at 0x10aa634b0>('/embeddings')
+E     +    where <built-in method endswith of str object at 0x10aa634b0> = 'http://synthetic/v1/chat/completions'.endswith
+
+tests/test_residual_runtime.py:413: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_residual_runtime.py::test_all_failures_cannot_stop_on_one_witness
+FAILED tests/test_residual_runtime.py::test_fixed_plan_joint_control_has_no_short_circuit_visitation
+FAILED tests/test_residual_runtime.py::test_corrected_V7_does_not_bind_V8_deletion_failure
+FAILED tests/test_residual_runtime.py::test_last_read_and_reserved_audit_can_exhaust_llm_then_free_publish
+FAILED tests/test_residual_runtime.py::test_four_controls_and_fixed_pool_residual_isolation
+FAILED tests/test_residual_runtime.py::test_mid_observation_checkpoint_resumes_same_frontier_without_dense_replay
+6 failed, 139 passed in 8.04s

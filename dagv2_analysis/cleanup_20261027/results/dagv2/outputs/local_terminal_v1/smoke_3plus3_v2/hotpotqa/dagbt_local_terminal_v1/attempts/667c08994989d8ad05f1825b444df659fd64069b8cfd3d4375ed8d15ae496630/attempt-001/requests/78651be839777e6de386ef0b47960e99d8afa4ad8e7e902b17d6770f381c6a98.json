@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:700\", \"source_id\": \"hotpotqa:700\"}]\nNeighbors 2: Sorority Rising\nNeighbors 2: Sorority Rising (released in some countries as Bad Neighbours 2) is a 2016 American comedy film directed by Nicholas Stoller and written by Stoller, Andrew J. Cohen, Brendan O'Brien, Seth Rogen and Evan Goldberg. The film is a sequel to \"Neighbors\", and follows the Radners (Rogen and Rose Byrne) having to outwit a new sorority led by Shelby (Chloë Grace Moretz), living next door in order to sell their house currently in escrow. Zac Efron, Dave Franco, Jerrod Carmichael, Ike Barinholtz, Carla Gallo, Hannibal Buress and Lisa Kudrow reprise their roles from the first film. It was Rogen's first live action sequel."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "299",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599346.887079,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599347.734744
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.001097928039057611
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 760,
+      "completion_tokens": 2,
+      "total_tokens": 762
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

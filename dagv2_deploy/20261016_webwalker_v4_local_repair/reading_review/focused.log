@@ -1,0 +1,33 @@
+.....F.....                                                              [100%]
+=================================== FAILURES ===================================
+_ test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read _
+
+    def test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read():
+        old = observation('old-partial', ['s1'], stance='partial')
+        old['value'] = None
+        current = {**deepcopy(old), 'id': 'current-partial'}
+        def respond(index, data):
+            if index == 1:
+                return {'slots': [evidence('history', old)]}
+            if index == 2:
+                slot = evidence('history', current)
+                slot['resolved_obligation_ids'] = [data['evidence_obligations'][0]['id']]
+                return {'slots': [slot, empty('other')]}
+            return {'slots': [empty('history')]}
+        reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
+        read(reader, variables=('history',), identity='earlier-original-issue')
+        original_issue = deepcopy(reader.evidence_obligations)
+        read(reader, doc='painting')
+        assert len(calls.requests) == 3 and reader.batches[-1]['complete']
+        assert reader.batches[-1]['valid_rows'] == 1 and state.pending == {'history'}
+>       assert reader.evidence_obligations == original_issue
+E       AssertionError: assert {'obligation_...istory', ...}} == {'obligation_...istory', ...}}
+E         
+E         Differing items:
+E         {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}} != {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}}
+E         Use -v to get more diff
+
+tests/test_webwalker_slot_navigation_feedback.py:99: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_webwalker_slot_navigation_feedback.py::test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read
+1 failed, 10 passed in 0.20s

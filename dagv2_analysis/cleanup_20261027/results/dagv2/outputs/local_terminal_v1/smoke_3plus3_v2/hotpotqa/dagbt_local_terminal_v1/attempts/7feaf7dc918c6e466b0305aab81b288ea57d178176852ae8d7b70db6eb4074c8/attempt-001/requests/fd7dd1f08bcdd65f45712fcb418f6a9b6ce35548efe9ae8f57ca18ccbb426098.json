@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:8876\", \"source_id\": \"hotpotqa:8876\"}]\nIrish Parliamentary Party\nThe Irish Parliamentary Party (IPP; commonly called the Irish Party or the Home Rule Party) was formed in 1874 by Isaac Butt, the leader of the Nationalist Party, replacing the Home Rule League, as official parliamentary party for Irish nationalist Members of Parliament (MPs) elected to the House of Commons at Westminster within the United Kingdom of Great Britain and Ireland up until 1918. Its central objectives were legislative independence for Ireland and land reform. Its constitutional movement was instrumental in laying the groundwork for Irish self-government through three Irish Home Rule bills.\n\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "111",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600334.4273589,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600335.321939
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0006387575214181141
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 962,
+      "completion_tokens": 2,
+      "total_tokens": 964
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

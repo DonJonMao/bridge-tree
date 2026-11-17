@@ -1,0 +1,99 @@
+{
+  "source_commit": "4c873732989dc2365af04428a60ada8974345ff9",
+  "context_tokens": 16384,
+  "source_hashes_match": true,
+  "labels_read": false,
+  "answer_accuracy_evaluated": false,
+  "status_counts": {
+    "original": {
+      "ok": 2
+    },
+    "dagbt_residual_memory_v1": {
+      "ok": 1,
+      "unresolved_or_exhausted": 1
+    }
+  },
+  "rows": [
+    {
+      "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+      "arm": "original",
+      "status": "ok",
+      "audit_complete": null,
+      "ledger_used": null,
+      "errors": []
+    },
+    {
+      "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+      "arm": "original",
+      "status": "ok",
+      "audit_complete": null,
+      "ledger_used": null,
+      "errors": []
+    },
+    {
+      "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+      "arm": "dagbt_residual_memory_v1",
+      "status": "ok",
+      "audit_complete": true,
+      "ledger_used": {
+        "llm": 5,
+        "http_attempts": 6,
+        "ann": 1,
+        "embedding_http": 1
+      },
+      "errors": []
+    },
+    {
+      "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+      "arm": "dagbt_residual_memory_v1",
+      "status": "unresolved_or_exhausted",
+      "audit_complete": false,
+      "ledger_used": {
+        "llm": 5,
+        "http_attempts": 7,
+        "ann": 2,
+        "embedding_http": 2
+      },
+      "errors": [
+        {
+          "node_id": "suggestion",
+          "type": "InputOverflow",
+          "error": "Local sources/parents/counters exceed real wire capacity"
+        }
+      ]
+    }
+  ],
+  "full_pytest": {
+    "passed": 952,
+    "skipped": 90,
+    "warnings": 69
+  },
+  "skipped_checks_executed_separately": {
+    "scope": "Typed observation wire shapes and legal retraction targets, independent of answer labels. Existing local semantic validation is unchanged.",
+    "validator": "jsonschema.Draft202012Validator",
+    "synthetic_contract_tests": {
+      "passed": 99,
+      "skipped": 0,
+      "python": "3.13"
+    },
+    "actual_smoke04_response_replays": [
+      {
+        "label": "six_objects_for_set",
+        "call_index": 2,
+        "valid": false,
+        "expected_valid": false
+      },
+      {
+        "label": "counter_without_existing_route",
+        "call_index": 2,
+        "valid": false,
+        "expected_valid": false
+      }
+    ],
+    "joint_reading_source_sha256": "389e9b90e93a48e0a00ef7adc6c14c26b04ac23d6cbb00cd467789432f2f3aae",
+    "network_calls": 0,
+    "production_dependencies_added": 0
+  },
+  "release_ready_for_full_run": false,
+  "remaining_issue": "Complete terminal proof closure exceeds the current 16K input budget; a PersonaMem-only 24K config is prepared and awaiting the user choice."
+}

@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:9064\", \"source_id\": \"hotpotqa:9064\"}]\nZara Bate\nDame Zara Kate Bate {'1': \", '2': \", '3': \", '4': \"} (née Dickins , previously Fell and Holt; 10 March 190914 June 1989) was an Australian fashion designer and socialite who was best known as the wife of Harold Holt, the 17th Prime Minister of Australia. She grew up in Melbourne, attending Ruyton Girls' School and Toorak College. Going into the dressmaking business, she opened a shop in 1930 and eventually expanded into a chain of boutiques. Zara's first marriage to James Fell was short-lived, although they had three children together. She remarried to Harold Holt – a Liberal Party politician – in 1946, although they had known each other for many years previously. She became the prime minister's wife in 1966, and was known for her energy and flamboyance. She was widowed in December 1967, when her husband disappeared while swimming at Cheviot Beach, Victoria. Zara published her autobiography in 1968, and the following year remarried to Jeff Bate, another politician. She was widowed for a second time in 1984, and subsequently retired to the Gold Coast."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "156",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600531.693621,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600533.422249
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.003999501120503126
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1304,
+      "completion_tokens": 2,
+      "total_tokens": 1306
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

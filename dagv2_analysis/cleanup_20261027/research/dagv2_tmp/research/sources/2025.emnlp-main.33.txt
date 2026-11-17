@@ -1,0 +1,1361 @@
+Training a Utility-based Retriever Through Shared Context Attribution for
+                  Retrieval-Augmented Language Models
+    Yilong Xu1,2,3      Jinhua Gao1,2 * Xiaoming Yu1,2 Yuanhai Xue1,2 Baolong Bi1,2,3
+                                  Huawei Shen1,2,3 Xueqi Cheng1,2,3
+                1
+                  State Key Lab of AI Safety, Institute of Computing Technology, CAS
+                         2
+                           Key Lab of AI Safety, Chinese Academy of Sciences
+                              3
+                                University of Chinese Academy of Sciences
+                                        {xuyilong23s, gaojinhua}@ict.ac.cn
+
+
+                        Abstract                             et al., 2023; Cheng et al., 2023). As a crucial role,
+                                                             the optimization of the retrievers in RALMs has
+     Retrieval-Augmented Language Models boost
+                                                             become a trending research topic.
+     task performance, owing to the retriever that
+     provides external knowledge. Although cru-                 Early RALMs adopt relevance-based retrievers,
+     cial, the retriever primarily focuses on seman-         including both sparse (Robertson and Zaragoza,
+     tics relevance, which may not always be ef-             2009) and dense (Karpukhin et al., 2020) mod-
+     fective for generation. Thus, utility-based re-         els. However, these retrievers are primarily bi-
+     trieval has emerged as a promising topic, pri-
+                                                             ased toward semantic relevance (Wu et al., 2024),
+     oritizing passages that provide valid benefits
+     for downstream tasks. However, due to insuf-            failing to consider the passage utility and leading
+     ficient understanding, capturing passage util-          to misalignment in RALMs. The utility, measur-
+     ity accurately remains unexplored. This work            ing the valid gain that a passage contributes to the
+     proposes SCARLet, a framework for training              downstream generation (Zhang et al., 2024), can
+     utility-based retrievers in RALMs, which incor-         bridge the gap between the retriever and the gener-
+     porates two key factors, multi-task generaliza-         ator. Some recent works have proposed to optimize
+     tion and inter-passage interaction. First, SCAR-        retrievers by constructing feedback from genera-
+     Let constructs shared context on which train-
+                                                             tors (Shi et al., 2023; Yu et al., 2023; Wei et al.,
+     ing data for various tasks is synthesized. This
+     mitigates semantic bias from context differ-            2024), achieving promising results. Nonetheless,
+     ences, allowing retrievers to focus on learning         how to align retrievers to better capture utility re-
+     task-specific utility and generalize across tasks.      mains an open yet challenging problem.
+     Next, SCARLet uses a perturbation-based at-                Different from relevance, which is mainly de-
+     tribution method to estimate passage-level util-
+                                                             termined by the query and the passage (Xia et al.,
+     ity for shared context, which reflects interac-
+     tions between passages and provides more ac-            2015; Guo et al., 2019), utility needs a more com-
+     curate feedback. We evaluate our approach               prehensive measurement. In this paper, we propose
+     on ten datasets across various tasks, both in-          the following two vital yet overlooked factors for
+     domain and out-of-domain, showing that re-              utility modeling in RALMs:
+     trievers trained by SCARLet consistently im-
+     prove the overall performance of RALMs.
+                                                             Multi-task Generalization RALMs need to ac-
+     Resources: § github.com/ylXuu/SCARLet
+                                                             commodate various downstream tasks, where the
+1    Introduction                                            utility of a passage can vary accordingly. Exist-
+                                                             ing methods typically optimize retrievers using the
+Retrieval-Augmented Language Models (RALMs;                  pooling strategy, i.e., mixing data from different
+Lewis et al., 2020) typically comprise two parts:            tasks for training, to learn task-specific retrieval
+the retriever and the generator. The retriever col-          criteria (Lin et al., 2024; Zamani and Bendersky,
+lects up-to-date task-related external information,          2024). However, since pooled samples from dif-
+while the generator incorporates the collected non-          ferent tasks typically have different contexts, the
+parametric knowledge into inference. RALMs                   trained retrievers might tend to capture semantic
+have achieved enhanced performance across vari-              relevance signals instead of utility features. Such
+ous downstream tasks, including question answer-             unexpected preference will downgrade the retriev-
+ing, fact checking, and dialogue generation (Shao            ers’ generalization ability, especially for those with
+    * Corresponding author.                                  weaker linguistic capabilities (Liu et al., 2024).
+                                                          629
+         Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 629–648
+                           November 4-9, 2025 ©2025 Association for Computational Linguistics
+Inter-passage Interaction In some complex                     train utility-based retrievers through shared
+tasks, the utility of a certain passage cannot be             context synthesis and utility attribution.
+solely determined by itself. For example, when
+handling multi-hop question-answering tasks, the             • We conduct extensive experiments across vari-
+model should rely on preceding and even succeed-               ous tasks, demonstrating that our proposed
+ing contexts in the reasoning chain to judge a pas-            SCARLet can improve the overall perfor-
+sage’s utility. However, the utility signals con-              mance of RALMs.
+structed in previous works either fail to provide
+passage-level feedback (Zamani and Bendersky,            2    Related Work
+2024; Sohn et al., 2024) or evaluate each passage        RALMs Large Language Models (LLMs; Brown
+independently (Yu et al., 2023; Shi et al., 2023),       et al., 2020) exhibit remarkable performance across
+leading to imprecise utility measurements.               a wide range of tasks (Zhao et al., 2024; Naveed
+   In this paper, we propose a novel framework to        et al., 2024; Wei et al., 2022). However, LLMs also
+train utility-based retrievers for RALMs, named          face the challenge of hallucinations, often perform-
+SCARLet, representing shared context attribution         ing poorly when addressing factual issues (Huang
+supervised training for utility-based retrievers.        et al., 2024; Bi et al., 2024). The emergence of
+   Specifically, SCARLet first introduces a training     RALMs effectively alleviates the weakness of in-
+data synthesis pipeline. Contrary to the previous        sufficient factuality (Gao et al., 2024). A RALM
+pooling strategy that mixes training data with differ-   system typically comprise a retriever and a genera-
+ent contexts, our pipeline first constructs a shared     tor, where the retriever recalls external information
+context, and subsequently synthesizes training data      to enhance the generator to respond more accu-
+for various downstream tasks derived from the            rately. To further optimize RALMs and improve
+shared context. This method mitigates the semantic       the synergy between the two parts, existing meth-
+interference by achieving single-variable control,       ods generally fall into three categories: 1) overall
+and enables the retriever to focus on learning task-     optimization (Lin et al., 2024; Zamani and Bender-
+specific utility. To better assess the utility of cer-   sky, 2024); 2) generator-only optimization (Fang
+tain passages, SCARLet employs a passage-level           et al., 2024; Yu et al., 2024; Bi et al., 2025); 3)
+perturbation-based technique, which randomly re-         retriever-only optimization (Shi et al., 2023; Yu
+moves some passages from the context and mea-            et al., 2023). Optimizing only the retriever is a
+sures the fluctuations in the generated output. Such     more efficient and cost-effective way that offers
+a design can effectively capture the synergy be-         plug-and-play capabilities, enhancing the overall
+tween passages, thereby accurately reflecting their      efficiency and stability of the RALM system.
+utility. Finally, SCARLet collects positive and neg-
+ative samples based on the utility scores and trains     Utility-based Retrieval In RALMs, early explo-
+the retriever in a contrastive way.                      ration of retrieval utility focuses on capturing the
+   We conduct extensive experiments to evaluate          downstream feedback of generators. Salemi and
+the performance gain brought by SCARLet. Our             Zamani (2024) propose supervision based on down-
+experiments adopt ten datasets, covering eight dis-      stream task metrics, but fail to provide passage-
+tinct tasks that are frequently used for RALMs           level utility feedback. Shi et al. (2023); Yu et al.
+evaluation. The results show that RALMs equipped         (2023) assess utility of each passage using genera-
+with retrievers trained by SCARLet, consistently         tor outputs, but they ignore the interactions between
+achieve optimal or suboptimal downstream perfor-         passages. Sohn et al. (2024); Wei et al. (2024)
+mance across all datasets. Moreover, further analy-      employ the generator’s self-reflection to evaluate
+sis and case studies demonstrate that SCARLet can        utility, which may bring hallucinations as the lan-
+better capture utility signals.                          guage models can be dishonest (Madsen et al.,
+   To summarize, our main contributions include:         2024). Asai et al. (2023); Glass et al. (2022) no-
+                                                         tice the multi-task nature of the retrieval stage, but
+   • We argue that utility should be preferred in        fail to account for the training biases introduced by
+     RALMs and propose two critical factors for          contextual differences in the pooling strategy.
+     training utility-based retrievers.                     Therefore, our proposed SCARLet framework
+                                                         comprehensively considers the above issues of
+   • We propose SCARLet, a novel framework to            multi-task generalization and utility assessment, of-
+                                                     630
+                                                                                                               Ⅲ. Training
+
+
+
+ RALM Inference
+                       Instruction 𝐼         Input 𝑥                               ⨁
+                                                                                                                                                     🔥
+                                                                       Context 𝐷             Generator                                        Retriever
+                                                                                                                                   …                                               …
+                                                     Corpus                        …         Output 𝐲
+                                                                                                    &
+                          Retriever                                                                                                             𝐼      𝑥
+                                                                                                                              𝐷"                                           𝐷!
+                     T Task info. (instructions, examples, etc.)     𝐲 Ground truth              Remove
+                                                                                                                   Sampling                            …                   Sampling
+                    🔥 Parameter tuning               v Perturbation vector     z Logit fluctuation
+                  Ⅰ. Synthesis                                                                             Ⅱ. Attribution                              score(1) score(2)   score(k)
+                         Task Pool                                              Synthetic Data               Surrogate Model
+                                                                                   …     …       …                                                                         …
+
+                                                                                   𝐼𝐼𝐼 𝑥𝑥𝑥 𝐲𝐲𝐲
+                       QA      Dialogue              T                                                             fit
+                      Fact Checking      …                                                                                                                                     𝐲
+
+ SCARLet
+                                                                                                                                       logit fluctuation
+                                                         Synthesizer
+                                                                                                           n× vi         zi            y1                      logit
+                       Seed Data                                                       Enhance                                         y2           Drop
+                      𝐼    𝑥     𝐲                                       D                                                             y3
+                                                                                                                                       …
+                                                                                                                   ∈{0,1}k
+                                                                               Shared Context
+
+                          QA                       Entities                                 …                 ×vi                               …
+                                                                                                                                                                       Generator
+
+
+Figure 1: The illustration of SCARLet. The upper left part describes the inference process of RALMs. In SCARLet,
+there are three main stages. First, the shared context is constructed by retrieving external corpus based on the seed
+data. The synthesizer is instructed with shared context and task information from the task pool, to generate synthetic
+data. Next, using the shared context as the data source, SCARLet applies perturbation-based utility attribution on
+the generator, and then, based on the utility scores, samples positive and negative passages for retriever training.
+
+
+fering a novel pipeline with shared context synthe-                                           producing the predicted output ŷ, as shown below:
+sis and utility attribution to effectively train utility-
+based retrievers in RALMs.                                                                                         ŷ = LMθ (I ⊕ x ⊕ D) ,                                              (2)
+
+3                 Method                                                                     where ŷ is a sequence and ŷt denotes the t-th token.
+                                                                                             We denote the ground truth of x as y.
+In this section, we first define the RALMs system,
+then we introduce the SCARLet pipeline.                                                       3.2         Overview of SCARLet
+                                                                                             The overall architecture of our proposed SCARLet
+3.1 Definitions                                                                              is shown in Figure 1, including shared context syn-
+A typical RALM system consists of a retriever and                                            thesis and training data construction (§3.3), utility
+a generator. During the retrieval stage, we employ                                           attribution modeling (§3.4), as well as data sam-
+a dense retriever based on an encoder Enc with                                               pling and retriever tuning (§3.5).
+parameters ϕ. And the retriever interacts with an                                               Shared context refers to the common context for
+external corpus C. For a query q, we calculate                                               data of different tasks in the training stage, which
+the dot product of the embeddings of q and each                                              is then used to enhance downstream generation.
+passage d in C, as follows:                                                                  Previous studies employ the pooling strategy (Lin
+                                                                                             et al., 2024; Zamani and Bendersky, 2024), where
+     score (q, d) = Encϕ (q) · Encϕ (d) , d ∈ C. (1)                                         each instance has a distinct context for training.
+                                                                                             Learning task-specific features to improve multi-
+The top-k passages with the highest scores are                                               task generalization of utility-based retrieval might
+selected and added to the context, denoted as                                                be disturbed by the semantically relevant noise in-
+D = [d1 , . . . , dk ]. Note that RALMs need to ac-                                          troduced by differences in context, leading to un-
+commodate various downstream tasks, for a task                                               expected preference, particularly in retrievers with
+T and an input x from its dataset, we define the                                             weaker linguistic capabilities. To tackle the above
+query format as q = I ⊕ x, where I denotes the                                               challenges, our proposed SCARLet adopts a re-
+instruction description of task T .                                                          verse strategy, first constructing shared context to
+   In the generation stage, a language model LM                                              narrow the semantic gap, and then synthesizing
+with parameters θ serves as the generator. The                                               task-specific data based on this context. Sharing
+context D is used to enhance generation, ultimately                                          context across tasks can highlight utility feature
+                                                                                        631
+differences, making it easier to learn. Moreover,             To improve the quality of synthetic data, the
+LLM-driven data synthesis has been shown to be a           task pool T not only provides the task instructions
+promising way (Long et al., 2024; Kim and Baek,            but also offers example data. To further improve
+2025), which can effectively reduce labor costs.           robustness, following Fang et al. (2024); Zhang
+   Utility attribution modeling refers to local ex-        et al. (2024), we also introduce synthetic noise into
+planation techniques to build utility signals from         the shared context by instructing the synthesizer to
+the downstream generation. More specifically, we           generate semantically relevant but useless passages.
+adopt the contributive attribution model, which            In addition, we incorporate a data filtering step
+measures how the input context contributes to the          that instructs the synthesizer to eliminate samples
+model’s output and aligns well with the definition         containing faults. For more details, please refer to
+of utility in RALMs. Previous research on optimiz-         Appendix A. We also provide an example of shared
+ing retrievers from downstream generation, either          context in Appendix F.
+fails to construct passage-level feedback or only
+                                                           3.4    Passage-level Utility Attribution
+considers the individual impact of each passage,
+overlooking the synergy effects between passages.          Specifically, the context D recalled by the upstream
+Therefore, taking the shared context as the source         retriever consists of k passages. To evaluate the util-
+data, SCARLet uses a passage-level perturbation-           ity of each individual passage with inter-passage
+based utility attribution approach, where fluctua-         interactions, we adopt a perturbation-based method
+tions in generation caused by perturbations can            where we remove certain passages and inspect the
+reflect interactions between passages and then be          changes in the final output. The approach is im-
+quantified as utility scores.                              plemented via introducing a perturbation vector
+                                                           v ∈ {0, 1}k , where 0 and 1 indicate whether the
+3.3 Shared Context Synthesis                               corresponding passage is removed or included, re-
+                                                           spectively. However, running all generations of
+Specifically, we first define a task pool T , which
+                                                           2k possible perturbation vectors can result in sig-
+is linked to various downstream tasks and their
+                                                           nificant computational overhead. Inspired by the
+datasets, such as multi-hop QA, long-form QA,
+                                                           method of Local Interpretable Model-agnostic Ex-
+and fact checking. We begin by collecting seed
+                                                           planations (LIME; Ribeiro et al., 2016; Mardaoui
+data from datasets of T , including task instruc-
+                                                           and Garreau, 2021), we first sample n perturbation
+tions, inputs, and ground truth. In line with the
+                                                           vectors randomly and then fit a surrogate model for
+motivation behind shared context, passages within
+                                                           predicting the utility score, as shown below:
+this context need to be closely related to facilitate
+                                                                           ( n                               )
+the synthesis of high-quality data. Therefore, we                             X               2
+                                                                                          T                2
+employ an approach based on associated entities,             α̂ ∈ arg min           zi − α vi + λ ∥α∥ ,
+                                                                   α∈Rk+1
+which extracts entities from the seed data, searches                           i=1
+                                                                                                                 (4)
+their adjacent entities by querying Wikidata1 , and
+                                                              where we adopt the ridge regression (Hilt and See-
+merges them to obtain a related entity list. We
+                                                              grist, 1977) as our surrogate model, α represents
+then use this list to retrieve relevant passages from
+                                                              the parameters to be fitted, λ is a hyperparame-
+the Wikipedia corpus, and treat the recalled pas-
+                                                              ter for regularization, and zi is the observed value
+sages as the shared context Dshared . Subsequently,
+                                                              under vi . More specifically, α(i) denotes the util-
+we instruct the synthesizer model S to generate
+                                                              ity score of passage di , α(0) represents the inter-
+new training data, using Dshared as the information
+                                                              cept term. And zi , which quantifies the fluctuation
+source and task information (including instructions
+                                                              caused by vi , is calculated using the logit values of
+and examples) from T . The process is formalized
+                                                              the tokens in the ground truth y at each time step,
+as follows:
+                                                              as shown below:
+                                                                                 X               
+  xnew
+   T1 , yT1
+           new
+                 , . . . , xnew    new
+                             Tl , yTl    = S (Dshared , T ) ,                zi =
+                                                                                                (i)
+                                                                                       logit yt .                (5)
+                                                       (3)                          t
+where xnewTi and yTi represent input and ground
+                         new
+                                                                 To evaluate the effectiveness of the above utility
+truth of the synthetic data of task Ti , respectively. l
+                                                              attribution method, we conduct a preliminary exper-
+is the total number of tasks in T .
+                                                              iment on the GTI benchmark (Zhang et al., 2024),
+    1
+      https://www.wikidata.org                                which includes three datasets: HotpotQA (Yang
+                                                        632
+                            NDCG@1        NDCG@5                                                                                                     𝐷"
+                                                                                                           1D Clustering                                          …
+            80
+            60
+
+                                                                              utility score                                   utility score
+     NDCG
+            40                                                                                                                                            (Discard)
+
+            20                                                                                                                                                 𝐷!           …
+
+             0
+                 HotpotQA            NQ            MSMARCO-QA
+                                                                                                          passage                                         passage
+Figure 2: The performance of the perturbation-based
+attribution method on the GTI benchmark. The nDCG                         Figure 3: The illustration of the 1D clustering sampling.
+metrics show that it achieves at least about 80% perfor-                  Based on the utility score, this method clusters the pas-
+mance on three datasets, with some exceeding 90%.                         sages into three labels: the high-score passages (green)
+                                                                          corresponding to positive samples, the middle-score pas-
+                                                                          sages (orange) that will be discarded, and the low-score
+et al., 2018), Natural Questions (NQ; Kwiatkowski
+                                                                          passages (red) corresponding to negative samples.
+et al., 2019), and MSMARCO-QA (Bajaj et al.,
+2018). Each test sample comprises input, ground                                                        Dataset                                Task          Corpus      Metric
+
+truth, and ten passages including correct passages                                                                        In-domain
+                                                                                         NQ (Kwiatkowski et al., 2019)          Single-hop QA              Wikipedia   Accuracy
+and other noise passages. We use the utility score                                        HotpotQA (Yang et al., 2018)           Multi-hop QA              Wikipedia   Accuracy
+
+to rank the passages. The results, measured using                                            ELI5 (Fan et al., 2019)
+                                                                                          FEVER (Thorne et al., 2018)
+                                                                                                                                Long-form QA
+                                                                                                                                 Fact checking
+                                                                                                                                                           Wikipedia
+                                                                                                                                                           Wikipedia
+                                                                                                                                                                       ROUGE-L
+                                                                                                                                                                       Accuracy
+nDCG, demonstrate that our method shows a high                                              WoW (Dinan et al., 2019)          Dialogue generation          Wikipedia     F1
+                                                                                           T-REx (Elsahar et al., 2018)            Slot filling            Wikipedia   Accuracy
+accuracy in reflecting passage utility, as shown in                                                                     Out-of-domain
+
+Figure 2. We also compare our method to other at-                                           zs-RE (Levy et al., 2017)
+                                                                                          SciFact (Wadden et al., 2020)
+                                                                                                                               Relation extraction
+                                                                                                                                 Fact checking
+                                                                                                                                                           Wikipedia
+                                                                                                                                                            BeIR
+                                                                                                                                                                       Accuracy
+                                                                                                                                                                       Accuracy
+tribution approaches, and our method outperforms                                    Climate-FEVER (Diggelmann et al., 2021)      Fact checking              BeIR       Accuracy
+                                                                                            FiQA (Maia et al., 2018)             Financial QA               BeIR       ROUGE-L
+them by over 20%. For further details of the exper-
+iment, please refer to Appendix B.                                        Table 1: The datasets used in the main experiment.
+                                                                          Climate-Fever is a four-class classification task, while
+3.5 Sampling and Training                                                 the other two fact-checking tasks are binary. For met-
+After calculating the utility score for each passage                      rics, NQ, HotpotQA, T-REx, and zs-RE all calculate
+in the shared context, we then collect positive and                       accuracy based on exact substring matching.
+negative samples based on these scores for training
+the retriever. When sorted in descending order of                         4                       Experimental Setup
+the scores, the utility distribution follows an inverse
+S-shaped curve, as depicted in Figure 3. Passages                         This section introduces the main experiment setup,
+with higher scores correspond to positive samples,                        including datasets, baselines and implementation.
+while those with lower scores represent negative                          4.1                      Datasets and Evaluation
+samples. To effectively sample these two types
+of data, we employ a one-dimensional clustering                           We collect both in-domain and out-of-domain
+approach. Specifically, we take the utility score list                    datasets for our experiments. In-domain datasets
+as the input and divide it into three clusters: one                       are utilized for providing seed data to construct syn-
+for the positive samples, one for the intermediate                        thetic training data, while out-of-domain datasets
+samples that will be discarded, and another for the                       possess different tasks and corpora and are col-
+negative samples. This method can dynamically                             lected for further generalization tests. We collect
+adjust the number of useful passages in the context                       seven datasets from KILT (Petroni et al., 2021), and
+on various tasks and data.                                                three from BeIR (Thakur et al., 2021), as detailed
+   After obtaining positive and negative samples,                         in Table 1. All KILT datasets utilize Wikipedia
+following Xiong et al. (2020), the loss function is                       dump dated 2019-08-012 as the corpus. Following
+calculated as follows:                                                    Wang et al. (2019), we split the original articles into
+                                                                          segments with a maximum length of 100 words, re-
+        X X X
+   L=                                                                     sulting in a total of 28,773,800 passages. For test
+             x d+ ∈D+ d− ∈D−                                              sets of BeIR, we adopt their self-constructed cor-
+                                                                       pora. For retrieval, we follow the closed corpus
+                            +
+                 l score x, d             , score x, d−         , (6)
+                                                                                              2
+                                                                              http://dl.fbaipublicfiles.com/BLINK/
+where l represents the cross-entropy loss.                                enwiki-pages-articles.xml.bz2
+
+                                                                        633
+                                           In-domain                                      Out-of-domain
+  Method
+                        NQ     HotpotQA   ELI5    FEVER WoW T-REx               zs-RE   SciFact   C-FEVER   FiQA
+                                                 LLaMA-3-8B-Instruct
+  No retrieval          43.5     36.8     14.8     79.8    9.3      34.5        21.7     68.0       45.8    17.2
+  Contriever            43.8     36.7     14.5     78.5         8.6      33.6   20.4     70.1       38.2    16.2
+  BGE                   47.5     41.6     15.2     83.5         8.7      36.4   22.7     83.3       44.9    21.0
+  AARContriever         44.9     39.9     15.0     77.2         8.3      34.4   21.0     73.6       39.2    16.7
+  R E P LUGContriever   43.3     38.9     13.8     80.0         9.4      33.1   22.8     74.6       41.2    18.9
+  SCARLetContriever     44.6     40.5     15.8    80.6     11.0      35.8       21.0     75.5       42.8    17.7
+  SCARLetBGE            49.2     47.0     16.3    81.3     12.2      37.0       24.4     82.2       46.1    22.9
+                                                 Qwen2.5-3B-Instruct
+  No retrieval          27.4     26.5     15.2    66.1     11.5      26.0        7.3     58.2       40.4    17.7
+  Contriever            32.6     28.8     14.3     67.0     10.5         27.2   14.3     64.9       31.6    15.5
+  BGE                   46.8     39.6     13.7     78.2     10.4         29.3   15.5     70.6       30.2    18.7
+  AARContriever         34.1     29.7     13.8     66.6     10.1         28.7   15.2     63.6       32.2    16.1
+  R E P LUGContriever   33.7     34.0     14.0     71.4     12.2         26.9   16.2     61.1       30.6    19.0
+  SCARLetContriever     38.2     35.4     14.9     70.8     11.7         28.0   19.1     65.3       31.7    17.3
+  SCARLetBGE            44.9     41.1     15.2     74.3     12.6         29.7   16.6     62.3       33.0    20.4
+
+Table 2: Results of the main experiment across datasets on different downstream generators. AARContriever ,
+R E P LUGContriever , SCARLetContriever represent the baselines initilized from Contriever, and SCARLetBGE repre-
+sents the baseline initialized from BGE-base-v1.5. The bold score means the best performance of the corresponding
+dataset among baselines within the same generator, while the underline score means the second best.
+
+
+setup(Asai et al., 2023), where RALMs only re-              format for Contriever and its baselines only con-
+trieve from the corpus of the current dataset. For          tains x, without task instruction I. For BGE and its
+the test data, we randomly sample 1,000 data from           baselines, the query format follows the definition
+the test split of each dataset.                             in Section 3.1, which contains both x and I.
+   For evaluation metrics, we mainly assess the
+performance of downstream tasks. For WoW, we                4.3        Implementation Details
+use F1. For ELI5 and FiQA, we use ROUGE-L.                  In the shared context synthesis stage, we add the
+For other datasets, we use accuracy.                        six tasks of the in-domain datasets into the task
+                                                            pool. We then randomly sample 1,000 data from
+4.2 Baselines
+                                                            the training split of each dataset to construct the
+The baselines are categorized into three settings:          seed dataset. We only consider one-hop relation
+                                                            when searching adjacent entities. For each entity,
+No Retrieval The downstream generators oper-
+                                                            the top-10 passages are retrieved from C, and the
+ate without any retrieval.
+                                                            shared context is formed by selecting the top-10
+Vanilla RAG Retrievers are added and the re-                passages across all retrieved passages. We utilize
+called passages are incorporated into the generation        gpt-4o-2024-11-20 (OpenAI, 2024) as the synthe-
+process. We choose two well-trained embedding               sizer model. For more implementation details and
+models, Contriever (Izacard et al., 2022) and BGE-          meta data, please see Appendix C.
+base-v1.5 (Xiao et al., 2023) as the retrievers.
+                                                            5         Results
+Retriever-only Optimization Retrievers are op-
+timized using feedback from the generator. We se-           In this section, we present the results of main exper-
+lect two recent methods, RePlug (Shi et al., 2023)          iment (§5.1), ablation study (§5.2), retrieval evalu-
+and AAR (Yu et al., 2023), both of which are ini-           ation (§5.3), and case study (§5.4).
+tialized from Contriever.
+   We utilize LLaMA-3-8B-Instruct (AI@Meta,                 5.1        Overall Performance
+2024) and Qwen2.5-3B-Instruct (Team, 2024) as               The main experimental results are shown in Ta-
+the generators in RALMs. All retrieval-based base-          ble 2. Our proposed SCARLet method achieves
+lines use the top-3 passages. Given that some re-           either optimal or suboptimal performance across
+trievers may not be tuned by instructions, the query        various datasets and generators, demonstrating its
+                                                          634
+                                                                    LLaMA-3-8B-Instruct                                     Qwen-2.5-3B-Instruct
+effectiveness. Our detailed analysis from different                     HotpotQA              SCARLet
+                                                                                              SCARLet w/o Entities Search
+                                                                                                                                HotpotQA
+                                                                         80                   SCARLet w/o 1D Clustering
+perspectives is as follows:                                                60                                                     60
+                                                             NQ              40       T-REx                          NQ            40          T-REx
+                                                                               20                                                      20
+In-domain Performance In the evaluation on six
+in-domain datasets, the retrievers trained by SCAR-
+                                                             ELI5                     WoW                           ELI5                           WoW
+Let achieve the best performance in five datasets
+when using LLaMA-3-8B as the generator, and                               FEVER                                                   FEVER
+in four datasets when using Qwen-2.5-3B as the
+generator. Except for NQ and FEVER, SCARLet                Figure 4: Ablation Study on six in-domain datasets,
+                                                           using BGE as retriever, with two generators. The values
+consistently outperforms the initial baselines, in-
+                                                           in the charts correspond to the metrics of each dataset.
+cluding Contriever and BGE.
+
+Out-of-domain Performance In the evaluation                of the synthesized data. Furthermore, without one-
+on four out-of-domain datasets, SCARLet also               dimensional clustering sampling, we suggest that
+achieves optimal or suboptimal results. Specif-            it reduces the number of positive samples, which
+ically, SCARLet can still show progress in Sci-            can be particularly detrimental to retrieval tasks
+Fact, Climate-FEVER, and FiQA, whose corpora               requiring multiple reasoning hops.
+differ from the Wikipedia corpus used in train-
+ing and whose domains are notably different from           5.3         Aspects of Retrieval Utility
+the in-domain datasets, highlighting its generaliza-       The previous experiment evaluates the overall per-
+tion across corpora. In addition, SCARLet can              formance improvement of RALMs brought by
+achieve overall improvements when using two dif-           SCARLet. However, in essence, SCARLet is an
+ferent downstream LLMs, preliminarily indicating           optimization method of the retrieval stage. More-
+its adaptability across generators.                        over, despite discussing the utility as the valid gain
+                                                           for downstream generation in RALMs, neither ex-
+5.2 Ablation Study
+                                                           isting work nor this study can explicitly define
+According to the pipeline of SCARLet, we design            utility-based retrieval. To assess the effectiveness
+the ablation experiments from three stages: 1) In          of SCARLet in improving retrieval performance,
+the data synthesis stage, we evaluate the method           we select three retrieval benchmarks, each repre-
+of removing the step of retrieving adjacent entities,      senting a distinct aspect of retrieval utility based
+and instead directly retrieving the top-k passages         on our understanding, as shown below:
+from the corpus C using only the entities extracted
+from the seed data; 2) In the utility attribution stage,   GTI This benchmark was introduced in Section
+since Section 3.4 already compares various attribu-        3.4. Its goal is to evaluate whether retrievers can
+tion methods and demonstrates the superiority of           bypass pitfalls of semantic relevance and prioritize
+our perturbation-based approach, we no longer con-         passages that are useful for answering questions.
+duct ablation study for this part; 3) In the sampling
+                                                           B RIGHT This benchmark focuses on the reason-
+and training stage, we assess the effect of remov-
+                                                           ing implied in retrieval (Su et al., 2024), particu-
+ing the one-dimensional clustering step and instead
+                                                           larly for complex queries that require the retriever
+directly selecting the highest-scoring passage as
+                                                           to engage in deep reasoning to identify useful pas-
+the positive sample and the five lowest-scoring pas-
+                                                           sages, beyond simple semantic relevance. Dai et al.
+sages as negative samples based on the scores.
+                                                           (2024) also argue that the entailment reasoning
+   The comparison results, presented in Figure 4,          between passages and queries is essential for en-
+show that removing either of the two components            hancing retrieval capabilities. We believe that rec-
+leads to a significant performance drop. Without           ognizing retrieval utility requires reasoning, such
+adjacent entities retrieval, we believe that the orig-     as distinguishing task-specific features and deter-
+inal entity list may contain insufficient informa-         mining the appropriate number of hops.
+tion, making it challenging to construct a shared
+context that effectively supports multi-task data          X2 -Retrieval This benchmark focuses on re-
+synthesis. And the weaker entity associations can          trieval across multiple tasks and scenarios (Asai
+disrupt the connection between peer passages in            et al., 2023), where understanding the intent be-
+the shared context, ultimately degrading the quality       hind user’s queries becomes crucial. We suggest
+                                                       635
+ Method
+                           HotpotQA                         NQ              MSMARCO-QA
+                                                                                                        should point to passages that may contain informa-
+                     NDCG@1       NDCG@5       NDCG@1        NDCG@5       NDCG@1         NDCG@5
+ Contriever            33.3         48.0         10.0          35.8         16.8           37.0         tion necessary for the reasoning chain. We select
+ SCARLetContriever   41.3(+8.0)   52.1(+4.1)   17.5(+7.5)    45.3(+9.5)   21.9(+5.1)     44.1(+7.1)
+                                                                                                        a representative example from the test split of the
+ BGE                   70.3         70.1         30.3          60.2         47.8           71.9
+ SCARLetBGE          72.8(+2.5)   76.7(+6.6)   33.4(+3.1)    64.4(+4.2)   53.2(+5.4)     77.0(+5.1)     HotpotQA dataset, as shown in Figure 5. To an-
+                                                                                                        swer the question, the reasoning chain is: knowing
+Table 3: Evaluation results on GTI, reporting nDCG for
+                                                                                                        information about William Preston, identifying the
+each datasets. Bracketed values indicate the changes in
+metrics compared to the initial model.                                                                  1996 American historical drama he appeared in,
+                                                                                                        finding information about that drama, and deter-
+  Model                       StackExchange                 Coding        Theorem-based                 mining its writer. Directly relevant information
+  Contriever                        10.5                  19.6                     6.9                  about William Preston is relatively easy to define.
+  SCARLetContriever               13.3(+2.8)            19.2(−0.4)              8.7(+1.8)               However, the shown passage which corresponds
+  BGE                               14.9                  16.0                     8.1                  to the final reasoning step, has a poor match with
+  SCARLetBGE                      16.2(+1.3)            14.4(−1.6)              9.2(+1.1)               the question in terms of semantic relevance. And
+                                                                                                        BGE ranks it 8th. After training by SCARLet, the
+Table 4: Evaluation results on B RIGHT, reporting
+nDCG@10 for each datasets. Bracketed values indicate                                                    passage achieves a higher ranking of 3rd. For more
+the changes in metrics compared to the initial model.                                                   case studies, please refer to Appendix E.
+
+ Model                     AMB            WQA               GAT           LSO             CSP                 Question
+ Contriever                96.8          80.9           73.2            28.0              36.7              Who wrote the 1996 American historical drama
+ SCARLetContriever       97.5(+0.7)    85.8(+5.1)     71.6(−1.6)      20.9(−7.1)       24.8(−11.9)
+                                                                                                            film in which William Preston appeared?
+ BGE                       97.3          84.0           77.4            30.1             38.2
+ SCARLetBGE              98.3(+1.0)    86.1(+2.1)     77.8(+0.4)      27.5(−2.6)       34.9(−3.3)
+                                                                                                              Passage
+Table 5: Evaluation results on X2 -Retrieval, averaged                                                      …Briley's adaptation of Arthur Miller's play
+nDCG@10 for each datasets. Bracketed values indicate                                                        "The Crucible" was dropped when Miller's son
+the changes in metrics compared to the initial model.                                                       Robert secured production rights; Arthur Miller
+                                                                                                            himself wrote the screenplay for the 1996 film...
+
+that this corresponds to identifying the target utility                                                     Rank #8 by BGE        Rank #3 by SCARLetBGE
+anticipated by the downstream tasks.
+                                                                                                             Ground Truth
+   We choose Contriever and BGE as the retriever
+                                                                                                            Arthur Miller
+models, using LLaMA-3-8B-Instruct as the down-
+stream generator to implement SCARLet training.
+                                                                                                        Figure 5: Case Study on HotpotQA. The passage is
+We compare the performance of the trained retriev-                                                      ranked variously by different retrievers. Orange text
+ers with the initial retrievers on two benchmarks,                                                      indicates necessary reasoning information.
+as shown in Table 3, 4 and 5, respectively. The re-
+sults indicate that SCARLet improves performance
+on some datasets, but its effectiveness is generally                                                    6     Conclusion
+limited for code-related tasks, such as LinkSo (Liu
+et al., 2018) and CodeSearchNet (Husain et al.,                                                         This study focuses on utility-based retrieval, a
+2020). The reasons could be: 1) the significant dif-                                                    paradigm that moves beyond semantic relevance to
+ference between the code domain and our selected                                                        prioritize downstream task performance in RALMs.
+in-domain datasets, which may hinder generaliza-                                                        We highlight two key challenges faced by exist-
+tion; 2) the retriever models used are relatively                                                       ing research. To solve the limitations, we propose
+lightweight, making it susceptible to catastrophic                                                      SCARLet, a novel framework to enhance utility-
+forgetting during training; 3) the optimization is                                                      based retrieval. To mitigate semantic interference
+related to downstream generators, but feedback re-                                                      on utility features during training, SCARLet incor-
+lated to the code domain cannot be obtained.                                                            porates a shared context synthesis method, which
+                                                                                                        narrows the semantic gap between different tasks.
+5.4 Case Study                                                                                          To address the issue of inaccurate passage-level util-
+Multi-hop QA is a task that requires multiple pieces                                                    ity estimation, SCARLet employs a perturbation-
+of information and multi-step reasoning to derive                                                       based attribution method to capture the synergy
+the solution (Mavi et al., 2024). Given the charac-                                                     between passages. Lastly, SCARLet utilizes a one-
+teristics of the task, we believe that retrieval utility                                                dimensional clustering method to sample positive
+                                                                                                      636
+and negative passages for retriever optimization.           generated machine reading comprehension dataset.
+Through experiments, we demonstrate that SCAR-              Preprint, arXiv:1611.09268.
+Let can effectively enhance the overall performance       Baolong Bi, Shenghua Liu, Yiwei Wang, Lingrui Mei,
+of RALMs, and brings improvements in complex                Hongcheng Gao, Yilong Xu, and Xueqi Cheng. 2024.
+retrieval benchmarks. We hope this study can in-            Adaptive token biaser: Knowledge editing via biasing
+spire further research on utility-based retrieval.          key entities. Preprint, arXiv:2406.12468.
+
+                                                          Baolong Bi, Shenghua Liu, Yiwei Wang, Yilong Xu,
+Limitations                                                 Junfeng Fang, Lingrui Mei, and Xueqi Cheng. 2025.
+This study only covers several classic downstream           Parameters vs. context: Fine-grained control of
+                                                            knowledge reliance in language models. arXiv
+datasets. We believe that incorporating a task aug-         preprint arXiv:2503.15888.
+mentation stage could further enhance generaliza-
+tion, which we leave for future work. Moreover,           Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+                                                            Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind
+there is a noticeable decline in retrieval perfor-
+                                                            Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+mance in the code domain during generalization              Askell, et al. 2020. Language models are few-shot
+tests. Therefore, future work should also focus             learners. In Advances in Neural Information Process-
+on improving the integration of different corpus            ing Systems, volume 33, pages 1877–1901. Curran
+structures. In addition, due to environmental con-          Associates, Inc.
+straints, this study does not evaluate larger-scale       Canyu Chen and Kai Shu. 2024.           Can llm-
+retrievers and generators. Furthermore, we also try         generated misinformation be detected? Preprint,
+GPT-4o-mini as the synthesizer, which performed             arXiv:2309.13788.
+poorly. Thus our framework should be equipped             Xin Cheng, Di Luo, Xiuying Chen, Lemao Liu,
+with models with stronger reasoning capabilities.           Dongyan Zhao, and Rui Yan. 2023. Lift yourself
+                                                            up: Retrieval-augmented text generation with self-
+Ethics Statement                                            memory. In Advances in Neural Information Process-
+                                                            ing Systems, volume 36, pages 43780–43799. Curran
+All datasets and corpora involved in this study are         Associates, Inc.
+publicly available, and we ensure that all used data
+comply with the usage and privacy policies estab-         Lu Dai, Hao Liu, and Hui Xiong. 2024. Improve dense
+                                                            passage retrieval with entailment tuning. Preprint,
+lished by the original authors. The synthetic data          arXiv:2410.15801.
+is exclusively used for training the retriever model.
+Moreover, given the security assurance of the syn-        Misha Denil, Alban Demiraj, and Nando de Freitas.
+                                                            2015. Extraction of salient sentences from labelled
+thesizer model, the probability of generating harm-
+                                                            documents. Preprint, arXiv:1412.6815.
+ful passages and data is extremely minimal.
+                                                          Thomas Diggelmann, Jordan Boyd-Graber, Jannis Bu-
+Acknowledgments                                             lian, Massimiliano Ciaramita, and Markus Leip-
+                                                            pold. 2021. Climate-fever: A dataset for veri-
+This work was supported by the National Key R&D             fication of real-world climate claims. Preprint,
+Program of China (2023YFC3303800).                          arXiv:2012.00614.
+
+                                                          Emily Dinan, Stephen Roller, Kurt Shuster, Angela
+                                                            Fan, Michael Auli, and Jason Weston. 2019. Wizard
+References                                                  of Wikipedia: Knowledge-powered conversational
+AI@Meta. 2024. Llama 3 model card.                          agents. In Proceedings of the International Confer-
+                                                            ence on Learning Representations (ICLR).
+Akari Asai, Timo Schick, Patrick Lewis, Xilun Chen,
+  Gautier Izacard, Sebastian Riedel, Hannaneh Ha-         Hady Elsahar, Pavlos Vougiouklis, Arslen Remaci,
+  jishirzi, and Wen-tau Yih. 2023. Task-aware retrieval     Christophe Gravier, Jonathon Hare, Frederique Lafor-
+  with instructions. In Findings of the Association for     est, and Elena Simperl. 2018. T-REx: A large scale
+  Computational Linguistics: ACL 2023, pages 3650–          alignment of natural language with knowledge base
+  3675, Toronto, Canada. Association for Computa-           triples. In Proceedings of the Eleventh International
+  tional Linguistics.                                       Conference on Language Resources and Evaluation
+                                                            (LREC 2018), Miyazaki, Japan. European Language
+Payal Bajaj, Daniel Campos, Nick Craswell, Li Deng,         Resources Association (ELRA).
+  Jianfeng Gao, Xiaodong Liu, Rangan Majumder,
+  Andrew McNamara, Bhaskar Mitra, Tri Nguyen,             Angela Fan, Yacine Jernite, Ethan Perez, David Grang-
+  Mir Rosenberg, Xia Song, Alina Stoica, Saurabh            ier, Jason Weston, and Michael Auli. 2019. ELI5:
+  Tiwary, and Tong Wang. 2018. Ms marco: A human            Long form question answering. In Proceedings of
+                                                      637
+  the 57th Annual Meeting of the Association for Com-         Language Processing (EMNLP), pages 6769–6781,
+  putational Linguistics, pages 3558–3567, Florence,          Online. Association for Computational Linguistics.
+  Italy. Association for Computational Linguistics.
+                                                          Minsang Kim and Seungjun Baek. 2025. Syntriever:
+Feiteng Fang, Yuelin Bai, Shiwen Ni, Min Yang, Xi-          How to train your retriever with synthetic data from
+  aojun Chen, and Ruifeng Xu. 2024. Enhancing               llms. Preprint, arXiv:2502.03824.
+  noise robustness of retrieval-augmented language
+  models with adaptive adversarial training. Preprint,    Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+  arXiv:2405.20978.                                         field, Michael Collins, Ankur Parikh, Chris Alberti,
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,            Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Meng Wang,       ton Lee, Kristina Toutanova, Llion Jones, Matthew
+  and Haofen Wang. 2024. Retrieval-augmented gener-         Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  ation for large language models: A survey. Preprint,      Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu-
+  arXiv:2312.10997.                                         ral questions: A benchmark for question answering
+                                                            research. Transactions of the Association for Compu-
+Michael Glass, Gaetano Rossiello, Md Faisal Mahbub          tational Linguistics, 7:452–466.
+  Chowdhury, Ankita Naik, Pengshan Cai, and Alfio
+  Gliozzo. 2022. Re2G: Retrieve, rerank, generate.        Omer Levy, Minjoon Seo, Eunsol Choi, and Luke
+  In Proceedings of the 2022 Conference of the North       Zettlemoyer. 2017. Zero-shot relation extraction via
+ American Chapter of the Association for Computa-          reading comprehension. In Proceedings of the 21st
+  tional Linguistics: Human Language Technologies,         Conference on Computational Natural Language
+  pages 2701–2715, Seattle, United States. Association     Learning (CoNLL 2017), pages 333–342, Vancouver,
+  for Computational Linguistics.                           Canada. Association for Computational Linguistics.
+
+Jiafeng Guo, Yixing Fan, Xiang Ji, and Xueqi Cheng.       Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+   2019. Matchzoo: A learning, practicing, and develop-     Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+   ing system for neural text matching. In Proceedings      rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+   of the 42nd International ACM SIGIR Conference on        täschel, Sebastian Riedel, and Douwe Kiela. 2020.
+   Research and Development in Information Retrieval,       Retrieval-augmented generation for knowledge-
+   SIGIR’19, page 1297–1300, New York, NY, USA.             intensive nlp tasks. In Advances in Neural Infor-
+   Association for Computing Machinery.                     mation Processing Systems, volume 33, pages 9459–
+                                                            9474. Curran Associates, Inc.
+Xiaochuang Han and Yulia Tsvetkov. 2022. Orca: In-
+  terpreting prompted language models via locating
+  supporting data evidence in the ocean of pretraining    Dongfang Li, Zetian Sun, Xinshuo Hu, Zhenyu Liu,
+  data. Preprint, arXiv:2205.12600.                         Ziyang Chen, Baotian Hu, Aiguo Wu, and Min
+                                                            Zhang. 2023. A survey of large language models
+Donald E. Hilt and Donald W. Seegrist. 1977. Ridge:         attribution. Preprint, arXiv:2311.03731.
+  a computer program for calculating ridge regression
+  estimates.                                              Xinze Li, Yixin Cao, Liangming Pan, Yubo Ma, and
+                                                            Aixin Sun. 2024. Towards verifiable generation: A
+Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong,           benchmark for knowledge-aware language model at-
+  Zhangyin Feng, Haotian Wang, Qianglong Chen,              tribution. Preprint, arXiv:2310.05634.
+  Weihua Peng, Xiaocheng Feng, Bing Qin, and Ting
+  Liu. 2024. A survey on hallucination in large lan-      Xi Victoria Lin, Xilun Chen, Mingda Chen, Wei-
+  guage models: Principles, taxonomy, challenges, and       jia Shi, Maria Lomeli, Rich James, Pedro Ro-
+  open questions. ACM Transactions on Information           driguez, Jacob Kahn, Gergely Szilvasy, Mike Lewis,
+  Systems.                                                  Luke Zettlemoyer, and Scott Yih. 2024.        Ra-
+                                                            dit: Retrieval-augmented dual instruction tuning.
+Hamel Husain, Ho-Hsiang Wu, Tiferet Gazit, Miltiadis        Preprint, arXiv:2310.01352.
+  Allamanis, and Marc Brockschmidt. 2020. Code-
+  searchnet challenge: Evaluating the state of semantic
+                                                          Xueqing Liu, Chi Wang, Yue Leng, and ChengXiang
+  code search. Preprint, arXiv:1909.09436.
+                                                            Zhai. 2018. Linkso: a dataset for learning to retrieve
+Gautier Izacard, Mathilde Caron, Lucas Hosseini, Se-        similar question answer pairs on software develop-
+  bastian Riedel, Piotr Bojanowski, Armand Joulin,          ment forums. In Proceedings of the 4th ACM SIG-
+  and Edouard Grave. 2022. Unsupervised dense infor-        SOFT International Workshop on NLP for Software
+  mation retrieval with contrastive learning. Preprint,     Engineering, NL4SE 2018, page 2–5, New York, NY,
+  arXiv:2112.09118.                                         USA. Association for Computing Machinery.
+
+Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick       Yuhang Liu, Xueyu Hu, Shengyu Zhang, Jingyuan
+  Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and          Chen, Fan Wu, and Fei Wu. 2024. Fine-grained
+  Wen-tau Yih. 2020. Dense passage retrieval for open-      guidance for retrievers: Leveraging llms’ feed-
+  domain question answering. In Proceedings of the          back in retrieval-augmented generation. Preprint,
+  2020 Conference on Empirical Methods in Natural           arXiv:2411.03957.
+                                                        638
+Lin Long, Rui Wang, Ruixuan Xiao, Junbo Zhao, Xiao             Language Technologies, pages 2523–2544, Online.
+  Ding, Gang Chen, and Haobo Wang. 2024. On llms-              Association for Computational Linguistics.
+  driven synthetic data generation, curation, and evalu-
+  ation: A survey. Preprint, arXiv:2406.15126.             Marco Tulio Ribeiro, Sameer Singh, and Carlos
+                                                            Guestrin. 2016. Model-agnostic interpretability of
+Gianluigi Lopardo, Frederic Precioso, and Damien Gar-       machine learning. Preprint, arXiv:1606.05386.
+  reau. 2024. Attention meets post-hoc interpretability:
+  A mathematical perspective. In Proceedings of the        Stephen Robertson and Hugo Zaragoza. 2009. The prob-
+  41st International Conference on Machine Learning,          abilistic relevance framework: Bm25 and beyond.
+  volume 235 of Proceedings of Machine Learning              Foundations and Trends® in Information Retrieval,
+  Research, pages 32781–32800. PMLR.                          3(4):333–389.
+Andreas Madsen, Sarath Chandar, and Siva Reddy. 2024.
+  Are self-explanations from large language models         Alireza Salemi and Hamed Zamani. 2024. Towards a
+  faithful? In Findings of the Association for Com-          search engine for machines: Unified ranking for mul-
+  putational Linguistics: ACL 2024, pages 295–337,           tiple retrieval-augmented large language models. In
+  Bangkok, Thailand. Association for Computational           Proceedings of the 47th International ACM SIGIR
+  Linguistics.                                               Conference on Research and Development in Infor-
+                                                             mation Retrieval, SIGIR ’24, page 741–751, New
+Macedo Maia, Siegfried Handschuh, André Freitas,             York, NY, USA. Association for Computing Machin-
+ Brian Davis, Ross McDermott, Manel Zarrouk, and             ery.
+ Alexandra Balahur. 2018. Www’18 open challenge:
+ Financial opinion mining and question answering. In       Zhihong Shao, Yeyun Gong, Yelong Shen, Minlie
+ Companion Proceedings of the The Web Conference             Huang, Nan Duan, and Weizhu Chen. 2023. En-
+ 2018, WWW ’18, page 1941–1942, Republic and                 hancing retrieval-augmented large language models
+ Canton of Geneva, CHE. International World Wide             with iterative retrieval-generation synergy. Preprint,
+ Web Conferences Steering Committee.                         arXiv:2305.15294.
+Dina Mardaoui and Damien Garreau. 2021. An analysis        Weijia Shi, Sewon Min, Michihiro Yasunaga, Min-
+  of lime for text data. In Proceedings of The 24th In-     joon Seo, Rich James, Mike Lewis, Luke Zettle-
+  ternational Conference on Artificial Intelligence and     moyer, and Wen tau Yih. 2023. Replug: Retrieval-
+  Statistics, volume 130 of Proceedings of Machine          augmented black-box language models. Preprint,
+  Learning Research, pages 3493–3501. PMLR.                 arXiv:2301.12652.
+Vaibhav Mavi, Anubhav Jangra, and Adam Jatowt.
+  2024. Multi-hop question answering. Preprint,            Kurt Shuster, Spencer Poff, Moya Chen, Douwe Kiela,
+  arXiv:2204.09140.                                          and Jason Weston. 2021. Retrieval augmentation
+                                                             reduces hallucination in conversation. In Findings
+Nikolaos Mylonas, Ioannis Mollas, and Grigorios              of the Association for Computational Linguistics:
+  Tsoumakas. 2022. An attention matrix for every             EMNLP 2021, pages 3784–3803, Punta Cana, Do-
+  decision: Faithfulness-based arbitration among mul-        minican Republic. Association for Computational
+  tiple attention-based interpretations of transformers      Linguistics.
+  in text classification. Preprint, arXiv:2209.10876.
+                                                           Jiwoong Sohn, Yein Park, Chanwoong Yoon, Sihyeon
+Humza Naveed, Asad Ullah Khan, Shi Qiu, Muhammad              Park, Hyeon Hwang, Mujeen Sung, Hyunjae Kim,
+  Saqib, Saeed Anwar, Muhammad Usman, Naveed                  and Jaewoo Kang. 2024. Rationale-guided retrieval
+  Akhtar, Nick Barnes, and Ajmal Mian. 2024. A                augmented generation for medical question answer-
+  comprehensive overview of large language models.            ing. Preprint, arXiv:2411.00300.
+  Preprint, arXiv:2307.06435.
+                                                           Hongjin Su, Howard Yen, Mengzhou Xia, Weijia Shi,
+Ian E. Nielsen, Dimah Dera, Ghulam Rasool, Ravi P.           Niklas Muennighoff, Han yu Wang, Haisu Liu, Quan
+   Ramachandran, and Nidhal Carla Bouaynaya. 2022.           Shi, Zachary S. Siegel, Michael Tang, Ruoxi Sun, Jin-
+   Robust explainability: A tutorial on gradient-based       sung Yoon, Sercan O. Arik, Danqi Chen, and Tao Yu.
+   attribution methods for deep neural networks. IEEE        2024. Bright: A realistic and challenging bench-
+   Signal Processing Magazine, 39(4):73–84.                  mark for reasoning-intensive retrieval. Preprint,
+OpenAI. 2024. Gpt-4o system card.                            arXiv:2407.12883.
+
+Fabio Petroni, Aleksandra Piktus, Angela Fan, Patrick      Qwen Team. 2024. Qwen2.5: A party of foundation
+  Lewis, Majid Yazdani, Nicola De Cao, James Thorne,        models.
+  Yacine Jernite, Vladimir Karpukhin, Jean Maillard,
+  Vassilis Plachouras, Tim Rocktäschel, and Sebastian      Nandan Thakur, Nils Reimers, Andreas Rücklé, Ab-
+  Riedel. 2021. KILT: a benchmark for knowledge              hishek Srivastava, and Iryna Gurevych. 2021. Beir:
+  intensive language tasks. In Proceedings of the 2021       A heterogenous benchmark for zero-shot evalua-
+  Conference of the North American Chapter of the            tion of information retrieval models. Preprint,
+  Association for Computational Linguistics: Human           arXiv:2104.08663.
+                                                         639
+James Thorne,       Andreas Vlachos,          Christos       Shitao Xiao, Zheng Liu, Peitian Zhang, and Niklas
+  Christodoulopoulos, and Arpit Mittal. 2018.                  Muennighoff. 2023. C-pack: Packaged resources
+  FEVER: a large-scale dataset for fact extraction and         to advance general chinese embedding. Preprint,
+  VERification. In NAACL-HLT.                                  arXiv:2309.07597.
+
+David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu                Lee Xiong, Chenyan Xiong, Ye Li, Kwok-Fung Tang,
+  Wang, Madeleine van Zuylen, Arman Cohan, and                 Jialin Liu, Paul Bennett, Junaid Ahmed, and Arnold
+  Hannaneh Hajishirzi. 2020. Fact or fiction: Verifying        Overwijk. 2020. Approximate nearest neighbor neg-
+  scientific claims. In Proceedings of the 2020 Con-           ative contrastive learning for dense text retrieval.
+  ference on Empirical Methods in Natural Language             Preprint, arXiv:2007.00808.
+  Processing (EMNLP), pages 7534–7550, Online. As-
+  sociation for Computational Linguistics.                   Yilong Xu, Jinhua Gao, Xiaoming Yu, Baolong Bi,
+                                                               Huawei Shen, and Xueqi Cheng. 2024. Aliice: Eval-
+Yongjie Wang, Tong Zhang, Xu Guo, and Zhiqi                    uating positional fine-grained citation generation.
+  Shen. 2024. Gradient based feature attribution               Preprint, arXiv:2406.13375.
+  in explainable ai: A technical review. Preprint,
+  arXiv:2403.10415.                                          Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+                                                               William Cohen, Ruslan Salakhutdinov, and Christo-
+Zhiguo Wang, Patrick Ng, Xiaofei Ma, Ramesh Nallap-            pher D. Manning. 2018. HotpotQA: A dataset for
+  ati, and Bing Xiang. 2019. Multi-passage BERT: A             diverse, explainable multi-hop question answering.
+  globally normalized BERT model for open-domain               In Proceedings of the 2018 Conference on Empiri-
+  question answering. In Proceedings of the 2019 Con-          cal Methods in Natural Language Processing, pages
+  ference on Empirical Methods in Natural Language             2369–2380, Brussels, Belgium. Association for Com-
+  Processing and the 9th International Joint Confer-           putational Linguistics.
+  ence on Natural Language Processing (EMNLP-
+  IJCNLP), pages 5878–5882, Hong Kong, China. As-            Yue Yu, Wei Ping, Zihan Liu, Boxin Wang, Jiaxuan You,
+  sociation for Computational Linguistics.                     Chao Zhang, Mohammad Shoeybi, and Bryan Catan-
+                                                               zaro. 2024. Rankrag: Unifying context ranking with
+Jason Wei, Yi Tay, Rishi Bommasani, Colin Raffel,              retrieval-augmented generation in llms. Preprint,
+   Barret Zoph, Sebastian Borgeaud, Dani Yogatama,             arXiv:2407.02485.
+   Maarten Bosma, Denny Zhou, Donald Metzler, Ed H.
+   Chi, Tatsunori Hashimoto, Oriol Vinyals, Percy            Zichun Yu, Chenyan Xiong, Shi Yu, and Zhiyuan Liu.
+   Liang, Jeff Dean, and William Fedus. 2022. Emer-            2023. Augmentation-adapted retriever improves gen-
+   gent abilities of large language models. Preprint,          eralization of language models as generic plug-in. In
+   arXiv:2206.07682.                                           Proceedings of the 61st Annual Meeting of the As-
+                                                               sociation for Computational Linguistics (Volume 1:
+Zhepei Wei, Wei-Lin Chen, and Yu Meng. 2024. In-               Long Papers), pages 2421–2436, Toronto, Canada.
+  structRAG: Instructing retrieval augmented gener-            Association for Computational Linguistics.
+  ation via self-synthesized rationales. In Adaptive
+                                                             Hamed Zamani and Michael Bendersky. 2024. Stochas-
+  Foundation Models: Evolving AI for Personalized
+                                                               tic rag: End-to-end retrieval-augmented generation
+  and Efficient Learning.
+                                                               through expected utility maximization. In Proceed-
+Orion Weller, Marc Marone, Nathaniel Weir, Dawn                ings of the 47th International ACM SIGIR Confer-
+  Lawrie, Daniel Khashabi, and Benjamin Van Durme.             ence on Research and Development in Information
+  2024. “according to . . . ”: Prompting language              Retrieval, SIGIR ’24, page 2641–2646, New York,
+  models improves quoting from pre-training data. In           NY, USA. Association for Computing Machinery.
+  Proceedings of the 18th Conference of the European         Hengran Zhang, Ruqing Zhang, Jiafeng Guo, Maarten
+  Chapter of the Association for Computational Lin-            de Rijke, Yixing Fan, and Xueqi Cheng. 2024. Are
+  guistics (Volume 1: Long Papers), pages 2288–2301,           large language models good at utility judgments? In
+  St. Julian’s, Malta. Association for Computational           Proceedings of the 47th International ACM SIGIR
+  Linguistics.                                                 Conference on Research and Development in Infor-
+Siye Wu, Jian Xie, Jiangjie Chen, Tinghui Zhu, Kai             mation Retrieval, SIGIR ’24, page 1941–1951, New
+  Zhang, and Yanghua Xiao. 2024. How easily do                 York, NY, USA. Association for Computing Machin-
+  irrelevant inputs skew the responses of large language       ery.
+  models? Preprint, arXiv:2404.03302.                        Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang,
+                                                              Xiaolei Wang, Yupeng Hou, Yingqian Min, Be-
+Long Xia, Jun Xu, Yanyan Lan, Jiafeng Guo, and Xueqi
+                                                              ichen Zhang, Junjie Zhang, Zican Dong, Yifan Du,
+  Cheng. 2015. Learning maximal marginal relevance
+                                                              Chen Yang, Yushuo Chen, Zhipeng Chen, Jinhao
+  model via directly optimizing diversity evaluation
+                                                              Jiang, Ruiyang Ren, Yifan Li, Xinyu Tang, Zikang
+  measures. In Proceedings of the 38th International
+                                                              Liu, Peiyu Liu, Jian-Yun Nie, and Ji-Rong Wen.
+  ACM SIGIR Conference on Research and Devel-
+                                                              2024. A survey of large language models. Preprint,
+  opment in Information Retrieval, SIGIR ’15, page
+                                                              arXiv:2303.18223.
+  113–122, New York, NY, USA. Association for Com-
+  puting Machinery.
+                                                           640
+A       Details of Data Synthesis                             data should include both the input and ground truth.
+                                                              The prompt template we use is shown in Table 9.
+The detailed steps of the data synthesis pipeline in
+SCARLet are described as follows:                             Data Filtering In this stage, the data synthesized
+                                                              in the previous phase is cleaned to further ensure
+Seed Datasets Collection We first collect seed
+                                                              data quality and training stability. We prompt the
+data for the data synthesis pipeline. A task pool is
+                                                              synthesizer model to check the synthetic data for
+defined, including the selected tasks and their cor-
+                                                              logical consistency and format correctness based
+responding datasets. Each task is associated with
+                                                              on the shared context. The prompt used for this
+task instruction and retrieval instruction, as shown
+                                                              stage is shown in Table 10.
+in Table 6. For each dataset, we randomly sample
+1,000 instances from its training split, including            Passages Enhancement To enhance the robust-
+both input and ground truth. Every sampling uses              ness of the training, we inject noise into the shared
+the same random seed for every dataset.                       context. We instruct the synthesizer model to gen-
+                                                              erate a passage that is semantically relevant but
+Entities Extraction For each seed data instance,
+                                                              useless for downstream task, and then add this pas-
+we extract entities for subsequent passages retrieval.
+                                                              sage to the shared context. The prompt used for
+We utilize the SpaCy3 toolkit to extract entities
+                                                              this stage is shown in Table 11.
+from both the input and ground truth. Data in-
+stances without extractable entities are discarded.
+                                                              B    Details of Utility Attribution
+Entities Retrieval This stage is to retrieve more
+                                                              Introduction to Attribution Attribution is a
+relevant entities based on the extracted ones. This
+                                                              local-interpretable technique used to provide ev-
+serves two purposes: 1) to enhance diversity, and 2)
+                                                              idence for the model generation (Li et al., 2023;
+to strengthen relationships between entities, facili-
+                                                              Xu et al., 2024). The data source of attribution can
+tating better construction of the shared context. We
+                                                              be training data (Han and Tsvetkov, 2022; Weller
+retrieve neighboring entities from Wikidata, consid-
+                                                              et al., 2024), whereas in RALMs, the source is
+ering only the direct related entities of each existing
+                                                              often retrieved external passages (Shuster et al.,
+entity. To achieve this, we write the SPARQL query
+                                                              2021; Li et al., 2024), which we denote as context
+for retrieval, as shown below:
+                                                              attribution. Furthermore, contributive attribution
+SELECT ? property ? propertyLabel ? object                1
+                                                              is a form of attribution that quantifies the contri-
+    ? objectLabel
+WHERE {                                                   2   bution of each data source unit to the generation
+    wd :{ id } ? property ? object .                      3   process. It assigns an attribution score to each unit,
+    ? property rdfs : label ? propertyLabel .             4
+    ? object rdfs : label ? objectLabel .                 5
+                                                              where a higher score indicates a greater contribu-
+    FILTER ( LANG (? propertyLabel ) = " en " )           6   tion. In this study, we propose the SCARLet frame-
+    FILTER ( LANG (? objectLabel ) = " en " )             7   work, which employs a perturbation-based attribu-
+}                                                         8
+LIMIT { limit }                                           9
+                                                              tion method to estimate the utility score of each
+                                                              passage within the shared context. Additionally,
+                                                              we evaluate other attribution methods, including
+Passages Retrieval After obtaining the expanded
+                                                              attention-based method, gradient-based method,
+entity list, we retrieve relevant passages based on
+                                                              and LLM-based method.
+these entities to construct the shared context.
+                                                              Perturbation-based Method This method is de-
+Data Synthesis At this stage, training data is syn-
+                                                              scribed in Section 3.4. Notably, unlike the classical
+thesized for different tasks in the task pool based
+                                                              LIME method, we remove the weight of vi in the
+on the shared context. First, a synthesizer model is
+                                                              surrogate model, which measures the the cosine
+selected, which must possess sufficient reasoning
+                                                              distance from the original text. The reason behind
+and generation capabilities to ensure the quality
+                                                              this is that for different perturbation vectors, the
+of the synthetic data. To help the synthesizer un-
+                                                              weight would exacerbate the unfair evaluation of
+derstand the task definition and follow the correct
+                                                              passage utility, as utility features cannot be directly
+format, we provide task instruction, task descrip-
+                                                              measured by semantic relevance. For passages that
+tion, and example data in the prompt. The synthetic
+                                                              are semantically relevant but essentially useless,
+    3
+        https://spacy.io/                                     the variation they bring would be downweighted,
+                                                       641
+Dataset    Task                       Task Instruction                             Retrieval Instruction
+                                      Answer the question based on the             Retrieve passages to
+NQ         Single-hop QA
+                                      given passages.                              answer the question.
+
+                                                                                   Find passages that
+                                      Answer the question based on the
+                                                                                   provide useful
+HotpotQA   Multi-hop QA               given passages. You may need to
+                                                                                   information to answer
+                                      refer to multiple passages.
+                                                                                   this question.
+
+                                      Answer the question based on the
+                                                                                   Retrieve passages that
+                                      given passages. The answer needs to
+ELI5       Long-form QA                                                            provide a piece of good
+                                      be detailed, paragraph-level, and
+                                                                                   evidence for the answer.
+                                      with explanations.
+
+                                      Verify whether the claim is correct
+                                      based on the given passages. If it           Retrieve passages to
+FEVER      Fact Checking
+                                      is correct, output "SUPPORTS", if            verify this claim.
+                                      it is wrong, output "REFUTES".
+
+                                      Generate an appropriate, reasonable
+                                      and meaningful response based on             Find passages related to
+WoW        Dialogue Generation
+                                      previous conversations and the               the conversation topic.
+                                      following relevant passages.
+
+                                      Given an entity and an attribute
+                                      (or relationship), fill in the
+                                      specific value of the attribute              Find passages related to
+T-REx      Slot Filling
+                                      based on the following passages.             the entities.
+                                      The entity and the attribute are
+                                      separated by "[SEP]".
+
+                                      Verify whether the claim is correct
+                                      based on the given passages. If it           Retrieve passages to
+SciFact    Fact Checking
+                                      is correct, output "SUPPORT", if it          verify this claim.
+                                      is wrong, output "CONTRADICT".
+
+                                      Given an entity and an attribute
+                                      (or relationship), fill in the
+                                      specific value of the attribute              Find passages related to
+zs-RE      Relation Extraction
+                                      based on the following passages.             the entities.
+                                      The entity and the attribute are
+                                      separated by "[SEP]".
+
+                                      Answer the question based on the             Find passages to answer
+FiQA       Financial QA
+                                      given passages.                              the question.
+
+                                      Verify whether the claim is correct
+                                      based on the given passages. If it
+                                      is correct, output "SUPPORTS", if
+Climate-                              it is wrong, output "REFUTES", if            Retrieve passages to
+           Fact Checking
+FEVER                                 the information is insufficient,             verify this claim.
+                                      output "NOT_ENOUGH_INFO", if can’t
+                                      get a sufficiently confident
+                                      judgment, output "DISPUTED".
+
+
+           Table 6: Task instructions and retrieval instructions of the datasets in the task pool.
+
+
+
+
+                                                    642
+                                                                                HotpotQA               NQ            MSMARCO-QA
+ Please first provide the answer based on the                 Method
+                                                                            NDCG@1   NDCG@5   NDCG@1    NDCG@5      NDCG@1   NDCG@5
+ passages that you have ranked in utility and then
+                                                              Att.-based     31.54    27.25    29.14        25.77    29.92    22.15
+ write the ranked passages in descending order of
+                                                              Grad.-based    49.90    38.83    50.58        44.56    59.09    53.35
+ utility in answering the question, like "My rank:            LLM-based      76.34    76.84    28.35        32.16    31.88    59.97
+ [i]>[j]>...>[k]".                                            Pert.-based    93.28    83.04    78.16        84.12    91.65    85.36
+                                                                w/o G.T.     92.34    81.03    77.85        80.67    91.10    83.73
+
+ Context: {context}
+                                                          Table 8: The experimental results comparing various
+                                                          utility attribution methods on the GTI benchmark. Attn.,
+ Question: {query}
+                                                          Grad., Pert., and G.T. represent Attention, Gradient,
+                                                          Perturbation and Ground Truth, respectively.
+Table 7: The prompt template for LLM-based method.
+
+
+as such passages typically cause greater logit fluc-      LLMs (Chen and Shu, 2024), we still believe that
+tuations due to their lack of utility.                    it represents one of the future directions of utility
+                                                          attribution. Following Zhang et al. (2024), we in-
+Attention-based Method This method takes the              struct the generator to rank the passages from the
+attention score received by each source unit during       context in a list-wise setup while generating the
+inference as the attribution score (Mylonas et al.,       answer. The prompt is shown at Table 7.
+2022; Lopardo et al., 2024). We construct the
+attention-based baseline by averaging the attention       GTI Benchmark This benchmark (Ground-
+values of each token within each passage, as shown        Truth Inclusion; Zhang et al., 2024) is designed
+below:                                                    to assess the utility of retrieved passages including
+                                                          three QA datasets: NQ, with 1,868 data; HotpotQA,
+                              K
+                           X X (i)
+                   1                                      with 4,407 data; and MSMARCO-QA, with 3,121
+        αd i =                at , t ∈ di ,       (7)
+                 K · |di |                                data. It manually constructs 10 passages per query,
+                        t∈di i=1
+                                                          including ground truth (correct passages), counter-
+where αdi represents the utility score for passage        factual passages, highly relevant noisy passages,
+di , K indicates the number of attention heads, and       and weakly relevant noisy passages. We evalu-
+  (i)
+at indicates the attention value of the t-th token        ate the above methods on this benchmark using
+in passage di of the i-th attention head.                 LLaMA-3-8B-Instruct as the generator, with the ex-
+                                                          perimental results presented in Table 8. The results
+Gradient-based Method This approach deter-
+                                                          demonstrate that the perturbation-based method
+mines the utility scores from the gradient of each
+                                                          outperforms all other baselines by a significant mar-
+token in the source unit during backward prop-
+                                                          gin, highlighting its considerable advantage as an
+agation(Nielsen et al., 2022; Wang et al., 2024).
+                                                          indicator for utility in RALMs.
+Specifically, we employ the Gradient times Input
+(G × I; Denil et al., 2015), which computes the           Attribution Forms Additionally, we investigate
+score of each token by performing the dot product         two different attribution forms: 1) The first form di-
+as follows:                                               rectly uses the ground truth provided by the dataset
+                                                          as the output of the generator, which is adopted
+         fG×I (t) = et · ∇et fLM (x, D) ,         (8)     in our proposed SCARLet; 2) The second form is
+                                                          let the generator to produce a response first, fol-
+where et represents the embedding vector of token
+                                                          lowed by attribution based on that response. The
+t, and fLM denotes the function of LM. The utility
+                                                          first form reflects the contribution of each passage
+score of each passage is then obtained by averaging
+                                                          within the context to the production of the correct
+the G × I scores of each token contained within it.
+                                                          answer. While the second form requires an addi-
+LLM-based Method This approach, which can                 tional comparison between the generated response
+also be referred to as rationale-based method or          and the ground truth, where we believe that the
+self-rationalization, is in line with the work of Sohn    attribution process can be valid only if the the two
+et al. (2024); Wei et al. (2024), where the LLM           are consistent. We compare the performance of the
+generator simultaneously attributes the utility of        above two forms in the perturbation-based method,
+passages in the context while performing the task.        as shown in Table 8. We find that the performance
+Although this method is theoretically flawed due          difference between the two forms is minimal, but
+to the potential influence of hallucinations from         in terms of mechanism and difficulty of implemen-
+                                                        643
+ Input: Previous Dialogue                                 Passage 1                                   Passage 2
+                                                          ……Red is the color at the end of the        ……Modern surveys in Europe and the United
+    I really love red the colour, it exists at the        visible spectrum of light, next to orange   States show red is also the color most commonly
+    end of the visible spectrum of light!                 and opposite violet……It is a primary        associated with heat, activity, passion, sexuality,
+                                                          color in the RGB color model and the        anger, love and joy. In China, India and many other
+                                                          CMYK color model, and is the                Asian countries it is the color of symbolizing
+                                                          complementary color of cyan……               happiness and good fortune……
+                Red seems like such a bold color.
+                                                         Rank #1 by BGE                               Rank #5 by BGE
+                                                         Rank #1 by SCARLetBGE                        Rank #2 by SCARLetBGE
+
+ Ground truth                                        With top-3 retrieved by BGE                                    With top-3 retrieved by SCARLetBGE
+ It is very bold, it is the manifestation             Yeah, red is definitely a striking color! Did                   Yeah, it's a very striking color!
+ of electromagnetic radiation with the                you know that it's also a primary color in                      And did you know that it's also
+ range of wavelengths or simply                       the RGB and CMYK color models? And                              associated with a lot of strong
+ called light.                                        it's interesting that it's opposite violet on                   emotions like passion, love, and
+                                                      the color spectrum.                                             joy in many cultures?
+
+                                                                                   F1 score: 4.17                                       F1 score: 13.64
+
+
+Figure 6: Case Study on WoW. Blue text indicates clues more relevant to semantics, while orange text highlights
+clues more align with the target utility in dialogue generation task. Responses are generated by LLaMA-3-8B. The
+generated response augmented by SCARLetBGE achieves a higher F1 score than the response augmented by BGE.
+
+
+tation, we choose the first form.                                                under the pooled corpus setup are shown in Table
+                                                                                 13. All baselines perform similarly to those in the
+C      Details of Implementation                                                 closed corpus setup, and some outperform them,
+                                                                                 demonstrating generalization of SCARLet on the
+Meta data of data synthesis We present the meta
+                                                                                 unified corpus.
+data from the data synthesis pipeline of one run in
+our experiment, as shown in Table 12. As observed,                               E Additional Case Study
+although the amount of training data is sufficient
+for tuning the retriever, the SCARLet pipeline leads                             The QA tasks typically focus more on precise an-
+to data loss at each stage, sometimes resulting in                               swers, whereas dialogue tasks prioritize the coher-
+significant loss rates, which causes an increase in                              ence between the generated response and the pre-
+costs. The reasons for the loss include issues with                              ceding conversation. These two tasks have distinct
+the seed data, network problems, model generation                                retrieval utility, with the latter being more vaguely
+errors, among others.                                                            defined. To analyze whether the retriever trained
+                                                                                 by SCARLet exhibits a diversified retrieval criteria,
+Hyperparameters During the data synthesis                                        we select a case from the test split of the WoW
+stage, the temperature of the synthesizer model                                  dataset, as shown in Figure 6. In this case, a re-
+is set to 0.5. In the utility attribution stage, the                             triever relying on semantic relevance may primarily
+number of sampled perturbation vectors n is set                                  focus on topic words such as "red" and "spectrum".
+to 64, with a perturbation probability of 0.5. Dur-                              However, for dialogue generation, it is also crucial
+ing training, we set the learning rate as 6e-5, and                              to consider the intent of the previous speaker. Pas-
+epochs as 1. All experiments are conducted on                                    sage 2 is ranked higher by the retriever trained by
+NVIDIA A100 GPUs in torch.float32 precision.                                     SCARLet, because it is directly tied to the deeper
+                                                                                 meaning of the key clue "bold", making it more
+D      Additional Experimental Results                                           helpful in sustaining conversational coherence. At
+                                                                                 comparable recall levels, SCARLet prioritizes pas-
+The results presented in Table 2 are under the
+                                                                                 sages that offer greater task-specific utility.
+closed corpus setup, i.e., retrievers search passages
+only from the corpus of the corresponding dataset.                               F      Example of Shared Context
+In contrast, the pooled corpus setup refers to merg-
+ing the corpora of different datasets into a single                              In this section, we provide an example of the shared
+corpus, where all retrieval is performed with the                                context constructed during one run of SCARLet in
+unified corpus. This setup better simulates real-                                our experiment, as shown in Figure 7, along with
+world retrieval scenarios and enables a fairer eval-                             its corresponding synthetic data for various tasks,
+uation of generalization. The experimental results                               as shown in Figure 8 and Figure 9.
+                                                                           644
+                                                     Shared Context Example
+ [1]: Deutsche Telekom AG (; short form in writing only: DT; stylised as ·T···) is a German telecommunications company headquartered
+ in Bonn and by revenue the largest telecommunications provider in Europe. Deutsche Telekom was formed in 1996, as the former state-
+ owned monopoly Deutsche Bundespost was privatised. The company operates several subsidiaries worldwide, including the mobile
+ communications brand T-Mobile. As of 2020, the German government holds a 14.5% stake in company stock directly, and another
+ 17.4% through the government bank KfW. The company is a component of the Euro Stoxx 50 stock market index.
+ [2]: AT&T was broken up in 1984. In the case of Telecom New Zealand, local loop unbundling was enforced by central government.
+ Telkom is a semi-privatised, part state-owned South African telecommunications company. Deutsche Telekom is a former state
+ monopoly, still partially state owned. Deutsche Telekom currently monopolizes high-speed VDSL broadband network. The Long Island
+ Power Authority (LIPA) provided electric service to over 1.1 million customers in Nassau and Suffolk counties of New York, and the
+ Rockaway Peninsula in Queens. The Comcast Corporation is the largest mass media and communications company in the world by
+ revenue.
+ [3]: Telkom Indonesia PT Telekomunikasi Indonesia (Persero) Tbk, commonly known as Telkom Indonesia (stylised as Telkom
+ Indonesıa) or simply Telkom, is an Indonesian multinational telecommunications conglomerate. Telkom is a semi-privatised, majority
+ state-owned company listed on multiple exchanges. It has major businesses in fixed line telephony, internet and data communications. It
+ is operated as parent company of the Telkom Group, which is engaged in a broad range of businesses that consist of telecommunication,
+ multimedia, property and finance services. Since 2008, Telkom Indonesia began changing its business focus, infrastructure, systems,
+ organisation and human resources, as well as the corporate culture, as their effort
+
+ [4]: Mannesmann Arcor AG & Co. KG was formed in 1996 as a joint venture between Mannesmann, Deutsche Bank and DBKom, a
+ subsidiary of Deutsche Bahn, the national railway operator. After Mannesmann was bought out by Vodafone the company was renamed
+ Arcor AG & Co. KG. On 19 May 2008, Vodafone acquired the minority shareholdings of Deutsche Bahn and Deutsche Bank (18.17%
+ and 8.18% respectively) to gain full control of Arcor.
+ [5]: Up to 1998, the telecommunications market in Greece was a monopoly. The market was opened to competitors and OTE was
+ gradually privatized. As a result, the Greek government currently holds 10% of the company's stock. Along with the rest of the telecoms
+ market, OTE is regulated by the National Telecommunications and Post Commission (Εθνική Επιτροπή Τηλεπικοινωνιών και
+ Ταχυδρομείων – EETT). In 2007 Marfin Investment Group acquired 20% of the company, and in March 2008 sold it to Germany's
+ Deutsche Telekom which later increased its stake to 25% plus
+ [6]: federal German government postal administration created in 1947 as a successor to the Reichspost. It was also the major telephone
+ company in West Germany. On 1 July 1989, as part of a post office reform, Deutsche Bundespost was split into three entities, one being
+ Deutsche Telekom. On 1 January 1995, as part of another reform, Deutsche Bundespost Telekom became Deutsche Telekom AG, and
+ was privatized in 1996. As such, it shares a common heritage with the other privatized Deutsche Bundespost companies, Deutsche Post
+ (DHL) and Deutsche Postbank. Deutsche Telekom was the monopoly Internet service provider (ISP) for the German Internet
+ [7]: This was important because local telephone calls in Germany, including dialup access to ISPs, were not offered on a flat price per
+ call (i.e., unlimited) basis. The flat-rate service was also offered to customers with ISDN connections at the same price as for analog
+ service. In Spring 2001, T-Online announced the demise of the flat-rate dialup plan but offered a flat-rate DSL plan in its place. Deutsche
+ Telekom (T-Online) was the monopoly Internet Service Provider (ISP) for the German Internet until its privatization in 1995, and the
+ dominant ISP thereafter.
+ [8]: Telefónica Germany Telefónica Germany GmbH & Co. OHG (; also called Telefónica Deutschland ) is a provider of broadband,
+ landline and mobile telecommunications in Germany. The company trades as O2 (typeset as O) and O2 DSL (formerly Alice). The
+ company was renamed from Telefónica O2 Germany to Telefónica Germany on 1 April 2011 following the completion of a merger with
+ HanseNet. Telefónica Germany purchased E-Plus on 1 October 2014, unifying the business under O brand on 3 February 2016.
+ Telefónica Germany's main competitors are Telekom Deutschland (Deutsche Telekom's German private customer unit) and Vodafone.
+
+
+Figure 7: An example of the shared context. Based on this context, SCARLet synthesizes training data, as shown in
+Figure 8 and 9.
+
+
+
+
+                                                                     645
+                                                     Data of Long-form QA
+ Input: How did Deutsche Telekom become the largest telecommunications provider in Europe?
+
+
+ Ground Truth: Deutsche Telekom's journey to becoming the largest telecommunications provider in Europe is rooted in its
+ history and strategic decisions. Formed in 1996 from the privatization of the former state-owned monopoly Deutsche Bundespost,
+ Deutsche Telekom capitalized on its already extensive infrastructure and customer base in Germany. Initially, Deutsche
+ Bundespost was the major telephone company in West Germany, and its transformation into Deutsche Telekom allowed it to
+ leverage its established network and expertise. The company was the monopoly Internet service provider (ISP) for the German
+ Internet until its privatization, giving it a significant head start in the digital age.Deutsche Telekom's growth strategy involved
+ expanding its services and entering new markets. The company operates several subsidiaries worldwide, including the well-
+ known mobile communications brand T-Mobile, which has a strong presence in both Europe and the United States. This
+ international expansion was crucial in increasing its revenue and market share.Moreover, Deutsche Telekom's ability to adapt to
+ technological advancements played a significant role. For instance, the introduction of LTE internet access in 2010 and the
+ subsequent rollout of high-speed VDSL broadband network allowed the company to stay ahead of competitors in terms of
+ service offerings. Despite facing regulatory pressures and competition, Deutsche Telekom maintained a dominant position by
+ continuously upgrading its infrastructure and services.Another key factor was the partial state ownership, with the German
+ government holding a significant stake in the company. This relationship provided a level of stability and support that facilitated
+ long-term strategic planning and investment.Overall, Deutsche Telekom's combination of historical advantages, strategic
+ international expansion, technological innovation, and partial state support enabled it to grow into the largest
+ telecommunications provider in Europe by revenue.
+
+
+    Figure 8: The training data of long-form QA, synthesized by SCARLet based on the context in Figure 7.
+
+
+
+
+        Data of Multi-hop QA                       Data of Fact Checking                            Data of Slot Filling
+ Input: Which company acquired a           Input: Deutsche Telekom was formed         Input: Deutsche Telekom [SEP] headquarters.
+ significant share of OTE in March         in 1984.
+ 2008?
+                                                                                      Ground Truth: Bonn
+                                           Ground Truth: REFUTES
+ Ground Truth: Deutsche Telekom
+
+
+Figure 9: The training data of multi-hop QA, fact checking and slot filling, synthesized by SCARLet based on the
+context in Figure 7.
+
+
+
+
+                                                                646
+You are a strong expert of data synthesis. Below, I will provide the context, the
+description and an example of the target task. Your task is to generate a piece of data for
+the target task based on the given context. The sections marked with ====xxx begins==== and
+====xxx ends==== indicate the start and end of each respective part. Please note that the
+data you generate must meet the following criteria:
+1. Correctness, which must be logically correct and factually correct.
+2. Faithfulness, which must be faithful to the context.
+3. Quality, which must be thoughtful and sophisticated, ideally based on multiple
+paragraphs where applicable.
+
+Please note that the generated data should follow this specific format:
+====New data begins====
+Input:
+Reference output:
+====New data ends====
+
+====Context begins====
+{context}
+====Context ends====
+
+====Target task description begins====
+{task_description}
+====Target task description ends====
+
+====Target task example begins====
+Input: {task_example_input}
+Reference output: {task_example_output}
+====Target task example ends====
+
+Please ensure that your output matches the instructions above.
+
+                         Table 9: The prompt template for data synthesis.
+
+
+
+
+You are tasked with checking whether the following synthetic data of {task_name} task is
+logically correct and formatted correctly. The data consists of five parts: task
+description, example, input, output, source passages. The input and output of the synthetic
+data are based on the source passages. And a reasonable example of {task_name} task is
+provided, note that it is not based on source passages. Please check the following:
+1. Logical Correctness: Check whether the output correctly solves the input based on the
+source passages.
+2. Format Correctness: Check whether the input and output of the synthetic data conform to
+the correct format presented in the task description and the example.
+
+Task description: {task_description}
+
+Example:
+Input: {task_example_input}
+Output: {task_example_output}
+
+Now, please check the following synthetic data based on source passages:
+
+Input: {input}
+Output: {output}
+Source passages: {context}
+
+Please note that if the above synthetic data basically meets the requirements, output
+"[YES]", otherwise output "[NO]".
+
+                         Table 10: The prompt template for data filtering.
+
+
+
+                                               647
+      You are a strong expert of data processing. You are tasked with data augmentation to
+      generate noisy data to enhance training robustness. Below, I will provide you with a piece
+      of data, including task description, input, and ground truth. Then I will provide you with
+      the context containing the necessary information to solve the input. You need to deeply
+      understand the data and the context, and finally generate a passage which is a variant of
+      one passage of the context. The generated passage needs to be semantically relevant while
+      providing no practical effect in solving the input.
+
+      Data:
+      Input: {data_input}
+      Ground truth: {data_output}
+
+      Context: {context}
+
+      Please ensure that the generated passage matches the length of the passages in the context
+      and is a modified version of its original passage. And the generated passage must follow
+      the format, which is marked with ====Generated passage begins==== and ====Generated passage
+      ends==== at its start and end.
+
+                               Table 11: The prompt template for passages enhancement.
+
+
+
+                                                  NQ          HotpotQA      ELI5         FEVER       WoW        T-REx
+                                                  Entities Extraction
+   Loss Rate                                   12.2%         0.6%     24.1%              5.1%       17.1%        9.2%
+   Averaged Number of Entities                   1.7          3.4       5.8               2.0        5.1          1.8
+                                                  Entities Retrieval
+   Expansion Rate                              91.0%        90.5%     96.0%              89.1%      97.5%       98.0%
+   Averaged Number of New Entities               5.1          6.5      17.1               3.7        14.9        5.2
+   Averaged Number of Entities                   6.3          9.3      22.2               5.3        19.6        6.9
+                                                    Data Synthesis
+   Number of Synthetic Data                     5230         5950      4492              5580        4872        5317
+   Loss Rate                                   12.8%         0.8%     25.1%              7.0%       18.8%       11.4%
+
+Table 12: Meta data from the synthesis pipeline of one run in our experiment. Loss Rate means the proportion of
+discarded data caused by the process. Expansion Rate means the proportion of data with new entities added. In this
+run, the data filtering achieves a loss rate of 44.2%, and the total amount of data used for utility attribution is 17,529.
+
+
+                                             In-domain                                       Out-of-domain
+  Method
+                        NQ     HotpotQA    ELI5    FEVER WoW T-REx               zs-RE    SciFact    C-FEVER       FiQA
+                                                  LLaMA-3-8B-Instruct
+  Contriever            44.0     36.7      14.5     79.2    8.6      33.8         20.9      68.1        38.0       16.5
+  BGE                   48.0     45.4      15.2     85.6    8.8      39.6         24.1      80.2        45.9       20.8
+  AARContriever         46.2     41.8      15.0     77.8    8.2      35.1         24.2      70.3        42.6       16.7
+  R E P LUGContriever   44.5     39.7      13.8     81.3    9.2      33.7         23.6      72.9        41.0       18.8
+  SCARLetContriever     45.1     42.0      15.9     80.6     10.4      36.4       22.2      74.7        42.0       17.7
+  SCARLetBGE            49.8     48.3      16.6     81.2     12.7      37.0       24.7      81.5        45.9       23.1
+                                                   Qwen2.5-3B-Instruct
+  Contriever            31.9     28.5      14.2     67.1     10.5      27.1       14.0      66.5        32.8       15.5
+  BGE                   48.5     44.0      13.7     80.4     10.2      34.5       18.6      65.5        37.1       18.6
+  AARContriever         34.8     30.9      13.8     66.2     10.6      28.3       15.5      63.2        32.0       16.3
+  R E P LUGContriever   34.2     35.8      14.0     71.2     12.8      26.8       16.9      60.6        30.9       18.7
+  SCARLetContriever     39.3     36.0      14.4        70.0      11.9    28.2     19.1      64.9        31.8       17.3
+  SCARLetBGE            45.1     44.7      15.6        74.1      12.3    30.1     18.7      64.4        36.3       20.5
+
+Table 13: Results of the main experiment in the pooled corpus setup. The unified corpus includes corpora of
+Wikipedia dump, BeIR-SciFact, BeIR-ClimateFEVER and BeIR-FiQA.
+
+                                                              648
+

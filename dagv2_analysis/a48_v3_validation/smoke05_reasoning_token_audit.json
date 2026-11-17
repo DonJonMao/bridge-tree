@@ -1,0 +1,223 @@
+{
+  "scope": "Read-only existing smoke05 responses and existing offline reconstructed terminal payload; no service calls. Descriptive ratios are not tokenizer calibration.",
+  "source_hashes_match_smoke": true,
+  "successful_reasoning_responses": 10,
+  "cached_wire_counts_verified": 10,
+  "all_finish_reason_stop": true,
+  "statistics": {
+    "local_input": {
+      "min": 2918,
+      "max": 11862,
+      "mean": 7839.3,
+      "sum": 78393
+    },
+    "provider_prompt": {
+      "min": 1926,
+      "max": 8013,
+      "mean": 5259,
+      "sum": 52590
+    },
+    "local_minus_provider": {
+      "min": 992,
+      "max": 3973,
+      "mean": 2580.3,
+      "sum": 25803
+    },
+    "local_div_provider": {
+      "min": 1.448474,
+      "max": 1.570072,
+      "mean": 1.502161
+    },
+    "provider_completion": {
+      "min": 254,
+      "max": 624,
+      "mean": 385.7,
+      "sum": 3857
+    }
+  },
+  "failed_terminal": {
+    "operation": "semantic_compose",
+    "failure_location": "local JointReader._fits before Reasoner.request/HTTP",
+    "provider_prompt_tokens": null,
+    "actual_service_fit": "unknown; no request was sent",
+    "canonical_payload_sha256": "83c91be766997d4bfa70e37c62b1c24e4fd413f6cbd454bd9edae0b93cd4d242",
+    "context_limit": 16384,
+    "input_estimate": 12502,
+    "repair_envelope_input_estimate": 12875,
+    "output_token_reserve": 4096,
+    "input_margin": 256,
+    "envelope_extra": 8,
+    "main_estimated_total": 16862,
+    "main_over_limit": 478,
+    "with_repair_estimated_total": 17235,
+    "with_repair_over_limit": 851,
+    "estimator_components": {
+      "regex_word_or_punctuation": 11080,
+      "ceil_utf8_bytes_div3": 12502
+    },
+    "source_spans": 47,
+    "document_metadata_rows": 15,
+    "known_observations": 3,
+    "unread_window_obligations": 129,
+    "failed_obligations": 0,
+    "wire_field_utf8_bytes": {
+      "original_question": 105,
+      "task": 240,
+      "grounded_subquestion": 416,
+      "request_context": 308,
+      "variables": 205,
+      "requested_slots": 47,
+      "required_scope": 46,
+      "output_contract": 110,
+      "program_revision": 1,
+      "rule_binding": 4,
+      "supported_parents": 702,
+      "known_observations": 3184,
+      "source_spans": 14886,
+      "rules_completion_required": 5,
+      "supported_task_outputs": 2,
+      "public_output_question": 105,
+      "public_options": 1780,
+      "terminal_expression": 30,
+      "source_documents": 3739,
+      "source_span_columns": 75
+    },
+    "terminal_input_record_is_null": true,
+    "semantic_request_sent": false
+  },
+  "conclusion": "The recorded rejection is local heuristic preflight, not a provider context error. Successful requests show local overestimation, but do not establish actual token count/fit of the rejected payload. Even removing only the provisional repair envelope leaves the main local total above 16K. Keep the common cap; diagnose with the deployed tokenizer/chat template or verified server tokenization, not a ratio or assumed reduced output reserve.",
+  "requests": [
+    {
+      "unit_id": "2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0",
+      "operation": "planner",
+      "call_index": 1,
+      "input_tokens_local": 2920,
+      "provider_prompt_tokens": 1927,
+      "local_minus_provider": 993,
+      "local_div_provider": 1.515309,
+      "provider_completion_tokens": 393,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0",
+      "operation": "joint_read",
+      "call_index": 2,
+      "input_tokens_local": 11749,
+      "provider_prompt_tokens": 8013,
+      "local_minus_provider": 3736,
+      "local_div_provider": 1.466242,
+      "provider_completion_tokens": 301,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0",
+      "operation": "joint_read",
+      "call_index": 3,
+      "input_tokens_local": 9049,
+      "provider_prompt_tokens": 6181,
+      "local_minus_provider": 2868,
+      "local_div_provider": 1.464003,
+      "provider_completion_tokens": 624,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0",
+      "operation": "joint_read",
+      "call_index": 4,
+      "input_tokens_local": 11750,
+      "provider_prompt_tokens": 8007,
+      "local_minus_provider": 3743,
+      "local_div_provider": 1.467466,
+      "provider_completion_tokens": 421,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0",
+      "operation": "joint_read",
+      "call_index": 5,
+      "input_tokens_local": 9825,
+      "provider_prompt_tokens": 6783,
+      "local_minus_provider": 3042,
+      "local_div_provider": 1.448474,
+      "provider_completion_tokens": 420,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0",
+      "operation": "planner",
+      "call_index": 1,
+      "input_tokens_local": 2918,
+      "provider_prompt_tokens": 1926,
+      "local_minus_provider": 992,
+      "local_div_provider": 1.515057,
+      "provider_completion_tokens": 294,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0",
+      "operation": "joint_read",
+      "call_index": 2,
+      "input_tokens_local": 11862,
+      "provider_prompt_tokens": 7889,
+      "local_minus_provider": 3973,
+      "local_div_provider": 1.503613,
+      "provider_completion_tokens": 259,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0",
+      "operation": "joint_read",
+      "call_index": 3,
+      "input_tokens_local": 7631,
+      "provider_prompt_tokens": 5007,
+      "local_minus_provider": 2624,
+      "local_div_provider": 1.524066,
+      "provider_completion_tokens": 254,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0",
+      "operation": "joint_read",
+      "call_index": 4,
+      "input_tokens_local": 5456,
+      "provider_prompt_tokens": 3475,
+      "local_minus_provider": 1981,
+      "local_div_provider": 1.570072,
+      "provider_completion_tokens": 441,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    },
+    {
+      "unit_id": "7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0",
+      "operation": "audit_joint",
+      "call_index": 5,
+      "input_tokens_local": 5233,
+      "provider_prompt_tokens": 3382,
+      "local_minus_provider": 1851,
+      "local_div_provider": 1.547309,
+      "provider_completion_tokens": 450,
+      "provider_reasoning_tokens": 0,
+      "finish_reason": "stop",
+      "output_reserve": 4096
+    }
+  ],
+  "network_calls": 0,
+  "evaluation_only_json_read": false
+}

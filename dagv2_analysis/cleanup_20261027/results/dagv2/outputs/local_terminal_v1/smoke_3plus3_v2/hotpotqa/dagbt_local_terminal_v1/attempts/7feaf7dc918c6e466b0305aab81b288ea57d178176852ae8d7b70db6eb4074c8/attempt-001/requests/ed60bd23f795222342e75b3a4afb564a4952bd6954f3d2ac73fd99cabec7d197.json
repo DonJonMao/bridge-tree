@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:26\", \"source_id\": \"hotpotqa:26\"}]\nClement Attlee\nClement Richard Attlee, 1st Earl Attlee, {'1': \", '2': \", '3': \", '4': \"} (3 January 1883 – 8 October 1967) was a British Labour politician who served as Prime Minister of the United Kingdom from 1945 to 1951 and Leader of the Labour Party from 1935 to 1955. In 1940, Attlee took Labour into the wartime coalition government and served under Winston Churchill, becoming the first person to hold the office of Deputy Prime Minister of the United Kingdom. He went on to lead the Labour Party to an unexpected landslide victory at the 1945 general election; forming the first Labour majority government, and a mandate to implement its postwar reforms. The 12.0% national swing from the Conservatives to Labour was unprecedented at that time and remains the largest ever achieved by any party at a general election in British electoral history. He was re-elected with a narrow majority at the 1950 general election. In the following year, Attlee called a snap general election, hoping to increase his parliamentary majority. However, he was narrowly defeated by the Conservatives under the leadership of Winston Churchill; despite winning the most votes of any political party in any general election in British political history until the Conservative Party's fourth consecutive victory in 1992. Attlee remains the longest-ever serving Leader of the Labour Party.\n\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "30",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600213.358228,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600214.324527
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.014559518620319442
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1338,
+      "completion_tokens": 2,
+      "total_tokens": 1340
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

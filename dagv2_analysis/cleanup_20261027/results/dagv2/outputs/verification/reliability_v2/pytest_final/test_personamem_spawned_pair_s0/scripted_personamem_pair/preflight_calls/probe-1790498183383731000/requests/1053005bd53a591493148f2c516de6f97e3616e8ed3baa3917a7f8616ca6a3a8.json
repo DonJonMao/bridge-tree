@@ -1,0 +1,42 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://127.0.0.1:53621/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "Personal memories: [No personal memories supplied.]"
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "1",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498183.3842502,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790498183.3851168
+    }
+  ],
+  "response": {
+    "model": "Qwen3-Reranker-8B",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.1
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-12",
+  "report": "/Users/mao/projects/dagv2-personamem-a48/docs/PREFERENCE_RAG_BASELINE_PROTOCOL_20261012.md",
+  "report_sha256": "d9d8af3d7517b75b1a66f197a3a7e348e83561db8107613b421662b105c4aa55",
+  "code_head": "da64d56250733bc7a87942f6a5389b04a00176bd",
+  "active_config": "configs/residual-memory.personamem16k.json",
+  "active_context_tokens": 16384,
+  "configuration_changed": true,
+  "external_baselines_implemented_in_runner": false,
+  "new_model_generations_in_research": 0,
+  "primary_baseline_candidates": [
+    "PersonaMem paper Dense RAG (message/top-5)",
+    "RF-Mem (turn-memory/top-10)"
+  ],
+  "no_unilateral_context_increase": true,
+  "not_a_paper_score_reproduction": true,
+  "current_smoke": "live_smoke_06: original 2 ok; residual 2 ok; one attempt per question/arm; no answer accuracy evaluation",
+  "evidence_notes": [
+    "personamem_paper_evidence.md",
+    "personamem_code_evidence.md",
+    "prefeval_settings.md",
+    "preference_rag_baseline_resource_alignment_20261012.md"
+  ],
+  "code_worktree_dirty": false,
+  "active_config_sha256": "ec4a7ddf03ccd83e5b04d85d063efb70f18efde5e5b710ae816fa4a06f972377",
+  "configuration_change_scope": "Added opt-in top-level tokenization field only; model, embedding, reranker, output reserve, LLM/ANN and context budgets unchanged.",
+  "research_generation_scope": "Literature and readonly tokenization research only; separate live smoke generated 18 chat responses.",
+  "current_smoke_model_generations": 18,
+  "current_smoke_token_counts_matched": 18,
+  "current_smoke_max_total_with_reserves": 16199,
+  "current_smoke_residual_llm_calls": [
+    4,
+    8
+  ],
+  "current_smoke_residual_ann_calls": [
+    1,
+    2
+  ],
+  "current_smoke_residual_audit_complete": [
+    true,
+    true
+  ],
+  "current_smoke_residual_failed_obligations": [
+    0,
+    0
+  ],
+  "current_smoke_labels_read": false,
+  "answer_accuracy_evaluated": false,
+  "validation_report": "/Users/mao/projects/dagv2_deploy/20261011_a48dc8d_v3/validation.json",
+  "validation_report_sha256": "5e4e77e53f4295527de8380ae119d4d78bbdcf41dc26debf7151db6e0745b5ff",
+  "smoke_manifest": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/manifest.json",
+  "smoke_manifest_sha256": "6ff5e7f6e199072a112e77acb17cb2ca9e376ecd2c65a66c4f43c33ef49c3233",
+  "tested_source_hashes_sha256": "9aa19255d90c10a8f95a9fc0cce49bc6b82c556eab5ef2cead2593e9d8cd8f10",
+  "tested_source_identity": "Smoke source hashes exactly match the committed production source; collector verified identity.",
+  "tokenization_auxiliary_cost": {
+    "logical_calls": 1406,
+    "cache_hits": 362,
+    "http_attempts": 1044,
+    "successful_http_requests": 1044,
+    "failed_counts": 0,
+    "observed_seconds": 103.59321351605467
+  },
+  "limitations": [
+    "Two questions validate execution, not full-dataset reliability or answer accuracy.",
+    "No generation/embedding model, service endpoint, credential, output reserve or per-question call/context budget was changed; a new opt-in tokenization endpoint/profile was added.",
+    "Server counts match observed prompt usage; deployed weights, tokenizer identity and future server-template stability are not independently pinned.",
+    "Server max_model_len is capability metadata; the experiment remains at 16384.",
+    "Original frozen internal regex prechecks remain potentially more conservative; only the final adapted chat gate shares deployment counting.",
+    "Tokenization requests and latency are reported separately from generation/embedding usage.",
+    "Packaged embedding tokenizer is empirically matched, not a verified server-side tokenizer/weights hash."
+  ]
+}

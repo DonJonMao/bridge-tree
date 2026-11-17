@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:5320\", \"source_id\": \"hotpotqa:5320\"}]\nWilliam Bromley-Davenport (British Army officer)\nBrigadier-General Sir William Bromley-Davenport, (21 January 1862 – 6 February 1949) was a British soldier, footballer and Conservative politician. He fought with distinction in both the Second Boer War and the First World War. An MP from 1886 to 1906, he held political office under Arthur Balfour as Financial Secretary to the War Office from 1903 to 1905.\n\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:1702\", \"source_id\": \"hotpotqa:1702\"}]\nRobert Gascoyne-Cecil, 3rd Marquess of Salisbury\nRobert Arthur Talbot Gascoyne-Cecil, 3rd Marquess of Salisbury, {'1': \", '2': \", '3': \", '4': \"} (3 February 183022 August 1903), styled Lord Robert Cecil before 1865 and Viscount Cranborne from June 1865 until April 1868, was a British Conservative statesman, serving as prime minister three times for a total of over 13 years. He was the last prime minister to head his full administration from the House of Lords.\n\n[Passage {\"doc_id\": \"hotpotqa:5320\", \"source_id\": \"hotpotqa:5320\"}]\nWilliam Bromley-Davenport (British Army officer)\nBrigadier-General Sir William Bromley-Davenport, (21 January 1862 – 6 February 1949) was a British soldier, footballer and Conservative politician. He fought with distinction in both the Second Boer War and the First World War. An MP from 1886 to 1906, he held political office under Arthur Balfour as Financial Secretary to the War Office from 1903 to 1905.\n\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "49",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600239.7701209,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600241.586935
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9820137876691548
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.9783846678676152
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2764,
+      "completion_tokens": 4,
+      "total_tokens": 2768
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

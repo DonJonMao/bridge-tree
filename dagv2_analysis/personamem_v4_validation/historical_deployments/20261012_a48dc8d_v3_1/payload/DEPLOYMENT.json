@@ -1,0 +1,3398 @@
+{
+  "schema": "dagbt_standalone_deployment_v1",
+  "source_commit": "a5b993a7d23cdd92c34b7ca45ebfb97b652a43e1",
+  "base_commit": "a48dc8da586c8f2c9858548dadcebde14aa9d9ed",
+  "branch": "fix/personamem-a48dc8d",
+  "release_date": "2026-10-11",
+  "algorithm_version": "dagbt_residual_memory_v1",
+  "config": "configs/residual-memory.example.json",
+  "arms": [
+    "original",
+    "dagbt_residual_memory_v1"
+  ],
+  "recommended_datasets": [
+    "personamem"
+  ],
+  "personamem_questions": 589,
+  "question_protocols": {
+    "original": "user_request_reasoning_mcq_reader_v2",
+    "dagbt_residual_memory_v1": "user_request_reasoning_structured_mcq_terminal_v3"
+  },
+  "validation": {
+    "base_commit": "da64d56250733bc7a87942f6a5389b04a00176bd",
+    "base_deployment_sha256": "59f51db1086ae9fdf521fd8050bc130d081b931414c08b1e5eabe0c6d7192909",
+    "uploaded_archive_sha256": "2df03ca7dee8cde6f49eef2c450e2a9fa3459f30e3468e8d18e839fd504f5760",
+    "diagnosis": {
+      "no_network_calls": true,
+      "evaluation_labels_read": false,
+      "scores_summary_comparisons_read": false,
+      "source_hashes_exactly_equal": true,
+      "source_hash_count": 100,
+      "config_exactly_equal": true,
+      "question_ids_exactly_equal": true,
+      "server_manifest_sha256": "b98849ff764857c9667ba3bb7cbbc3ca1ebfc4706bca10bcbc8b1caa8fb38100",
+      "local_manifest_sha256": "6ff5e7f6e199072a112e77acb17cb2ca9e376ecd2c65a66c4f43c33ef49c3233",
+      "index_content_comparison": {
+        "identity": {
+          "same": true,
+          "value": "3ce2569a89e75445b89210b5b4913223e166ef0569297ced26d999bf1b9eadb7"
+        },
+        "corpus_sha256": {
+          "same": true,
+          "value": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60"
+        },
+        "document_ids_sha256": {
+          "same": true,
+          "value": "500fbf64013669eba422e275208ce5f9e50c8f3a1b28cd135a9175c0f87a163a"
+        },
+        "passages_sha256": {
+          "same": true,
+          "value": "29a3d3cd5ea3c09cf002eba485a5ccf45cecf95574ad5ea312ef7d97810b960c"
+        },
+        "dimensions": {
+          "same": true,
+          "value": 4096
+        },
+        "vectors_sha256": {
+          "same": true,
+          "value": "8d833166e96e0356cbc42e53826c09b8348cbba46d194af4406d63ed4254f9a2"
+        }
+      },
+      "index_manifest_caveat": "Whole manifests differ in machine paths, build time and ledger metadata; index identity and actual vectors hash match.",
+      "server": {
+        "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+        "result_sha256": "2ceec9a2f47971baaaa6eb0683b8e9f1a4337710234ab864b124cdd8e23ba9ba",
+        "event_file_sha256": "253675f5afd53dfc379d61ce4752ed46919a6afc13e49f258e15a72664361526",
+        "plan": {
+          "steps": [
+            {
+              "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+              "output_slot": "creative_interests",
+              "answer_type": "set",
+              "inputs": [],
+              "execution": "retrieval"
+            },
+            {
+              "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, time constraints)?",
+              "output_slot": "activity_preferences",
+              "answer_type": "record",
+              "inputs": [],
+              "execution": "retrieval"
+            },
+            {
+              "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+              "output_slot": "suggestion",
+              "answer_type": "text",
+              "inputs": [
+                "creative_interests",
+                "activity_preferences"
+              ],
+              "execution": "compose"
+            }
+          ],
+          "final_node_id": "suggestion",
+          "output_contract": {
+            "mode": "semantic",
+            "result_type": "text",
+            "entity_scope": "user",
+            "time_scope": "weekend",
+            "explanation": "semantic"
+          },
+          "program": {
+            "variables": {
+              "creative_interests": {
+                "type": "set",
+                "demand": "creative_interests",
+                "open": true
+              },
+              "activity_preferences": {
+                "type": "record",
+                "demand": "activity_preferences",
+                "open": true
+              },
+              "suggestion": {
+                "type": "text",
+                "demand": "suggestion",
+                "open": true
+              }
+            },
+            "expression": {
+              "op": "var",
+              "id": "suggestion"
+            },
+            "rules_complete": false
+          }
+        },
+        "calls": [
+          {
+            "stage": [
+              "planner",
+              "1"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+            "request_file_sha256": "af6b763c899898a532ae478a3ce842fec7981fb8951dd569ad7e2b35ea273eb3",
+            "raw_response_sha256": "cbb240e4b9bbf3a5c7cdd9289ddbf1ebdbfe7c3b572519f155945fa8f27fd6e3",
+            "scopes": []
+          },
+          {
+            "stage": [
+              "joint_read",
+              "2"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+            "request_file_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+            "raw_response_sha256": "233dc900efcc4b313236682a671fa9b2f17d3e0add42568a4af8b3e4b3b88297",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "past"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read_repair",
+              "3"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/377fa624bafddd46ad37b25381a33c3474fc1e45814001a0e70ad6273791e44f.json",
+            "request_file_sha256": "9bb9680ab62e1b9fbf88621ee5ef3bc09479f6ddebd63f089e7ef37c6f00d49e",
+            "raw_response_sha256": "15808a72eecc18598a1af4bf06803580187c2b4ad57d9038a8ca1294dbb09c89",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "past"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read_repair",
+              "4"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/258d299de8185e129601b9f76b1c0dd4e5a85ac0dcec871e0d147f9385a8303b.json",
+            "request_file_sha256": "5503a3c37701002bb48f53059ae93c810dc5cda814de895efdb3403f8c15626e",
+            "raw_response_sha256": "8af73b833811a431b7e160ed55ac57b127b791e8455c5c5ea0bfaa1be6352767",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "past"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "5"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/14e020ab97bae3e66df0988cd4cce2e878e2553cfbede4dd0de4253c71c80148.json",
+            "request_file_sha256": "3eac62305f8b8c4ddaa13e3df4177c92457fe08532c1e79e4155707c793f7b16",
+            "raw_response_sha256": "da60704aa89a0396b173f572d49b1c6c1586719ecbcf1dc812065616e057ae34",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "6"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/97be1a4b96a89e4708cea90205f8e8c08d7896be14809d500c93f70f45b2b8dd.json",
+            "request_file_sha256": "4a31209fff16d7db1fb6893fdbd7da82270a64a605f2f03a6266bb3363143c97",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "7"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/db2b3cc48034aa58938f99ea92430fbf46584969fc31ad191d940cfa914d13c5.json",
+            "request_file_sha256": "e469cc6eaa20f36658a12ad7517f237f6dfa015b1e72a6ee84274679785999d8",
+            "raw_response_sha256": "0ef194958494d43c17aecd1ba1590dc5cb52e1240f0c28e8843eab18644f26ec",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "8"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00313c04f33fe493eeb49528239f14b6c12486644d82f3804a6bf93ce2b983d9.json",
+            "request_file_sha256": "697abe15e3773c345644ea54d361f0ccfd0bef5e9831b90e07adef8244ee3551",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "9"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/affe977e6ba6a2121fb88790a5673af74206472bc284f264ff9b3894c3b1e0ae.json",
+            "request_file_sha256": "70455164e8b1ec79a8d432e4cfa3002e220adfa70a8968d9ee50b1d6f7d327d0",
+            "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "10"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/128c9bdff321334642a1241383edf763e7cdcd5d514f6a1b7663cd4e31c15a41.json",
+            "request_file_sha256": "9d2593024b34dd964601d3741be5f23c8865a227e392b5b6b4695606330ca81e",
+            "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "11"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/b2599609ae476b5c62037c208c850703eb38ef557d14564b20b937fdf394a52e.json",
+            "request_file_sha256": "c60ebf8cf73c8613963909fcbeb40d22e1081a9bb114d2ee5089b440b1ef1bee",
+            "raw_response_sha256": "790b23bd211b6158321b5b738c901cb4ef1279246afb7f89a94583dc3ee620d4",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "12"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/5bcc6ce2a68a24d3d5f403cd9c7772072f91138a3e0a9ff32551f3047f745d3e.json",
+            "request_file_sha256": "0cd83cc6a3b3eddbbfc6166c14cbbf1c0203d8661e65ce1a882a592e9fb08442",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "13"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e38101cd8f901e9d487d82772808b7b63eb5c1711f2071fc0c3947423cf4e67d.json",
+            "request_file_sha256": "7eb89964947b36e9e815daab3c0329e49c1aefbd82fabaddb8c7bc12b25591ac",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "14"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/366c62e21cdf2d82291655383ee79890bdf13702ddeef60fb7d60f3c4b67d3f4.json",
+            "request_file_sha256": "82639972afbb15970193418f12fa0281ccf13ab60545f02fdac903bcd1990967",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "15"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/ab977c337491a88096c59fd8ad80e751d7c9f163e59c4a65ede682d4047271ac.json",
+            "request_file_sha256": "f66f6eacc8d5a473cb00e0c01058e8eeec379bd8798bb9a70530d8cbee274643",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "16"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/1f56d970e39e29b5b35b1d1e2ec5239a83f9d2c4446c08b96b88c2bb957fa328.json",
+            "request_file_sha256": "5c84f328946689ae011dca710d7ba75ea01a3f09176cede38050841f62b7dc3e",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "17"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/269998853f1330c3ad2b50654165e95e75a8a9e7305ced52291c93c2c8adfe4f.json",
+            "request_file_sha256": "b9764ed254d3604497a73838dc51efc8161c96aeb70aacb87ffd36aa17befc9a",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "18"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/2aa4eda55031491b12df21b6e41e0b35250c1a701462314fe68aaac88ffe2170.json",
+            "request_file_sha256": "3897608fe9e1b2430cd122c7052d4ad120bafc190b084dacf7214093e448392c",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "19"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/4f996e30df10b67b2e485fc6f3511010a6c96a2b24d0a351d281d99d7a5bbcc7.json",
+            "request_file_sha256": "62fbd3097bdc7146aa7d56891044f19389afca1bb0057624159897a75ce40080",
+            "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_fb7d41930e592d0956d97329",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "status": "budget_exhausted",
+        "completion_kind": "incomplete",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6
+          },
+          "used": {
+            "llm": 19,
+            "http_attempts": 55,
+            "ann": 36,
+            "embedding_http": 36,
+            "json_repairs": 2
+          },
+          "remaining": {
+            "ann": 0,
+            "set_score": 0,
+            "llm": 5,
+            "reader": 0,
+            "json_repairs": 4
+          }
+        },
+        "pending_variables": [
+          "creative_interests"
+        ],
+        "failed_obligations": [
+          [
+            "6353f3af2f0557bebd32a4f9decbaf3076c87c37e949aeb8fd310f8f20eb2551",
+            "570274948631e47733e7e59293b3d5f0cfed0421a54a74268ab7723c1a609277",
+            [
+              "creative_interests"
+            ]
+          ]
+        ],
+        "failed_read_states": 118,
+        "event_counts": {
+          "tokenization_count": 732,
+          "reasoning_request_started": 19,
+          "model_context_budget": 19,
+          "budget_reserved": 148,
+          "http_response": 55,
+          "tokenization_usage_validation": 19,
+          "reasoning_response": 19,
+          "plan_frozen": 1,
+          "typed_dag_initialized": 1,
+          "residual_state": 1,
+          "navigation_query_view": 36,
+          "proxy_free_started": 1,
+          "bridge_step_completed": 36,
+          "joint_read_completed": 16,
+          "proxy_free_conditional_started": 35,
+          "proxy_free_conditional_completed": 35,
+          "terminal_published": 1
+        },
+        "bridge_node_counts": {
+          "creative_interests": 36
+        },
+        "timeline": [
+          {
+            "sequence": 18,
+            "elapsed_seconds": 12.736448287963867,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 1,
+            "local_candidates": 12,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 286,
+            "elapsed_seconds": 59.777536153793335,
+            "event": "joint_read_completed",
+            "source_count": 118,
+            "valid_rows": 0,
+            "complete": false,
+            "failed_slots": [
+              {
+                "variable": "creative_interests",
+                "id": "obs1",
+                "error": "Observation scope does not apply to this task"
+              }
+            ]
+          },
+          {
+            "sequence": 294,
+            "elapsed_seconds": 60.42440915107727,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 2,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 342,
+            "elapsed_seconds": 69.26303267478943,
+            "event": "joint_read_completed",
+            "source_count": 19,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 350,
+            "elapsed_seconds": 70.33312129974365,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 3,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 412,
+            "elapsed_seconds": 80.96423125267029,
+            "event": "joint_read_completed",
+            "source_count": 26,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 420,
+            "elapsed_seconds": 81.75739455223083,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 4,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 450,
+            "elapsed_seconds": 92.50528335571289,
+            "event": "joint_read_completed",
+            "source_count": 10,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 458,
+            "elapsed_seconds": 93.5391857624054,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 5,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 466,
+            "elapsed_seconds": 94.03737235069275,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 6,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 474,
+            "elapsed_seconds": 94.66914176940918,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 7,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 482,
+            "elapsed_seconds": 95.32266235351562,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 8,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 512,
+            "elapsed_seconds": 103.16347432136536,
+            "event": "joint_read_completed",
+            "source_count": 10,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 520,
+            "elapsed_seconds": 103.89598751068115,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 9,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 528,
+            "elapsed_seconds": 104.40616130828857,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 10,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 558,
+            "elapsed_seconds": 113.22725987434387,
+            "event": "joint_read_completed",
+            "source_count": 10,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 566,
+            "elapsed_seconds": 113.85586929321289,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 11,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 574,
+            "elapsed_seconds": 114.59104800224304,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 12,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 602,
+            "elapsed_seconds": 123.19636559486389,
+            "event": "joint_read_completed",
+            "source_count": 9,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 610,
+            "elapsed_seconds": 124.26401996612549,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 13,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 618,
+            "elapsed_seconds": 124.71596217155457,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 14,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 626,
+            "elapsed_seconds": 125.36117506027222,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 15,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 634,
+            "elapsed_seconds": 125.94909763336182,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 16,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 686,
+            "elapsed_seconds": 136.57941150665283,
+            "event": "joint_read_completed",
+            "source_count": 21,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 694,
+            "elapsed_seconds": 137.21657729148865,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 17,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 702,
+            "elapsed_seconds": 137.92159605026245,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 18,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 794,
+            "elapsed_seconds": 148.13990211486816,
+            "event": "joint_read_completed",
+            "source_count": 41,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 802,
+            "elapsed_seconds": 149.24587321281433,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 19,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 810,
+            "elapsed_seconds": 149.77705192565918,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 20,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 818,
+            "elapsed_seconds": 150.59221363067627,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 21,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 850,
+            "elapsed_seconds": 158.82667899131775,
+            "event": "joint_read_completed",
+            "source_count": 11,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 858,
+            "elapsed_seconds": 159.4909806251526,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 22,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 904,
+            "elapsed_seconds": 167.81866765022278,
+            "event": "joint_read_completed",
+            "source_count": 18,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 912,
+            "elapsed_seconds": 168.75079154968262,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 23,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 946,
+            "elapsed_seconds": 177.55959582328796,
+            "event": "joint_read_completed",
+            "source_count": 12,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 954,
+            "elapsed_seconds": 178.24913024902344,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 24,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 962,
+            "elapsed_seconds": 178.896821975708,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 25,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 970,
+            "elapsed_seconds": 179.8797926902771,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 26,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 978,
+            "elapsed_seconds": 181.2191207408905,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 27,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 986,
+            "elapsed_seconds": 183.5597152709961,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 28,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 994,
+            "elapsed_seconds": 186.16883277893066,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 29,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1028,
+            "elapsed_seconds": 194.28034019470215,
+            "event": "joint_read_completed",
+            "source_count": 12,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1036,
+            "elapsed_seconds": 197.17946434020996,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 30,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1044,
+            "elapsed_seconds": 202.0587718486786,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 31,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1078,
+            "elapsed_seconds": 210.39189910888672,
+            "event": "joint_read_completed",
+            "source_count": 12,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1086,
+            "elapsed_seconds": 216.321533203125,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 32,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1094,
+            "elapsed_seconds": 221.33857369422913,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 33,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1122,
+            "elapsed_seconds": 229.8787112236023,
+            "event": "joint_read_completed",
+            "source_count": 9,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1130,
+            "elapsed_seconds": 235.02724838256836,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 34,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1138,
+            "elapsed_seconds": 239.6867299079895,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 35,
+            "local_candidates": 4,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 1164,
+            "elapsed_seconds": 247.8501992225647,
+            "event": "joint_read_completed",
+            "source_count": 8,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1172,
+            "elapsed_seconds": 252.59298133850098,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 36,
+            "local_candidates": 4,
+            "search_status": "budget_exhausted"
+          }
+        ],
+        "all_chat_tokenization_matched": true,
+        "max_total_with_output_and_margins": 14744
+      },
+      "local_smoke06": {
+        "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+        "result_sha256": "eb7d1b88f8d470a5dcfed68459596ae881f5bac455949a2af68116cac9820924",
+        "event_file_sha256": "b793f11fa4e4fa06235873cdede237e42f1748150f64d60081e7e54714732873",
+        "plan": {
+          "steps": [
+            {
+              "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+              "output_slot": "creative_interests",
+              "answer_type": "set",
+              "inputs": [],
+              "execution": "retrieval"
+            },
+            {
+              "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, duration)?",
+              "output_slot": "activity_preferences",
+              "answer_type": "set",
+              "inputs": [],
+              "execution": "retrieval"
+            },
+            {
+              "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+              "output_slot": "suggestion",
+              "answer_type": "text",
+              "inputs": [
+                "creative_interests",
+                "activity_preferences"
+              ],
+              "execution": "compose"
+            }
+          ],
+          "final_node_id": "suggestion",
+          "output_contract": {
+            "mode": "semantic",
+            "result_type": "text",
+            "entity_scope": "user",
+            "time_scope": "weekend",
+            "explanation": "semantic"
+          },
+          "program": {
+            "variables": {
+              "creative_interests": {
+                "type": "set",
+                "demand": "creative_interests",
+                "open": true
+              },
+              "activity_preferences": {
+                "type": "set",
+                "demand": "activity_preferences",
+                "open": true
+              },
+              "suggestion": {
+                "type": "text",
+                "demand": "suggestion",
+                "open": true
+              }
+            },
+            "expression": {
+              "op": "var",
+              "id": "suggestion"
+            },
+            "rules_complete": false
+          }
+        },
+        "calls": [
+          {
+            "stage": [
+              "planner",
+              "1"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+            "request_file_sha256": "1167b9df8f4fe878e7c0e974ca5b1a8c2d73cdbfd49ddc994481ea9daa9662e8",
+            "raw_response_sha256": "ecbafa660645a9a96f47c38dbf4a3dcab07b2b276b08d984f4f13e4fb2ecfbf4",
+            "scopes": []
+          },
+          {
+            "stage": [
+              "joint_read",
+              "2"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/7ce165ed6eee30e8daf679c7baefe6da0e4078457119e0bf0f8fc7dc70fccc78.json",
+            "request_file_sha256": "2c3ab0ed55e43927e517dd605c4c8e0e9b17ba3acbd4d6e17b3d956befb50155",
+            "raw_response_sha256": "a8cbd649718b58dea8ee094148ab3bf0789ae892a39368c4e20785f8e9d6dbba",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "joint_read",
+              "3"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/cfa798f8502e2a98808c1578be789d277cb45e8476e9016ed6e81f9503e7e769.json",
+            "request_file_sha256": "2f6991c2833679e1f9238b83d3548bfbb24a5338bcccf739c276c415957d92f6",
+            "raw_response_sha256": "b03b16cb765d17db04a37c5b7873d4f80925d93c9ea39e04eaa444cb0fa79b9c",
+            "scopes": [
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "obs1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "semantic_compose",
+              "4"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e5588014d39b4c51c2004751b06f74f59053ec0f522bb93a6bb02f87f909c508.json",
+            "request_file_sha256": "641b754e391a8a55cfd4cdf6c8db2c0d1a7b2836c36adaa262fd21cd477ec0ec",
+            "raw_response_sha256": "a2fc3c37869d673862109276b26a72910bd6e3051ecfe7a65ef976a1e420ce16",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_268b46b040d32f1ddec93821",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "fact_96d8050f46103c4c27ee46d6",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "suggestion",
+                "observations": [
+                  {
+                    "id": "obs_suggestion_1",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "semantic_compose",
+              "5"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/df367bceba01e869b08ff12f4b8b604fdc8674393e12d8a4262f19a9feb54a10.json",
+            "request_file_sha256": "295471b25f99ec4b2d1dd03769a1d8f7fdf5b0c3986e0c5406b0d0b5f5309054",
+            "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_268b46b040d32f1ddec93821",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "fact_96d8050f46103c4c27ee46d6",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "suggestion",
+                "observations": [
+                  {
+                    "id": "fact_25ad92c9c59e6c96ec762629",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "semantic_compose",
+              "6"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e623225ae3bb9f65ed7db3a89b60fb35807a5f05de7e34c9f966a778c14c4624.json",
+            "request_file_sha256": "fabde50c93c1a52f9b3a88d35a7e76c812c46d155d0f93aba7a58d0c4f8a5d8d",
+            "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_268b46b040d32f1ddec93821",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "fact_96d8050f46103c4c27ee46d6",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "suggestion",
+                "observations": [
+                  {
+                    "id": "fact_25ad92c9c59e6c96ec762629",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "audit_joint",
+              "7"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/84b2cfc27b7c526c0e343268f9b4b08352fb736b27cb39b24283af501651c429.json",
+            "request_file_sha256": "101aeff5c21e5eb0ccde718a24f84ed5f8bedf6e17461ea2c98a7568c2c4609e",
+            "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_268b46b040d32f1ddec93821",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "fact_96d8050f46103c4c27ee46d6",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "suggestion",
+                "observations": [
+                  {
+                    "id": "fact_25ad92c9c59e6c96ec762629",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "stage": [
+              "audit_joint",
+              "8"
+            ],
+            "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00a71ac4b8b97a5914993d95e914b2ae68f2da41646b9f9d9c2ec85807a06c9b.json",
+            "request_file_sha256": "031a0a9aef8c55b4ce8d47cff162b0ad6e89c3b4ffaf2c89d4edbcd3190bbf53",
+            "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+            "scopes": [
+              {
+                "variable": "creative_interests",
+                "observations": [
+                  {
+                    "id": "fact_268b46b040d32f1ddec93821",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "activity_preferences",
+                "observations": [
+                  {
+                    "id": "fact_96d8050f46103c4c27ee46d6",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              },
+              {
+                "variable": "suggestion",
+                "observations": [
+                  {
+                    "id": "fact_25ad92c9c59e6c96ec762629",
+                    "stance": "support",
+                    "entity_scope": "user",
+                    "time_scope": "weekend"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "status": "ok",
+        "completion_kind": "semantic_assessment",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6
+          },
+          "used": {
+            "llm": 8,
+            "http_attempts": 10,
+            "ann": 2,
+            "embedding_http": 2
+          },
+          "remaining": {
+            "ann": 34,
+            "set_score": 0,
+            "llm": 16,
+            "reader": 0,
+            "json_repairs": 6
+          }
+        },
+        "pending_variables": [],
+        "failed_obligations": [],
+        "failed_read_states": 0,
+        "event_counts": {
+          "tokenization_count": 1102,
+          "reasoning_request_started": 8,
+          "model_context_budget": 8,
+          "budget_reserved": 22,
+          "http_response": 10,
+          "tokenization_usage_validation": 8,
+          "reasoning_response": 8,
+          "plan_frozen": 1,
+          "typed_dag_initialized": 1,
+          "residual_state": 4,
+          "navigation_query_view": 2,
+          "proxy_free_started": 2,
+          "bridge_step_completed": 2,
+          "joint_read_completed": 7,
+          "terminal_published": 1
+        },
+        "bridge_node_counts": {
+          "creative_interests": 1,
+          "activity_preferences": 1
+        },
+        "timeline": [
+          {
+            "sequence": 18,
+            "elapsed_seconds": 11.910734176635742,
+            "event": "bridge_step_completed",
+            "node_id": "creative_interests",
+            "ann_completed": 1,
+            "local_candidates": 12,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 264,
+            "elapsed_seconds": 42.996082067489624,
+            "event": "joint_read_completed",
+            "source_count": 118,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 272,
+            "elapsed_seconds": 43.40612196922302,
+            "event": "bridge_step_completed",
+            "node_id": "activity_preferences",
+            "ann_completed": 1,
+            "local_candidates": 12,
+            "search_status": "batch_completed"
+          },
+          {
+            "sequence": 514,
+            "elapsed_seconds": 84.06639313697815,
+            "event": "joint_read_completed",
+            "source_count": 116,
+            "valid_rows": 1,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 681,
+            "elapsed_seconds": 145.31132102012634,
+            "event": "joint_read_completed",
+            "source_count": 78,
+            "valid_rows": 3,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 801,
+            "elapsed_seconds": 201.43493700027466,
+            "event": "joint_read_completed",
+            "source_count": 56,
+            "valid_rows": 3,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 855,
+            "elapsed_seconds": 250.83752703666687,
+            "event": "joint_read_completed",
+            "source_count": 23,
+            "valid_rows": 3,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1040,
+            "elapsed_seconds": 309.43246507644653,
+            "event": "joint_read_completed",
+            "source_count": 87,
+            "valid_rows": 3,
+            "complete": true,
+            "failed_slots": []
+          },
+          {
+            "sequence": 1184,
+            "elapsed_seconds": 368.9859631061554,
+            "event": "joint_read_completed",
+            "source_count": 68,
+            "valid_rows": 3,
+            "complete": true,
+            "failed_slots": []
+          }
+        ],
+        "all_chat_tokenization_matched": true,
+        "max_total_with_output_and_margins": 16199
+      },
+      "root_cause": "Global terminal user/weekend scope was applied to the intermediate task asking for past creative interests. Uploaded calls 2/3/4 preserved user/past and failed validation. Local smoke06 call 2 returned user/weekend and passed the same validator.",
+      "failure_amplification": "The first failed source-window obligation remains pending; its 118 aliases become invalid read_states and ordinary reads do not reopen them. Later 15 independently valid windows cannot erase a failed counter obligation. Controller restarts at first active DAG step, so creative_interests consumes all 36 ANN calls; other nodes never run.",
+      "bounded_fix": "Declare intermediate variable scope before retrieval and validate each observation against its own scope, while retaining terminal output scope. Do not clear failed counter obligations, relabel historical evidence as weekend, increase budgets or silently accept an incomplete answer.",
+      "limits": [
+        "This diagnosis does not evaluate answer correctness.",
+        "Scope declaration replay is an explicit counterfactual protocol check, not a claim the corrected planner produced that declaration live.",
+        "Scheduler behavior is documented separately; no scheduler change is part of this scope fix."
+      ]
+    },
+    "diagnosis_report_sha256": "11ab6ce45e4dd31f21227d1e80abb7380558c38048602d98fc013aa9815c2b61",
+    "exact_response_replay": {
+      "passed": true,
+      "checks": {
+        "all_118_visible_sources_match_unchanged_authoritative_corpus": true,
+        "archived_global_weekend_validator_rejects_exact_past_response": true,
+        "predeclared_user_past_accepts_exact_original_response_without_relabeling": true,
+        "original_observation_value_reason_and_sources_unchanged": true,
+        "terminal_contract_remains_user_weekend": true,
+        "payload_requests_local_scope_and_preserves_terminal_contract": true,
+        "wrong_user_observation_rejected": true,
+        "wrong_future_observation_rejected": true,
+        "terminal_declaration_scope_mismatch_rejected": true,
+        "corrected_predeclared_scope_plan_passes_real_planner_validator": true,
+        "planner_terminal_scope_mismatch_rejected": true,
+        "terminal_observation_scope_mismatch_rejected": true,
+        "wrong_scope_direct_state_integration_rejected_without_mutation": true,
+        "wrong_scope_restored_route_rejected_without_mutation": true,
+        "restored_predeclared_scope_change_rejected_without_mutation": true,
+        "valid_scoped_state_roundtrip_preserves_original_fact_and_contract": true,
+        "node_scope_metadata_preserves_past_instead_of_terminal_weekend": true,
+        "old_scope_and_revision_stale_routes_excluded_from_node_alternatives": true
+      },
+      "no_network_calls": true,
+      "blocked_network_attempts": 0,
+      "evaluation_labels_read": false,
+      "scores_summary_comparisons_read": false,
+      "original_request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+      "original_request_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+      "original_raw_response_sha256": "233dc900efcc4b313236682a671fa9b2f17d3e0add42568a4af8b3e4b3b88297",
+      "original_parsed_observation_sha256": "a2e5e0199cfefc53334377fa47d4f9bb9afaad1743f2f7bf7560b244cf7cb346",
+      "original_source_wire_sha256": "abeaa9d80660593295dfc91b751a03729d8199455bd10fbb1a06a59db13c2a07",
+      "authoritative_corpus_sha256": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60",
+      "visible_source_count": 118,
+      "original_source_registry_sha256": "4468d5f51e0a343fe5b0661ec80f0cf358d4fe43bbf0c656f827725ed796a74c",
+      "archived_code_head": "da64d56250733bc7a87942f6a5389b04a00176bd",
+      "archived_joint_reading_sha256": "389e9b90e93a48e0a00ef7adc6c14c26b04ac23d6cbb00cd467789432f2f3aae",
+      "tested_source_hashes": {
+        "joint_reading.py": "77337892d94e0d0d6ef74da870ef01dc812ccd3912c59db73ff0faad48d5aabb",
+        "fact_state.py": "08bdc7b4c3cb79bf2503d71ce68d4adc350a902fc05a40cb5aa3ac7800e1b672",
+        "residual.py": "893b6cd0e2b50fa6ad013a5961785534283f7487ecf5750b62c198ba3269cada",
+        "residual_plan.py": "7094954b2083ad1ad74be0a931660983e82a0bc1463f1d0a16fdd3864aec4131",
+        "residual_control.py": "f60aabfc195c764962c0962964374c0c615871c522c20e362565a28de973ba8e"
+      },
+      "legacy_validation_error": "Observation scope does not apply to this task",
+      "negative_validation_errors": {
+        "wrong_user": "Observation scope does not apply to declared variable creative_interests",
+        "wrong_future": "Observation scope does not apply to declared variable creative_interests",
+        "terminal_declaration_mismatch": "Terminal variable scope must match the immutable output contract",
+        "planner_terminal_scope_mismatch": "Terminal variable scope must match the immutable output contract",
+        "terminal_observation_mismatch": "Observation scope does not apply to declared variable suggestion",
+        "direct_state_integration_mismatch": "Observation scope does not match its declared variable scope",
+        "restored_route_scope_mismatch": "Resumed observation scope differs from its declared variable scope",
+        "restored_variable_scope_mismatch": "Resume cannot change a predeclared variable identity or scope"
+      },
+      "scope_declaration_change": {
+        "creative_interests": {
+          "entity_scope": "user",
+          "time_scope": "past"
+        },
+        "suggestion": {
+          "entity_scope": "user",
+          "time_scope": "weekend"
+        }
+      },
+      "terminal_contract": {
+        "mode": "semantic",
+        "result_type": "text",
+        "entity_scope": "user",
+        "time_scope": "weekend",
+        "explanation": "semantic"
+      },
+      "scope": "Deterministic offline observation validator replay using exact uploaded first response and authoritative original sources; explicit predeclared scope counterfactual, not model-generated corrected planner or full-run accuracy.",
+      "semantic_limit": "Acceptance proves protocol/source-coordinate compatibility, not that every value is semantically correct or current. No calendar date is inferred from observation indices."
+    },
+    "pytest": {
+      "passed": 1093,
+      "skipped": 92,
+      "warnings": 69,
+      "seconds": 58.26,
+      "log_sha256": "d655feb3af80de38a1b46280a82c6aeeb9969820da82044f12c751bfab61a8d4"
+    },
+    "preceding_pytest_failure": {
+      "test": "tests/test_paired_runner.py::test_stop_foreground_relative_output_path",
+      "log_sha256": "b8bb1281bf09ee7012387a5650a518589b6628bddfa505c4a1ca37b5a7bea4b8",
+      "focused_rerun_log_sha256": "5beef0f5d302fb12666a7ce7ac1117654f854b8eed2924bb1a949e6a3bd31241",
+      "note": "Initial full run: 1 failed, 1092 passed, 92 skipped. Existing offline worker start/stop race timed out; fixture log showed joining a not-yet-started process. Single focused rerun passed without source changes. Final full-suite result is recorded separately."
+    },
+    "schema_supplement": {
+      "passed": 130,
+      "skipped": 0,
+      "log_sha256": "8afc0352e70cf213d9fc4ae664e0629e7c602d835e95452fcae34719d5f5f746",
+      "scope": "All 92 optional JSON Schema skips plus 38 overlapping checks run with the validator installed."
+    },
+    "original_integrity": {
+      "checked": 54,
+      "label_hash_checks_deferred_until_scoring": [
+        "data/2wikimultihopqa/evaluation_only.json",
+        "data/hotpotqa/evaluation_only.json",
+        "data/musique/evaluation_only.json"
+      ]
+    },
+    "source_hashes_match_live_validation": true,
+    "config_unchanged_from_uploaded_v3": true,
+    "unchanged_budgets": {
+      "context_tokens": 16384,
+      "llm_calls": 24,
+      "ann_calls": 36,
+      "reasoning_output_tokens": 4096,
+      "input_margin": 256,
+      "json_repairs": 6,
+      "max_repairs_per_request": 2
+    },
+    "real_service_smoke": {
+      "question_attempts": 1,
+      "status_counts": {
+        "original": {
+          "ok": 2
+        },
+        "dagbt_residual_memory_v1": {
+          "ok": 2
+        }
+      },
+      "rows": [
+        {
+          "arm": "original",
+          "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+          "status": "ok",
+          "seconds": 14.604746499913745,
+          "chat_records": 4,
+          "max_prompt_tokens": 8458,
+          "max_total_with_reserves": 9490,
+          "tokenization_auxiliary_cost": {
+            "logical_calls": 4,
+            "cache_hits": 0,
+            "http_attempts": 4,
+            "http_retries": 0,
+            "failed_http_attempts": 0,
+            "successful_http_requests": 4,
+            "failed_counts": 0,
+            "observed_seconds": 0.45534308394417167,
+            "malformed_event_lines": 0,
+            "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+          },
+          "api_cost_excluding_tokenization": {
+            "physical_llm_attempts": 4,
+            "physical_reader_attempts": 0,
+            "prompt_tokens": 24362,
+            "completion_tokens": 255,
+            "total_tokens": 24617,
+            "token_usage_complete": true
+          }
+        },
+        {
+          "arm": "original",
+          "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+          "status": "ok",
+          "seconds": 8.049499499960802,
+          "chat_records": 3,
+          "max_prompt_tokens": 9179,
+          "max_total_with_reserves": 10211,
+          "tokenization_auxiliary_cost": {
+            "logical_calls": 3,
+            "cache_hits": 0,
+            "http_attempts": 3,
+            "http_retries": 0,
+            "failed_http_attempts": 0,
+            "successful_http_requests": 3,
+            "failed_counts": 0,
+            "observed_seconds": 0.33311962499283254,
+            "malformed_event_lines": 0,
+            "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+          },
+          "api_cost_excluding_tokenization": {
+            "physical_llm_attempts": 3,
+            "physical_reader_attempts": 0,
+            "prompt_tokens": 16999,
+            "completion_tokens": 116,
+            "total_tokens": 17115,
+            "token_usage_complete": true
+          }
+        },
+        {
+          "arm": "dagbt_residual_memory_v1",
+          "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+          "status": "ok",
+          "seconds": 73.9689076669747,
+          "chat_records": 4,
+          "max_prompt_tokens": 10340,
+          "max_total_with_reserves": 14700,
+          "audit_complete": true,
+          "failed_obligations": 0,
+          "variable_scopes": {
+            "recent_events": {
+              "entity_scope": "event",
+              "time_scope": "recent"
+            },
+            "target_event": {
+              "entity_scope": "event",
+              "time_scope": "recent"
+            }
+          },
+          "terminal_scope": {
+            "entity_scope": "event",
+            "time_scope": "recent"
+          },
+          "ledger_used": {
+            "llm": 4,
+            "http_attempts": 5,
+            "ann": 1,
+            "embedding_http": 1
+          },
+          "tokenization_auxiliary_cost": {
+            "logical_calls": 298,
+            "cache_hits": 47,
+            "http_attempts": 251,
+            "http_retries": 0,
+            "failed_http_attempts": 0,
+            "successful_http_requests": 251,
+            "failed_counts": 0,
+            "observed_seconds": 21.233058210811578,
+            "malformed_event_lines": 0,
+            "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+          },
+          "api_cost_excluding_tokenization": {
+            "physical_llm_attempts": 4,
+            "physical_reader_attempts": 0,
+            "prompt_tokens": 19988,
+            "completion_tokens": 1700,
+            "total_tokens": 21688,
+            "token_usage_complete": true
+          }
+        },
+        {
+          "arm": "dagbt_residual_memory_v1",
+          "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+          "status": "ok",
+          "seconds": 166.92171966691967,
+          "chat_records": 5,
+          "max_prompt_tokens": 10199,
+          "max_total_with_reserves": 14559,
+          "audit_complete": true,
+          "failed_obligations": 0,
+          "variable_scopes": {
+            "past_hobbies": {
+              "entity_scope": "user",
+              "time_scope": "past"
+            },
+            "current_preferences": {
+              "entity_scope": "user",
+              "time_scope": "present"
+            },
+            "suggestion": {
+              "entity_scope": "user",
+              "time_scope": "weekend"
+            }
+          },
+          "terminal_scope": {
+            "entity_scope": "user",
+            "time_scope": "weekend"
+          },
+          "ledger_used": {
+            "llm": 5,
+            "http_attempts": 7,
+            "ann": 2,
+            "embedding_http": 2
+          },
+          "tokenization_auxiliary_cost": {
+            "logical_calls": 806,
+            "cache_hits": 201,
+            "http_attempts": 605,
+            "http_retries": 0,
+            "failed_http_attempts": 0,
+            "successful_http_requests": 605,
+            "failed_counts": 0,
+            "observed_seconds": 54.884285164414905,
+            "malformed_event_lines": 0,
+            "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+          },
+          "api_cost_excluding_tokenization": {
+            "physical_llm_attempts": 5,
+            "physical_reader_attempts": 0,
+            "prompt_tokens": 41593,
+            "completion_tokens": 3368,
+            "total_tokens": 44961,
+            "token_usage_complete": true
+          }
+        }
+      ],
+      "labels_read": false,
+      "answer_accuracy_evaluated": false
+    },
+    "packaging_scaffold_verification": {
+      "passed": true,
+      "scope": "isolated offline fixture only",
+      "checks": [
+        "exact_base_reconstruction",
+        "active_writer_rejected",
+        "corrupted_payload_rejected",
+        "changed_base_rejected",
+        "partial_install_rollback",
+        "install_hashes_verified",
+        "idempotent_install",
+        "exact_archive_members_verified",
+        "unlisted_archive_file_rejected",
+        "stale_payload_removed",
+        "installer_templates_preserved",
+        "root_stray_file_excluded",
+        "duplicate_archive_member_rejected",
+        "symlink_archive_member_rejected",
+        "unsafe_and_symlink_paths_rejected"
+      ],
+      "production_release_built": false,
+      "network_calls": 0
+    },
+    "preceding_live_validation": {
+      "runs": [
+        {
+          "output": "live_smoke_01",
+          "counts": {
+            "execution_failed": 1,
+            "unresolved_or_exhausted": 2,
+            "ok": 1
+          },
+          "rows": [
+            {
+              "arm": "original",
+              "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+              "answer": {
+                "status": "execution_failed",
+                "prediction": "",
+                "error_type": "RuntimeError",
+                "error": "Question failed: {\"type\": \"task_error\", \"error_type\": \"TokenizationError\", \"error\": \"Deployment tokenization failed: connection_or_timeout\"}"
+              },
+              "errors": [],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 1,
+                "cache_hits": 0,
+                "http_attempts": 1,
+                "successful_http_requests": 0,
+                "failed_counts": 1,
+                "observed_seconds": 5.003976999898441,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "original",
+              "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+              "answer": {
+                "status": "ok",
+                "prediction": "(d)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 9075,
+                  "total_tokens": 9078,
+                  "completion_tokens": 3,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                },
+                "continued_after_length": false,
+                "response_refs": [
+                  "043b59758bc34346d37b23d9df657507c6407b53dd8eda6da89870da7c5938b7"
+                ],
+                "first_stage": {
+                  "status": "ok",
+                  "prediction": "(d)",
+                  "error": null,
+                  "finish_reason": "stop",
+                  "response_usage": {
+                    "prompt_tokens": 9075,
+                    "total_tokens": 9078,
+                    "completion_tokens": 3,
+                    "prompt_tokens_details": null,
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 0,
+                      "audio_tokens": null,
+                      "accepted_prediction_tokens": null,
+                      "rejected_prediction_tokens": null
+                    }
+                  }
+                }
+              },
+              "errors": [],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 3,
+                "cache_hits": 0,
+                "http_attempts": 3,
+                "successful_http_requests": 3,
+                "failed_counts": 0,
+                "observed_seconds": 5.538037125021219,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "dagbt_residual_memory_v1",
+              "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+              "answer": {
+                "status": "unresolved_or_exhausted",
+                "prediction": null,
+                "semantic_answer": null,
+                "answer_source": "dag_terminal",
+                "final_node_id": "event",
+                "output_identity": "b5dcdc96cc5cac09a327cb9b029f19160b678518c56db71a1ef730f7ca419207",
+                "sources": null,
+                "dependency_versions": {
+                  "event": 0
+                },
+                "completion_kind": "incomplete",
+                "certificate": null,
+                "program_revision": 0,
+                "terminal_input_doc_ids": [],
+                "certificate_source_ids": []
+              },
+              "errors": [
+                {
+                  "node_id": "event",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                }
+              ],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 66,
+                "cache_hits": 7,
+                "http_attempts": 59,
+                "successful_http_requests": 58,
+                "failed_counts": 1,
+                "observed_seconds": 48.99369578890037,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "dagbt_residual_memory_v1",
+              "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+              "answer": {
+                "status": "unresolved_or_exhausted",
+                "prediction": null,
+                "semantic_answer": null,
+                "answer_source": "dag_terminal",
+                "final_node_id": "suggestion",
+                "output_identity": "12df8e2d34830d791d66c3c6a689ea76dd70c8a3cc55e0b3354908be9f9795a7",
+                "sources": null,
+                "dependency_versions": {
+                  "past_hobbies": 0,
+                  "current_preferences": 0,
+                  "suggestion": 0
+                },
+                "completion_kind": "incomplete",
+                "certificate": null,
+                "program_revision": 0,
+                "terminal_input_doc_ids": [],
+                "certificate_source_ids": []
+              },
+              "errors": [
+                {
+                  "node_id": "past_hobbies",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                },
+                {
+                  "node_id": "current_preferences",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                }
+              ],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 135,
+                "cache_hits": 11,
+                "http_attempts": 124,
+                "successful_http_requests": 123,
+                "failed_counts": 2,
+                "observed_seconds": 117.13127583602909,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            }
+          ],
+          "same_scope_fix_source_and_config": true,
+          "tokenizer_transport_before_bounded_retries": true
+        },
+        {
+          "output": "live_smoke_02",
+          "counts": {
+            "ok": 2,
+            "unresolved_or_exhausted": 2
+          },
+          "rows": [
+            {
+              "arm": "original",
+              "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+              "answer": {
+                "status": "ok",
+                "prediction": "(b)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 8356,
+                  "total_tokens": 8362,
+                  "completion_tokens": 6,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                },
+                "continued_after_length": false,
+                "response_refs": [
+                  "9a1c15437c9aae38cbff1140026eeecd964a3220973c675a49f60472435bbb6c"
+                ],
+                "first_stage": {
+                  "status": "ok",
+                  "prediction": "(b)",
+                  "error": null,
+                  "finish_reason": "stop",
+                  "response_usage": {
+                    "prompt_tokens": 8356,
+                    "total_tokens": 8362,
+                    "completion_tokens": 6,
+                    "prompt_tokens_details": null,
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 0,
+                      "audio_tokens": null,
+                      "accepted_prediction_tokens": null,
+                      "rejected_prediction_tokens": null
+                    }
+                  }
+                }
+              },
+              "errors": [],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 3,
+                "cache_hits": 0,
+                "http_attempts": 3,
+                "successful_http_requests": 3,
+                "failed_counts": 0,
+                "observed_seconds": 1.2070713761495426,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "original",
+              "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+              "answer": {
+                "status": "ok",
+                "prediction": "(d)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 9198,
+                  "total_tokens": 9201,
+                  "completion_tokens": 3,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                },
+                "continued_after_length": false,
+                "response_refs": [
+                  "14ef7a5e2105a9ef10714689588f0497e97f097a9eed4f2dc1ad5a1351c32749"
+                ],
+                "first_stage": {
+                  "status": "ok",
+                  "prediction": "(d)",
+                  "error": null,
+                  "finish_reason": "stop",
+                  "response_usage": {
+                    "prompt_tokens": 9198,
+                    "total_tokens": 9201,
+                    "completion_tokens": 3,
+                    "prompt_tokens_details": null,
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 0,
+                      "audio_tokens": null,
+                      "accepted_prediction_tokens": null,
+                      "rejected_prediction_tokens": null
+                    }
+                  }
+                }
+              },
+              "errors": [],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 3,
+                "cache_hits": 0,
+                "http_attempts": 3,
+                "successful_http_requests": 3,
+                "failed_counts": 0,
+                "observed_seconds": 7.576643417123705,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "dagbt_residual_memory_v1",
+              "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+              "answer": {
+                "status": "unresolved_or_exhausted",
+                "prediction": null,
+                "semantic_answer": null,
+                "answer_source": "dag_terminal",
+                "final_node_id": "target_event",
+                "output_identity": "67580fb5862e39061a1d529fb26819f8901c844669a9c6e5a71f8517fb4e8b44",
+                "sources": null,
+                "dependency_versions": {
+                  "recent_events": 0,
+                  "target_event": 0
+                },
+                "completion_kind": "incomplete",
+                "certificate": null,
+                "program_revision": 0,
+                "terminal_input_doc_ids": [],
+                "certificate_source_ids": []
+              },
+              "errors": [
+                {
+                  "node_id": "recent_events",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                }
+              ],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 9,
+                "cache_hits": 1,
+                "http_attempts": 8,
+                "successful_http_requests": 7,
+                "failed_counts": 1,
+                "observed_seconds": 17.016035708831623,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            },
+            {
+              "arm": "dagbt_residual_memory_v1",
+              "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+              "answer": {
+                "status": "unresolved_or_exhausted",
+                "prediction": null,
+                "semantic_answer": null,
+                "answer_source": "dag_terminal",
+                "final_node_id": "suggestion",
+                "output_identity": "57e971ad8a3e2ab205089030b170bf2682462909a2370eed5251ddfe953131ea",
+                "sources": null,
+                "dependency_versions": {
+                  "past_creative_hobbies": 0,
+                  "current_preferences": 0,
+                  "suggestion": 0
+                },
+                "completion_kind": "incomplete",
+                "certificate": null,
+                "program_revision": 0,
+                "terminal_input_doc_ids": [],
+                "certificate_source_ids": []
+              },
+              "errors": [
+                {
+                  "node_id": "past_creative_hobbies",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                },
+                {
+                  "node_id": "current_preferences",
+                  "type": "TokenizationError",
+                  "error": "Deployment tokenization failed: connection_or_timeout"
+                }
+              ],
+              "tokenization_auxiliary_cost": {
+                "logical_calls": 85,
+                "cache_hits": 7,
+                "http_attempts": 78,
+                "successful_http_requests": 76,
+                "failed_counts": 2,
+                "observed_seconds": 42.13087716663722,
+                "malformed_event_lines": 0,
+                "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+              }
+            }
+          ],
+          "same_scope_fix_source_and_config": true,
+          "tokenizer_transport_before_bounded_retries": true
+        }
+      ],
+      "note": "Both kept as unsuccessful validation: tokenizer connection/read timeouts prevented residual evidence reading; one original task also failed in the first run.",
+      "bounded_readonly_probe": {
+        "generation_calls": 0,
+        "network_purpose": "readonly deployment tokenization only",
+        "maximum_authorized_calls": 3,
+        "planned_calls": 2,
+        "sequential": true,
+        "fresh_counter_per_call": true,
+        "retries": 0,
+        "evaluation_labels_read": false,
+        "config_path": "/Users/mao/projects/dagv2-personamem-a48/configs/residual-memory.personamem16k.json",
+        "config_sha256": "ec4a7ddf03ccd83e5b04d85d063efb70f18efde5e5b710ae816fa4a06f972377",
+        "counter_source_sha256": "cf2e78158e229fa567ef00b6f64624f44fca7a8e5b417fced53c0b86709535fa",
+        "timeout_seconds": 15,
+        "results": [
+          {
+            "input": "uploaded_original_source_chat",
+            "request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/original/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/aa69b664ae711a19ae497fafa8ffaa1127186fdb703d5acbcadc204e8d222ea3.json",
+            "request_sha256": "bd3903cb5bd2bbecefc55fdd31edfaed42365141324a13d08f439bd3957a555d",
+            "prior_provider_prompt_tokens": 7881,
+            "started_unix": 1791771968.9392629,
+            "status": "ok",
+            "count": 7881,
+            "count_matches_prior_usage": true,
+            "tokenization_request_sha256": "a666162048311d5f65e648be0c48ec9ca3779bd3dfc32ea52a7aa077d2b7efbf",
+            "elapsed_seconds": 0.16471662500407547,
+            "safe_event": {
+              "event": "tokenization_count",
+              "kind": "tokenization_http",
+              "cache_hit": false,
+              "http_attempts": 1,
+              "successful_http_requests": 1,
+              "status": "ok",
+              "token_estimator_id": "deployment_vllm_chat_v1",
+              "tokenization_request_sha256": "a666162048311d5f65e648be0c48ec9ca3779bd3dfc32ea52a7aa077d2b7efbf",
+              "http_status": 200,
+              "count": 7881,
+              "max_model_len": 120000,
+              "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+              "token_count_is_estimate": false,
+              "tokenizer_id": null,
+              "add_generation_prompt": true,
+              "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+              "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+              "tokenization_wire_sha256": "64fb07981388cf383c451b392721a6dca63ffffa2b3845d7469eaf7b5a4c96b3",
+              "seconds": 0.16465549997519702
+            }
+          },
+          {
+            "input": "uploaded_residual_first_read",
+            "request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+            "request_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+            "prior_provider_prompt_tokens": 10037,
+            "started_unix": 1791771969.1054358,
+            "status": "ok",
+            "count": 10037,
+            "count_matches_prior_usage": true,
+            "tokenization_request_sha256": "43bf185b1941f36bbab5a2fd1eba0601c091a22a22e0acbc60d0dc2f4af60b1c",
+            "elapsed_seconds": 0.20390583400148898,
+            "safe_event": {
+              "event": "tokenization_count",
+              "kind": "tokenization_http",
+              "cache_hit": false,
+              "http_attempts": 1,
+              "successful_http_requests": 1,
+              "status": "ok",
+              "token_estimator_id": "deployment_vllm_chat_v1",
+              "tokenization_request_sha256": "43bf185b1941f36bbab5a2fd1eba0601c091a22a22e0acbc60d0dc2f4af60b1c",
+              "http_status": 200,
+              "count": 10037,
+              "max_model_len": 120000,
+              "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+              "token_count_is_estimate": false,
+              "tokenizer_id": null,
+              "add_generation_prompt": true,
+              "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+              "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+              "tokenization_wire_sha256": "2351e00a659e1c078d26dc763d084b9499ad5cff654bcf9b6eec53bc9d08d0bc",
+              "seconds": 0.20378116599749774
+            }
+          }
+        ],
+        "http_attempts": 2,
+        "successful_counts": 2,
+        "failed_counts": 0,
+        "all_counts_match_prior_provider_usage": true,
+        "observed_seconds": 0.36862245900556445,
+        "caveat": "Two isolated health samples cannot establish sustained tokenizer availability or complete live-smoke validation."
+      },
+      "final_run_reason": "Second failure confirmed a repeated tokenizer transport issue. Final code adds bounded identical read-only connection/read retries using the existing request-attempt limit; failed physical attempts remain logged."
+    },
+    "limitations": [
+      "Two fixed questions validate execution and scope flow, not full-dataset accuracy or reliability.",
+      "Scope applicability is still a model semantic judgment; exact scope validation does not independently prove factual correctness.",
+      "No budget, backend, source evidence, failure obligation lifetime or retrieval scheduling change. Read-only tokenizer transport now uses the existing max_identical_attempts for bounded transient retries.",
+      "Auxiliary deployment-tokenizer traffic/latency remain separate from generation and embedding costs.",
+      "Legacy variables without explicit scope inherit the output contract; new planner prompts require explicit applicable variable scopes."
+    ],
+    "installer_verification": {
+      "checks": [
+        "exact_base_reconstruction",
+        "active_writer_rejected",
+        "corrupted_payload_rejected",
+        "changed_base_rejected",
+        "partial_install_rollback",
+        "install_hashes_verified",
+        "idempotent_install",
+        "exact_archive_members_verified",
+        "unlisted_archive_file_rejected"
+      ],
+      "passed": true,
+      "base_commit": "da64d56250733bc7a87942f6a5389b04a00176bd",
+      "target_commit": "a5b993a7d23cdd92c34b7ca45ebfb97b652a43e1",
+      "deployment_file_count": 257
+    }
+  },
+  "files": {
+    ".gitignore": {
+      "sha256": "3f6958afcab690a6bde955986ca8a26ae6b874b62cf1180e40a34da08dd64115",
+      "bytes": 161
+    },
+    "FUSION_README.md": {
+      "sha256": "e31495901d5fe2434801aee332abb36b77840032f91a6d64ef4cdcb478d51ec6",
+      "bytes": 7705
+    },
+    "README.md": {
+      "sha256": "5046ddb560d44b6799f47ed973761e6e5c1f169614c5e4fc989d67ab879cfee2",
+      "bytes": 13673
+    },
+    "config.example.json": {
+      "sha256": "1b16faf61011bb54c077424a7e85720919f9d6b31fdaf7d03d1e10df213ed255",
+      "bytes": 239
+    },
+    "configs/bridgetree_models_source.json": {
+      "sha256": "dca75981b3622bc6727c1d9487a332c57ce32c94d0aa6486711a3052a6c123eb",
+      "bytes": 1186
+    },
+    "configs/local-terminal.example.json": {
+      "sha256": "22532a205bd46fe6119d32f529925a8257bfd821e62b6d134727c764d6f8b24c",
+      "bytes": 1968
+    },
+    "configs/paired.example.json": {
+      "sha256": "fcd6ed75256a132a4f869031ea5d7ff2c572262701f95eeaef44083a4b7c13c3",
+      "bytes": 2119
+    },
+    "configs/paired.legacy.json": {
+      "sha256": "ed8f18eb3bdb5a48aa3bed3987bec38d09479970166f39d74552d43bd9fa7b87",
+      "bytes": 780
+    },
+    "configs/residual-memory.example.json": {
+      "sha256": "b8135f5eb52f2a82da51eca1ebdb7724f5e557c539921f73ead6e98a3642b46d",
+      "bytes": 1254
+    },
+    "dagbt/__init__.py": {
+      "sha256": "69134790588a3e07a68e427d670f11116bf94b0b78814eb86e8b3db28b41108d",
+      "bytes": 87
+    },
+    "dagbt/bridge.py": {
+      "sha256": "c60570142d0c3ebaf8d37bf544bd945306963b93bd34a804d3125b3fbd479397",
+      "bytes": 41462
+    },
+    "dagbt/budget.py": {
+      "sha256": "3a58d0181bca85394a3102cb8fa280db2f819193cbe653b7f1035c3207e927a1",
+      "bytes": 1562
+    },
+    "dagbt/config.py": {
+      "sha256": "e04c954132a79d1b0c312e34acecc263d0e2bee854af028e255a6c88d9835488",
+      "bytes": 8970
+    },
+    "dagbt/engine.py": {
+      "sha256": "73ddd8ca92adebd85feeea493e0f58418c4b83dd89012b02fdab18c0a6534ae6",
+      "bytes": 50146
+    },
+    "dagbt/evidence_mapping.py": {
+      "sha256": "b2e09888d817e596e9837e7d50bbface0a01472d6b57085b8691dc96933b4959",
+      "bytes": 26107
+    },
+    "dagbt/evidence_protocol.py": {
+      "sha256": "db07f0e44e177d21618a21bfeac95060919c93b9103001252ace713109c8e247",
+      "bytes": 3344
+    },
+    "dagbt/evidence_spans.py": {
+      "sha256": "50a2fc5af019a4d8870aa433c71802674897c938d9413420b807abbaeeea1360",
+      "bytes": 10954
+    },
+    "dagbt/evidence_views.py": {
+      "sha256": "a1f95fc74d7c4449a66505c6dcfb25fbe301f585bc23e6ca2511d132201f1461",
+      "bytes": 19968
+    },
+    "dagbt/fact_state.py": {
+      "sha256": "08bdc7b4c3cb79bf2503d71ce68d4adc350a902fc05a40cb5aa3ac7800e1b672",
+      "bytes": 10441
+    },
+    "dagbt/final_selection.py": {
+      "sha256": "afa759b21e7fc1c0b42cae10b077a4b5509392bbffe3a628c61a09a10898c233",
+      "bytes": 24866
+    },
+    "dagbt/joint_reading.py": {
+      "sha256": "77337892d94e0d0d6ef74da870ef01dc812ccd3912c59db73ff0faad48d5aabb",
+      "bytes": 44359
+    },
+    "dagbt/local_terminal.py": {
+      "sha256": "5f5b3d84ac0a7765dc5e9aa31c0e851575cbe1ad832f3313b65b8350f79c16d7",
+      "bytes": 7007
+    },
+    "dagbt/methods.py": {
+      "sha256": "807696a143bc4468b752bc8cab9f9b465b16f79de013df4ced65dc5062319746",
+      "bytes": 886
+    },
+    "dagbt/model_runtime.py": {
+      "sha256": "a25ed0f144a9c65910676277dfaf736463595b2bbe9e299a8b0f555d9584756d",
+      "bytes": 11774
+    },
+    "dagbt/personamem.py": {
+      "sha256": "30261d192aa34f53c22679b333d9d3c87c368142a373eada21c319a73bca9105",
+      "bytes": 19187
+    },
+    "dagbt/prompts.py": {
+      "sha256": "d2087c37ff5bc8116a2560900095b23d436d4a70b4689eb60da392c6c53f41bb",
+      "bytes": 11033
+    },
+    "dagbt/proxy_free.py": {
+      "sha256": "1dddcaa59e6c04e80cf618d33adebadbb467562cd5bd3ee4bd4650f4f37bb610",
+      "bytes": 9296
+    },
+    "dagbt/reasoning.py": {
+      "sha256": "ef5653512bc45c2dd589a245283fd6093fa09a11c11446b5f8d2acce034c8d75",
+      "bytes": 14795
+    },
+    "dagbt/residual.py": {
+      "sha256": "893b6cd0e2b50fa6ad013a5961785534283f7487ecf5750b62c198ba3269cada",
+      "bytes": 28790
+    },
+    "dagbt/residual_control.py": {
+      "sha256": "f60aabfc195c764962c0962964374c0c615871c522c20e362565a28de973ba8e",
+      "bytes": 40370
+    },
+    "dagbt/residual_plan.py": {
+      "sha256": "7094954b2083ad1ad74be0a931660983e82a0bc1463f1d0a16fdd3864aec4131",
+      "bytes": 10367
+    },
+    "dagbt/resources.py": {
+      "sha256": "9493cffd844872168fa95488413658476441d9428eb5db23347875e34aa4ee9a",
+      "bytes": 21306
+    },
+    "dagbt/row_recovery.py": {
+      "sha256": "5ff222b17639cae0e316e84da579770921f24c3dad9238203952afb5452a7272",
+      "bytes": 12487
+    },
+    "dagbt/runner.py": {
+      "sha256": "6a36bb00e15706068a3ba3a316d8e73f5703aab5a636d50d97a2e8294717214a",
+      "bytes": 94040
+    },
+    "dagbt/support.py": {
+      "sha256": "f05c78fd4749a77f4ff59831fa711dc9677d9a11993990aa97ef201c3cc5748d",
+      "bytes": 34469
+    },
+    "dagbt/transport.py": {
+      "sha256": "9c974dd54e6f68243d29039b8e6c86567b9bc6c0ec91dec0e47659877e7189ee",
+      "bytes": 14871
+    },
+    "dagresolve/__init__.py": {
+      "sha256": "dde60670e84af430eb6de5f4beaec38d9585aab716772b3e3381edc74a5d77b9",
+      "bytes": 122
+    },
+    "dagresolve/flow.py": {
+      "sha256": "acd12fc43bc20d161714e96f357aa1420ec8dcf29c19b37012aa82f6c361c6a8",
+      "bytes": 21743
+    },
+    "dagresolve/protocol.py": {
+      "sha256": "80a9857c6755a18c9dfbc9606e7423ebaed02077f74d549554488440a38db824",
+      "bytes": 23498
+    },
+    "dagresolve/runner.py": {
+      "sha256": "e26267dea509e4d6fe489081a394f5520ec799c66f6ad1e1cfe56a1006b17970",
+      "bytes": 23974
+    },
+    "dagresolve/runtime.py": {
+      "sha256": "9e68c9fd7f3ec421cfa3f529bbe95af70a99428408bec5ba62cc48a77d19268a",
+      "bytes": 4278
+    },
+    "dagv2/experiment.py": {
+      "sha256": "e3af184e3baa42bc57ae549c588b5344ab4b1cfde98fef2b3a21d318b8290a25",
+      "bytes": 15343
+    },
+    "dagv2/experiment_v6.py": {
+      "sha256": "973bafa09ecc35aa637acd62305628ad15d234e30cc0e26c07cd7de47aee3b9e",
+      "bytes": 939
+    },
+    "dagv2/frozen_flow_v6.py": {
+      "sha256": "957a6a964218a421f032387ceefe24162e7dc85da468d9b28a15b823c5cdebb0",
+      "bytes": 7040
+    },
+    "dagv2/pipeline_dagv2.py": {
+      "sha256": "22c60773543947cd484fc00cd903b3436a01468562e8a0ca9d2712303c462bc9",
+      "bytes": 10825
+    },
+    "dagv2/pipeline_dagv2_musique.py": {
+      "sha256": "71f36ce6463f59f023bbc0e2316a13cd3377ed946c84814638951466163d22b2",
+      "bytes": 10957
+    },
+    "dagv2/repair_planner.py": {
+      "sha256": "433fd1e5d9365ed894f00bdeb5d396559f26548b89754e59b3df1855b06a881f",
+      "bytes": 5378
+    },
+    "data/2wikimultihopqa/corpus.json": {
+      "sha256": "131f66e4ba0bf57b90a8ab628debd692edcd7af8050905fb255c1c104d642223",
+      "bytes": 3212378
+    },
+    "data/2wikimultihopqa/corpus.jsonl": {
+      "sha256": "e0f95b61347511bff3b3c1149ba8252b77a3c338e37a09c42f6991459f45eb74",
+      "bytes": 3212375
+    },
+    "data/2wikimultihopqa/evaluation_only.json": {
+      "sha256": "9757e0c1529d776715cfedc8bda4c6caf40caa10c2175ba18e5f0532bf709375",
+      "bytes": 343125
+    },
+    "data/2wikimultihopqa/index/manifest.json": {
+      "sha256": "700f315cef1be0de922ee015b0c0fd6f6a02a86b5cc60af1eb21587c32415d75",
+      "bytes": 204
+    },
+    "data/2wikimultihopqa/index/passage_vectors.npy": {
+      "sha256": "bda627bfb64e8e0c30f65352ae3b3831b13193d33c3f5a0d0bf6973776b1a24b",
+      "bytes": 100253824
+    },
+    "data/2wikimultihopqa/questions.json": {
+      "sha256": "18ae947c9946ecefd01e876f3884ee73825f2d46e306b2e52e31cdc05c260795",
+      "bytes": 166253
+    },
+    "data/2wikimultihopqa/questions.jsonl": {
+      "sha256": "a480b140a33bd9af516287fd786c242dcca2f8bbdf776d1b963bc172580c687f",
+      "bytes": 127360
+    },
+    "data/hotpotqa/corpus.json": {
+      "sha256": "1ae241255bc3b823ed8005bef36b54bd9db0e0492e32d61e776dcf7e1c26a5b3",
+      "bytes": 6343714
+    },
+    "data/hotpotqa/corpus.jsonl": {
+      "sha256": "5b3a14167e76e3fc3952ff04ccf40377332cf4156e7e8c5408677e74cd75e488",
+      "bytes": 6342601
+    },
+    "data/hotpotqa/evaluation_only.json": {
+      "sha256": "89eef0956aef7b8f2491066cdd1b39d8020c402c0f50decc90ec1cb959f6c617",
+      "bytes": 285660
+    },
+    "data/hotpotqa/index/manifest.json": {
+      "sha256": "51f5ba530c6605b3a052a3a7476c661220ba01340887d9c79496b9263405f7ad",
+      "bytes": 204
+    },
+    "data/hotpotqa/index/passage_vectors.npy": {
+      "sha256": "f969772f7b204636b0d92743472950d1bf1efac770bf30f8db18af737a75a916",
+      "bytes": 160743552
+    },
+    "data/hotpotqa/questions.json": {
+      "sha256": "79080e68afdc6881ba29ba8a7b008105871b0af2bc9184b11f00e8b5a0344d7e",
+      "bytes": 184091
+    },
+    "data/hotpotqa/questions.jsonl": {
+      "sha256": "1f03126ae012a531f7fdfcf24092b2e1392725316f7b4625a6985ea9fd372e13",
+      "bytes": 145198
+    },
+    "data/inputs_manifest.json": {
+      "sha256": "4efd1e3a48525657906911d932e35103745b2e7ca9c9a373dbb8e20530c751ef",
+      "bytes": 1588
+    },
+    "data/musique/corpus.json": {
+      "sha256": "b2dd44f65aa93810321d04cab5857923b649a750a97a6a142b9fd1896a9e3d52",
+      "bytes": 6711769
+    },
+    "data/musique/corpus.jsonl": {
+      "sha256": "72693db77411951f4f460bc3aec58806344daee4a495bea4aea2f31b505b8dfe",
+      "bytes": 6711766
+    },
+    "data/musique/evaluation_only.json": {
+      "sha256": "330bec41770e7fc4f45cb1cdd7458e8f6049c752e247d61374b4cded2fc21114",
+      "bytes": 292584
+    },
+    "data/musique/index/manifest.json": {
+      "sha256": "b278bbaed568ef21b4ef6fe17f89949fe910cff1e0e312921ffb018601945b55",
+      "bytes": 206
+    },
+    "data/musique/index/passage_vectors.npy": {
+      "sha256": "976542eebf4917b082d23a0a12c3e19ed734245b2cb47d1c20addd26d494a6e4",
+      "bytes": 190972032
+    },
+    "data/musique/questions.json": {
+      "sha256": "fbdaf33c292a21b83ba4a03a29724d01998b0ea171bdbb62015c549852fce53c",
+      "bytes": 189593
+    },
+    "data/musique/questions.jsonl": {
+      "sha256": "d88be698d8b7f61dc13f2bd4076af66acf27f75a904941a59b404353dd214a79",
+      "bytes": 150700
+    },
+    "data/personamem/README.md": {
+      "sha256": "6ab8d7c73d328985cd1c54495fbbb9f4eb8aec8bbd019735ab5cde6ad264851f",
+      "bytes": 3386
+    },
+    "data/personamem/corpus.json": {
+      "sha256": "a3980269f5bc5fdd543e31d5e2016f7528148e23cb2695516b47fade064a52a1",
+      "bytes": 6245390
+    },
+    "data/personamem/corpus.jsonl": {
+      "sha256": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60",
+      "bytes": 7707096
+    },
+    "data/personamem/evaluation_only.json": {
+      "sha256": "d79a6174758d1b4dcea492fa1df82274137f3b30cb2cb39c79778408d24a05c5",
+      "bytes": 65082
+    },
+    "data/personamem/manifest.json": {
+      "sha256": "1d64f79400eb9589d69f1907d08289604d192b704a68e88174e89fa877763619",
+      "bytes": 1899
+    },
+    "data/personamem/questions.json": {
+      "sha256": "3c576e12147816ef32335d3f3f3836ba91047ac6a2c790329fb67b5d178c7109",
+      "bytes": 2800369
+    },
+    "data/personamem/questions.jsonl": {
+      "sha256": "0a8aa0191561528dec8216f03e9f9522d4ead1b6290303a3ea50c5a60af2462f",
+      "bytes": 2752657
+    },
+    "data/personamem/scopes.json": {
+      "sha256": "3331ffaac3bb867d2249b757fad33ca7e4c579a25cb5949680017db0b18e6158",
+      "bytes": 1585659
+    },
+    "docs/BT_RERANKER_PREFIX_CACHE.md": {
+      "sha256": "1f6b0e9b5d569d1b8a58114344051247b2806577312cb5d4d25774f7e622d2e5",
+      "bytes": 23342
+    },
+    "docs/CODEX_GOAL_RESIDUAL_MEMORY_f4e38df.md": {
+      "sha256": "ee1ce89a350be9008b530249deb12d210beeb1a7ca3fb87291809dd3ce86d4f4",
+      "bytes": 25284
+    },
+    "docs/DAGBT_LOCAL_TERMINAL_V1.md": {
+      "sha256": "86fc0a0749cdab01567e4335d9836534fe5c6bc71297721ccbaea82c0228cb4d",
+      "bytes": 9553
+    },
+    "docs/DAGBT_RESIDUAL_MEMORY_V1.md": {
+      "sha256": "dfff59314d7c53bea3a3497bf76eefa440c87ef885f8e741c107c453fb6e7f07",
+      "bytes": 9471
+    },
+    "docs/DAG_RESOLVE.md": {
+      "sha256": "f888e1c11f54b1ca18b8b765281a741ef4e1c835ac949288828aeaea452c4635",
+      "bytes": 11349
+    },
+    "docs/DAG_RESOLVE_VALIDATION.md": {
+      "sha256": "6f4c1a80afe22114b3b4f5540f692a90265ef04b7da22826e1410bd85fc4794c",
+      "bytes": 3462
+    },
+    "docs/FIDELITY_AUDIT.md": {
+      "sha256": "2972476ba1edeab9b426fac7c91aa2e12495115133c47095707c3306a8346450",
+      "bytes": 8302
+    },
+    "docs/FUSION_RELIABILITY_V2.md": {
+      "sha256": "e643c7cedf17ffac37e7546b00dce1f152e61956cab847314ef99bf5d773411c",
+      "bytes": 10126
+    },
+    "docs/FUSION_RELIABILITY_V3.md": {
+      "sha256": "0b77e39cd1cc849c54afb615555b61427c9dadf6516794dbaf7d4ce3bae1506a",
+      "bytes": 17863
+    },
+    "docs/LOCAL_TERMINAL_VALIDATION_20261010.md": {
+      "sha256": "c5fc44e26c162853e75d19b7249cf1a7c757643a4e0b8b6d265554f0c4e55130",
+      "bytes": 12488
+    },
+    "docs/MODEL_ALIGNMENT.md": {
+      "sha256": "cdb6ce010cd55b5f0befbf2000bb6e59968a843c5044b64df390aebf75f38eae",
+      "bytes": 6819
+    },
+    "docs/PAIRED_RUNNER.md": {
+      "sha256": "3c2c0968ee168a3c2eb9f3a3c1a3c51b6bd2764da42f91bb91534714da96ec1d",
+      "bytes": 22551
+    },
+    "docs/PERSONAMEM.md": {
+      "sha256": "1e2631d0695663e57907dfa198ec8d511675cdc41cd3f23b97430aceb2cf3ad8",
+      "bytes": 8488
+    },
+    "docs/PERSONAMEM_A48_PLANNER_FIX_20261011.md": {
+      "sha256": "bd8bc99f49b0be4a12abffb9c433fa8767113892f8bc17190ec0fbedf15af704",
+      "bytes": 6321
+    },
+    "docs/PERSONAMEM_A48_RESTART_20261011.md": {
+      "sha256": "be8a52322a4012ab6c023f9cda34f8187870bd7e3dc9f4617ef551fef4b2bee8",
+      "bytes": 9428
+    },
+    "docs/PROXY_FREE_CONTROL.md": {
+      "sha256": "daaa8135a67b7c872cc8864f0a85128933c8a9ff2b171f24cebd1e2fd726b725",
+      "bytes": 3500
+    },
+    "docs/RESIDUAL_MEMORY_DESIGN_f4e38df.md": {
+      "sha256": "615a609af60085d3ea022a0ba6ea75b8e8677e551cfb71e67f39d6c6baddb22f",
+      "bytes": 30167
+    },
+    "docs/RESIDUAL_MEMORY_REVIEW_FIXES_a895695.md": {
+      "sha256": "153e8039fe1ca9d042f1e8ec3712218fad5c0a3c9554d0418a69e1aa17c246ef",
+      "bytes": 5782
+    },
+    "docs/RESIDUAL_MEMORY_VALIDATION_20261010.md": {
+      "sha256": "09589b42c756204a2c8d500b8ae8208e7213b6b28da17c70541312e4896d7cb7",
+      "bytes": 10557
+    },
+    "docs/SERVER_RUN.md": {
+      "sha256": "84feb7a4f9dc4a3f9c9f6723b8d75ce40decbb95270a81493c635ef1f8e9155d",
+      "bytes": 9387
+    },
+    "docs/VALIDATION.md": {
+      "sha256": "1575d6e3a225ff409254405cfd0828821c8562afcd2c5c7131369ce54a8d90e0",
+      "bytes": 5427
+    },
+    "docs/design_reference/fusion_report.md": {
+      "sha256": "44029a692b163bc3fd4094a0df23c154a95ba52d0bdfa1571f7755d5df8f604e",
+      "bytes": 14266
+    },
+    "docs/design_reference/implementation_plan.md": {
+      "sha256": "04e94501decf44b039d4f1efc7a4c9b1cbff46eced2932f19cfb284913f18edb",
+      "bytes": 34080
+    },
+    "docs/design_reference/manifest.json": {
+      "sha256": "0dde4fe6e392fb109ae0e535b6140927ae595563a3aab8a90b5f3d1adaa36d77",
+      "bytes": 473
+    },
+    "docs/research/RESEARCH_ROUTE_20261002.md": {
+      "sha256": "6ea8462b5cf12810d8b8314d9b8866cefffb0b995da356f8b91d06b105dffc05",
+      "bytes": 21676
+    },
+    "docs/research/route_references_20261002.json": {
+      "sha256": "06e29a7ff66714aad0a9a6470d00f8b668fc2f6dc247d25ab51d350a6dd884e7",
+      "bytes": 20513
+    },
+    "original_manifest.json": {
+      "sha256": "9d3280858f5ab56936ac7d55f9b6086efc2627a591661f78f96f0d2bf000dd6a",
+      "bytes": 9404
+    },
+    "package/core.py": {
+      "sha256": "4cad8b1b48400806470f64dfd958fef7a39e62573cd400034ddcfe16798a98bb",
+      "bytes": 5567
+    },
+    "package/frozen_flow.py": {
+      "sha256": "8f900523036a04aeac0b4583a36cbdb6162dd836bd471bf181cbe9f5a02fea54",
+      "bytes": 7599
+    },
+    "package/metrics.py": {
+      "sha256": "192e4f1293f83c68d8d2e01d6b9cc4949f7a6c43a610711e50fd81e1fa70eafe",
+      "bytes": 2443
+    },
+    "package/reader.py": {
+      "sha256": "ac637306b4b63e48571773f1a40a1e47ec6908e6801322031d903d20518d26cb",
+      "bytes": 3484
+    },
+    "package/run.py": {
+      "sha256": "3f3087088e3882a00580ec6b6ea6cea6dbb6af63ffd364b65801fbaa1258d380",
+      "bytes": 11952
+    },
+    "package/tokenizer/config.json": {
+      "sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
+      "bytes": 728
+    },
+    "package/tokenizer/merges.txt": {
+      "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "bytes": 1671853
+    },
+    "package/tokenizer/tokenizer.json": {
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "bytes": 11422654
+    },
+    "package/tokenizer/tokenizer_config.json": {
+      "sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101",
+      "bytes": 9732
+    },
+    "package/tokenizer/vocab.json": {
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+      "bytes": 2776833
+    },
+    "requirements-fusion.txt": {
+      "sha256": "2863f056e92f6ead38293eee4eda3494bd9c68b7aba91a24f75cd51e2268f746",
+      "bytes": 66
+    },
+    "requirements.txt": {
+      "sha256": "6d2dba7d207e3e6a9213399021ed67310474bd29d57cf19a91f97550c1c1b7d5",
+      "bytes": 251
+    },
+    "results/METHOD_CARD.md": {
+      "sha256": "87556e9e47fc1f0b21b984e5adc9e921652f7374aa8194cc48bdbea5fc8097c0",
+      "bytes": 3404
+    },
+    "results/RESULTS_2wikimultihopqa.md": {
+      "sha256": "02343a0aae3bb48a42df48864da00f221a04772e5a683ac77fba8b9322eaf0ad",
+      "bytes": 291
+    },
+    "results/RESULTS_hotpotqa.md": {
+      "sha256": "1a56c0d824f1668426659592bca6598aa96d86d464e0e45b987e5946cb80d74e",
+      "bytes": 284
+    },
+    "results/RESULTS_musique.md": {
+      "sha256": "d1e6d542de4f281466384715b329844a1039d8656fa611eb4a25cf4c1786acb0",
+      "bytes": 283
+    },
+    "scripts/ablate_residual_memory.py": {
+      "sha256": "f00e591ebba6accb458c7edd5639a1e92635b1a26e706211e079c19726351784",
+      "bytes": 2251
+    },
+    "scripts/benchmark_bt_reranker_prefix_cache.py": {
+      "sha256": "70090d47f5ca3e78e5b5992297d63cce06d38bf0ae194cf8deadb84c9390ab6a",
+      "bytes": 72105
+    },
+    "scripts/demo_local_terminal.py": {
+      "sha256": "8f5c433dfebae8b735ab0ebb7962d661d5cc90fb83355b4d1fcbe13fe6e24b3d",
+      "bytes": 7549
+    },
+    "scripts/demo_residual_memory.py": {
+      "sha256": "987c3132e1037a23725d83547d7b3ba78f2318c196864ed25412f66ba3680051",
+      "bytes": 16920
+    },
+    "scripts/export_results.py": {
+      "sha256": "d1758f409796f4af8315935fc703c8479e52e54d1218e8928a109d91ff8bf6bc",
+      "bytes": 13444
+    },
+    "scripts/replay_bt_v3.py": {
+      "sha256": "2d58ef4fa512e9cdb3aa346db1eaa8b167365eea9a6366f175ffc465b26c76ee",
+      "bytes": 12849
+    },
+    "scripts/run_2wiki.sh": {
+      "sha256": "2b5c81a8eddc68a66bf44648a315f8e1d1c07305e17c7e21c0b3cbd9fa06b7b1",
+      "bytes": 656
+    },
+    "scripts/run_hotpotqa.sh": {
+      "sha256": "b1de917bcc22fd37469f3c974c1de96cb73fdcb3f8d529c1313d148e8a100a0f",
+      "bytes": 613
+    },
+    "scripts/run_musique.sh": {
+      "sha256": "4d870e1aae4e90784cbb34d02c2f4396f684164aff045f2fae23dc7354e5c6a6",
+      "bytes": 604
+    },
+    "scripts/run_paired.sh": {
+      "sha256": "d56eaae616a2b5854d33b5cdf1d371f58a37fdb78165b67802eb27f61705e3c4",
+      "bytes": 942
+    },
+    "scripts/run_v3.sh": {
+      "sha256": "a7d2b4bbfd708e0939d9b2a71f2fed18cb165e46c8d4f789d15a0b567260af38",
+      "bytes": 1282
+    },
+    "scripts/smoke.sh": {
+      "sha256": "d84f1b1e011269a94f637943da047c6b65b92df51452ee05925b79caefe4c65b",
+      "bytes": 963
+    },
+    "scripts/smoke_local_terminal.py": {
+      "sha256": "39af25fefaf4f94ba6622e8fab18af66580f73c1a3f3bb9dd45edb6791f2e85d",
+      "bytes": 4718
+    },
+    "scripts/smoke_residual_memory.py": {
+      "sha256": "2083e9cdddd239d522f810ff78bddb31749c17848a5082b80248e09eeb9bd1b9",
+      "bytes": 635
+    },
+    "serving/bt_prefix_cache_probe.py": {
+      "sha256": "85a4207559860545e07d15a39e83200cff12fb625f8300fa4d64590d0bbe35eb",
+      "bytes": 14949
+    },
+    "serving/nv_model_code/README.md": {
+      "sha256": "be16687bf531d9a4e51bd19f4ba6f995a746859b53bc8b5f6a597388e4fa27ec",
+      "bytes": 60053
+    },
+    "serving/nv_model_code/configuration_nvembed.py": {
+      "sha256": "810edefa67379ef9ab8c74705bd69630d22f22866065312b88878440ea7162bf",
+      "bytes": 3196
+    },
+    "serving/nv_model_code/modeling_nvembed.py": {
+      "sha256": "8f94efc6f9428ce2148088728685c51d120fb914616d5750208646008628155c",
+      "bytes": 18585
+    },
+    "serving/requirements-nv.txt": {
+      "sha256": "b9a9164468d4cd63affa76a7fbf8b0fae45fb6faa7f56bfb248c977be61f25cc",
+      "bytes": 94
+    },
+    "serving/requirements-qwen.txt": {
+      "sha256": "4de5f3d767967cf28287cc1ff1f4391a3cdacbde3596146dbbdc24176944a9db",
+      "bytes": 13
+    },
+    "serving/serve_nv_embed.py": {
+      "sha256": "16b63e711b465887cde70978231292114773575b6064d575c27fca87d8330285",
+      "bytes": 5435
+    },
+    "serving/start_nv.sh": {
+      "sha256": "18a93d846e647452f070db54341b504a268e716323057a454792c0227597119e",
+      "bytes": 322
+    },
+    "serving/start_qwen38.sh": {
+      "sha256": "d41dec76884807ee6f0de9046fb454d0fcb00afce90cedcab63de5d9ac823691",
+      "bytes": 1004
+    },
+    "tests/fixtures/dagbt.runner.fixture.py": {
+      "sha256": "81e925bf2bb1ef16fe0c233613f10bc622541fe623bb054e444cb7e04611dd66",
+      "bytes": 1532
+    },
+    "tests/test_bridge.py": {
+      "sha256": "88ffda657599491c6429ace4cbee73a80957ccf171c235edd20dfc57840f9fcd",
+      "bytes": 8007
+    },
+    "tests/test_bridge_http.py": {
+      "sha256": "ef67c3bd7616c235f571a54f0713bc8a5a6ece9e4909f72079bf3bd235ff32c1",
+      "bytes": 8788
+    },
+    "tests/test_bridge_upstream_dependency_retrieval.py": {
+      "sha256": "10730f20042ca872138efa9f0ba6e28243daac02c6fba6dcb8a1e07fb8919fdb",
+      "bytes": 5212
+    },
+    "tests/test_bridge_upstream_dependency_scoring.py": {
+      "sha256": "bf0a16af1c067d07902dcbf87e031e20daf278f9b1be6724ed10ade97768c66b",
+      "bytes": 12224
+    },
+    "tests/test_bridge_upstream_evidence_search.py": {
+      "sha256": "e951d568a92110aaeb4e7d88337e71dde8d68680b87e5247235595bedafabde3",
+      "bytes": 23561
+    },
+    "tests/test_bt_profile_system.py": {
+      "sha256": "6acf1586809c27a7716783369680a46a276f82e0af610a9623c23fbac65e5329",
+      "bytes": 14814
+    },
+    "tests/test_bt_reranker_prefix_cache.py": {
+      "sha256": "154d7ca5fc53033a422a09eee3c42b571ad9a269941a75576c934407ef71a78e",
+      "bytes": 28706
+    },
+    "tests/test_config.py": {
+      "sha256": "dc3e0a0327bf776e65db49027f407b74f6c18933e84c23ac0b09c13bb1a4e400",
+      "bytes": 4201
+    },
+    "tests/test_dagresolve_flow.py": {
+      "sha256": "67ed30ac36f3b057b4d1ac71b8890fb2c4135bc332f330ee2d5d364eaf866256",
+      "bytes": 19638
+    },
+    "tests/test_dagresolve_protocol.py": {
+      "sha256": "914c61d177700c678135470a21748e5b91264917e24c4edc4bd32fa2b203d8fe",
+      "bytes": 20150
+    },
+    "tests/test_dagresolve_runner.py": {
+      "sha256": "37625a5552a5b2c37aa1ef4444cefdd17bc97e92b830b46c9ff7213047f5a72a",
+      "bytes": 19820
+    },
+    "tests/test_engine.py": {
+      "sha256": "68a87ecaff496ff9615065779c1fd7e7dc0ba18d7919fa175d8fd605f3ed1fc2",
+      "bytes": 31792
+    },
+    "tests/test_engine_reliability_v2.py": {
+      "sha256": "06f67ad576f63e2cc57800771f21eb7f311052eb7a344d0da8459dd9b28aed57",
+      "bytes": 5245
+    },
+    "tests/test_evidence_mapping_v2.py": {
+      "sha256": "2d039906d33fc75d991604afe97e27d74f2c3c2c94ad4b6c3e345204d36bed49",
+      "bytes": 15503
+    },
+    "tests/test_evidence_spans_v2.py": {
+      "sha256": "d4a1726fb04dcaad9c26870e4b334b80ab0ac0564abc92d4f550dfe7de4f7396",
+      "bytes": 10466
+    },
+    "tests/test_evidence_views_v2.py": {
+      "sha256": "56a9cb03e4439447c92bf8e2b1842d8f96cd50295cf795195ed7ca9a29ae9fa4",
+      "bytes": 13601
+    },
+    "tests/test_export_results.py": {
+      "sha256": "3bc8f291087afe90814814e4dc1d018a139cabe4294db4fb6a7917c4bfbad9ba",
+      "bytes": 19947
+    },
+    "tests/test_final_selection_v3.py": {
+      "sha256": "f6a2b4037d9314e4585833fa444fd40db5cd6d968bca95c896ee6f9b89722601",
+      "bytes": 29746
+    },
+    "tests/test_local_scoring_terminal.py": {
+      "sha256": "0bed5675bcb4de4ad98a71c3c1ce649318ffc6e9b3834b5cb17ba48bc1ab2cba",
+      "bytes": 21428
+    },
+    "tests/test_local_terminal_integration.py": {
+      "sha256": "a961b503c98df98c8f446582331f313e3610c32e3a2d82b8e2a46e10c90a5b0b",
+      "bytes": 8521
+    },
+    "tests/test_model_runtime.py": {
+      "sha256": "0b7468a06c43bd7209d63692e042942b97860f13d1f395672b13da6a69dcfcad",
+      "bytes": 14129
+    },
+    "tests/test_paired_runner.py": {
+      "sha256": "fb5b6d4de1c3cf14f514ac8d5a0b168d5ea7582888adddf05f5630a3f7d27fff",
+      "bytes": 22526
+    },
+    "tests/test_personamem_data.py": {
+      "sha256": "d2aa896f444957e544094e6b7f61a8f6e472f391a1146db242ccb77ca94b54a2",
+      "bytes": 9424
+    },
+    "tests/test_personamem_question_boundary.py": {
+      "sha256": "56263eb096369e44dc95cdddb6351d2574bf7992fab4b80a39508e3a7e745724",
+      "bytes": 6404
+    },
+    "tests/test_personamem_runner.py": {
+      "sha256": "b9d76621764edbebd85ac7d3005169dc53918c3af8a81bd3567dc0b2ddc5c97b",
+      "bytes": 21209
+    },
+    "tests/test_proxy_free.py": {
+      "sha256": "0d68caaa43425227c58ee2b9d378d240b5a1198ff72bceff678c6ff1e8e1f87d",
+      "bytes": 4942
+    },
+    "tests/test_reasoning_v2.py": {
+      "sha256": "a62173c91e66266539af1ea094024040a8299b6bc586cc32fbb0f7ab12ca9b64",
+      "bytes": 10373
+    },
+    "tests/test_recovery_v3.py": {
+      "sha256": "607d1e479ebe6652c1f0f3d0b78775fb385145fd260df7953d18a7f3deacdbea",
+      "bytes": 10689
+    },
+    "tests/test_replay_bt_v3.py": {
+      "sha256": "dfbd9cb6220a322590592cfb633e007d17b2a46c3f4cc1efc6c5d44b94fc0f4f",
+      "bytes": 5400
+    },
+    "tests/test_residual_planner_protocol.py": {
+      "sha256": "a66f56a888db59e525f95c0873b52323ef68d1ec197b0607f112b87dd39a5c6f",
+      "bytes": 15235
+    },
+    "tests/test_residual_review_regressions.py": {
+      "sha256": "2857fd25311925c229b817699f85b2741ad4ff94fd1f7540629f506ff172a53b",
+      "bytes": 15836
+    },
+    "tests/test_residual_runtime.py": {
+      "sha256": "9af7507d18fd77208e94b4bccf08837f027a2b68462ad331e11209e36c856a57",
+      "bytes": 35385
+    },
+    "tests/test_residual_semantics.py": {
+      "sha256": "bc692a09f0cc33c8689e38c0b5df2e913ab29802949669a38decac71b25a32c8",
+      "bytes": 11365
+    },
+    "tests/test_resources.py": {
+      "sha256": "abaa1968b77768effdcd2ee839661863d7488431b3f89bfc952d625dac3922c8",
+      "bytes": 15172
+    },
+    "tests/test_row_recovery_v2.py": {
+      "sha256": "e0605e5e28015f1e498145a48b2827f2d9f13da8b22316fe1bef83bf0ea43501",
+      "bytes": 3890
+    },
+    "tests/test_runner_reliability_v2.py": {
+      "sha256": "5fa92210d53e933f5b1c91e914be6223622505d575cf72484c51d33e5fb7fdfc",
+      "bytes": 16492
+    },
+    "tests/test_runner_v3_diagnostics.py": {
+      "sha256": "f63632c04724ce20a19b31bb4fec8ed373d3c22915fa315dcc480cd3b1f60465",
+      "bytes": 17709
+    },
+    "tests/test_support.py": {
+      "sha256": "7a443ac307ae19880e86533388b6a56d0804d6ebf135739f6deb5d6c12436801",
+      "bytes": 20077
+    },
+    "tests/test_system_http.py": {
+      "sha256": "4ff0de0b7c040825a3f8f750e79171878c908d70a53bc563df9957bdea19fd1c",
+      "bytes": 12615
+    },
+    "vendor/README.md": {
+      "sha256": "c302e7a1b51215463874fb577dc0d328589b1eb23f4857a1835fd42c71cc6de0",
+      "bytes": 2517
+    },
+    "vendor/__init__.py": {
+      "sha256": "a9abafbbddef4e797ee6eced7986c9710301e65a71a5274bc664d0b1dfe557a8",
+      "bytes": 69
+    },
+    "vendor/bridgetree/__init__.py": {
+      "sha256": "ab1c189f8681d806a3ac9b267cfc4e35270bdaa36696f24dd24fbde5e79610ab",
+      "bytes": 2557
+    },
+    "vendor/bridgetree/__main__.py": {
+      "sha256": "4c5368a67d7ba871de7655973728f9cc5c34095e3b906187da3668b58f8485de",
+      "bytes": 218
+    },
+    "vendor/bridgetree/aggregation.py": {
+      "sha256": "e1983918d3d4ee19775db15758cf08a8f0b47b679c2b1f27c3fc4565cb4f80dc",
+      "bytes": 9510
+    },
+    "vendor/bridgetree/background.py": {
+      "sha256": "a2e1a32ef87c05afed5bdab32b72a8504f62c845adeb48c0bfacb77134ab9de6",
+      "bytes": 19621
+    },
+    "vendor/bridgetree/baselines.py": {
+      "sha256": "9483986eccfc5bf7c05adfd2f2db7b798be44cb3549f69037e28df6c95bc2e92",
+      "bytes": 11319
+    },
+    "vendor/bridgetree/budget.py": {
+      "sha256": "ca430553036fd67d509150a9f9ab9565f45fdc23ed00d2dd7c551cd5eb231f33",
+      "bytes": 27018
+    },
+    "vendor/bridgetree/chain_experiment.py": {
+      "sha256": "96de640cb687fb0692747c070a7406263319dcb3c377a09ec8abb4528f563024",
+      "bytes": 30584
+    },
+    "vendor/bridgetree/chain_fixture.py": {
+      "sha256": "a1e25dea2b08fcc3c0882f4a4cfa486f498c7bae43bfbc567f05f9ce82c951b7",
+      "bytes": 2905
+    },
+    "vendor/bridgetree/chain_judge.py": {
+      "sha256": "dd7f4fd1f243107ffca97545b82859310ac3d9a1d84e2442d393dcd2a9007f5d",
+      "bytes": 27652
+    },
+    "vendor/bridgetree/chain_search.py": {
+      "sha256": "c59012bbd3240cab5e8aaf7391013d8e103a1fd16ac070fb137a52e8fb2ce7a0",
+      "bytes": 19565
+    },
+    "vendor/bridgetree/chain_support.py": {
+      "sha256": "b155587a133ee42a59108a5937e39971c07be33b68bcd0cb82d76e64e06dcc54",
+      "bytes": 2976
+    },
+    "vendor/bridgetree/cli.py": {
+      "sha256": "0413944e8de017e99e14baeca6cfab4c13ec3e905d2b50290fdbd88e72b45a65",
+      "bytes": 40272
+    },
+    "vendor/bridgetree/clients.py": {
+      "sha256": "ad65a08d668b254bc5926dab950c7598586bcf66fa8661e1a16bccc07793bb39",
+      "bytes": 69037
+    },
+    "vendor/bridgetree/clustering.py": {
+      "sha256": "8977c351bfd5e3ef0830875ec8807f40ab2c3594ff431499834f40cd2eb6a70b",
+      "bytes": 5963
+    },
+    "vendor/bridgetree/config.py": {
+      "sha256": "189fd816899ed4c6dca950e0ce0130afb9ca38291676a688b814465524ac4e9a",
+      "bytes": 48713
+    },
+    "vendor/bridgetree/dependency_config.py": {
+      "sha256": "714fa42c01c1a449e53a91ebaa255acc5309c31428c284a9aabb350d7c1643f8",
+      "bytes": 20113
+    },
+    "vendor/bridgetree/dependency_diagnostics.py": {
+      "sha256": "91e775558ed6a9768bbb989313a4d93e7caf6ab5cac2b988789dec4e7922b1ee",
+      "bytes": 23959
+    },
+    "vendor/bridgetree/dependency_experiment.py": {
+      "sha256": "000eeac4159c04267842441041f40dfa90f9305e5de1a7c6448d690a4a28ef4e",
+      "bytes": 186183
+    },
+    "vendor/bridgetree/dependency_retrieval.py": {
+      "sha256": "1129d1bf3e650ebe796d4a61479dd7e3dce8314f2a61dec8d12fec21af00f57a",
+      "bytes": 29426
+    },
+    "vendor/bridgetree/dependency_scoring.py": {
+      "sha256": "fc2ba748184e9a2e05563ed6f063952890c42eff05ecd2eaa82e7680121cee46",
+      "bytes": 46338
+    },
+    "vendor/bridgetree/dependency_search.py": {
+      "sha256": "8eb27e239be707f28a9a4cabdb462062f8e85794ad437df04665949bf0ae3ac2",
+      "bytes": 56903
+    },
+    "vendor/bridgetree/diagnostic_background.py": {
+      "sha256": "75d1fd66aa75f30210573edd060d2cbc392ab9affd7a161fbcb7013ff3815fdf",
+      "bytes": 22457
+    },
+    "vendor/bridgetree/diagnostic_config.py": {
+      "sha256": "eaa1990d58ef3a31a9f6036065e1b97e95be1609ca02f5cb15c48b1bb08d74e1",
+      "bytes": 5889
+    },
+    "vendor/bridgetree/diagnostic_evaluation.py": {
+      "sha256": "b4fd14bfa5464025cc584fd4a18182a342ae5590cf78950bb06a3ee9fd8f354a",
+      "bytes": 7497
+    },
+    "vendor/bridgetree/diagnostic_identity.py": {
+      "sha256": "3b9a12c7da5c8a9f76d841327c359d4f09c17268d93dbdbd4b0ad8670410986e",
+      "bytes": 5964
+    },
+    "vendor/bridgetree/diagnostic_import.py": {
+      "sha256": "6755f4d6949b5aeb05036b856ba6794012437c49d30b1336081a5b737c1a5bbf",
+      "bytes": 15785
+    },
+    "vendor/bridgetree/diagnostic_observability.py": {
+      "sha256": "6dd84dffc71914ff267818ee0ae8475e4d9a74007025033cb5d95929fdfa97df",
+      "bytes": 12694
+    },
+    "vendor/bridgetree/diagnostic_progress.py": {
+      "sha256": "9b398f055a3b0942cabe3b574a6ed4219aae9a1964da5573b0be7a99701dcf0c",
+      "bytes": 24626
+    },
+    "vendor/bridgetree/diagnostic_root_runner.py": {
+      "sha256": "19fdce1aee63dcde69814872c4dfff252e93a3a4924afa494e7fc8ce0f2f269e",
+      "bytes": 9307
+    },
+    "vendor/bridgetree/diagnostic_runner.py": {
+      "sha256": "c8636c2787c8892b2df50ea27ec17d284bc6a1f37e978065c85f64c06729268f",
+      "bytes": 33689
+    },
+    "vendor/bridgetree/evidence_config.py": {
+      "sha256": "d683253af5808b894d66e521d4a59b6b152a7ffbeeefeb7e271e7f60539afaa1",
+      "bytes": 3785
+    },
+    "vendor/bridgetree/evidence_diagnostics.py": {
+      "sha256": "68ba257de407eebd4f9de0bb43772fe0655ebe1e1d155a882cceff56606cd756",
+      "bytes": 5335
+    },
+    "vendor/bridgetree/evidence_search.py": {
+      "sha256": "eb9e74a299fa2de5898351bdc6461e38d6a03c15592a2e9df088a5d146e1a1b4",
+      "bytes": 41615
+    },
+    "vendor/bridgetree/evidence_selection.py": {
+      "sha256": "31ede9a8f8f8daf0655309452827d0ccf026d5274e986dabdd43e5851c553934",
+      "bytes": 50442
+    },
+    "vendor/bridgetree/experiment.py": {
+      "sha256": "0985bd5c35cf1c4946b4bc3ca0ebbaaf3a0a4c1202565479a516d99590321088",
+      "bytes": 143401
+    },
+    "vendor/bridgetree/guided_retriever.py": {
+      "sha256": "10fd54238f6e83182c51b3db4245f7023a3073da52fa2470630a2575819557d0",
+      "bytes": 13534
+    },
+    "vendor/bridgetree/index.py": {
+      "sha256": "4e9927cddbba42e820d982dd457e6e0b8663e40963c1625dfff707f3ac303d04",
+      "bytes": 6141
+    },
+    "vendor/bridgetree/information.py": {
+      "sha256": "4311ccee48bec50e5be4ba62f0e85b3d4616380fefcd3c652ba366264125b98a",
+      "bytes": 83925
+    },
+    "vendor/bridgetree/math_utils.py": {
+      "sha256": "bf046300a5898aca766749102d330a6c04e89b3a60d5a986032dc5311f4670df",
+      "bytes": 17632
+    },
+    "vendor/bridgetree/measure.py": {
+      "sha256": "af54b58a2638a2318bb923e708bc4b7bd189247910cf5f54b0fbbb1470be0335",
+      "bytes": 84431
+    },
+    "vendor/bridgetree/metrics.py": {
+      "sha256": "952da88e1572f267ec700949fa1cc67ab1c01c86fc66acb55490d0ec85dc5fdf",
+      "bytes": 16445
+    },
+    "vendor/bridgetree/module_metrics.py": {
+      "sha256": "90bebe60e740c71b0e5521df0087c04c49ca9877919da355a51b1b8bd2186ada",
+      "bytes": 12494
+    },
+    "vendor/bridgetree/offline_validation.py": {
+      "sha256": "2ce3877f6ddc8a17cdb92fcb5cb39b54661896242caca0817b37ccc562ddfd84",
+      "bytes": 4805
+    },
+    "vendor/bridgetree/oracle.py": {
+      "sha256": "d15b371df5257f321588739869356cd0f77045f8b1a0227511b3aff1ba4e7213",
+      "bytes": 5409
+    },
+    "vendor/bridgetree/personamem.py": {
+      "sha256": "923f219bd66e56d1e6be4fe60075417ab87aab19f0527ea57832c9d56e55c05c",
+      "bytes": 19719
+    },
+    "vendor/bridgetree/protocol.py": {
+      "sha256": "1ee6043f9c690a930883ea9f49327f7e938652e9bcfa44ff88396e073a344713",
+      "bytes": 49318
+    },
+    "vendor/bridgetree/ranking.py": {
+      "sha256": "8e78057ec5bf269f76d8b815dc70e8cda7292b3b3b2ea21d2cb1b3d5ec0b4728",
+      "bytes": 14890
+    },
+    "vendor/bridgetree/request_audit.py": {
+      "sha256": "14ca24f5c89b3bbd9d45d8590a67e1426f9320a325a703511dcbaf6caefe7665",
+      "bytes": 8442
+    },
+    "vendor/bridgetree/retriever.py": {
+      "sha256": "0e76907b3feaea139d157c1658627d4bb423aee25517df8a26fdf040636dcdcf",
+      "bytes": 76681
+    },
+    "vendor/bridgetree/root_tie_diagnostics.py": {
+      "sha256": "bcb47ebc9d5f380e5a0ed3156fa8e926a92b7ddce97ce2fc1f59c439ea89b411",
+      "bytes": 8766
+    },
+    "vendor/bridgetree/run_audit.py": {
+      "sha256": "9546f990acf8e2efdae1ee70d22a5a4d6a421aa3e49ceff68a9d03cd3f002996",
+      "bytes": 68038
+    },
+    "vendor/bridgetree/semantic.py": {
+      "sha256": "3b9022e1360c650686336cc117253694f96e63601fd616b049a6868a6742111f",
+      "bytes": 93363
+    },
+    "vendor/bridgetree/server_bundle.py": {
+      "sha256": "984a60a70e43935b542ddab614dcec9f7dd81b07b677f87dd655e9bec7a52196",
+      "bytes": 11255
+    },
+    "vendor/bridgetree/smoke.py": {
+      "sha256": "6e1734c93ae63c349ca117d656d4ba2c2aa614acb440bdf90a83a22509bb295e",
+      "bytes": 3823
+    },
+    "vendor/bridgetree/temporal.py": {
+      "sha256": "6da835f8d64b929c26dee809a4941d14f92d536baf4bf2bcb45ee2fc507db0a9",
+      "bytes": 45327
+    },
+    "vendor/bridgetree/training.py": {
+      "sha256": "419ea621cd169d297dbe13434b754ef3b2bda883417ddfb7918a092d4d92cf8b",
+      "bytes": 83384
+    },
+    "vendor/bridgetree/types.py": {
+      "sha256": "cef932a3ed40a1e013d0f860e7cb42763d99aa45beb6cd267010e0454bd6c506",
+      "bytes": 74798
+    },
+    "vendor/bridgetree_manifest.json": {
+      "sha256": "c5fea81843d8b6028eca0817438d12ec148c44775bf8f513e59211f557217cb9",
+      "bytes": 8963
+    },
+    "vendor/upstream_test_manifest.json": {
+      "sha256": "0687de22e9b598efbb1bdde722fe8323bde67750b120da58f12048fd2ff2886e",
+      "bytes": 1291
+    },
+    "configs/residual-memory.personamem16k.json": {
+      "sha256": "ec4a7ddf03ccd83e5b04d85d063efb70f18efde5e5b710ae816fa4a06f972377",
+      "bytes": 1384
+    },
+    "dagbt/navigation_query.py": {
+      "sha256": "e6b3675f395f22d2b9a415c1b1c7d12dd8090d864f2937f8cf61da45fe6fffc4",
+      "bytes": 8213
+    },
+    "dagbt/token_counting.py": {
+      "sha256": "752158005dd27ee16707fcd21ce4675ad4b2371165c0ac2f57cf65ea135868ab",
+      "bytes": 14808
+    },
+    "docs/PERSONAMEM_A48_RUNTIME_FIX_20261011.md": {
+      "sha256": "517ce42c8f683d8a91aabe3c1854758aec1523639f92f895fa85478bccd49df3",
+      "bytes": 8647
+    },
+    "docs/PREFERENCE_RAG_BASELINE_PROTOCOL_20261012.md": {
+      "sha256": "d9d8af3d7517b75b1a66f197a3a7e348e83561db8107613b421662b105c4aa55",
+      "bytes": 11305
+    },
+    "tests/test_deployment_tokenization_integration.py": {
+      "sha256": "bbe285741f24eab8868aee47dfad9b619dd79ee775018740f0cfbbe07f1d611e",
+      "bytes": 17246
+    },
+    "tests/test_joint_value_contract.py": {
+      "sha256": "1fe3aa4d1f76b38739028fe602633fdd3719e25a5499278239b633190a38683e",
+      "bytes": 10565
+    },
+    "tests/test_joint_wire_serialization.py": {
+      "sha256": "2a2189c8a5c0b02db3973797be53cf04ef368fa702da4598d26831af82a1323a",
+      "bytes": 4466
+    },
+    "tests/test_navigation_query.py": {
+      "sha256": "c1d4dfae1bd7898bfff51d928abc1dfecbdcf02f1a0fe08ad54c30a6a1482187",
+      "bytes": 7954
+    },
+    "tests/test_personamem_joint_protocol.py": {
+      "sha256": "584dafaa77ba83c348e94df2d564e4fcc992f25bd900b1535acc54029f5ed564",
+      "bytes": 37462
+    },
+    "tests/test_token_counting.py": {
+      "sha256": "58e54137bdc8b82a1ce915f25cfac05ca37b479d7475f9017ceed1307aa1693e",
+      "bytes": 18132
+    },
+    "docs/PERSONAMEM_A48_SCOPE_FIX_20261012.md": {
+      "sha256": "f6be3a6433c9b233e01e844d0dc9cf70346b85858f32b01a15fe0be3588ef85a",
+      "bytes": 6735
+    },
+    "tests/test_variable_scopes.py": {
+      "sha256": "bc8557bdb436a09039412b54ceb1f54cc1ee113f4e7e22fd38f55dc6fb478ce3",
+      "bytes": 17894
+    }
+  },
+  "patch_base_commit": "da64d56250733bc7a87942f6a5389b04a00176bd",
+  "release_name": "personamem_a48_v3_1"
+}

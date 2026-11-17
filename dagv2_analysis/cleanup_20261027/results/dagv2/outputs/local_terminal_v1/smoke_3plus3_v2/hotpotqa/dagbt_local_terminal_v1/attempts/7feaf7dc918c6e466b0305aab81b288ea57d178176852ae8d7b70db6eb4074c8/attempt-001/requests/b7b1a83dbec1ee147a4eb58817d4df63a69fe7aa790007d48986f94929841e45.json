@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary.\n\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "115",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600340.183108,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600341.080798
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0030101989270369944
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 902,
+      "completion_tokens": 2,
+      "total_tokens": 904
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

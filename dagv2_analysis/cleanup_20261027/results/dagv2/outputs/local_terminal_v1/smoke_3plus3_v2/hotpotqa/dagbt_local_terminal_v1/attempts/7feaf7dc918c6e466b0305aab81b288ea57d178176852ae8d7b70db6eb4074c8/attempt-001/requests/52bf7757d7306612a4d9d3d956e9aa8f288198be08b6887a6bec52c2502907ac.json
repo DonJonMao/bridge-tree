@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7290\", \"source_id\": \"hotpotqa:7290\"}]\nDivision of Bland\nThe Division of Bland was an Australian Electoral Division in New South Wales. The division was created in 1900 and was one of the original 75 divisions contested at the first federal election. It was abolished in 1906. It was named for Dr William Bland, a New South Wales colonial politician. Based in rural southern New South Wales, it included the towns of Narrandera, Young, Wagga Wagga and West Wyalong. Bland was held by Chris Watson, the first Leader of the federal parliamentary Labor Party and Australia's first Labor Prime Minister. When Bland was abolished in 1906, Watson transferred to South Sydney.\n\n[Passage {\"doc_id\": \"hotpotqa:9064\", \"source_id\": \"hotpotqa:9064\"}]\nZara Bate\nDame Zara Kate Bate {'1': \", '2': \", '3': \", '4': \"} (née Dickins , previously Fell and Holt; 10 March 190914 June 1989) was an Australian fashion designer and socialite who was best known as the wife of Harold Holt, the 17th Prime Minister of Australia. She grew up in Melbourne, attending Ruyton Girls' School and Toorak College. Going into the dressmaking business, she opened a shop in 1930 and eventually expanded into a chain of boutiques. Zara's first marriage to James Fell was short-lived, although they had three children together. She remarried to Harold Holt – a Liberal Party politician – in 1946, although they had known each other for many years previously. She became the prime minister's wife in 1966, and was known for her energy and flamboyance. She was widowed in December 1967, when her husband disappeared while swimming at Cheviot Beach, Victoria. Zara published her autobiography in 1968, and the following year remarried to Jeff Bate, another politician. She was widowed for a second time in 1984, and subsequently retired to the Gold Coast."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "236",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600668.5635898,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600669.174276
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00012731104162213555
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1152,
+      "completion_tokens": 2,
+      "total_tokens": 1154
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

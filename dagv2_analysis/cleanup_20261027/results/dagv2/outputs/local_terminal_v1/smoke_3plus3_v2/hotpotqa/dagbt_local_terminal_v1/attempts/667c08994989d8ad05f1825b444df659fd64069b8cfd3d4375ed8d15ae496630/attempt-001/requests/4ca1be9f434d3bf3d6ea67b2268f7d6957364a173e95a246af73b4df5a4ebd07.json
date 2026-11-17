@@ -1,0 +1,75 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Plan an executable dependency DAG of 1 to 6 tasks using only the question.\nReturn steps with question, output_slot, answer_type, inputs, execution, plus final_node_id.\nDo not answer, guess intermediate entities, or use outside knowledge. Preserve all entity,\nyear, relation and scope constraints. Ground later queries with {parent_slot} placeholders.\nexecution=retrieval obtains missing factual evidence; execution=compose combines supported\nparent conclusions and their necessary sources. Compose tasks must declare their necessary\nparents. Include the final comparison or synthesis in this same plan when needed.\nfinal_node_id identifies the existing task that answers the requested question completely.\nfinal_node_id MUST exactly equal that task's output_slot string. Never use a positional\nname such as step2 unless step2 is literally the declared output_slot. For example,\nif the final task has output_slot=\"city\", return final_node_id=\"city\".\nFor a natural chain such as director -> university -> city, city is the final task; do not\nappend a redundant answer task. The final task has no children. Independent tasks are allowed.\nUse unique simple output slots, no cycles, no hidden extra nodes. Do not include extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"final_node_id\": {\"type\": \"string\"}, \"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"execution\": {\"enum\": [\"retrieval\", \"compose\"]}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\", \"execution\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\", \"final_node_id\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"what is one of the stars of  The Newcomers known for\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791598897.515449,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791598901.409573
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-adcd700e0c9e2fe8",
+    "object": "chat.completion",
+    "created": 1791598897,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"final_node_id\": \"star\",\n  \"steps\": [\n    {\n      \"question\": \"Who are the stars of The Newcomers?\",\n      \"output_slot\": \"star\",\n      \"answer_type\": \"entity\",\n      \"inputs\": [],\n      \"execution\": \"retrieval\"\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 580,
+      "total_tokens": 651,
+      "completion_tokens": 71,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  }
+}

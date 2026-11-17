@@ -1,0 +1,61 @@
+{
+  "judge_model": "deepseek-v4-flash",
+  "judge_config_identity": "11f61f2814e3617e853cef4a09b8c564ed8befb8ed224816e8ce39658b69e4e0",
+  "protocol": "reference_complete_nonconflicting_llm_judge_v1",
+  "retriever": {
+    "backend": "sqlite_fts5_bm25",
+    "top_k": 5,
+    "max_actions": 36
+  },
+  "arms": {
+    "dagbt_joint_memory_v1": {
+      "questions": 2,
+      "planned_questions": 2,
+      "correct": 0,
+      "judge_failures": 0,
+      "accuracy": 0.0,
+      "accuracy_lower_bound": 0.0,
+      "accuracy_upper_bound": 0.0
+    },
+    "dagbt_residual_memory_v2": {
+      "questions": 2,
+      "planned_questions": 2,
+      "correct": 0,
+      "judge_failures": 0,
+      "accuracy": 0.0,
+      "accuracy_lower_bound": 0.0,
+      "accuracy_upper_bound": 0.0
+    }
+  },
+  "rows": [
+    {
+      "question_id": "769",
+      "arm": "dagbt_joint_memory_v1",
+      "generation_status": "failed",
+      "correct": false,
+      "judge_status": "not_answered"
+    },
+    {
+      "question_id": "769",
+      "arm": "dagbt_residual_memory_v2",
+      "generation_status": "budget_exhausted",
+      "correct": false,
+      "judge_status": "not_answered"
+    },
+    {
+      "question_id": "770",
+      "arm": "dagbt_joint_memory_v1",
+      "generation_status": "failed",
+      "correct": false,
+      "judge_status": "not_answered"
+    },
+    {
+      "question_id": "770",
+      "arm": "dagbt_residual_memory_v2",
+      "generation_status": "failed",
+      "correct": false,
+      "judge_status": "not_answered"
+    }
+  ],
+  "note": "All planned questions remain in the denominator. Judge and retrieval protocol are explicit; this is not a claim of matching the official leaderboard setup."
+}

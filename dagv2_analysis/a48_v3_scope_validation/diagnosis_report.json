@@ -1,0 +1,1531 @@
+{
+  "no_network_calls": true,
+  "evaluation_labels_read": false,
+  "scores_summary_comparisons_read": false,
+  "source_hashes_exactly_equal": true,
+  "source_hash_count": 100,
+  "config_exactly_equal": true,
+  "question_ids_exactly_equal": true,
+  "server_manifest_sha256": "b98849ff764857c9667ba3bb7cbbc3ca1ebfc4706bca10bcbc8b1caa8fb38100",
+  "local_manifest_sha256": "6ff5e7f6e199072a112e77acb17cb2ca9e376ecd2c65a66c4f43c33ef49c3233",
+  "index_content_comparison": {
+    "identity": {
+      "same": true,
+      "value": "3ce2569a89e75445b89210b5b4913223e166ef0569297ced26d999bf1b9eadb7"
+    },
+    "corpus_sha256": {
+      "same": true,
+      "value": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60"
+    },
+    "document_ids_sha256": {
+      "same": true,
+      "value": "500fbf64013669eba422e275208ce5f9e50c8f3a1b28cd135a9175c0f87a163a"
+    },
+    "passages_sha256": {
+      "same": true,
+      "value": "29a3d3cd5ea3c09cf002eba485a5ccf45cecf95574ad5ea312ef7d97810b960c"
+    },
+    "dimensions": {
+      "same": true,
+      "value": 4096
+    },
+    "vectors_sha256": {
+      "same": true,
+      "value": "8d833166e96e0356cbc42e53826c09b8348cbba46d194af4406d63ed4254f9a2"
+    }
+  },
+  "index_manifest_caveat": "Whole manifests differ in machine paths, build time and ledger metadata; index identity and actual vectors hash match.",
+  "server": {
+    "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+    "result_sha256": "2ceec9a2f47971baaaa6eb0683b8e9f1a4337710234ab864b124cdd8e23ba9ba",
+    "event_file_sha256": "253675f5afd53dfc379d61ce4752ed46919a6afc13e49f258e15a72664361526",
+    "plan": {
+      "steps": [
+        {
+          "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+          "output_slot": "creative_interests",
+          "answer_type": "set",
+          "inputs": [],
+          "execution": "retrieval"
+        },
+        {
+          "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, time constraints)?",
+          "output_slot": "activity_preferences",
+          "answer_type": "record",
+          "inputs": [],
+          "execution": "retrieval"
+        },
+        {
+          "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+          "output_slot": "suggestion",
+          "answer_type": "text",
+          "inputs": [
+            "creative_interests",
+            "activity_preferences"
+          ],
+          "execution": "compose"
+        }
+      ],
+      "final_node_id": "suggestion",
+      "output_contract": {
+        "mode": "semantic",
+        "result_type": "text",
+        "entity_scope": "user",
+        "time_scope": "weekend",
+        "explanation": "semantic"
+      },
+      "program": {
+        "variables": {
+          "creative_interests": {
+            "type": "set",
+            "demand": "creative_interests",
+            "open": true
+          },
+          "activity_preferences": {
+            "type": "record",
+            "demand": "activity_preferences",
+            "open": true
+          },
+          "suggestion": {
+            "type": "text",
+            "demand": "suggestion",
+            "open": true
+          }
+        },
+        "expression": {
+          "op": "var",
+          "id": "suggestion"
+        },
+        "rules_complete": false
+      }
+    },
+    "calls": [
+      {
+        "stage": [
+          "planner",
+          "1"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+        "request_file_sha256": "af6b763c899898a532ae478a3ce842fec7981fb8951dd569ad7e2b35ea273eb3",
+        "raw_response_sha256": "cbb240e4b9bbf3a5c7cdd9289ddbf1ebdbfe7c3b572519f155945fa8f27fd6e3",
+        "scopes": []
+      },
+      {
+        "stage": [
+          "joint_read",
+          "2"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+        "request_file_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+        "raw_response_sha256": "233dc900efcc4b313236682a671fa9b2f17d3e0add42568a4af8b3e4b3b88297",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "past"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read_repair",
+          "3"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/377fa624bafddd46ad37b25381a33c3474fc1e45814001a0e70ad6273791e44f.json",
+        "request_file_sha256": "9bb9680ab62e1b9fbf88621ee5ef3bc09479f6ddebd63f089e7ef37c6f00d49e",
+        "raw_response_sha256": "15808a72eecc18598a1af4bf06803580187c2b4ad57d9038a8ca1294dbb09c89",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "past"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read_repair",
+          "4"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/258d299de8185e129601b9f76b1c0dd4e5a85ac0dcec871e0d147f9385a8303b.json",
+        "request_file_sha256": "5503a3c37701002bb48f53059ae93c810dc5cda814de895efdb3403f8c15626e",
+        "raw_response_sha256": "8af73b833811a431b7e160ed55ac57b127b791e8455c5c5ea0bfaa1be6352767",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "past"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "5"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/14e020ab97bae3e66df0988cd4cce2e878e2553cfbede4dd0de4253c71c80148.json",
+        "request_file_sha256": "3eac62305f8b8c4ddaa13e3df4177c92457fe08532c1e79e4155707c793f7b16",
+        "raw_response_sha256": "da60704aa89a0396b173f572d49b1c6c1586719ecbcf1dc812065616e057ae34",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "6"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/97be1a4b96a89e4708cea90205f8e8c08d7896be14809d500c93f70f45b2b8dd.json",
+        "request_file_sha256": "4a31209fff16d7db1fb6893fdbd7da82270a64a605f2f03a6266bb3363143c97",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "7"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/db2b3cc48034aa58938f99ea92430fbf46584969fc31ad191d940cfa914d13c5.json",
+        "request_file_sha256": "e469cc6eaa20f36658a12ad7517f237f6dfa015b1e72a6ee84274679785999d8",
+        "raw_response_sha256": "0ef194958494d43c17aecd1ba1590dc5cb52e1240f0c28e8843eab18644f26ec",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "8"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00313c04f33fe493eeb49528239f14b6c12486644d82f3804a6bf93ce2b983d9.json",
+        "request_file_sha256": "697abe15e3773c345644ea54d361f0ccfd0bef5e9831b90e07adef8244ee3551",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "9"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/affe977e6ba6a2121fb88790a5673af74206472bc284f264ff9b3894c3b1e0ae.json",
+        "request_file_sha256": "70455164e8b1ec79a8d432e4cfa3002e220adfa70a8968d9ee50b1d6f7d327d0",
+        "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "10"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/128c9bdff321334642a1241383edf763e7cdcd5d514f6a1b7663cd4e31c15a41.json",
+        "request_file_sha256": "9d2593024b34dd964601d3741be5f23c8865a227e392b5b6b4695606330ca81e",
+        "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "11"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/b2599609ae476b5c62037c208c850703eb38ef557d14564b20b937fdf394a52e.json",
+        "request_file_sha256": "c60ebf8cf73c8613963909fcbeb40d22e1081a9bb114d2ee5089b440b1ef1bee",
+        "raw_response_sha256": "790b23bd211b6158321b5b738c901cb4ef1279246afb7f89a94583dc3ee620d4",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "12"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/5bcc6ce2a68a24d3d5f403cd9c7772072f91138a3e0a9ff32551f3047f745d3e.json",
+        "request_file_sha256": "0cd83cc6a3b3eddbbfc6166c14cbbf1c0203d8661e65ce1a882a592e9fb08442",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "13"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e38101cd8f901e9d487d82772808b7b63eb5c1711f2071fc0c3947423cf4e67d.json",
+        "request_file_sha256": "7eb89964947b36e9e815daab3c0329e49c1aefbd82fabaddb8c7bc12b25591ac",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "14"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/366c62e21cdf2d82291655383ee79890bdf13702ddeef60fb7d60f3c4b67d3f4.json",
+        "request_file_sha256": "82639972afbb15970193418f12fa0281ccf13ab60545f02fdac903bcd1990967",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "15"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/ab977c337491a88096c59fd8ad80e751d7c9f163e59c4a65ede682d4047271ac.json",
+        "request_file_sha256": "f66f6eacc8d5a473cb00e0c01058e8eeec379bd8798bb9a70530d8cbee274643",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "16"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/1f56d970e39e29b5b35b1d1e2ec5239a83f9d2c4446c08b96b88c2bb957fa328.json",
+        "request_file_sha256": "5c84f328946689ae011dca710d7ba75ea01a3f09176cede38050841f62b7dc3e",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "17"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/269998853f1330c3ad2b50654165e95e75a8a9e7305ced52291c93c2c8adfe4f.json",
+        "request_file_sha256": "b9764ed254d3604497a73838dc51efc8161c96aeb70aacb87ffd36aa17befc9a",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "18"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/2aa4eda55031491b12df21b6e41e0b35250c1a701462314fe68aaac88ffe2170.json",
+        "request_file_sha256": "3897608fe9e1b2430cd122c7052d4ad120bafc190b084dacf7214093e448392c",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "19"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/4f996e30df10b67b2e485fc6f3511010a6c96a2b24d0a351d281d99d7a5bbcc7.json",
+        "request_file_sha256": "62fbd3097bdc7146aa7d56891044f19389afca1bb0057624159897a75ce40080",
+        "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_fb7d41930e592d0956d97329",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "status": "budget_exhausted",
+    "completion_kind": "incomplete",
+    "ledger": {
+      "limits": {
+        "ann": 36,
+        "set_score": 0,
+        "llm": 24,
+        "reader": 0,
+        "json_repairs": 6
+      },
+      "used": {
+        "llm": 19,
+        "http_attempts": 55,
+        "ann": 36,
+        "embedding_http": 36,
+        "json_repairs": 2
+      },
+      "remaining": {
+        "ann": 0,
+        "set_score": 0,
+        "llm": 5,
+        "reader": 0,
+        "json_repairs": 4
+      }
+    },
+    "pending_variables": [
+      "creative_interests"
+    ],
+    "failed_obligations": [
+      [
+        "6353f3af2f0557bebd32a4f9decbaf3076c87c37e949aeb8fd310f8f20eb2551",
+        "570274948631e47733e7e59293b3d5f0cfed0421a54a74268ab7723c1a609277",
+        [
+          "creative_interests"
+        ]
+      ]
+    ],
+    "failed_read_states": 118,
+    "event_counts": {
+      "tokenization_count": 732,
+      "reasoning_request_started": 19,
+      "model_context_budget": 19,
+      "budget_reserved": 148,
+      "http_response": 55,
+      "tokenization_usage_validation": 19,
+      "reasoning_response": 19,
+      "plan_frozen": 1,
+      "typed_dag_initialized": 1,
+      "residual_state": 1,
+      "navigation_query_view": 36,
+      "proxy_free_started": 1,
+      "bridge_step_completed": 36,
+      "joint_read_completed": 16,
+      "proxy_free_conditional_started": 35,
+      "proxy_free_conditional_completed": 35,
+      "terminal_published": 1
+    },
+    "bridge_node_counts": {
+      "creative_interests": 36
+    },
+    "timeline": [
+      {
+        "sequence": 18,
+        "elapsed_seconds": 12.736448287963867,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 1,
+        "local_candidates": 12,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 286,
+        "elapsed_seconds": 59.777536153793335,
+        "event": "joint_read_completed",
+        "source_count": 118,
+        "valid_rows": 0,
+        "complete": false,
+        "failed_slots": [
+          {
+            "variable": "creative_interests",
+            "id": "obs1",
+            "error": "Observation scope does not apply to this task"
+          }
+        ]
+      },
+      {
+        "sequence": 294,
+        "elapsed_seconds": 60.42440915107727,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 2,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 342,
+        "elapsed_seconds": 69.26303267478943,
+        "event": "joint_read_completed",
+        "source_count": 19,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 350,
+        "elapsed_seconds": 70.33312129974365,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 3,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 412,
+        "elapsed_seconds": 80.96423125267029,
+        "event": "joint_read_completed",
+        "source_count": 26,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 420,
+        "elapsed_seconds": 81.75739455223083,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 4,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 450,
+        "elapsed_seconds": 92.50528335571289,
+        "event": "joint_read_completed",
+        "source_count": 10,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 458,
+        "elapsed_seconds": 93.5391857624054,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 5,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 466,
+        "elapsed_seconds": 94.03737235069275,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 6,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 474,
+        "elapsed_seconds": 94.66914176940918,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 7,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 482,
+        "elapsed_seconds": 95.32266235351562,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 8,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 512,
+        "elapsed_seconds": 103.16347432136536,
+        "event": "joint_read_completed",
+        "source_count": 10,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 520,
+        "elapsed_seconds": 103.89598751068115,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 9,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 528,
+        "elapsed_seconds": 104.40616130828857,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 10,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 558,
+        "elapsed_seconds": 113.22725987434387,
+        "event": "joint_read_completed",
+        "source_count": 10,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 566,
+        "elapsed_seconds": 113.85586929321289,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 11,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 574,
+        "elapsed_seconds": 114.59104800224304,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 12,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 602,
+        "elapsed_seconds": 123.19636559486389,
+        "event": "joint_read_completed",
+        "source_count": 9,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 610,
+        "elapsed_seconds": 124.26401996612549,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 13,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 618,
+        "elapsed_seconds": 124.71596217155457,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 14,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 626,
+        "elapsed_seconds": 125.36117506027222,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 15,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 634,
+        "elapsed_seconds": 125.94909763336182,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 16,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 686,
+        "elapsed_seconds": 136.57941150665283,
+        "event": "joint_read_completed",
+        "source_count": 21,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 694,
+        "elapsed_seconds": 137.21657729148865,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 17,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 702,
+        "elapsed_seconds": 137.92159605026245,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 18,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 794,
+        "elapsed_seconds": 148.13990211486816,
+        "event": "joint_read_completed",
+        "source_count": 41,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 802,
+        "elapsed_seconds": 149.24587321281433,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 19,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 810,
+        "elapsed_seconds": 149.77705192565918,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 20,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 818,
+        "elapsed_seconds": 150.59221363067627,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 21,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 850,
+        "elapsed_seconds": 158.82667899131775,
+        "event": "joint_read_completed",
+        "source_count": 11,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 858,
+        "elapsed_seconds": 159.4909806251526,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 22,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 904,
+        "elapsed_seconds": 167.81866765022278,
+        "event": "joint_read_completed",
+        "source_count": 18,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 912,
+        "elapsed_seconds": 168.75079154968262,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 23,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 946,
+        "elapsed_seconds": 177.55959582328796,
+        "event": "joint_read_completed",
+        "source_count": 12,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 954,
+        "elapsed_seconds": 178.24913024902344,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 24,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 962,
+        "elapsed_seconds": 178.896821975708,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 25,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 970,
+        "elapsed_seconds": 179.8797926902771,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 26,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 978,
+        "elapsed_seconds": 181.2191207408905,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 27,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 986,
+        "elapsed_seconds": 183.5597152709961,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 28,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 994,
+        "elapsed_seconds": 186.16883277893066,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 29,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1028,
+        "elapsed_seconds": 194.28034019470215,
+        "event": "joint_read_completed",
+        "source_count": 12,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1036,
+        "elapsed_seconds": 197.17946434020996,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 30,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1044,
+        "elapsed_seconds": 202.0587718486786,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 31,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1078,
+        "elapsed_seconds": 210.39189910888672,
+        "event": "joint_read_completed",
+        "source_count": 12,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1086,
+        "elapsed_seconds": 216.321533203125,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 32,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1094,
+        "elapsed_seconds": 221.33857369422913,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 33,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1122,
+        "elapsed_seconds": 229.8787112236023,
+        "event": "joint_read_completed",
+        "source_count": 9,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1130,
+        "elapsed_seconds": 235.02724838256836,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 34,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1138,
+        "elapsed_seconds": 239.6867299079895,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 35,
+        "local_candidates": 4,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 1164,
+        "elapsed_seconds": 247.8501992225647,
+        "event": "joint_read_completed",
+        "source_count": 8,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1172,
+        "elapsed_seconds": 252.59298133850098,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 36,
+        "local_candidates": 4,
+        "search_status": "budget_exhausted"
+      }
+    ],
+    "all_chat_tokenization_matched": true,
+    "max_total_with_output_and_margins": 14744
+  },
+  "local_smoke06": {
+    "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+    "result_sha256": "eb7d1b88f8d470a5dcfed68459596ae881f5bac455949a2af68116cac9820924",
+    "event_file_sha256": "b793f11fa4e4fa06235873cdede237e42f1748150f64d60081e7e54714732873",
+    "plan": {
+      "steps": [
+        {
+          "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+          "output_slot": "creative_interests",
+          "answer_type": "set",
+          "inputs": [],
+          "execution": "retrieval"
+        },
+        {
+          "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, duration)?",
+          "output_slot": "activity_preferences",
+          "answer_type": "set",
+          "inputs": [],
+          "execution": "retrieval"
+        },
+        {
+          "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+          "output_slot": "suggestion",
+          "answer_type": "text",
+          "inputs": [
+            "creative_interests",
+            "activity_preferences"
+          ],
+          "execution": "compose"
+        }
+      ],
+      "final_node_id": "suggestion",
+      "output_contract": {
+        "mode": "semantic",
+        "result_type": "text",
+        "entity_scope": "user",
+        "time_scope": "weekend",
+        "explanation": "semantic"
+      },
+      "program": {
+        "variables": {
+          "creative_interests": {
+            "type": "set",
+            "demand": "creative_interests",
+            "open": true
+          },
+          "activity_preferences": {
+            "type": "set",
+            "demand": "activity_preferences",
+            "open": true
+          },
+          "suggestion": {
+            "type": "text",
+            "demand": "suggestion",
+            "open": true
+          }
+        },
+        "expression": {
+          "op": "var",
+          "id": "suggestion"
+        },
+        "rules_complete": false
+      }
+    },
+    "calls": [
+      {
+        "stage": [
+          "planner",
+          "1"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+        "request_file_sha256": "1167b9df8f4fe878e7c0e974ca5b1a8c2d73cdbfd49ddc994481ea9daa9662e8",
+        "raw_response_sha256": "ecbafa660645a9a96f47c38dbf4a3dcab07b2b276b08d984f4f13e4fb2ecfbf4",
+        "scopes": []
+      },
+      {
+        "stage": [
+          "joint_read",
+          "2"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/7ce165ed6eee30e8daf679c7baefe6da0e4078457119e0bf0f8fc7dc70fccc78.json",
+        "request_file_sha256": "2c3ab0ed55e43927e517dd605c4c8e0e9b17ba3acbd4d6e17b3d956befb50155",
+        "raw_response_sha256": "a8cbd649718b58dea8ee094148ab3bf0789ae892a39368c4e20785f8e9d6dbba",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "joint_read",
+          "3"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/cfa798f8502e2a98808c1578be789d277cb45e8476e9016ed6e81f9503e7e769.json",
+        "request_file_sha256": "2f6991c2833679e1f9238b83d3548bfbb24a5338bcccf739c276c415957d92f6",
+        "raw_response_sha256": "b03b16cb765d17db04a37c5b7873d4f80925d93c9ea39e04eaa444cb0fa79b9c",
+        "scopes": [
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "obs1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "4"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e5588014d39b4c51c2004751b06f74f59053ec0f522bb93a6bb02f87f909c508.json",
+        "request_file_sha256": "641b754e391a8a55cfd4cdf6c8db2c0d1a7b2836c36adaa262fd21cd477ec0ec",
+        "raw_response_sha256": "a2fc3c37869d673862109276b26a72910bd6e3051ecfe7a65ef976a1e420ce16",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_268b46b040d32f1ddec93821",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "fact_96d8050f46103c4c27ee46d6",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "suggestion",
+            "observations": [
+              {
+                "id": "obs_suggestion_1",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "5"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/df367bceba01e869b08ff12f4b8b604fdc8674393e12d8a4262f19a9feb54a10.json",
+        "request_file_sha256": "295471b25f99ec4b2d1dd03769a1d8f7fdf5b0c3986e0c5406b0d0b5f5309054",
+        "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_268b46b040d32f1ddec93821",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "fact_96d8050f46103c4c27ee46d6",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "suggestion",
+            "observations": [
+              {
+                "id": "fact_25ad92c9c59e6c96ec762629",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "6"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e623225ae3bb9f65ed7db3a89b60fb35807a5f05de7e34c9f966a778c14c4624.json",
+        "request_file_sha256": "fabde50c93c1a52f9b3a88d35a7e76c812c46d155d0f93aba7a58d0c4f8a5d8d",
+        "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_268b46b040d32f1ddec93821",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "fact_96d8050f46103c4c27ee46d6",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "suggestion",
+            "observations": [
+              {
+                "id": "fact_25ad92c9c59e6c96ec762629",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "audit_joint",
+          "7"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/84b2cfc27b7c526c0e343268f9b4b08352fb736b27cb39b24283af501651c429.json",
+        "request_file_sha256": "101aeff5c21e5eb0ccde718a24f84ed5f8bedf6e17461ea2c98a7568c2c4609e",
+        "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_268b46b040d32f1ddec93821",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "fact_96d8050f46103c4c27ee46d6",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "suggestion",
+            "observations": [
+              {
+                "id": "fact_25ad92c9c59e6c96ec762629",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "stage": [
+          "audit_joint",
+          "8"
+        ],
+        "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00a71ac4b8b97a5914993d95e914b2ae68f2da41646b9f9d9c2ec85807a06c9b.json",
+        "request_file_sha256": "031a0a9aef8c55b4ce8d47cff162b0ad6e89c3b4ffaf2c89d4edbcd3190bbf53",
+        "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+        "scopes": [
+          {
+            "variable": "creative_interests",
+            "observations": [
+              {
+                "id": "fact_268b46b040d32f1ddec93821",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "activity_preferences",
+            "observations": [
+              {
+                "id": "fact_96d8050f46103c4c27ee46d6",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          },
+          {
+            "variable": "suggestion",
+            "observations": [
+              {
+                "id": "fact_25ad92c9c59e6c96ec762629",
+                "stance": "support",
+                "entity_scope": "user",
+                "time_scope": "weekend"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "status": "ok",
+    "completion_kind": "semantic_assessment",
+    "ledger": {
+      "limits": {
+        "ann": 36,
+        "set_score": 0,
+        "llm": 24,
+        "reader": 0,
+        "json_repairs": 6
+      },
+      "used": {
+        "llm": 8,
+        "http_attempts": 10,
+        "ann": 2,
+        "embedding_http": 2
+      },
+      "remaining": {
+        "ann": 34,
+        "set_score": 0,
+        "llm": 16,
+        "reader": 0,
+        "json_repairs": 6
+      }
+    },
+    "pending_variables": [],
+    "failed_obligations": [],
+    "failed_read_states": 0,
+    "event_counts": {
+      "tokenization_count": 1102,
+      "reasoning_request_started": 8,
+      "model_context_budget": 8,
+      "budget_reserved": 22,
+      "http_response": 10,
+      "tokenization_usage_validation": 8,
+      "reasoning_response": 8,
+      "plan_frozen": 1,
+      "typed_dag_initialized": 1,
+      "residual_state": 4,
+      "navigation_query_view": 2,
+      "proxy_free_started": 2,
+      "bridge_step_completed": 2,
+      "joint_read_completed": 7,
+      "terminal_published": 1
+    },
+    "bridge_node_counts": {
+      "creative_interests": 1,
+      "activity_preferences": 1
+    },
+    "timeline": [
+      {
+        "sequence": 18,
+        "elapsed_seconds": 11.910734176635742,
+        "event": "bridge_step_completed",
+        "node_id": "creative_interests",
+        "ann_completed": 1,
+        "local_candidates": 12,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 264,
+        "elapsed_seconds": 42.996082067489624,
+        "event": "joint_read_completed",
+        "source_count": 118,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 272,
+        "elapsed_seconds": 43.40612196922302,
+        "event": "bridge_step_completed",
+        "node_id": "activity_preferences",
+        "ann_completed": 1,
+        "local_candidates": 12,
+        "search_status": "batch_completed"
+      },
+      {
+        "sequence": 514,
+        "elapsed_seconds": 84.06639313697815,
+        "event": "joint_read_completed",
+        "source_count": 116,
+        "valid_rows": 1,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 681,
+        "elapsed_seconds": 145.31132102012634,
+        "event": "joint_read_completed",
+        "source_count": 78,
+        "valid_rows": 3,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 801,
+        "elapsed_seconds": 201.43493700027466,
+        "event": "joint_read_completed",
+        "source_count": 56,
+        "valid_rows": 3,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 855,
+        "elapsed_seconds": 250.83752703666687,
+        "event": "joint_read_completed",
+        "source_count": 23,
+        "valid_rows": 3,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1040,
+        "elapsed_seconds": 309.43246507644653,
+        "event": "joint_read_completed",
+        "source_count": 87,
+        "valid_rows": 3,
+        "complete": true,
+        "failed_slots": []
+      },
+      {
+        "sequence": 1184,
+        "elapsed_seconds": 368.9859631061554,
+        "event": "joint_read_completed",
+        "source_count": 68,
+        "valid_rows": 3,
+        "complete": true,
+        "failed_slots": []
+      }
+    ],
+    "all_chat_tokenization_matched": true,
+    "max_total_with_output_and_margins": 16199
+  },
+  "root_cause": "Global terminal user/weekend scope was applied to the intermediate task asking for past creative interests. Uploaded calls 2/3/4 preserved user/past and failed validation. Local smoke06 call 2 returned user/weekend and passed the same validator.",
+  "failure_amplification": "The first failed source-window obligation remains pending; its 118 aliases become invalid read_states and ordinary reads do not reopen them. Later 15 independently valid windows cannot erase a failed counter obligation. Controller restarts at first active DAG step, so creative_interests consumes all 36 ANN calls; other nodes never run.",
+  "bounded_fix": "Declare intermediate variable scope before retrieval and validate each observation against its own scope, while retaining terminal output scope. Do not clear failed counter obligations, relabel historical evidence as weekend, increase budgets or silently accept an incomplete answer.",
+  "limits": [
+    "This diagnosis does not evaluate answer correctness.",
+    "Scope declaration replay is an explicit counterfactual protocol check, not a claim the corrected planner produced that declaration live.",
+    "Scheduler behavior is documented separately; no scheduler change is part of this scope fix."
+  ]
+}

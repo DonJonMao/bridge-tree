@@ -1,0 +1,47 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:61959/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "The painter uses blue pigments.",
+      "The city is located in France.",
+      "Personal memories: [No personal memories supplied.]"
+    ],
+    "top_n": 3,
+    "return_documents": false,
+    "model": "fixture-pointwise"
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "5",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790231760.6829498,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790231760.683818
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 2,
+        "relevance_score": 0.08
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.13
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.08
+      }
+    ]
+  }
+}

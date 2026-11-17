@@ -1,0 +1,51 @@
+{
+  "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "I'm planning a weekend getaway and want to try something creatively fulfilling. What would you suggest?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:2e3781c45289036c9cb65ab4a01320b0762e67e335720ff5459ae18689577ee9\", \"source_id\": \"personamem:memory:2e3781c45289036c9cb65ab4a01320b0762e67e335720ff5459ae18689577ee9\"}]\nConversation message indices 70–72 (zero-based chronological observation order; not calendar time)\nUser:\nUser: Absolutely! After attending a hands-on workshop focused on integrating traditional sounds with digital techniques, I’m now enrolled in an audio production workshop. The workshop was eye-opening, providing insights into how to use technology to enhance traditional music forms. I’m excited about the audio production course because it promises to deepen my technical knowledge and skills, especially in mixing and mastering. This new set of skills will allow me to bring my creative vision to life in ways I never thought possible. I truly believe that this journey will not only elevate my music but also connect me more deeply with the traditions I'm learning about.\n\nUser: I found the practical aspects very exciting and relevant to my projects. Engaging in hands-on activities allows me to not only enhance my skills but also gain the confidence to experiment with different methods. It's invigorating to immerse myself in a learning environment where I can translate my imaginative ideas into tangible outcomes. This experience feels entirely different from the theoretical coursework, as it truly brings the subject to life. I believe this grounding in practical techniques will significantly impact my overall creative journey and foster a deeper connection to my work.\n\nAssistant:\nAssistant: That’s fantastic, Kanoa! It's wonderful to see how you've turned your interests around and are making the most of this unique opportunity. It's clear that you're harnessing your creative potential, which is crucial for any artist or producer aiming to carve their niche in the industry. The fact that you feel you're on a creative roll speaks volumes about your engagement and enthusiasm, as these feelings often drive innovation and personal growth. Embracing new skills and pushing boundaries can lead to incredible breakthroughs, so keep that momentum going! Your excitement about practical work will undoubtedly translate into a richer understanding of the intricacies involved in audio production, allowing for more informed and artistic decisions in your projects. Remember, every piece of knowledge you gather now will serve as a foundation for your future endeavors, and collaboration with others who share your passion can further enhance that experience. It's truly an inspiring journey you’re on, and I can't wait to hear more about your progress!\n\n[Passage {\"doc_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\", \"source_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\"}]\nConversation message indices 146–147 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I went on a hiking date recently but found it tiring and, quite frankly, not enjoyable at all. The trek was supposed to be a fun way to connect with someone special, surrounded by nature and fresh air. However, instead of feeling invigorated by the outdoors, I felt overwhelmed and exhausted. It's surprising how strenuous a hike can be, especially when you're trying to navigate both the terrain and the expectations of a date. Perhaps it was the elevation or the length that caught me off guard, but it really put a damper on what was meant to be a joyful experience.\n\nAssistant:\nAssistant: Physical dates can be challenging, particularly when they involve outdoor activities that demand a certain level of physical fitness and stamina. It's definitely important to consider the various aspects that might influence your enjoyment, such as the location, your current physical health, and even the weather conditions on that day. If the setting is too strenuous, it can hinder what could have been a wonderful opportunity to get to know someone. What kind of setting do you think would suit you better? For example, maybe an active date indoors, such as a cooking class, could allow for more engaging conversation without the physical toll that hiking often brings. Alternatively, a leisurely stroll in a local park or a visit to a cozy cafe might provide a relaxed atmosphere for both of you to connect without the stress of difficult terrain."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "114",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537301.2139142,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537302.698047
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0058881608713852555
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2290,
+      "completion_tokens": 2,
+      "total_tokens": 2292
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

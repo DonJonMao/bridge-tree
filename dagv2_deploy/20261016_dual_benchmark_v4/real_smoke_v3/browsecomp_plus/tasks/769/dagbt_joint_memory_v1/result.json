@@ -1,0 +1,462 @@
+{
+  "unit_id": "769",
+  "method": "dagbt_joint_memory_v1",
+  "dataset": "browsecomp_plus",
+  "answer": {
+    "status": "failed",
+    "prediction": null
+  },
+  "failure": {
+    "error_type": "ProtocolError",
+    "error": "Web initial F omits planned task dependencies; graph-only parents do not preserve an output component; unrepresented_task_ids=[]; nonparticipating_task_ids=[\"capital_city\", \"institution_2003_graduation\", \"institution_2022_article\", \"institution_2022_ceremony\"]. Declare typed unbound variables with demand set to the existing task IDs and connect them through actual parent bindings or task_expressions; preserve the planned tasks, scopes and requested output."
+  },
+  "seconds": 105.11150908470154,
+  "diagnostics": {
+    "ledger": {
+      "limits": {
+        "ann": 36,
+        "set_score": 0,
+        "llm": 24,
+        "reader": 0,
+        "json_repairs": 6
+      },
+      "used": {
+        "llm": 3,
+        "http_attempts": 3,
+        "json_repairs": 2
+      },
+      "remaining": {
+        "ann": 36,
+        "set_score": 0,
+        "llm": 21,
+        "reader": 0,
+        "json_repairs": 4
+      },
+      "events": [
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": false,
+          "http_attempts": 1,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ok",
+              "retryable": false,
+              "will_retry": false,
+              "http_status": 200,
+              "seconds": 0.34690162500191946
+            }
+          ],
+          "successful_http_requests": 1,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "a5b013ad6740c074642b17c5966f6f275ec1cec0aabb3a4bef803e9d308dea1c",
+          "http_status": 200,
+          "count": 4468,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "693337896a19ff13ca6d9ac0f4646c017ff527f5edf5e05b05cc95c4d802a2bd",
+          "seconds": 0.34833350000553764,
+          "unix": 1792168516.8956668
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": true,
+          "http_attempts": 0,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [],
+          "successful_http_requests": 0,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "a5b013ad6740c074642b17c5966f6f275ec1cec0aabb3a4bef803e9d308dea1c",
+          "count": 4468,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "693337896a19ff13ca6d9ac0f4646c017ff527f5edf5e05b05cc95c4d802a2bd",
+          "seconds": 0.0006845409952802584,
+          "unix": 1792168516.898544
+        },
+        {
+          "event": "model_context_budget",
+          "stage": "planner/1",
+          "input_tokens_local": 4468,
+          "output_token_reserve": 4096,
+          "safety_margin": 8,
+          "input_margin": 256,
+          "context_tokens": 16384,
+          "total_tokens_local": 8828,
+          "within_estimated_budget": true,
+          "max_model_len": 120000,
+          "tokenization_request_sha256": "a5b013ad6740c074642b17c5966f6f275ec1cec0aabb3a4bef803e9d308dea1c",
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "693337896a19ff13ca6d9ac0f4646c017ff527f5edf5e05b05cc95c4d802a2bd"
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "llm",
+          "stage": "planner/1",
+          "amount": 1,
+          "used": 1
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "http_attempts",
+          "stage": "planner/1",
+          "amount": 1,
+          "used": 1
+        },
+        {
+          "event": "http_response",
+          "stage": "planner/1",
+          "response_ref": "aae70146eca441eab585943758f1a88e5ec24d619cdef44641048a9538adc12f",
+          "kind": "llm",
+          "usage": {
+            "prompt_tokens": 4468,
+            "total_tokens": 5809,
+            "completion_tokens": 1341,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "seconds": 39.66850519180298
+        },
+        {
+          "event": "tokenization_usage_validation",
+          "stage": "planner/1",
+          "status": "matched",
+          "expected_prompt_tokens": 4468,
+          "observed_prompt_tokens": 4468,
+          "tokenization_request_sha256": "a5b013ad6740c074642b17c5966f6f275ec1cec0aabb3a4bef803e9d308dea1c"
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": false,
+          "http_attempts": 1,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ok",
+              "retryable": false,
+              "will_retry": false,
+              "http_status": 200,
+              "seconds": 0.20300866600155132
+            }
+          ],
+          "successful_http_requests": 1,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "810367cc2fa85e91bb845359a467da048fcb30ddfcb3a6f4d07d476999645b49",
+          "http_status": 200,
+          "count": 6276,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "5acb5fe700b7cf58639ee85775a0b376462842a187f42ee86e07384ee5db8c6c",
+          "seconds": 0.20558429099764908,
+          "unix": 1792168556.783925
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "json_repairs",
+          "stage": "planner",
+          "amount": 1,
+          "used": 1
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": true,
+          "http_attempts": 0,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [],
+          "successful_http_requests": 0,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "810367cc2fa85e91bb845359a467da048fcb30ddfcb3a6f4d07d476999645b49",
+          "count": 6276,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "5acb5fe700b7cf58639ee85775a0b376462842a187f42ee86e07384ee5db8c6c",
+          "seconds": 0.0005947500030742958,
+          "unix": 1792168556.786687
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": true,
+          "http_attempts": 0,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [],
+          "successful_http_requests": 0,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "810367cc2fa85e91bb845359a467da048fcb30ddfcb3a6f4d07d476999645b49",
+          "count": 6276,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "5acb5fe700b7cf58639ee85775a0b376462842a187f42ee86e07384ee5db8c6c",
+          "seconds": 0.0005230410024523735,
+          "unix": 1792168556.788434
+        },
+        {
+          "event": "model_context_budget",
+          "stage": "planner/2",
+          "input_tokens_local": 6276,
+          "output_token_reserve": 4096,
+          "safety_margin": 8,
+          "input_margin": 256,
+          "context_tokens": 16384,
+          "total_tokens_local": 10636,
+          "within_estimated_budget": true,
+          "max_model_len": 120000,
+          "tokenization_request_sha256": "810367cc2fa85e91bb845359a467da048fcb30ddfcb3a6f4d07d476999645b49",
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "5acb5fe700b7cf58639ee85775a0b376462842a187f42ee86e07384ee5db8c6c"
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "llm",
+          "stage": "planner/2",
+          "amount": 1,
+          "used": 2
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "http_attempts",
+          "stage": "planner/2",
+          "amount": 1,
+          "used": 2
+        },
+        {
+          "event": "http_response",
+          "stage": "planner/2",
+          "response_ref": "df0d14abe5b5d3bfb5ffa57cac7bc8c65fad0aaae04d1e83fc5d6edaf118670c",
+          "kind": "llm",
+          "usage": {
+            "prompt_tokens": 6276,
+            "total_tokens": 7351,
+            "completion_tokens": 1075,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "seconds": 32.029240131378174
+        },
+        {
+          "event": "tokenization_usage_validation",
+          "stage": "planner/2",
+          "status": "matched",
+          "expected_prompt_tokens": 6276,
+          "observed_prompt_tokens": 6276,
+          "tokenization_request_sha256": "810367cc2fa85e91bb845359a467da048fcb30ddfcb3a6f4d07d476999645b49"
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": false,
+          "http_attempts": 1,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ok",
+              "retryable": false,
+              "will_retry": false,
+              "http_status": 200,
+              "seconds": 0.3160300420058775
+            }
+          ],
+          "successful_http_requests": 1,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "ed2cf074a4f305d56e0095361614c25bbe29747191f3df193408550f29e1d2b3",
+          "http_status": 200,
+          "count": 6155,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "2d4cbd2026efba8de1c3a453f5ef70a86ca29f3d0d67a8f2980210497c7581f0",
+          "seconds": 0.31849858300120104,
+          "unix": 1792168589.1421142
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "json_repairs",
+          "stage": "planner",
+          "amount": 1,
+          "used": 2
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": true,
+          "http_attempts": 0,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [],
+          "successful_http_requests": 0,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "ed2cf074a4f305d56e0095361614c25bbe29747191f3df193408550f29e1d2b3",
+          "count": 6155,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "2d4cbd2026efba8de1c3a453f5ef70a86ca29f3d0d67a8f2980210497c7581f0",
+          "seconds": 0.0006280000015976839,
+          "unix": 1792168589.146197
+        },
+        {
+          "event": "tokenization_count",
+          "kind": "tokenization_http",
+          "cache_hit": true,
+          "http_attempts": 0,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "attempts": [],
+          "successful_http_requests": 0,
+          "status": "ok",
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenization_request_sha256": "ed2cf074a4f305d56e0095361614c25bbe29747191f3df193408550f29e1d2b3",
+          "count": 6155,
+          "max_model_len": 120000,
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "2d4cbd2026efba8de1c3a453f5ef70a86ca29f3d0d67a8f2980210497c7581f0",
+          "seconds": 0.00048108299961313605,
+          "unix": 1792168589.1472309
+        },
+        {
+          "event": "model_context_budget",
+          "stage": "planner/3",
+          "input_tokens_local": 6155,
+          "output_token_reserve": 4096,
+          "safety_margin": 8,
+          "input_margin": 256,
+          "context_tokens": 16384,
+          "total_tokens_local": 10515,
+          "within_estimated_budget": true,
+          "max_model_len": 120000,
+          "tokenization_request_sha256": "ed2cf074a4f305d56e0095361614c25bbe29747191f3df193408550f29e1d2b3",
+          "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+          "token_count_is_estimate": false,
+          "token_estimator_id": "deployment_vllm_chat_v1",
+          "tokenizer_id": null,
+          "add_generation_prompt": true,
+          "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+          "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+          "tokenization_wire_sha256": "2d4cbd2026efba8de1c3a453f5ef70a86ca29f3d0d67a8f2980210497c7581f0"
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "llm",
+          "stage": "planner/3",
+          "amount": 1,
+          "used": 3
+        },
+        {
+          "event": "budget_reserved",
+          "kind": "http_attempts",
+          "stage": "planner/3",
+          "amount": 1,
+          "used": 3
+        },
+        {
+          "event": "http_response",
+          "stage": "planner/3",
+          "response_ref": "a9a7b9d355b17c4973da3858b2ed5338392c704b78e29df11e1ba5403390e6bb",
+          "kind": "llm",
+          "usage": {
+            "prompt_tokens": 6155,
+            "total_tokens": 7230,
+            "completion_tokens": 1075,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "seconds": 31.719980716705322
+        },
+        {
+          "event": "tokenization_usage_validation",
+          "stage": "planner/3",
+          "status": "matched",
+          "expected_prompt_tokens": 6155,
+          "observed_prompt_tokens": 6155,
+          "tokenization_request_sha256": "ed2cf074a4f305d56e0095361614c25bbe29747191f3df193408550f29e1d2b3"
+        }
+      ]
+    },
+    "corpus_search": {}
+  }
+}

@@ -1,0 +1,909 @@
+Disambiguation in Conversational Question Answering in the Era of LLMs
+                        and Agents: A Survey
+               Md Mehrab Tanjim1 , Yeonjun In2 * , Xiang Chen1 , Victor S. Bursztyn1 ,
+               Ryan A. Rossi1 , Sungchul Kim1 , Guang-Jie Ren3 , Vaishnavi Muppala3 ,
+                         Shun Jiang3 , Yongsung Kim3 , Chanyoung Park2
+                                1
+                                  Adobe Research, 2 KAIST, 3 Adobe Inc.
+                       {tanjim, xiangche, soaresbu, ryrossi, sukim,
+                        gren, mvaishna, shunj, yongsungk}@adobe.com
+                                {yeonjun.in, cy.park}@kaist.ac.kr
+
+                           Abstract                                                                      Disambiguation Policies
+
+                                                                                                                    𝐷1
+
+
+
+
+                                                                                                                                      Disambiguated Output
+        Ambiguity remains a fundamental challenge in
+                                                                                                              Query Rewriting
+
+
+
+                                                                    User Utterance
+        Natural Language Processing (NLP) due to the
+                                                                                     Ambiguity                     𝐷2
+        inherent complexity and flexibility of human                                 Detection          Long Form Answer Generation
+        language. With the advent of Large Language
+                                                                                      RQ1: Why
+        Models (LLMs), addressing ambiguity has be-                                  ambiguous?                    𝐷3
+        come even more critical due to their expanded                                                    Asking Clarifying Question
+
+        capabilities and applications. In the context                                                   RQ2: How to disambiguate?
+
+        of Conversational Question Answering (CQA),                                              RQ3: How to orchestrate?
+                                                               Figure 1: Broadly, we categorize the existing literature
+        this paper explores the definition, forms, and
+                                                               to answer three major research questions (RQs), namely,
+        implications of ambiguity for language driven
+                                                               why ambiguous (RQ1), how to disambiguate (RQ2),
+        systems, particularly in the context of LLMs.
+                                                               and how to orchestrate (RQ3).
+        We define key terms and concepts, categorize
+        various disambiguation approaches enabled by           behavior, where communicators must anticipate
+        LLMs, and provide a comparative analysis of
+                                                               potential misunderstandings, while recipients en-
+        their advantages and disadvantages. We also
+        explore publicly available datasets for bench-         gage in active disambiguation through contextual
+        marking ambiguity detection and resolution             analysis (Anand et al., 2023), clarifying questions
+        techniques and highlight their relevance for           (Zamani et al., 2020; Zhang et al., 2024c), and con-
+        ongoing research. Finally, we identify open            tinuous interpretation refinement (Zukerman and
+        problems and future research directions, espe-         Raskutti, 2002; Jones et al., 2006).
+        cially in agentic settings, proposing areas for
+                                                                  The advent of Large Language Models (LLMs)
+        further investigation. By offering a comprehen-
+        sive review of current research on ambiguities         has further underscored the importance of under-
+        and disambiguation with LLMs, we aim to con-           standing and resolving ambiguity to enhance the
+        tribute to the development of more robust and          performance and reliability of language understand-
+        reliable LLM-based systems.                            ing systems. As LLMs become increasingly inte-
+                                                               gral to applications, such as search engines or In-
+1       Introduction                                           formation Retrieval (IR) (Anand et al., 2023; Ma
+The inherent ambiguity in natural language com-                et al., 2023), Conversational Question Answering
+munication presents a fundamental challenge in                 (CQA) (Zhang et al., 2020; Thoppilan et al., 2022;
+human-AI interactions, especially in conversational            Xu et al., 2023), automated text summarization
+systems. Modern AI Assistants, such as Adobe’s                 (Kurisinkel and Chen, 2023; Zakkas et al., 2024)
+AEP AI Assistant1 and Amazon’s Rufus2 , must                   and so on, their ability to manage ambiguous lan-
+navigate these ambiguities through advanced lan-               guage is essential for effective communication and
+guage understanding mechanisms. The ability to                 user satisfaction. This is because their utility can
+accurately determine the intended meaning of a                 often be compromised by ambiguous user queries,
+term or phrase within a given context is fundamen-             which can lead to incorrect or irrelevant outputs
+tal to enhancing the performance of such conver-               (Kuhn et al., 2022; Deng et al., 2023a).
+sational systems. This mirrors human cognitive                   While disambiguation techniques have wit-
+    * Joint First Author                                       nessed significant advancements over recent
+    1
+        business.adobe.com/products/sensei/ai-assistant.html   decades, driven by sophisticated algorithms (Ra-
+    2
+        aboutamazon.com/news/retail/how-to-use-amazon-rufus    ganato et al., 2017; Zhang et al., 2018; Rao and
+                                                           9537
+          Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 9537–9550
+                              November 4-9, 2025 ©2025 Association for Computational Linguistics
+Daumé III, 2018, 2019; Xu et al., 2019; Alianne-         2.2   Taxonomy of Ambiguity
+jadi et al., 2019; Kumar and black, 2020; Min et al.,
+                                                         Existing literature approaches the taxonomy of am-
+2020; Zamani et al., 2020; Guo et al., 2021; Kuhn
+                                                         biguities in various ways, often influenced by spe-
+et al., 2022; Lee et al., 2023), the inherent com-
+                                                         cific use-cases, public datasets, or the scope defined
+plexity of natural language and the need for large
+                                                         for new data collection. For instance, Tanjim et al.
+annotated corpora has been continuing to pose sub-
+                                                         (2025) focuses on industrial conversation question
+stantial challenges. For these reasons, an emerging
+                                                         answering, while Zhang et al. (2024c) examine am-
+and active area of research is to explore the capac-
+                                                         biguities through public datasets. Additionally, Liu
+ity of LLMs themselves to identify and resolve am-
+                                                         et al. (2023) define their own criteria for collecting
+biguous queries (Liu et al., 2023; Mehrparvar and
+                                                         new datasets, further diversifying the landscape of
+Pezzelle, 2024; Zhang and Choi, 2023; Zhang et al.,
+                                                         ambiguity taxonomies. This complexity is com-
+2024c; Anand et al., 2023). While LLM-based dis-
+                                                         pounded by the various NLP tasks to which these
+ambiguation techniques are gaining popularity, the
+                                                         taxonomies are applied. For example, Natural Lan-
+field lacks a systematic analysis and categorization
+                                                         guage Inference (NLI), Question Answering (QA),
+of existing methods. This paper addresses that gap
+                                                         and Machine Translation (MT) each have unique
+by surveying current LLM-based approaches for
+                                                         requirements and interpretations of ambiguity, as
+ambiguity detection and disambiguation, outlining
+                                                         explored by Zhang and Choi (2023). Consequently,
+their underlying principles, strengths, and limita-
+                                                         different taxonomies have emerged from these di-
+tions. Among the NLP tasks, we primarily focus on
+                                                         verse focuses. Moreover, the same example can
+CQA as this task seems to be prominent in majority
+                                                         be treated differently across various studies. For
+of the use-cases.
+                                                         instance, Zhang et al. (2024c) categorized the ex-
+Organization of this Survey. We structure this sur-      ample “Real name of gwen stacy in amazing spi-
+vey around three core research questions (see Fig-       derman?" as an Aleatoric ‘What’ type of ambiguity.
+ure 1): RQ1: Why do ambiguities arise in language,       In contrast, Zhang and Choi (2023) classified this
+and how can we detect them? RQ2: How can                 as a ‘Literal vs. Implied interpretation’ ambiguity.
+we disambiguate, particularly using LLMs? RQ3:           This discrepancy underscores the need for a unified
+How can we automate disambiguation strategies            approach to taxonomy.
+in real-world applications? Section 2 addresses             In Table 1, we present a comparative analysis
+RQ1 by defining key concepts, presenting a tax-          of these taxonomies to highlight common grounds
+onomy, and reviewing ambiguity detection meth-           despite their differences. To cater to broader ap-
+ods. Section 3 tackles RQ2 by categorizing LLM-          plications and provide clarity, we propose simpli-
+based disambiguation approaches and analyzing            fying existing taxonomies into three overarching
+their strengths and weaknesses. To support these,        categories. We argue that these categories can en-
+Section 4 surveys relevant public datasets used for      compass all existing taxonomies, irrespective of the
+benchmarking. Finally, Section 5 explores open           underlying tasks, thereby offering a more cohesive
+challenges and outlines future directions, center-       framework for understanding ambiguities.
+ing on RQ3: how to orchestrate disambiguation
+                                                         Syntactic Ambiguity: When a sentence can be
+effectively in practice.
+                                                         parsed in different ways (Church and Patil, 1982;
+2   Why Ambiguous?                                       Wasow, 2015). For example, ‘I saw the man with
+                                                         a telescope.’ Here the ambiguity arises because it
+2.1 Definition of Ambiguity                              could be interpreted in two ways: did the speaker
+Ambiguous queries are typically those that have          see the man ‘with the telescope’ or did the speaker
+multiple distinct meanings, insufficiently defined       see ‘the man’ using the telescope? This taxonomy
+subtopics (Clarke et al., 2009), syntactic ambigui-      is listed in both Tanjim et al. (2025) and Liu et al.
+ties (Schlangen, 2004), for which a system strug-        (2023), but it seems to be missing in the other two.
+gles to interpret accurately, resulting in inappropri-   Semantic Ambiguity: When a sentence is gram-
+ate or unclear answers (Keyvan and Huang, 2022).         matically correct but semantically unclear, due to
+These ambiguities can arise at lexical, syntactic,       ambiguity in a word, phrase, or the overall interpre-
+or semantic levels, motivating the development of        tation. The more common case involves ambiguity
+various taxonomies, which we present in the next         at the word or phrase level, often referred to as
+section.                                                 lexical ambiguity (Navigli, 2009; Beekhuizen et al.,
+                                                     9538
+ Literature                                                              Taxonomy
+                 Type                  Definition Provided by the Literature                    Example Given
+ Tanjim et al.   Pragmatic             The meaning of a sentence depends on the context,        “How many do I have?”
+ (2025)                                reference, or scope.
+                 Syntactic             The structure of a sentence is incomplete or allows      “Business event”
+                                       for multiple interpretations.
+                 Lexical               The meaning of the word/term is not clear or has         “Are we removing abc123 from XYZ?”
+                                       multiple interpretations.
+ Zhang et al.    Unfamiliar            Query contains unfamiliar entities or facts.             “Find the price of Samsung Chromecast.”
+ (2024c)
+                 Contradiction         Query contains self contradictions.                      “Output ‘X’ if the sentence contains [category
+                                                                                                withhold] and ‘Y’ otherwise. The critic is in the
+                                                                                                restaurant.>X. The butterfly is in the river.>Y.
+                                                                                                The boar is in the theatre?”
+                 Lexical               Query contains terms with multiple meanings.             “Tell me about the source of Nile.”
+                 Semantic              Query lacks context leading to multiple interpreta-      “When did he land on the moon?”
+                                       tions.
+                 Aleatoric             Query output contains confusion due to missing           “How many goals did Argentina score in
+                                       personal/temporal/spatial/task-specific elements.        the World Cup?”
+ Liu et al.      Pragmatic             Literal and pragmatic interpretations are present.       “I’m afraid the cat was hit by a car.”
+ (2023)
+                 Lexical               A lexical item has different senses.                “John and Anna are married.”
+                 Syntactic             Different syntactic parses lead to different interpre-
+                                                                                           “This seminar is full now, but
+                                       tations.                                            interesting seminars are being offered next quar-
+                                                                                           ter too.”
+                 Scopal                Ambiguity from the relative scopal order of quanti- “The novel has been banned in many schools
+                                       fiers or the scope of particular modifiers.         because of its explicit language.”
+                 Coreference           Ambiguous coreference.                              “It is currently March, and they plan to sched-
+                                                                                           ule their wedding for next December.”
+ Zhang and       Word-Sense Disam-     Word-sense disambiguation for named entities, also       “Who wins at the end of friday night lights?”
+ Choi (2023)     biguation             commonly surfaces as entity linking ambiguities.
+                 Literal vs. Implied   A question literally means something different           “The cake was so dry, it was like eating sand.”
+                 Interpretation        from what the user probably meant to ask.
+                 Multiple Valid Out-   Ambiguity due to multiple valid outputs.                 “When did west germany win the world cup?”
+                 puts
+
+
+Table 1: Here, we present several taxonomies exactly as they appear in the existing literature, along with their
+definitions and examples (ambiguous parts of the text are underlined). As can be seen there are redundancies in
+these definitions, highlighting the need for a unified taxonomy.
+
+2021), where a term has multiple possible mean-                           multiple unless no specific context is given (e.g.,
+ings. As shown in Table 1, this type is listed across                    what/when/where/who type of questions without
+most prior work, with the exception of Zhang and                          context) (Sperber and Wilson, 1986; Huang, 2017).
+Choi (2023), where they mention it as ‘word sense                        Tanjim et al. (2025) name this as pragmatic ambi-
+disambiguation.’ Similarly, the ‘Unfamiliar’ cate-                        guity, whereas it is listed as ‘Semantics’ in Zhang
+gory in Zhang et al. (2024c) aligns with this type,                       et al. (2024c) and as ‘Aleatoric’, ‘Coreference’ and
+as unknown words are inherently open to interpreta-                      ‘Scopal’ in Liu et al. (2023), and as ‘Multiple Valid
+tion until contextual or domain-specific knowledge                        Outputs’ in Zhang and Choi (2023). Meanwhile,
+is applied. Beyond word-level issues, semantic am-                       ‘Knowledge Conflict‘, as described by Neeman
+biguity can also stem from interpretive variation                         et al. (2022); Shaier et al. (2024), also aligns with
+at the sentence level. This includes the usage of                         this type, occurring when a question lacks specific
+literal vs. pragmatic words as mentioned by Liu                           context, such as temporal or locational cues, caus-
+et al. (2023), who refer to it as pragmatic ambi-                         ing retrieval-augmented models to face conflicts
+guity, and ‘Literal vs. Implied Interpretations’ by                       between retrieved and parametric knowledge.
+Zhang and Choi (2023). The ‘Figurative’ type in
+Liu et al. (2023) also falls into this category, as                       2.3     Ambiguity Detection
+does the ‘Contradiction’ category in Zhang et al.                        The body of work for detecting ambiguity can be
+(2024c) because of conflicts with the semantics of                       broadly categorized into three major groups: tra-
+previous statements.                                                     ditional methods (not language model-based), lan-
+Contextual Ambiguity: When the context of the                            guage model-based methods, and large language
+conversation is missing or the answers could be                          model (LLM)-based methods. In Table 2, we sum-
+                                                                   9539
+ Literature      Approach          Inputs          Ambiguity Type              hibited low performance. Their work primarily
+ Trienes and     Logistic regres- Q, tags, similar Syntactical
+ Balog (2019)    sion + features   Qs
+                                                                               focused on contextual ambiguity, where a ques-
+ Dhole           BiLSTM classifier Dialogue, in- Contextual                    tion can lead to multiple valid answers without
+ (2020)                            tents
+ Guo et al.      BERT classifier   Conv., passage Semantic, Contextual         further specification. A more recent study by Tan-
+ (2021)
+ Lee et al.      BERT classifier   Q, passages     Contextual
+                                                                               jim et al. (2025) employed Sentence Transformers
+ (2023)                                                                        with handcrafted rules and features to detect all
+ Tanjim et al.   ST + rules + fea- Q only          Syntactical, Semantic,
+ (2025)          tures                             Contextual                  three ambiguity types—syntactic, semantic, and
+ Kuhn et al.     Prompted LLM      Q Only          Contextual                  contextual—demonstrating that explicit modeling
+ (2022)
+ Zhang et al.    Prompted LLM   Q, context (op- Semantic, Contextual           of ambiguity categories can improve detection.
+ (2024c)                        tional)
+ Zhang and
+ Choi (2023)
+                 LLM + CoT by Q,
+                 ambiguity type schema
+                                        prompt Semantic, Contextual            LLM-Based Methods: With the advent of large
+ Kim et al.      LLM + uncer- Q only            Semantic, Contextual           language models (LLMs), ambiguity detection has
+ (2024)          tainty signals
+                                                                               increasingly shifted toward prompt-based methods.
+Table 2: Summary of ambiguity detection meth-                                  Kuhn et al. (2022) demonstrated that LLMs could
+ods. Shaded by method type: traditional (gray), LM                             be prompted to decide whether to answer a query
+(cyan), LLM (pink). Here, ST= Sentence Transformer,                            or ask for clarification. Their method targeted pri-
+Q=Question, Conv.= Conversation.                                               marily contextual ambiguity, especially in cases of
+                                                                               underspecified user queries. Zhang et al. (2024c)
+marize each method’s approach, model inputs, and                               introduced CLAMBER, a benchmark with a tax-
+the types of ambiguity it addresses based on our                               onomy of eight ambiguity types. They showed
+taxonomy. We give more details below.                                          that LLMs can identify certain semantic (e.g., lexi-
+Traditional Methods: Early research into ambi-                                 cal or referential ambiguity) and contextual ambi-
+guity detection primarily concentrated on binary                               guities, but struggle with systematic disambigua-
+classification methodologies. A significant contri-                            tion. Zhang and Choi (2023) proposed a prompting
+bution in this domain was made by Trienes and                                  method that asks the model to reason about ambi-
+Balog (2019), who used logistic regression on fea-                             guity types before generating a clarifying question.
+tures from similar questions in community QA fo-                               Their framework covers both semantic and contex-
+rums. Their model and features targeted queries                                tual ambiguity, aligning clarification strategies with
+that have a defect in their structure, thereby fo-                             the predicted ambiguity type. Finally, Kim et al.
+cusing on syntactical ambiguity. While offering                                (2024) presented a method where LLMs use their
+interpretability, their scope was limited to single-                           internal uncertainty to decide whether a query is
+turn QA and did not account for other ambiguity                                ambiguous. Their alignment framework quantifies
+types such as semantic or contextual ambiguities in                            information gain through clarification, capturing
+dialogue-based settings. To address some of these                              semantic ambiguities (e.g., polysemous terms) and
+limitations, Dhole (2020) proposed a two-stage                                 contextual ones (e.g., missing scope or domain).
+approach for resolving ambiguous user intents in                                  Despite the flexibility of LLMs, these
+task-oriented dialogue. Their work falls under con-                            works collectively show that ambiguity detec-
+textual ambiguity, as their classifier disambiguates                           tion—particularly fine-grained distinctions among
+underspecified user intents.                                                   types—remains a complex problem. We will
+                                                                               revisit these challenges in Section 5.
+Language Model-Based Methods: In the realm of
+language model-based methods, Guo et al. (2021)                                3   How To Disambiguate?
+introduced Abg-CoQA, a benchmark dataset and
+framework for ambiguity detection and clarifying                               In the era of LLMs, disambiguation is gaining
+question generation in conversational QA. Their                                increasing attention due to their extensive world
+model addressed both semantic and contextual am-                               knowledge and advanced capabilities, surpassing
+biguities owing to their framing ambiguity detec-                              traditional and smaller language models. However,
+tion as a QA classification task (thus capable of                              current research in this area often lacks systematic
+understanding the semantic ambiguity). However,                                categorization and tends to address various aspects
+even with BERT-based models, performance re-                                   in isolation. To that end, in this paper, we argue
+mained low (23.6% F1). Similarly, Lee et al. (2023)                            existing disambiguation works fall in three major
+proposed a BERT-based classifier to detect ambi-                               policies, which we present in Figure 2. We describe
+guity given a passage, but their model also ex-                                each of them below.
+                                                                            9540
+               Disambiguation Policy:                                              Disambiguation Policy:                                                       Disambiguation Policy:
+                  Query Rewriting                                               Long Form Answer Generation                                                    Asking Clarifying Question
+
+
+                                                                                                 Retrieve                                                                      A
+                                                                                      A          relevant
+      Chat History +             LLM        Rewritten Query
+      Other Context                                                                           document for                                          Q          LLM             B       LLM       Asking Clarifying
+                                                                    Q      LLM        B                          LLM      Long Form Answer                                                          Question
+                                                                                                each valid
+                                                                                              interpretation                                 Ambiguous Query
+                                 Q                            Ambiguous Query                                                                                                  C
+                                                                                      C
+                          Ambiguous Query                                                                              For 2025-2028, the                   Knowledge      Multiple Valid
+                                                                                                                       president is Donald                    Base         Interpretations
+                                                How many                                                                Trump...For 2021-
+       What is a            How many                                     Multiple Valid          Knowledge
+                                                segments I                                                              2024 …..For years      Who played Weasley                         Could you kindly clarify
+       segment?             do I have?                                  Interpretations            Base
+                                                  have?                                                                   prior to that….     brother in Harry Potter?                    which Weasley brother
+                                                                                                                                                                                           you are referring to?
+                                                               Name the president
+                                                                of United States.
+                   Immersive (user not aware)                                               Low risk if wrong                                                              No risk if wrong
+
+
+                       High risk if wrong                                                 Some user awareness                                                            Total user awareness
+
+
+                       Pre-processing                                                      Intra-processing                                                                Post-processing
+
+
+
+Figure 2: We find existing disambiguation efforts using LLMs broadly fall into these three major categories: Left.
+Query Rewriting, Middle. Long Form Answer Generation, Right. Asking Clarifying Questions. These policies have
+different requirements and also work in different processing steps in CQA pipeline, resulting in unique advantages
+and disadvantages for each approach. We highlight a couple here and provide a more comprehensive list in Table 5.
+
+
+3.1 Query Rewriting (QR)                                                                                        improve QR model either through a re-ranker (Mao
+Query rewriting (QR) represents a wide span of                                                                  et al., 2024) or preference optimization (Zhang
+techniques that transforms ambiguous or unclear                                                                 et al., 2024b).
+user queries into well-defined, comprehensive ex-
+                                                                                                                3.2        Long Form Answer Generation (LFAG)
+pressions (Carpineto and Romano, 2012). Early
+work focused on query expansion (Carpineto and                                                                  Generating long-form answers to ambiguous ques-
+Romano, 2012; Lavrenko and Croft, 2017), contex-                                                                tions involves presenting all valid interpretations
+tual rephrasing (Zukerman and Raskutti, 2002), and                                                              alongside their corresponding answers. For in-
+synonym-based augmentation (Jones et al., 2006).                                                                stance, the question “Who has the highest goals
+Prior to LLM, research demonstrates significant                                                                 in world football?” can refer to either men’s
+advances in neural query rewriting through super-                                                               or women’s football. A well-structured response
+vised learning approaches (Elgohary et al., 2019;                                                               would be: “Ali Daei holds the record in men’s foot-
+Anantha et al., 2021) and reinforcement learning                                                                ball, while Christine Sinclair does in women’s foot-
+frameworks (Vakulenko et al., 2021). Other inno-                                                                ball.” As shown in Figure 2 (Middle), this task typi-
+vations have explored explicit reasoning patterns                                                               cally comprises three steps: 1) Disambiguating the
+(Qian and Dou, 2022) achieving good performance                                                                 question, 2) Answering each interpretation, and 3)
+in transforming ambiguous queries into precise,                                                                 Consolidating the results into a single, coherent re-
+answerable questions.                                                                                           sponse. Early methods streamlined these steps into
+   The emergence of LLMs has enabled more ad-                                                                   a single model inference. Stelmakh et al. (2022)
+vanced query reformulation, moving beyond term-                                                                 finetuned T5 to directly produce long-form answers.
+based edits to deeper semantic understanding and                                                                More recent LLM-based approaches, such as Gao
+contextual refinement across downstream tasks                                                                   et al. (2023), show that few-shot prompting can
+(Wang et al., 2023). Recent research works, such                                                                be similarly effective without fine-tuning. To re-
+as Ma et al. (2023); Jagerman et al. (2023), have                                                               duce reasoning load, Amplayo et al. (2022) pro-
+demonstrated the efficacy of LLM-based query re-                                                                posed a two-step method: first inferring multiple
+formulation in zero-shot and few-shot settings, par-                                                            interpretations, then generating a long-form answer
+ticularly valuable when domain-specific training                                                                from them. RAC (Kim et al., 2023a) introduced
+data is scarce. The principled way of QR is shown                                                               retrieval-augmented disambiguation to generate an-
+in Figure 2 (Left), where an LLM is prompted with                                                               swers with supporting evidence (Steps 1–2), while
+previous chat history and other relevant informa-                                                               ToC (Kim et al., 2023a) extended this via iterative
+tion as context. Some advanced prompting, such                                                                  retrieval to capture overlooked interpretations, trad-
+as Ye et al. (2023) also includes “rewrite-then-edit”                                                           ing off efficiency. DIVA (In et al., 2024) improved
+framework. Apart from prompting, LLMs also                                                                      efficiency by modeling a reasoning chain that com-
+have been fined-tuned (Peng et al., 2024) or used to                                                            presses this process into a single step, maintaining
+generate Supervised Fine Tuning (SFT) dataset to                                                                performance while reducing complexity.
+                                                                                                    9541
+ Technique    Syntactic   Semantic    Contextual       inferred interpretations, and incorporate missing
+ QR               ✓           ✓            ✓
+                                                       contextual details from prior conversation. LFAG
+ LFAG             ✗           ✓            ✓           handles semantic and contextual ambiguity by pre-
+ ACQ              ✗           ✓            ✓           senting multiple plausible interpretations, includ-
+                                                       ing those that differ semantically as well as those
+Table 3: Disambiguation techniques and the types of    that are plausible when considering different con-
+ambiguity they are equipped to handle.                 texts. ACQ resolves semantic and contextual am-
+                                                       biguity by explicitly asking the user to confirm
+3.3 Asking Clarifying Question (ACQ)                   among similar options or supply missing informa-
+This is one of the most extensively studied disam-     tion. While QR might look most appealing for its
+biguation policies, with approaches ranging from       broad coverage, it still faces key challenges such
+rule-based prompts (e.g., “Did you mean A or           as semantic drift (Anand et al., 2023) and practical
+B?” (Coden et al., 2015), “What do you want to         concerns like latency, cost, and error propagation
+know about QUERY?” (Zamani et al., 2020), or           in production (Tanjim et al., 2025). We will dis-
+category-based options (Lee et al., 2023)) to tradi-   cuss the strengths and limitations of each approach
+tional machine learning (Zhang et al., 2018; Rao       further in Section 5.
+and Daumé III, 2018, 2019) and language model-
+based methods (Xu et al., 2019; Aliannejadi et al.,    4   Benchmarks
+2019). Several works also introduce new datasets
+(Xu et al., 2019; Kumar and black, 2020; Min et al.,   To evaluate disambiguation strategies, prior work
+2020; Guo et al., 2021), discussed further in Sec-     has introduced task-specific benchmark datasets
+tion 4. However, these methods often struggle with     and metrics, which we describe below.
+complex queries and rely on annotated corpora,         Ambiguity Detection and ACQ. Most existing
+which could be difficult to obtain.                    datasets related to ambiguity fall into the category
+   With the advent of LLMs, recent studies have        of detecting the need for clarification and necessary
+leveraged prompt-based approaches (Kuhn et al.,        disambiguation by asking clarification questions.
+2022; Deng et al., 2023b; Zhang et al., 2024c),        Notable datasets in this area include CLAQUA (Xu
+typically employing zero-shot or few-shot Chain-       et al., 2019), ClarQ (Kumar and black, 2020), Am-
+of-Thought (CoT) prompting strategies. These           bigNQ (Min et al., 2020), ClariQ (Aliannejadi et al.,
+methods mirror the Long-form Answer Generation         2020), Abg-CoQA (Guo et al., 2021), PACIFIC
+pipeline but focus on analyzing multiple valid in-     (Deng et al., 2022), CAmbigNQ (Lee et al., 2023),
+terpretations to generate clarifying questions, as     and CLAMBER (Zhang et al., 2024c). These cor-
+shown in Figure 2 (Right). Like QR, they re-           pora exhibit significant variation across several di-
+duce the need for domain-specific data and can         mensions, each contributing uniquely to the un-
+be training-free while supporting complex ques-        derstanding of ambiguities in dialogue systems, as
+tion structures. Some works adopt a two-stage          listed in Table 4. Among them, the CLAMBER
+pipeline: first detecting ambiguity, then generat-     benchmark (Zhang et al., 2024c) has emerged as
+ing suitable clarification questions. For instance,    the first comprehensive evaluation benchmark for
+Zhang and Choi (2023) proposed an innovative           LLM-based ambiguity detection and ACQ, provid-
+uncertainty estimation technique for ambiguity de-     ing valuable insights into the current limitations of
+tection that quantifies intent entropy through sim-    LLM-based approaches and establishing baseline
+ulated user-assistant interactions. Finally, similar   metrics for future research. Statistics for all these
+to QR, LLMs can be also be fine-tuned to gen-          datasets, along with their corresponding URLs, ap-
+erate clarifying questions. For example, Zhang         pear in Table 4. Metrics typically used for ambi-
+et al. (2024a); Kim et al. (2024) fine-tuned various   guity detection include classification metrics such
+LLMs, such as Llama-2-7B (Touvron et al., 2023),       as Precision, Recall, F1, Accuracy, and AUROC
+Gemma-7B (Team et al., 2024), and Llama-3-8B           score (Zhang et al., 2024c; Tanjim et al., 2025). For
+(Dubey et al., 2024).                                  ACQ, the metrics are usually automatic text evalua-
+   Table 3 summarizes how disambiguation tech-         tion metrics, such as BLEU (Papineni et al., 2002)
+niques address different ambiguity types. QR han-      or ROUGE (Lin, 2004). However, some studies
+dles all three by reformulating queries to fix syn-    criticize the limitations of these metrics and favor
+tactic issues, resolve semantic confusion through      human judgment instead (Zamani et al., 2020).
+                                                   9542
+ Paper           Name       Domain       Core Unit            Scale         # Ambigu- Link
+                                                                            ous
+                                    Ambiguity Detection and Asking Clarifying Question
+ Xu et al.       CLAQUA     Open-       Q w/ Ans. (ST + 17K + 22K            7K + 9K       github.com/msra-
+ (2019)                     domain      MT)                                                nlc/MSParS_V2.0
+ Kumar and       ClarQ      Stack Ex- Q w/ Context           6M              2M            github.com/vaibhav4595/ClarQ
+ black (2020)               change
+ Min et al.      AmbigNQ    Wikipedia   Q      w/      Ans. 10K / 2K / 2K 4K / 1K / 1K     nlp.cs.washington.edu/ambigqa
+ (2020)                                 (Tr/Vl/Te)
+ Guo et al.      Abg-CoQA   Stack Ex- P + Q                  4K + 8K         800+ / 900+   github.com/MeiqiGuo/AKBC2021-
+ (2021)                     change                                                         Abg-CoQA
+ Aliannejadi     ClariQ     TREC,       Conv. + Clar.Q       11K + 1M        Rated         github.com/aliannejadi/ClariQ
+ et al. (2021)              Qulac
+ Deng et al.     PACIFIC    TAT-QA      Conv. + Q w/ Con- 2K + 19K           2K            github.com/dengyang17/PACIFIC
+ (2022)                                 text & Ans.
+ Lee et al.      CAmbigNQ   AmbigNQ     Clar.Q + Ans. + P    4K + 400+ + All Ambig.        github.com/DongryeolLee96/AskCQ
+ (2023)                                                      400+
+ Zhang et al.    CLAMBER    Mixed       Q w/ Context         12K             5K            github.com/zt991211/CLAMBER
+ (2024c)
+                                                       Query Rewriting
+ Elgohary       CANARD      QUAC         Q + Rewrite          40K + 40K     N/A            canard.qanta.org
+ et al. (2019)
+ Anantha et al. QReCC       QUAC, NQ,    Conv.       + Q + 13K + 80K + N/A                 github.com/apple/ml-qrecc
+ (2021)                     TREC-C       Rewrite           80K
+                                              Long Form Answer Generation
+ Stelmakh        ASQA       Wikipedia,   Q w/ LF Ans. 4K / 900+ / All Ambig.               github.com/google-
+ et al. (2022)              AmbigNQ      (Tr/Vl/Te)        1K                              research/language
+
+Table 4: Publicly available datasets for benchmarking ambiguity in QA, covering both ambiguous and non-
+ambiguous cases (except ASQA, CANARD, QReCC). Rows are task-grouped and color-coded by size: large
+(pink), medium (cyan), small (yellow). "Core Unit" abbreviates data structure: Tr=Train, Vl=Val, Te=Test,
+P=Passage, Q=Question, Ans.=Answer, Clar.Q=Clarifying Q., Conv.=Conversation, LF=Long Form, Con-
+text=Passage/Table/Post (depends on the dataset), Rated=All questions rated from 1 (clear) to 4 (ambiguous).
+
+
+Query Rewriting. There are two prominent bench-                trieves the correct information (Ma et al., 2023; Ye
+mark datasets for evaluating the quality of rewrit-            et al., 2023). For these purposes, popular open-
+ten queries. The pioneering dataset in this area               domain QA datasets like NQ (Kwiatkowski et al.,
+is CANARD (Elgohary et al., 2019), which in-                   2019), TriviaQA (Joshi et al., 2017), and HotpotQA
+cludes questions with context and their rewritten              (Yang et al., 2018) are often used as benchmarks.
+versions. This was followed by QReCC (Anan-                    However, we do not list them here as they do not fo-
+tha et al., 2021), where each user question is ac-             cus specifically on ambiguity and lack correspond-
+companied by a human-rewritten query, and an-                  ing human-rewritten queries.
+swers to questions within the same conversation                Long Form Answer Generation. To the best of our
+may be distributed across multiple web pages. No-              knowledge, ASQA (Stelmakh et al., 2022) is the
+tably, QReCC is used in recent LLM-based QR                    only dataset that falls into this category. ASQA is a
+approaches such as Ye et al. (2023) and Zhang et al.           long-form QA dataset derived from a subset of am-
+(2024b). Both of these datasets, along with their              biguous questions in the AmbigNQ dataset (Min
+statistics and URLs, are listed in Table 4. It is im-          et al., 2020). Its statistics and corresponding URL
+portant to note that, unlike datasets related to ACQ,          are provided in Table 4. The dataset is designed to
+these datasets do not contain specific fields or la-           evaluate how well systems can generate compre-
+bels explicitly indicating ‘ambiguity’ in queries. As          hensive answers that cover all valid interpretations.
+for metrics, similar to ACQ, BLEU and ROUGE                    Two main metrics are used to assess the generation
+are popular choices for measuring the quality of               quality (In et al., 2024): Disambig-F1 (D-F1) (Stel-
+rewritten queries. Additionally, since QR is often             makh et al., 2022), which assesses the accuracy of
+employed for IR tasks, standard IR metrics such as             responses by verifying correct answers to disam-
+mean reciprocal rank (MRR), mean average preci-                biguated questions using an F1 score, and ROUGE,
+sion (MAP), and Recall@k and Precision@k are                   which evaluates the correctness by comparing them
+used to evaluate whether the rewritten query re-               to ground-truth long-form answers.
+                                                           9543
+    Disambiguation Policy           Automatic?   Additional LLM Call?   Visible to User?   High Risk?   UX Disrupting?
+    Query Rewriting                    Yes                Yes                  No             Yes            No
+    Long Form Answer Generation        Yes              Maybe                 Yes             No           Maybe
+    Asking Clarification Question       No                Yes                 Yes             No             Yes
+
+Table 5: Comparison of disambiguation policies across key dimensions. Trait colors: Green = positive, Red =
+negative, Yellow = context-dependent. No single policy suffices, motivating an agentic framework to coordinate.
+
+
+5     Open Problems and Challenges                            nation. The challenge lies in determining when
+                                                              to use which policy. For example, always asking
+5.1 Detecting Ambiguities
+                                                              clarifying questions can disrupt UX while always
+While LLMs have exceptional generative capa-                  rewriting queries can lead to errors (Tanjim et al.,
+bilities, recent studies consistently highlight the           2025). These lead to multiple opportunities which
+challenges of using LLMs to detect ambiguous                  we lay out below.
+queries with high performance. For example,
+Zhang and Choi (2023) achieved an AUROC                        5.3   Opportunities
+of 0.57 on AmbigNQ (Min et al., 2020) using
+                                                              The next wave of disambiguation in Conversational
+LLaMA-2-13B-Chat, while Zhang et al. (2024c) re-
+                                                              QA is being shaped by three emerging trends: agen-
+ported a best F1 score of 0.53 on their dataset using
+                                                              tic orchestration, simulation- and reward-driven
+GPT-3.5-Turbo. Tanjim et al. (2025) shares a sim-
+                                                              policy optimization, and evaluation with LLM-as-
+ilar study and highlight a relatively lower perfor-
+                                                              a-judge.
+mance using GPT-3.5-Turbo and LLaMA-3.1-70B.
+One potential reason, as suggested by Liu et al.              Agentic orchestration for disambiguation. Re-
+(2023), is that LLMs are not inherently designed to           cent generations of LLMs (Meta AI, 2024; OpenAI,
+model ambiguities.                                            2025b,a) offer longer context windows, more reli-
+                                                              able tool use, and reasoning-centric architectures.
+5.2 How To Orchestrate?                                       These advances make it increasingly feasible to de-
+This is one of the research questions we posed at             ploy multi-agent CQA systems (Dibia et al., 2024;
+the beginning. To first see why we need to oches-             Fourney et al., 2024). Within such frameworks,
+trate among the disambiguation policies, in this              disambiguation becomes a first-class capability for
+paper, we systematically analyze the pros and cons            every agent, but especially for the orchestrator or
+of each disambiguation policy, making us the first            coordinator agent, which explicitly handles user
+to do so to the best of our knowledge. We show                requests and is responsible for carrying forward the
+the list in Table 5, which are: 1) Automatic: Both            task with the help of other agents.
+QR and LFAG are automatic and do not require                     To operationalize this capability, the orchestrator
+human validation, unlike clarifying questions. 2)             can leverage agent cards or specifications in tandem
+Additonal LLM Call: For CQA, at least one LLM                 with other agents to agree on common nomencla-
+call is needed for answer generation, and so LFAG             ture or establish a constitution. By standardizing
+could be integrated into that same LLM call. But              specification languages, these can systematically
+both QR and ACQ require dedicated LLMs. 3)                    encode explicit policies for query handling and clar-
+Visible to User: Rewritten queries are not typi-              ification, with Agents.md offering a promising step
+cally visible to the user, whereas users might notice         toward such standardization. For instance, an agent
+long-form answers and are definitely aware of clar-           card may include a disambiguation extension that
+ifying questions. 4) High Risk: Each policy affects           determines when to issue clarification prompts (e.g,
+different processing steps; for example, QR im-               which tools to use). Moreover, agentic orchestra-
+pacts downstream tasks significantly, as incorrect            tion can incorporate auxiliary mechanisms, such
+assumptions can lead to wrong answers. 5) UX                  as memory and verification, to safeguard trajec-
+Disrupting: Repeated QR does not affect user ex-              tory alignment. Memory management preserves
+perience as it is not visible, but too many clarifying        relevant conversational history (Anthropic, 2025)
+questions can vex users. LFAG falls in between,               while filtering out noise, thereby reducing the risk
+as overly long answers are sometimes unwelcome.               of context drift. LLM verification (discussed sep-
+As can be seen, each approach has unique strengths            arately later) serves as an additional checkpoint,
+and weaknesses, necessitating the need of coordi-             validating whether the system’s chosen path aligns
+                                                          9544
+with the intended query resolution.                      more holistically according to faithfulness, clarity,
+   Conversational engines can further enhance this       relevance, and conversational satisfaction (Zheng
+process by engaging users in real-time clarifica-        et al., 2023; Gu et al., 2024; Lee et al., 2025). Spe-
+tion. Inspired by Bayesian Experimental Design           cialized judges can enable multilingual and domain-
+(BED) (Rainforth et al., 2024), a promising direc-       targeted assessment (Kim et al., 2023b; Pombal
+tion in this space, as explored in Kobalczyk et al.      et al., 2025). Embedding such judges directly “in
+(2025), is to actively select questions that maxi-       the loop” (i.e., LLM-verification mentioned earlier)
+mize expected information gain, shifting from im-        can provide dense, rubric-based feedback not only
+plicit reasoning about the best question to explicit     for outputs but also for policies—e.g., “should a
+evaluation via sampling from the solution space.         clarification have been asked here?” This can align
+Agents with such advanced meta-cognitive skills          evaluation goals with end-user satisfaction and ac-
+could eventually infer the most informative ques-        celerate policy refinement. Beyond scoring final
+tions autonomously, combining static policies from       answers using traditional LLM-as-a-judge, agent-
+agent cards with dynamic dialogue to robustly han-       as-a-judge is another promising direction, where
+dle ambiguous input. Thus, embedding these strate-       evaluating agents can audit intermediate steps (e.g.,
+gies directly into the orchestrator’s as well as other   query reformulations, retrieval choices, clarifica-
+agents’ layer ensures that disambiguation is not an      tion turns) (Zhuge et al., 2025).
+afterthought, but a modular and transparent compo-
+                                                         Human factors and user experience. User experi-
+nent of multi-agent coordination.
+                                                         ence remains central to all disambiguation strate-
+Simulation- and reward-driven policy selection.          gies. Adaptive clarification thresholds that are
+A major opportunity lies in training multiple dis-       confidence- and risk-aware, persona-sensitive clar-
+ambiguation policies shown in Table 5 using sim-         ification styles, and transparent attribution mech-
+ulation. By generating large-scale ambiguous di-         anisms can directly improve user trust and satis-
+alogues and optimizing reward-driven objectives,         faction. Importantly, minimizing unnecessary in-
+policies can be tuned not only for task accuracy         terruptions while ensuring correctness is crucial.
+but also for groundedness, efficiency, and user ex-      As LLMs continue to scale in reasoning, planning,
+perience. Inspired by advances in reinforcement          and orchestration capabilities, we anticipate that
+learning for reasoning using simulaiton (Guo et al.,     agentic CQA systems will increasingly arbitrate be-
+2025), such systems can test alternative strategies      tween clarification, rewriting, retrieval, and direct
+(clarify vs. rewrite vs. direct answer) and optimize     answering and advance toward trustworthy, engag-
+routing controllers accordingly. Mukherjee et al.        ing, reliable multi-agent systems.
+(2025) push a more practical path forward: rather
+than relying on SFT or preference-based tuning           6   Conclusion
+— both burdened with extra hyper-parameters and
+                                                         In this paper, we have provided a comprehensive
+indirect reward alignment — their approach shows
+                                                         analysis of ambiguity and disambiguation in LLM-
+that QA agents can cut straight to the goal with
+                                                         based CQA systems through three fundamental re-
+reward-weighted supervised fine-tuning. This new
+                                                         search questions. First, we have explored different
+offline RL objective offers a practical step for fine-
+                                                         types of ambiguity and proposed a unified taxon-
+tuning an orchestrator to select disambiguation poli-
+                                                         omy using three categories. We also highlighted
+cies more effectively than specification or search-
+                                                         the challenges of accurately detecting ambiguity,
+based approach outlined above. Multi-agent RL
+                                                         even with LLMs. Next, we have categorized var-
+further enables coordination between other agents
+                                                         ious LLM-based disambiguation approaches and
+with multiple roles (planner, retriever, checker) via
+                                                         reviewed key benchmark datasets and metrics. Fi-
+shared objectives (Chen et al., 2025).
+                                                         nally, we discussed open challenges and opportu-
+LLM-as-a-judge for user-centric evaluation. Con-         nities for LLM-based ambiguity detection and dis-
+ventional evaluation metrics such as BLEU,               ambiguation strategies, particularly from agentic
+ROUGE, and METEOR are not aligned with the               perspectives. By offering a comprehensive review
+goals of disambiguation, where success requires          of current research on ambiguities and disambigua-
+semantic correctness, underspecification resolution,     tion with LLMs, we hope our survey will contribute
+and conversational coherence. Recent work demon-         to the development of more robust and reliable
+strates that LLM-as-a-judge can evaluate responses       LLM-based applications.
+                                                     9545
+Limitations                                              Mohammad Aliannejadi, Hamed Zamani, Fabio
+                                                          Crestani, and W Bruce Croft. 2019. Asking clari-
+In this work, we aimed to provide a comprehen-            fying questions in open-domain information-seeking
+sive review and categorization of recent research on      conversations. In Proceedings of the 42nd interna-
+                                                          tional acm sigir conference on research and develop-
+LLM-based ambiguity detection and disambigua-             ment in information retrieval, pages 475–484.
+tion. Through our analysis, we identified three
+simplified categories of ambiguity types and three       Reinald Kim Amplayo, Kellie Webster, Michael Collins,
+                                                           Dipanjan Das, and Shashi Narayan. 2022. Query
+primary disambiguation techniques. However, this           refinement prompts for closed-book long-form ques-
+categorization is not exhaustive and may differ            tion answering. arXiv preprint arXiv:2210.17525.
+from other frameworks, which often use more gran-
+                                                         Abhijit Anand, Vinay Setty, Avishek Anand, et al. 2023.
+ular or task-specific classifications. Despite our         Context aware query rewriting for text rankers using
+thorough literature review, it is possible that some       llm. arXiv preprint arXiv:2308.16753.
+recent or less-publicized works were overlooked,
+                                                         Raviteja Anantha, Svitlana Vakulenko, Zhucheng Tu,
+given the rapid advancements in this field. Addi-          Shayne Longpre, Stephen Pulman, and Srinivas
+tionally, our survey focused exclusively on ambigu-        Chappidi. 2021. Open-domain question answering
+ity in Conversational Question Answering (CQA)             goes conversational via question rewriting. In Pro-
+tasks. In this survey, we did not cover other impor-       ceedings of the 2021 Conference of the North Amer-
+                                                           ican Chapter of the Association for Computational
+tant NLP tasks, such as Natural Language Inference
+                                                           Linguistics: Human Language Technologies, pages
+(NLI), Machine Translation (MT), Information Re-           520–534.
+trieval (IR), and Code Generation (e.g., NL2SQL),
+                                                         Anthropic. 2025. How we built our multi-agent
+where ambiguities also arise and pose significant
+                                                           research system. https://www.anthropic.com/
+challenges. Future work could benefit from extend-         engineering/multi-agent-research-system.
+ing the scope to include these tasks, providing a          Accessed September 2025.
+more holistic understanding of ambiguity in NLP
+                                                         Barend Beekhuizen, Blair C Armstrong, and Suzanne
+applications.                                              Stevenson. 2021. Probing lexical ambiguity: Word
+                                                           vectors encode number and relatedness of senses.
+Acknowledgements                                           Cognitive Science, 45(5):e12943.
+                                                         Claudio Carpineto and Giovanni Romano. 2012. A
+This work was supported by Institute of Informa-           survey of automatic query expansion in information
+tion & Communications Technology Planning &                retrieval. Acm Computing Surveys (CSUR), 44(1):1–
+Evaluation(IITP) grant funded by the Korea gov-            50.
+ernment(MSIT) (RS-2023-00216011), as well as             Yiqun Chen, Erhan Zhang, Lingyong Yan, Shuaiqiang
+another IITP grant funded by the Korea govern-             Wang, Jizhou Huang, Dawei Yin, and Jiaxin Mao.
+ment(MSIT) (RS-2022-II220077).                             2025. Mao-arag: Multi-agent orchestration for adap-
+                                                           tive retrieval-augmented generation. arXiv preprint
+                                                           arXiv:2508.01005.
+References                                               Kenneth Church and Ramesh Patil. 1982. Coping with
+                                                           syntactic ambiguity or how to put the block in the
+Agents.md. Agents.md: AI Agent Framework Docu-             box on the table. American Journal of Computational
+  mentation. https://agents.md/. Accessed: 2025-           Linguistics, 8(3-4):139–149.
+  09-19.
+                                                         Charles LA Clarke, Nick Craswell, and Ian Soboroff.
+Mohammad Aliannejadi, Julia Kiseleva, Aleksandr            2009. Overview of the trec 2009 web track. In Trec,
+ Chuklin, Jeff Dalton, and Mikhail Burtsev. 2020.          volume 9, pages 20–29.
+ Convai3: Generating clarifying questions for open-
+                                                         Anni Coden, Daniel Gruhl, Neal Lewis, and Pablo N
+ domain dialogue systems (clariq). arXiv preprint
+                                                           Mendes. 2015. Did you mean a or b? supporting clar-
+ arXiv:2009.11352.
+                                                           ification dialog for entity disambiguation. In Sumpre-
+                                                           hswi@ eswc.
+Mohammad Aliannejadi, Julia Kiseleva, Aleksandr
+ Chuklin, Jeff Dalton, and Mikhail Burtsev. 2021.        Yang Deng, Wenqiang Lei, Minlie Huang, and Tat-Seng
+ Building and evaluating open-domain dialogue cor-         Chua. 2023a. Rethinking conversational agents in
+ pora with clarifying questions. In Proceedings of the     the era of llms: Proactivity, non-collaborativity, and
+ 2021 Conference on Empirical Methods in Natural           beyond. In Proceedings of the Annual International
+ Language Processing, pages 4473–4484, Online and          ACM SIGIR Conference on Research and Develop-
+ Punta Cana, Dominican Republic. Association for           ment in Information Retrieval in the Asia Pacific Re-
+ Computational Linguistics.                                gion, pages 298–301.
+                                                     9546
+Yang Deng, Wenqiang Lei, Wenxuan Zhang, Wai Lam,            Yeonjun In, Sungchul Kim, Ryan A Rossi, Md Mehrab
+  and Tat-Seng Chua. 2022. Pacific: towards proac-            Tanjim, Tong Yu, Ritwik Sinha, and Chanyoung Park.
+  tive conversational question answering over tabu-           2024. Diversify-verify-adapt: Efficient and robust
+  lar and textual data in finance. arXiv preprint             retrieval-augmented ambiguous question answering.
+  arXiv:2210.08817.                                           arXiv preprint arXiv:2409.02361.
+
+Yang Deng, Lizi Liao, Liang Chen, Hongru Wang,              Rolf Jagerman, Honglei Zhuang, Zhen Qin, Xuanhui
+  Wenqiang Lei, and Tat-Seng Chua. 2023b. Prompt-             Wang, and Michael Bendersky. 2023. Query expan-
+  ing and evaluating large language models for proac-         sion by prompting large language models. arXiv
+  tive dialogues: Clarification, target-guided, and non-      preprint arXiv:2305.03653.
+  collaboration. In Findings of the Association for
+  Computational Linguistics: EMNLP 2023, pages              Rosie Jones, Benjamin Rey, Omid Madani, and Wiley
+  10602–10621, Singapore. Association for Compu-              Greiner. 2006. Generating query substitutions. In
+  tational Linguistics.                                       Proceedings of the 15th international conference on
+                                                              World Wide Web, pages 387–396.
+Kaustubh D Dhole. 2020. Resolving intent ambigui-
+  ties by retrieving discriminative clarifying questions.   Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke
+  arXiv preprint arXiv:2008.07559.                           Zettlemoyer. 2017. TriviaQA: A large scale distantly
+                                                             supervised challenge dataset for reading comprehen-
+Victor Dibia, Jingya Chen, Gagan Bansal, Suff Syed,          sion. In Proceedings of the 55th Annual Meeting of
+  Adam Fourney, Erkang Zhu, Chi Wang, and Saleema            the Association for Computational Linguistics (Vol-
+  Amershi. 2024. Autogen studio: A no-code devel-            ume 1: Long Papers), pages 1601–1611, Vancouver,
+  oper tool for building and debugging multi-agent           Canada. Association for Computational Linguistics.
+  systems. arXiv preprint arXiv:2408.15247.
+                                                            Kimiya Keyvan and Jimmy Xiangji Huang. 2022. How
+Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey,              to approach ambiguous queries in conversational
+  Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman,             search: A survey of techniques, approaches, tools,
+  Akhil Mathur, Alan Schelten, Amy Yang, Angela               and challenges. ACM Computing Surveys, 55(6):1–
+  Fan, et al. 2024. The llama 3 herd of models. arXiv         40.
+  preprint arXiv:2407.21783.
+                                                            Gangwoo Kim, Sungdong Kim, Byeongguk Jeon, Joon-
+Ahmed Elgohary, Denis Peskov, and Jordan Boyd-                suk Park, and Jaewoo Kang. 2023a. Tree of clarifica-
+  Graber. 2019. Can you unpack that? learning to              tions: Answering ambiguous questions with retrieval-
+  rewrite questions-in-context. Can You Unpack That?          augmented large language models. In Proceedings
+  Learning to Rewrite Questions-in-Context.                   of the 2023 Conference on Empirical Methods in
+                                                              Natural Language Processing, pages 996–1009, Sin-
+Adam Fourney, Gagan Bansal, Hussein Mozannar,                 gapore. Association for Computational Linguistics.
+  Cheng Tan, Eduardo Salinas, Friederike Niedtner,
+  Grace Proebsting, Griffin Bassman, Jack Gerrits, Ja-      Hyuhng Joon Kim, Youna Kim, Cheonbok Park, Jun-
+  cob Alber, et al. 2024. Magentic-one: A generalist          yeob Kim, Choonghyun Park, Kang Min Yoo, Sang-
+  multi-agent system for solving complex tasks. arXiv         goo Lee, and Taeuk Kim. 2024. Aligning language
+  preprint arXiv:2411.04468.                                  models to explicitly handle ambiguity. arXiv preprint
+                                                              arXiv:2404.11972.
+Tianyu Gao, Howard Yen, Jiatong Yu, and Danqi Chen.
+   2023. Enabling large language models to generate         Seungone Kim, Jamin Shin, Yejin Cho, Joel Jang,
+   text with citations. arXiv preprint arXiv:2305.14627.      Shayne Longpre, Hwaran Lee, Sangdoo Yun,
+                                                              Seongjin Shin, Sungdong Kim, James Thorne, et al.
+Jiawei Gu, Xuhui Jiang, Zhichao Shi, Hexiang Tan,             2023b. Prometheus: Inducing fine-grained evalua-
+   Xuehao Zhai, Chengjin Xu, Wei Li, Yinghan Shen,            tion capability in language models. In The Twelfth
+   Shengjie Ma, Honghao Liu, et al. 2024. A survey on         International Conference on Learning Representa-
+   llm-as-a-judge. arXiv preprint arXiv:2411.15594.           tions.
+
+Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song,          Kasia Kobalczyk, Nicolás Astorga, Tennison Liu, and
+  Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma,              Mihaela van der Schaar. 2025. Active task disam-
+  Peiyi Wang, Xiao Bi, et al. 2025. Deepseek-r1: In-          biguation with llms. In The Thirteenth International
+  centivizing reasoning capability in llms via reinforce-     Conference on Learning Representations. 2025.
+  ment learning. arXiv preprint arXiv:2501.12948.
+                                                            Lorenz Kuhn, Yarin Gal, and Sebastian Farquhar.
+Meiqi Guo, Mingda Zhang, Siva Reddy, and Malihe               2022. Clam: Selective clarification for ambiguous
+ Alikhani. 2021. Abg-coQA: Clarifying ambiguity in            questions with generative language models. arXiv
+ conversational question answering. In 3rd Confer-            preprint arXiv:2212.07769.
+ ence on Automated Knowledge Base Construction.
+                                                            Vaibhav Kumar and Alan W. black. 2020. Clarq: A
+Yan Huang. 2017. Pragmatics. Oxford University                large-scale and diverse dataset for clarification ques-
+  Press.                                                      tion generation. Preprint, arXiv:2006.05986.
+                                                        9547
+Litton J Kurisinkel and Nancy F Chen. 2023. Llm            Subhojyoti Mukherjee, Viet Dac Lai, Raghavendra Ad-
+   based multi-document summarization exploiting             danki, Ryan Rossi, Seunghyun Yoon, Trung Bui,
+   main-event biased monotone submodular content ex-         Anup Rao, Jayakumar Subramanian, and Branislav
+   traction. arXiv preprint arXiv:2310.03414.                Kveton. 2025. Learning to clarify by reinforce-
+                                                             ment learning through reward-weighted fine-tuning.
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-            Preprint, arXiv:2506.06964.
+  field, Michael Collins, Ankur Parikh, Chris Alberti,
+  Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-   Roberto Navigli. 2009. Word sense disambiguation: A
+  ton Lee, et al. 2019. Natural questions: a benchmark       survey. ACM computing surveys (CSUR), 41(2):1–
+  for question answering research. Transactions of the       69.
+  Association for Computational Linguistics, 7:453–
+  466.                                                     Ella Neeman, Roee Aharoni, Or Honovich, Leshem
+                                                              Choshen, Idan Szpektor, and Omri Abend. 2022.
+Victor Lavrenko and W Bruce Croft. 2017. Relevance-           Disentqa: Disentangling parametric and contextual
+  based language models. In ACM SIGIR Forum, vol-             knowledge with counterfactual question answering.
+  ume 51, pages 260–267. ACM New York, NY, USA.               arXiv preprint arXiv:2211.05655.
+Dongryeol Lee, Segwang Kim, Minwoo Lee, Hwan-              OpenAI. 2025a. Gpt-5: Routing and deep reasoning for
+  hee Lee, Joonsuk Park, Sang-Woo Lee, and Kyomin            conversational ai. OpenAI Research Report.
+  Jung. 2023. Asking clarification questions to handle
+  ambiguity in open-domain qa. In Findings of the          OpenAI. 2025b. o3: Reasoning-forward architectures
+  Association for Computational Linguistics: EMNLP           for test-time planning. Tech report.
+  2023, pages 11526–11544.
+                                                           Kishore Papineni, Salim Roukos, Todd Ward, and Wei-
+Youngwon Lee, Seung-won Hwang, Ruofan Wu, Feng               Jing Zhu. 2002. Bleu: a method for automatic evalu-
+  Yan, Danmei Xu, Moutasem Akkad, Zhewei Yao,                ation of machine translation. In Proceedings of the
+  and Yuxiong He. 2025. Agentic verification for             40th annual meeting of the Association for Computa-
+  ambiguous query disambiguation. arXiv preprint             tional Linguistics, pages 311–318.
+  arXiv:2502.10352.
+                                                           Wenjun Peng, Guiyang Li, Yue Jiang, Zilong Wang, Dan
+Chin-Yew Lin. 2004. Rouge: A package for automatic           Ou, Xiaoyi Zeng, Derong Xu, Tong Xu, and Enhong
+  evaluation of summaries. In Text summarization             Chen. 2024. Large language model based long-tail
+  branches out, pages 74–81.                                 query rewriting in taobao search. In Companion
+Alisa Liu, Zhaofeng Wu, Julian Michael, Alane Suhr,          Proceedings of the ACM on Web Conference 2024,
+  Peter West, Alexander Koller, Swabha Swayamdipta,          pages 20–28.
+  Noah Smith, and Yejin Choi. 2023. We‘re afraid           José Pombal, Dongkeun Yoon, Patrick Fernandes, Ian
+  language models aren‘t modeling ambiguity. In Pro-         Wu, Seungone Kim, Ricardo Rei, Graham Neubig,
+  ceedings of the 2023 Conference on Empirical Meth-         and André FT Martins. 2025. M-prometheus: A
+  ods in Natural Language Processing, pages 790–807,         suite of open multilingual llm judges. arXiv preprint
+  Singapore. Association for Computational Linguis-          arXiv:2504.04953.
+  tics.
+                                                           Hongjin Qian and Zhicheng Dou. 2022. Explicit query
+Xinbei Ma, Yeyun Gong, Pengcheng He, Hai Zhao,
+                                                             rewriting for conversational dense retrieval. In Pro-
+  and Nan Duan. 2023. Query rewriting for retrieval-
+                                                             ceedings of the 2022 Conference on Empirical Meth-
+  augmented large language models. arXiv preprint
+                                                             ods in Natural Language Processing, pages 4725–
+  arXiv:2305.14283.
+                                                             4737.
+Shengyu Mao, Yong Jiang, Boli Chen, Xiao Li, Peng
+  Wang, Xinyu Wang, Pengjun Xie, Fei Huang, Huajun         Alessandro Raganato, Claudio Delli Bovi, and Roberto
+  Chen, and Ningyu Zhang. 2024. Rafe: Ranking                Navigli. 2017. Neural sequence learning models
+  feedback improves query rewriting for rag. arXiv           for word sense disambiguation. In Proceedings of
+  preprint arXiv:2405.14431.                                 the 2017 Conference on Empirical Methods in Natu-
+                                                             ral Language Processing, pages 1156–1167, Copen-
+Behrang Mehrparvar and Sandro Pezzelle. 2024. Detect-        hagen, Denmark. Association for Computational Lin-
+  ing and translating language ambiguity with multilin-      guistics.
+  gual llms. In Proceedings of the Fourth Workshop on
+  Multilingual Representation Learning (MRL 2024),         Tom Rainforth, Adam Foster, Desi R Ivanova, and Fred-
+  pages 310–323.                                             die Bickford Smith. 2024. Modern bayesian experi-
+                                                             mental design. Statistical Science, 39(1):100–114.
+Meta AI. 2024. Llama 3.2: Advancing open-weight
+ language models. ArXiv preprint arXiv:2408.00001.         Sudha Rao and Hal Daumé III. 2018. Learning to ask
+                                                             good questions: Ranking clarification questions us-
+Sewon Min, Julian Michael, Hannaneh Hajishirzi, and          ing neural expected value of perfect information. In
+  Luke Zettlemoyer. 2020. Ambigqa: Answering                 Proceedings of the 56th Annual Meeting of the As-
+  ambiguous open-domain questions. arXiv preprint            sociation for Computational Linguistics (Volume 1:
+  arXiv:2004.10645.                                          Long Papers), pages 2737–2746.
+                                                       9548
+Sudha Rao and Hal Daumé III. 2019. Answer-based             Liang Wang, Nan Yang, and Furu Wei. 2023.
+  adversarial training for generating clarification ques-     Query2doc: Query expansion with large language
+  tions. arXiv preprint arXiv:1904.02281.                     models. arXiv preprint arXiv:2303.07678.
+
+David Schlangen. 2004. Causes and strategies for re-        Thomas Wasow. 2015.         Ambiguity avoidance is
+  questing clarification in dialogue. In Proceedings of       overrated1 . Ambiguity: Language and.
+  the 5th SIGdial Workshop on Discourse and Dialogue
+  at HLT-NAACL 2004, pages 136–143.                         Canwen Xu, Daya Guo, Nan Duan, and Julian McAuley.
+                                                              2023. Baize: An open-source chat model with
+Sagi Shaier, Ari Kobren, and Philip Ogren. 2024. Adap-        parameter-efficient tuning on self-chat data. In Pro-
+  tive question answering: Enhancing language model           ceedings of the 2023 Conference on Empirical Meth-
+  proficiency for addressing knowledge conflicts with         ods in Natural Language Processing, pages 6268–
+  source citations. arXiv preprint arXiv:2410.04241.          6278.
+                                                            Jingjing Xu, Yuechen Wang, Duyu Tang, Nan Duan,
+Dan Sperber and Deirdre Wilson. 1986. Relevance:
+                                                               Pengcheng Yang, Qi Zeng, Ming Zhou, and Xu Sun.
+  Communication and cognition. Harvard University
+                                                               2019. Asking clarification questions in knowledge-
+  Press.
+                                                               based question answering. In Proceedings of the
+Ivan Stelmakh, Yi Luan, Bhuwan Dhingra, and Ming-              2019 Conference on Empirical Methods in Natu-
+  Wei Chang. 2022. ASQA: Factoid questions meet                ral Language Processing and the 9th International
+   long-form answers. In Proceedings of the 2022 Con-          Joint Conference on Natural Language Processing
+   ference on Empirical Methods in Natural Language            (EMNLP-IJCNLP), pages 1618–1629, Hong Kong,
+   Processing, pages 8273–8288, Abu Dhabi, United              China. Association for Computational Linguistics.
+   Arab Emirates. Association for Computational Lin-        Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+   guistics.                                                  gio, William W. Cohen, Ruslan Salakhutdinov, and
+                                                              Christopher D. Manning. 2018. HotpotQA: A dataset
+Md Mehrab Tanjim, Xiang Chen, Victor S Bursztyn,              for diverse, explainable multi-hop question answer-
+ Uttaran Bhattacharya, Tung Mai, Vaishnavi Muppala,           ing. In Conference on Empirical Methods in Natural
+ Akash Maharaj, Saayan Mitra, Eunyee Koh, Yun-                Language Processing (EMNLP).
+ yao Li, et al. 2025. Detecting ambiguities to guide
+ query rewrite for robust conversations in enterprise       Fanghua Ye, Meng Fang, Shenghui Li, and Emine Yil-
+ ai assistants. arXiv preprint arXiv:2502.00537.              maz. 2023. Enhancing conversational search: Large
+                                                              language model-aided informative query rewriting.
+Gemma Team, Thomas Mesnard, Cassidy Hardin,                   arXiv preprint arXiv:2310.09716.
+  Robert Dadashi, Surya Bhupatiraju, Shreya Pathak,
+  Laurent Sifre, Morgane Rivière, Mihir Sanjay Kale,        Pavlos Zakkas, Suzan Verberne, and Jakub Zavrel. 2024.
+  Juliette Love, et al. 2024. Gemma: Open models              Sumblogger: Abstractive summarization of large
+  based on gemini research and technology. arXiv              collections of scientific articles. In European Con-
+  preprint arXiv:2403.08295.                                  ference on Information Retrieval, pages 371–386.
+                                                              Springer.
+Romal Thoppilan, Daniel De Freitas, Jamie Hall, Noam
+  Shazeer, Apoorv Kulshreshtha, Heng-Tze Cheng,             Hamed Zamani, Susan Dumais, Nick Craswell, Paul
+  Alicia Jin, Taylor Bos, Leslie Baker, Yu Du, et al.         Bennett, and Gord Lueck. 2020. Generating clarify-
+  2022. Lamda: Language models for dialog applica-            ing questions for information retrieval. In Proceed-
+  tions. arXiv preprint arXiv:2201.08239.                     ings of the web conference 2020, pages 418–428.
+
+Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-          Michael JQ Zhang and Eunsol Choi. 2023. Clarify when
+  bert, Amjad Almahairi, Yasmine Babaei, Nikolay              necessary: Resolving ambiguity through interaction
+  Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti          with lms. arXiv preprint arXiv:2311.09469.
+  Bhosale, et al. 2023. Llama 2: Open founda-               Michael JQ Zhang, W Bradley Knox, and Eunsol Choi.
+  tion and fine-tuned chat models. arXiv preprint             2024a. Modeling future conversation turns to teach
+  arXiv:2307.09288.                                           llms to ask clarifying questions. arXiv preprint
+                                                              arXiv:2410.13788.
+Jan Trienes and Krisztian Balog. 2019. Identifying
+  unclear questions in community question answering         Tianhua Zhang, Kun Li, Hongyin Luo, Xixin Wu, James
+  websites. In Advances in Information Retrieval: 41st         Glass, and Helen Meng. 2024b. Adaptive query
+  European Conference on IR Research, ECIR 2019,               rewriting: Aligning rewriters through marginal prob-
+  Cologne, Germany, April 14–18, 2019, Proceedings,            ability of conversational answers. arXiv preprint
+  Part I 41, pages 276–289. Springer.                          arXiv:2406.10991.
+Svitlana Vakulenko, Shayne Longpre, Zhucheng Tu,            Tong Zhang, Peixin Qin, Yang Deng, Chen Huang, Wen-
+  and Raviteja Anantha. 2021. Question rewriting for          qiang Lei, Junhong Liu, Dingnan Jin, Hongru Liang,
+  conversational question answering. In Proceedings           and Tat-Seng Chua. 2024c. Clamber: A benchmark
+  of the 14th ACM international conference on web             of identifying and clarifying ambiguous information
+  search and data mining, pages 355–363.                      needs in large language models.
+                                                        9549
+Yizhe Zhang, Siqi Sun, Michel Galley, Yen-Chun Chen,
+  Chris Brockett, Xiang Gao, Jianfeng Gao, Jingjing
+  Liu, and William B Dolan. 2020. Dialogpt: Large-
+  scale generative pre-training for conversational re-
+  sponse generation. In Proceedings of the 58th An-
+  nual Meeting of the Association for Computational
+  Linguistics: System Demonstrations, pages 270–278.
+Yongfeng Zhang, Xu Chen, Qingyao Ai, Liu Yang, and
+  W Bruce Croft. 2018. Towards conversational search
+  and recommendation: System ask, user respond. In
+  Proceedings of the 27th acm international conference
+  on information and knowledge management, pages
+  177–186.
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan
+  Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin,
+  Zhuohan Li, Dacheng Li, Eric Xing, et al. 2023.
+  Judging llm-as-a-judge with mt-bench and chatbot
+  arena. Advances in neural information processing
+  systems, 36:46595–46623.
+
+Mingchen Zhuge, Changsheng Zhao, Dylan R. Ashley,
+  Wenyi Wang, Dmitrii Khizbullin, Yunyang Xiong,
+  Zechun Liu, Ernie Chang, Raghuraman Krishnamoor-
+  thi, Yuandong Tian, Yangyang Shi, Vikas Chandra,
+  and Jürgen Schmidhuber. 2025. Agent-as-a-judge:
+  Evaluate agents with agents. In Forty-second Inter-
+  national Conference on Machine Learning.
+Ingrid Zukerman and Bhavani Raskutti. 2002. Lexical
+   query paraphrasing for document retrieval. In COL-
+  ING 2002: The 19th International Conference on
+  Computational Linguistics.
+
+
+
+
+                                                     9550
+

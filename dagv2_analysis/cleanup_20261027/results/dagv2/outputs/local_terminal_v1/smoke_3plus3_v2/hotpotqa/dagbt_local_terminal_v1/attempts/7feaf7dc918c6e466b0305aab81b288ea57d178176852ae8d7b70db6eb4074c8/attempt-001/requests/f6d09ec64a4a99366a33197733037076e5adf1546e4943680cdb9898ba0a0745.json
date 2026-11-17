@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:26\", \"source_id\": \"hotpotqa:26\"}]\nClement Attlee\nClement Richard Attlee, 1st Earl Attlee, {'1': \", '2': \", '3': \", '4': \"} (3 January 1883 – 8 October 1967) was a British Labour politician who served as Prime Minister of the United Kingdom from 1945 to 1951 and Leader of the Labour Party from 1935 to 1955. In 1940, Attlee took Labour into the wartime coalition government and served under Winston Churchill, becoming the first person to hold the office of Deputy Prime Minister of the United Kingdom. He went on to lead the Labour Party to an unexpected landslide victory at the 1945 general election; forming the first Labour majority government, and a mandate to implement its postwar reforms. The 12.0% national swing from the Conservatives to Labour was unprecedented at that time and remains the largest ever achieved by any party at a general election in British electoral history. He was re-elected with a narrow majority at the 1950 general election. In the following year, Attlee called a snap general election, hoping to increase his parliamentary majority. However, he was narrowly defeated by the Conservatives under the leadership of Winston Churchill; despite winning the most votes of any political party in any general election in British political history until the Conservative Party's fourth consecutive victory in 1992. Attlee remains the longest-ever serving Leader of the Labour Party.\n\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:26\", \"source_id\": \"hotpotqa:26\"}]\nClement Attlee\nClement Richard Attlee, 1st Earl Attlee, {'1': \", '2': \", '3': \", '4': \"} (3 January 1883 – 8 October 1967) was a British Labour politician who served as Prime Minister of the United Kingdom from 1945 to 1951 and Leader of the Labour Party from 1935 to 1955. In 1940, Attlee took Labour into the wartime coalition government and served under Winston Churchill, becoming the first person to hold the office of Deputy Prime Minister of the United Kingdom. He went on to lead the Labour Party to an unexpected landslide victory at the 1945 general election; forming the first Labour majority government, and a mandate to implement its postwar reforms. The 12.0% national swing from the Conservatives to Labour was unprecedented at that time and remains the largest ever achieved by any party at a general election in British electoral history. He was re-elected with a narrow majority at the 1950 general election. In the following year, Attlee called a snap general election, hoping to increase his parliamentary majority. However, he was narrowly defeated by the Conservatives under the leadership of Winston Churchill; despite winning the most votes of any political party in any general election in British political history until the Conservative Party's fourth consecutive victory in 1992. Attlee remains the longest-ever serving Leader of the Labour Party.\n\n[Passage {\"doc_id\": \"hotpotqa:1702\", \"source_id\": \"hotpotqa:1702\"}]\nRobert Gascoyne-Cecil, 3rd Marquess of Salisbury\nRobert Arthur Talbot Gascoyne-Cecil, 3rd Marquess of Salisbury, {'1': \", '2': \", '3': \", '4': \"} (3 February 183022 August 1903), styled Lord Robert Cecil before 1865 and Viscount Cranborne from June 1865 until April 1868, was a British Conservative statesman, serving as prime minister three times for a total of over 13 years. He was the last prime minister to head his full administration from the House of Lords.\n\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "213",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600645.145102,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600646.5956101
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9763105287006256
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.9425067179697694
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2536,
+      "completion_tokens": 4,
+      "total_tokens": 2540
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

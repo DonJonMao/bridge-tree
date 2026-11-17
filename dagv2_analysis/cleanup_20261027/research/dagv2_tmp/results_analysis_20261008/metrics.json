@@ -1,0 +1,148 @@
+{
+  "archive_sha256": "86c93c31308ca1c9df52758e2d07c30d41c17557de178f8412b6dad9ffbf5963",
+  "paired": {
+    "original": {
+      "n": 951,
+      "correct": 565,
+      "em_pct": 59.4111461619348,
+      "f1_pct": 73.61614074829998,
+      "status_counts": {
+        "ok": 950,
+        "planner_failed": 1
+      }
+    },
+    "fusion": {
+      "n": 951,
+      "correct": 447,
+      "em_pct": 47.003154574132495,
+      "f1_pct": 56.99801205104406,
+      "status_counts": {
+        "ok": 705,
+        "execution_failed": 246
+      }
+    }
+  },
+  "common_ok": {
+    "original": {
+      "n": 704,
+      "correct": 411,
+      "em_pct": 58.38068181818182,
+      "f1_pct": 73.0218626670096,
+      "status_counts": {
+        "ok": 704
+      }
+    },
+    "fusion": {
+      "n": 704,
+      "correct": 446,
+      "em_pct": 63.35227272727273,
+      "f1_pct": 76.8538486655439,
+      "status_counts": {
+        "ok": 704
+      }
+    }
+  },
+  "cross_em": {
+    "original=0,fusion=0": 318,
+    "original=1,fusion=1": 379,
+    "original=1,fusion=0": 186,
+    "original=0,fusion=1": 68
+  },
+  "cross_em_common_ok": {
+    "original=0,fusion=0": 226,
+    "original=1,fusion=1": 379,
+    "original=0,fusion=1": 67,
+    "original=1,fusion=0": 32
+  },
+  "fusion_failed_original_correct": 154.0,
+  "types": {
+    "bridge": {
+      "original": {
+        "n": 777,
+        "correct": 452,
+        "em_pct": 58.17245817245818,
+        "f1_pct": 73.7280575971052,
+        "status_counts": {
+          "ok": 777
+        }
+      },
+      "fusion": {
+        "n": 777,
+        "correct": 355,
+        "em_pct": 45.68854568854569,
+        "f1_pct": 56.25073910788196,
+        "status_counts": {
+          "ok": 581,
+          "execution_failed": 196
+        }
+      }
+    },
+    "comparison": {
+      "original": {
+        "n": 174,
+        "correct": 113,
+        "em_pct": 64.9425287356322,
+        "f1_pct": 73.11637413035939,
+        "status_counts": {
+          "ok": 173,
+          "planner_failed": 1
+        }
+      },
+      "fusion": {
+        "n": 174,
+        "correct": 92,
+        "em_pct": 52.87356321839081,
+        "f1_pct": 60.33497226275063,
+        "status_counts": {
+          "execution_failed": 50,
+          "ok": 124
+        }
+      }
+    }
+  },
+  "failure_categories": [
+    {
+      "arm": "original",
+      "status": "planner_failed",
+      "error_type": null,
+      "error": "plan_size",
+      "count": 1
+    },
+    {
+      "arm": "fusion",
+      "status": "execution_failed",
+      "error_type": "ProtocolError",
+      "error": "A disputed source group must be retained together",
+      "count": 110
+    },
+    {
+      "arm": "fusion",
+      "status": "execution_failed",
+      "error_type": "ProtocolError",
+      "error": "Coverage repair changed the fixed selection header",
+      "count": 129
+    },
+    {
+      "arm": "fusion",
+      "status": "execution_failed",
+      "error_type": "OutputTruncated",
+      "error": "Provider explicitly truncated reasoning output",
+      "count": 6
+    },
+    {
+      "arm": "fusion",
+      "status": "execution_failed",
+      "error_type": "ProtocolError",
+      "error": "Selection requires a complete global header and coverage field",
+      "count": 1
+    }
+  ],
+  "source_archive": "/Users/mao/projects/dagv2/scripts/dagv2_results_20261008_025515.tar.gz",
+  "verified_members": 10,
+  "scope_note": "Only first 951 packaged HotpotQA questions have paired authoritative rows. Missing rows excluded; non-ok terminal rows score zero. Common-success subset is secondary and selection-conditioned.",
+  "export_limitations": [
+    "Top-level answer only; diagnostic tail and full row JSON are not parsed or hashed.",
+    "Each authoritative row read once, with before/after file identity checks; no global transaction.",
+    "Source row byte sizes are exporter-recorded metadata; full diagnostics and requests are not present."
+  ]
+}

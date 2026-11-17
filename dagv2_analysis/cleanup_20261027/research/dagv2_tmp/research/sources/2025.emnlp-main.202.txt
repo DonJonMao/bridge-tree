@@ -1,0 +1,1608 @@
+                                                                                                                                                                                                                                         Chain of Thought   Multi-Agent System
+                                                                                                                                                                           ReAgent: Reversible Multi-Agent Reasoning for
+                                                                                                                                                                                                                                                                                                       ReAgent (Ours)
+                                                                                                                                                                                                                                               (CoT)              (MAS)
+
+
+                                                                                                                                                                               Knowledge-Enhanced Multi-Hop QA                               Question               Question                               Question
+
+
+                                                                                                                                                   Supervisory Layer
+                                                                                                                                                                                                                                             Thought 1      Agent    Agent     Agent                   Agent      Agent   Agent
+gent                           Retriever Agent
+                                                                                           Xinjie Zhao1† , Fan Gao1† , Xingyu Song1 , Yingjian Chen1 , Rui Yang2 , Yanran Fu1 ,
+                                                                                           Verifier Agent                                                     Controller Agent
+
+
+
+
+                                                                                                                                                                                                                                                                                       Backtracking
+n1                                      Evidence 1                                 √ √ × √                                                                   High-level Regulation
+
+                                                                                                     Yuyang Wang3 , Yusuke Iwasawa1 , Yutaka Matsuo1 , Irene Li1
+                           1                                               1                                                                                                                                                                 Thought 2
+
+
+
+                                                                                                                  Local Backtracking
+                                                                                                                                                         Challenge Suspicious Claims
+n2                         2
+                                        Evidence 2
+                                                                           2
+                                                                                   √ √ √ √                                                                                                                                                                  Agent    Agent     Agent                   Agent      Agent   Agent
+                                                                                                                                                            Trigger Reevaluation
+                                                                                                                                                                                                                                             Thought 3
+                                                                                                                                                                          1
+nn                         n
+                                        Evidence n
+                                                                           3       × √ √ √                                                                    Supervisor Agent
+                                                                                                                                                                              The University of Tokyo 2 National University of Singapore     Thought 4      Agent    Agent     Agent                   Agent      Agent   Agent
+                                                                                                                                                    Identify
+                                                                                                                                                                                3
+                                                                                                                                                                                  The Hong Kong University of Science and Technology
+                                                                                                                                                                                    triger
+er Agent                                                                                                                                             Minimal
+                                                           1       2               n
+                       1            2          n                                               1        2                         n                Conflict set
+           if no
+       contradiction                                                                                        escalate                                          Global Backtracking
+                                                        contradiction detected !!!
+                                                                                                                                                                                                                                         Wrong Answer           Wrong Answer                            Correct Answer
+                                                                                           Backtracking
+                                                                                                                                                     rollback                        co
+                                                                                                                                                                                                                         † Equal Contribution
+                                                                                                                                                                                       nf
+                                                                                                                                                                                         lic
+       Temporal Tracker                        Messaging Channel                                                                                                                               t !!
+
+                                                                                             State 1            State 2                                                 State i
+                                                                                                                                                                                                                    irene.li@weblab.t.u-tokyo.ac.jp
+                                                                                                                                                    Supervisory Layer
+
+gent                               Retriever Agent                                         Verifier Agent                                                      Controller Agent
+
+on 1                       1
+                                        Evidence 1
+                                                                           1
+                                                                                       √ √ × √                                                                High-level Regulation Abstract                                            Chain of Thought
+                                                                                                                                                                                                                                              (CoT)
+                                                                                                                                                                                                                                                            Multi-Agent System
+                                                                                                                                                                                                                                                                  (MAS)
+                                                                                                                                                                                                                                                                                                       ReAgent (Ours)
+
+
+                                                                                                                      Local Backtracking
+                                                                                                                                                         Challenge Suspicious Claims
+n2                                      Evidence 2                                     √ √ √ √
+                                                                                        Multi-hop question answering (QA) remains
+                           2                                               2
+
+                                                                                                                                                             Trigger Reevaluation
+                                                                                                                                                                                                                                            Question                Question                                   Question
+ nn                        n            Evidence n                         3
+                                                                                        challenging, as solutions must reliably in-
+                                                                                       × √ √ √                                                                 Supervisor Agent
+
+                                                                                                                                                     Identify
+                                                                                                                                                                                                                                            Thought 1
+er Agent               1            2           n          1       2               n    tegrate and reconcile evidence from mul-
+                                                                                               1        2                              n
+                                                                                                                                                      Minimal
+                                                                                                                                                    Conflict set
+                                                                                                                                                                                     triger                                                                 Agent    Agent     Agent                   Agent      Agent    Agent
+            if no
+       contradiction                                                                    tiple sources without succumbing to error
+                                                                                                            escalate                                           Global Backtracking
+
+
+
+
+                                                                                                                                                                                                                                                                                        Backtracking
+                                                        contradiction detected !!!
+                                                                                                                                                                                                                                            Thought 2
+
+       Temporal Tracker                         Messaging Channel
+                                                                                        propagation. While large language models
+                                                                                            Backtracking
+                                                                                                                                                         rollback                    co
+                                                                                                                                                                                       nf
+                                                                                                                                                                                          li   ct
+                                                                                                                                                                                                    !!
+                                                                                                                                                                                                                                                            Agent    Agent     Agent                   Agent      Agent    Agent
+
+                                                                                       (LLMs) have achieved substantial improve-
+                                                                                              State 1            State 2                                                 State i
+                                                                                                                                                                                                                                            Thought 3
+                                                                                                                                                     Supervisory Layer
+
+nt (AQ)                Retriever Agent (AR)
+                                                                                        ments via chain-of-thought (CoT) prompt-
+                                                                                       Verifier Agent (AV)                                                     Controller Agent (AC)
+                                                                                                                                                                                                                                            Thought 4       Agent    Agent     Agent                   Agent      Agent    Agent
+on 1                           1
+                                        Evidence 1                                      ing× √and retrieval-augmented generation, these
+                                                                                       √ √                                                                     High-level Regulation
+
+
+
+
+                                                                                                                        Local Backtracking (
+                                                                               1
+
+
+on 2                           2        Evidence 2                             2        methods typically adopt a forward-only work-
+                                                                                       √ √ √ √                                                               Challenge Suspicious Claims
+
+
+                                                                                                                                                                Trigger Reevaluation
+                                                                                                                                                                                                                                          Wrong Answer          Wrong Answer                             Correct Answer
+on n                           n
+                                        Evidence n
+                                                                               3
+                                                                                        flow—early mistakes persist throughout infer-
+                                                                                       × √ √ √                          )
+                                                                                                                                                               Supervisor Agent (AS)
+
+                                                                                        ence, and contradictions discovered later can-                     Identify                       triger
+er Agent (AA)
+
+            if no
+                           1            2           n          1       2               n
+
+                                                                                        not systematically trigger re-evaluation. To
+                                                                                                   1    2
+
+
+                                                                                                            escalate
+                                                                                                                                          n
+                                                                                                                                                            Minimal
+                                                                                                                                                          Conflict set                                                                Figure 1: Comparison of multi-hop reasoning strate-
+       contradiction                                    contradiction detected !!!
+                                                                                        address this limitation, we present ReAgent,
+                                                                                                                                                                    Global Backtracking (                )
+                                                                                                                                                                                                                                      gies. Chain-of-Thought (CoT) and Multi-Agent Sys-
+                                                                                             Backtracking
+       Temporal Tracker                         Messaging Channel                       a reversible multi-agent reasoning framework.
+                                                                                                                                                                rollback                         co
+                                                                                                                                                                                                   nf
+                                                                                                                                                                                                     lic
+                                                                                                                                                                                                             t !!                     tems (MAS) typically adopt a forward-driven reason-
+                                                                                                                                                                                                                                      ing pipeline without rollback mechanisms, which could
+                                                                                               State 1                                         State r                             State t
+
+
+                                                                                        Specifically, ReAgent enables agents to back-
+                                                                                        track to earlier valid states when conflicts arise,                                                                                           generate the wrong answer due to error accumulation.
+                                                                                        thereby isolating and rectifying flawed assump-                                                                                               In contrast, our proposed ReAgent introduces explicit
+                                                                                        tions before they undermine subsequent rea-                                                                                                   backtracking mechanisms that enable the system to cor-
+                                                                                        soning. Our approach combines explicit lo-                                                                                                    rect errors during reasoning, resulting in a more accurate
+                                                                                        cal and global rollback protocols with modular                                                                                                and reliable answer.
+                                                                                        role specialization, resulting in a flexible and
+                                                                                        error-tolerant pipeline. Empirical evaluation on                                                                                              nature of multi-hop inference, where each reason-
+                                                                                        three multi-hop QA benchmarks demonstrates                                                                                                    ing step can involve partial retrieval, validation,
+                                                                                        consistent performance gains of approximately                                                                                                 and synthesis of new information. A core difficulty
+                                                                                        6% over forward-only baselines, in addition to                                                                                                lies in the system’s vulnerability to early mistakes:
+                                                                                        enhanced interpretability. These findings high-
+                                                                                                                                                                                                                                      if an incorrect inference is made at an initial hop,
+                                                                                        light the value of non-monotonic, backtracking-
+                                                                                        driven inference in complex QA scenarios and                                                                                                  subsequent steps often propagate this error and
+                                                                                        point to broader implications for multi-agent                                                                                                 undermine the final outcome, rendering it contra-
+                                                                                        collaboration in knowledge-intensive tasks.1                                                                                                  dictory or simply wrong (Inoue et al., 2020; Bo
+                                                                                                                                                                                                                                      et al., 2024; Yang et al., 2024c). This phenomenon
+                                                                       1                   Introduction                                                                                                                               has motivated extensive research into chaining in-
+                                                                       Multi-hop question answering (QA) is a central                                                                                                                 termediate inferences and exploring ways to detect,
+                                                                       challenge in natural language processing (NLP),                                                                                                                isolate, or rectify problematic conclusions.
+                                                                       demanding the ability to gather and integrate evi-                                                                                                                Recent large language models (LLMs) exhibit
+                                                                       dence across multiple documents, database entries,                                                                                                             promising results on multi-hop QA, frequently us-
+                                                                       or knowledge-graph nodes before converging on                                                                                                                  ing either explicit Chain-of-Thought (CoT) prompt-
+                                                                       a single correct answer (Yang et al., 2018; Welbl                                                                                                              ing (Wang et al., 2023) (Figure 1, left) or retrieval-
+                                                                       et al., 2018; Ho et al., 2020). Benchmarks such                                                                                                                augmented generation (Das et al., 2018; Long et al.,
+                                                                       as HotpotQA (Yang et al., 2018) and 2WikiMul-                                                                                                                  2019; Gao et al., 2023; Liu et al., 2023; Yang et al.,
+                                                                       tiHopQA (Ho et al., 2020) highlight the intricate                                                                                                              2024b, 2025a). These methods facilitate a step-
+                                                                                   1
+                                                                           Our codes are available at https://github.com/astri                                                                                                        wise approach, encouraging transparency in how
+                                                                       desa/ReAgent.                                                                                                                                                  each intermediate fact is reached. Nonetheless,
+                                                                                                                                                                                                                                 4067
+                                                                                                       Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 4067–4089
+                                                                                                                           November 4-9, 2025 ©2025 Association for Computational Linguistics
+they typically rely on a forward-driven reasoning         integrate trust signals derived from each agent’s
+pipeline that does not proactively examine or cor-        past reliability (Puerto et al., 2023; Parhizkar et al.,
+rect previously accepted statements. In practice,         2020). While the addition of reversible reason-
+once a model commits an erroneous partial infer-          ing raises legitimate questions about computational
+ence may not reevaluate it unless given targeted          overhead and concurrency, our findings show that
+prompts to do so (Puerto et al., 2023; Huang et al.,      these challenges can be mitigated by careful co-
+2024). This unidirectional paradigm is problematic        ordination at the supervisory level. Experiments
+when later-discovered evidence or reasoning paths         on three public multi-hop QA benchmarks demon-
+contradict prior assumptions, as the system lacks         strate that ReAgent improves final-answer accuracy
+a structured mechanism to revise and propagate            while enhancing interpretability, and even outper-
+corrections. Although incremental improvements            forms several advanced reasoning models despite
+have been proposed, the absence of robust back-           it built on a lightweight, non-reasoning foundation.
+tracking or rollback still limits their reliability and      Our contributions are threefold: (1) we propose
+interpretability (Doyle, 1979; Bo et al., 2024).          a multi-agent QA framework that supports both
+   A growing body of work in multi-agent collabo-         local and global backtracking to correct mistakes
+ration (Figure 1, middle) offers an alternative per-      in situ; (2) we design a hybrid retrieval mechanism
+spective, assigning specialized components distinct       that integrates textual and graph-based evidence;
+roles in retrieval, validation, conflict detection, and   and (3) We empirically demonstrate the effective-
+results assembly (Zhao et al., 2024; Parhizkar et al.,    ness of ReAgent, achieving an average accuracy
+2020; Ke et al., 2024). Approaches such as COP-           gain of approximately 6% over the strongest base-
+PER (Bo et al., 2024) and LongAgent (Zhao et al.,         lines, while improving robustness and transparency
+2024) distribute the QA task among multiple LLM-          compared to forward-only methods.
+based agents that communicate via message pass-
+ing, thereby providing greater modularity and a           2   Related Work
+clearer division of labor. By cross-verifying evi-
+dence, each agent can potentially identify suspi-         Prompting and Iterative Reasoning. Large Lan-
+cious partial solutions. However, even these de-          guage Models (LLMs) can tackle complex tasks us-
+signs often lack a systematic strategy to revert          ing chain-of-thought (CoT) prompting(Yang et al.,
+to an earlier, valid state once a global contradic-       2024a, 2025b), which promotes step-by-step rea-
+tion emerges. Such a reversal capability is non-          soning and improves performance in arithmetic,
+trivial, as it introduces synchronization complexi-       commonsense, and symbolic tasks (Wei et al.,
+ties among the agents and raises questions about          2022). Accuracy further improves with self-
+how to detect, prioritize, and handle contradictory       consistency, which samples multiple reasoning
+or low-confidence information in a large-scale col-       paths and selects the majority answer (Wang et al.,
+laborative setting (He et al., 2021).                     2023). To reduce manual prompt design, auto-
+   In this paper, we propose ReAgent, a reversible        matic methods such as APE generate and evalu-
+multi-agent collaborative reasoning framework for         ate prompts via LLMs themselves, treating prompt
+multi-hop QA (Figure 1, right). Our method intro-         creation as a search task (Zhou et al., 2023). It-
+duces explicit backtracking protocols into a multi-       erative frameworks like ReAct combine reason-
+layer architecture that addresses both the granular       ing with tool use to refine answers (Yao et al.,
+aspects of local error correction and the broader         2023), while Reflexion and Self-Refine add feed-
+system-wide consistency checks. ReAgent allevi-           back loops where the model critiques and revises
+ates error accumulation in forward-only strategies        its outputs (Shinn et al., 2023; Madaan et al., 2023).
+by incorporating fine-grained conflict-detection          Prompting has also extended to multimodal inputs;
+cues at each step and using a flexible error-             for instance, Multimodal-CoT integrates visual and
+correction loop that can revert and iteratively refine    textual information into a joint reasoning trace to
+intermediate inferences. Our design is inspired by        generate the final answer (Zhang et al., 2023).
+multi-agent systems with reflective capabilities (Bo      Multi-Agent Collaboration, Debate, and Scala-
+et al., 2024; Huang et al., 2024), but we go further      bility. Recent work investigates multi-agent sys-
+by defining how local versus global backtracking          tems where multiple LLMs collaborate or compete
+unfolds, how to manage concurrency issues when            toward shared goals. CAMEL assigns roles (e.g.,
+parallel agents must revert their states, and how to      “user” and “assistant”) to agents that communicate
+                                                      4068
+         Answer                                        if no
+                           Final Answer            contradiction                                                            escalate                                     Global Backtracking
+                                                                                     contradiction detected !!!
+
+     California.
+                       Interaction Layer                                                                     Backtracking
+                                                                                                                                                                   rollback                    co
+                                                                                                                                                                                                    nf
+                                                                                                                                                                                                      lic
+                                                                                                                                                                                                         t!
+                           Persistent Log          Temporal Tracker            Messaging Channel                                                                                                           !
+                                                                                                              State 1           State 2                                            State i
+
+
+                       Execution Layer                                                                                                                         Supervisory Layer
+        Question           Decomposer Agent (AQ)                   Retriever Agent (AR)                  Verifier Agent (AV)                                             Controller Agent (AC)
+ Which U.S. state
+ has a capital city
+                              1
+                                  Sub-Question 1                    1
+                                                                        Evidence 1                       √ √ × √                                                         High-level Regulation
+
+
+
+
+                                                                                                                                  Local Backtracking (
+                                                                                                     1
+ whose population
+ is smaller than the              Sub-Question 2                        Evidence 2                       √ √ √ √                                                       Challenge Suspicious Claims
+                              2                                     2                                2
+ state’s largest
+                                                                                                                                                                          Trigger Reevaluation
+ city, given that
+ this state hosted
+ the 1984 Summer                  Sub-Question n                        Evidence n                       × √ √ √
+ Olympics?
+                              n                                     n                                3
+                                                                                                                                  )
+                                                                                                                                                                         Supervisor Agent (AS)
+
+                                                                                                                                                                     Identify                         triger
+                           Answer-Assembler Agent (AA)             1    2       n        1    2          n
+                                                                                                                                                                      Minimal
+                                                                                                                  1     2                           n
+        Answer                                                                                                                                                      Conflict set
+                                                       if no
+                                                                                                                            escalate
+                           Final Answer
+                                                   contradiction                     contradiction detected !!!                                                               Global Backtracking (                )
+      California.
+                       Interaction Layer                                                                     Backtracking                                                                                   co
+                                                                                                                                                                          rollback                            nf
+                                                                                                                                                                                                                   lic
+                                                                                                                                                                                                                       t
+                           Persistent Log          Temporal Tracker            Messaging Channel                                                                                                                           !!
+                                                                                                               State 1                                   State r                             State t
+
+
+
+Figure 2: The overall architecture of the ReAgent. The given question is processed through the Execution Layer,
+which involves question decomposition, evidence retrieval, verification, and is ultimately integrated to generate the
+final answer (blue line). The Supervisor Layer and Interaction Layer are responsible for monitoring, regulation, and
+communication. The ReAgent framework includes both local and global backtracking mechanisms (red boxes),
+triggered by the Verifier Agent (AV ) and Supervisor Agent (AS ), respectively.
+
+via dialogue to decompose tasks (Li et al., 2023).                                     ceives contradictory evidence from other agents.
+Role specialization and consensus mechanisms en-                                     • Global Rollback: A supervisor coordinates roll-
+hance robustness. Debate-based methods push this                                       back across agents when inconsistencies span
+further, with agents arguing opposing views and a                                      multiple agents, restoring the system to a previ-
+judge—human or model—selecting the best solu-                                          ously consistent state.
+tion (Khan et al., 2024; Xiong et al., 2023). Such
+adversarial exchanges promote correctness, though                                    4       ReAgent: Reversible Multi-Agent
+dominant agents can bias results without capable                                             Reasoning Architecture
+judges. As agent counts grow, coordination be-                                       Figure 2 presents the overall architecture of our
+comes a bottleneck. Efficient structures like hierar-                                proposed ReAgent, organized into three layers: 1)
+chical controllers and learned protocols are needed                                  Execution Layer, responsible for decomposing
+to manage scalability and communication overhead                                     the input question Q into multiple sub-questions,
+(Li et al., 2023; Xiong et al., 2023).                                               retrieving relevant evidence respectively, validat-
+                                                                                     ing intermediate results, and integrating them to
+3     Preliminary                                                                    generate the final answer Af inal ; 2) Supervisor
+                                                                                     Layer, responsible for high-level regulation, coor-
+Multi-Hop QA Setup. Multi-hop QA tasks aim to                                        dinating conflict resolution and managing global
+answer a query Q by integrating evidence E from                                      backtracking; and 3) Interaction Layer, respon-
+multiple sources through a series of reasoning steps,                                sible for maintaining the concurrency model and
+where each hop contributes partial information to-                                   communication protocols.
+ward the final answer. In a typical forward-only                                        The core of the architecture is a hierarchical
+pipeline, the process can be formalized as: Q 7−→                                    backtracking mechanism, consisting of local back-
+{ e1 , e2 , . . . , ek } 7−→ inferred statement(s) 7−→                               tracking, which resolves internal contradictions
+Final Answer, where {e1 , e2 , . . . , ek } ⊂ E repre-                               within each agent, and global backtracking, which
+sents a potentially large pool of evidence, each ei                                  handles contradictions spanning multiple agents.
+denotes evidence used at the i-th step of the reason-                                To support this, ReAgent maintains knowledge
+ing chain.                                                                           sets at each time step t. Specifically, given a set
+Non-Monotonic Backtracking. Our notion of                                            of agents A = {A1 , A2 , . . . , An }, each agent Ai
+backtracking is a non-monotonic extension of the                                     holds a local knowledge set Φti , containing its pro-
+typical multi-hop QA process. We introduce a re-                                     posed assertions, retrieved evidence, or intermedi-
+versible reasoning mechanism that allows both lo-                                    ate inferences, while the
+                                                                                                           S system maintains a global
+cal and global backtracking.                                                         knowledge set Φt = ni=1 Φti , representing the set
+ • Local Correction: An agent can revise its own                                     of global statements under consideration at time t.
+   inference when it detects internal conflict or re-                                The design explicitly supports non-monotonic up-
+                                                                            4069
+dates: newly introduced statements can be revoked          challenge(φ) to examine a crucial assertion φ
+if they lead to logical conflicts or are superseded        from multiple agents’ perspectives or override local
+by contradictory evidence. The specific prompts of         decisions if they jeopardize overall consistency.
+each kind of agent are provided in Appendix A.             Supervisor Agent (AS ). Coordinates multi-agent
+                                                           conflicts spanning multiple knowledge sets or criti-
+4.1 Execution Layer Agents                                 cal shared assumptions. If a conflict persists af-
+The Execution Layer hosts four types of agents that        ter local backtracking and escalation from AA ,
+address fundamental QA sub-tasks, each maintain-           the agent determines whether partial or holistic
+ing its local knowledge Φi .                               rollback is required. Specifically, when a system-
+Question-Decomposer Agent (AQ ). Given a com-              wide contradiction is found, AS identifies a mini-
+plex input question Q, this agent breaks it into a         mal conflict set Ψ such that SAT(Ψ) = false but
+set of sub-questions for subsequent retrieval and          SAT(Ψ′ ) = true for any proper subset Ψ′ ⊂ Ψ.
+verification: AQ : Q 7−→ {q1 , . . . , qm }. The de-       The supervisor then triggers a backtracking opera-
+composition is broadcast to other base-layer agents.       tion that eliminates or modifies Ψ.
+Retriever Agent (AR ). Upon receiving a sub-
+                                                           4.3   Interaction Layer
+question qi , AR issues parallel sparse and dense
+queries over the corpus, merges the hits with              The Interaction Layer is responsible for storing
+reciprocal-rank fusion, and retains the top-M pas-         knowledge sets from each interaction round, as
+sages as the evidence set E = e1 , . . . , eM . If back-   well as maintaining the concurrency model and
+tracking invalidates any ej ∈ E, only the associ-          communication protocols.
+ated qi is re-queried, leaving the rest unchanged.         Persistent Log. Stores the local knowledge sets
+Verifier Agent (AV ). Performs local consistency           Φi and global knowledge set Φ from all interac-
+checks. Given a new evidence set E, it verifies            tion rounds to support backtracking and serve as a
+coherence with its current knowledge ΦtV . If con-         historical evidence repository.
+flicts arise, it triggers local backtracking to revert     Temporal Tracker. Records the chronological se-
+to a consistent state or signals higher-level agents       quence of messages and actions, enabling agents
+for broader resolution. Concretely,   AV may invoke        to reference previous steps accurately. Specifically,
+                            
+BacktrackLocal AV , r if it detects inconsisten-           the system can use temporal operators such as □φ
+cies in assertions introduced after node r.                to denote that φ must hold in every future state,
+Answer-Assembler Agent (AA ). Gathers partial              and ♢φ to indicate that a proposition φ might be-
+answers (and verified evidence) to synthesize a            come true at some future point. These temporal
+final answer. Given the local inferences from AQ ,         constraints assist in specifying persistent axioms or
+AR , and AV , the agent combines them to generate          potential triggers for backtracking conditions.
+the final answer Af inal , represented as:                 Messaging Channel. Achieves communication
+                                                           across agents for exchanging updates, signaling
+           Af inal = AA (ΦQ , ΦR , ΦV ),                   conflicts, and broadcasting intermediate conclu-
+                                                           sions. Specifically, atomic events msg(φ) are typed
+where ΦQ , ΦR and ΦV denotes the knowledge set             as assert, inform, reject, or challenge. These
+from the respective agents. Any detected contradic-        updates can occur simultaneously, and a composite
+tion spanning multiple agents triggers escalation to       event model merges parallel messages. Further-
+the supervisory layer.                                     more, a shared concurrency mechanism processes
+                                                           simultaneous actions, ensuring that conflicts aris-
+4.2 Supervisory Layer Agents                               ing from concurrent assertions are escalated to the
+The supervisory layer oversees system-wide strate-         supervisory layer.
+gies, especially when contradictory goals or incon-
+sistent states appear across multiple agents that          4.4   Conflict Management and Backtracking
+cannot be resolved by a single agent itself.               This part formalizes how the system detects con-
+Controller Agent (AC ). Regulates high-level               tradictions and reverts to consistent states. At each
+strategies by monitoring game-theoretic signals            time t, the set of all accepted assertions is Φt . A
+or meta-rules. If a certain rule is deemed sub-            conflict occurs if Φt entails both ϕ and ¬ϕ for some
+optimal or unsafe, AC can override it or enforce           proposition ϕ, meaning SAT(Φt ) fails. To resolve
+mode switches. For instance, it may issue a                the issue, the system follows a two-level approach:
+                                                       4070
+Local Backtracking. Each agent Ai maintains a
+backtracking graph LBGi , which logs states Φri at        Algorithm 1 Multi-Agent Reversible Reasoning
+selected checkpoints r. If an internal contradiction      Require: Q0 : Main question
+Conflicti (Φti ) is detected by AV , local backtrack-      1: AQ .decompose(Q0 ) → {q1 , q2 , . . . }
+ing is performed to revert Ai to a prior consistent        2: Broadcast assert(qi ) to AR , AV , AA
+node r < t:                                                3: for each qi in {q1 , q2 , . . . } concurrently do
+                                                           4:     E ← AR .retrieve(qi )
+      BacktrackLocal(Ai , r) : Φti −→ Φri .                5:     AV .verify(E)
+                                                           6:     if AV detects conflict locally then
+After the local rollback, the agent re-evaluates           7:         AV .BacktrackLocal(rV )
+newly arriving evidence.                                   8:         if conflict persists then
+Global Backtracking. When contradictions span              9:             raise Conflict to AS
+multiple agents, the AS identifies a minimum con-         10:         end if
+flict set of assertions that must be revised. A global   11:     end if
+backtracking operation: BacktrackGlobal σ t , r           12:     AA .storePartialAnswer(qi , E)
+reverts all agents from time t to r. The system           13: end for
+discards any statements introduced between r + 1          14: if Global conflict signaled then
+and t, restoring consistency. If the conflict cannot      15:     AS .HolisticUpdate(Πj )
+be removed even after a global rollback, the Con-         16:     if AC intervention needed then
+troller might enforce strategic overrides or disclaim     17:         AC .challenge(φ) or override
+an answer.                                                18:     end if
+   Algorithm 1 summarizes the flow of this multi-         19: end if
+agent reversible reasoning design. The pro-               20: Final ← AA .assembleAnswer({q1 , q2 , . . . })
+cess starts with question decomposition and sub-          21: return Final Answer
+question retrieval, followed by verification. Local
+backtracking is invoked as needed to address in-
+ternal inconsistencies. If the conflict persists, it      the model’s multi-hop inference over different re-
+is escalated to the supervisory layer, where par-         sources rather than one document. Musique is a
+tial or holistic backtracking may be applied. After       challenging dataset requiring model’s ability to rea-
+conflicts are resolved, the final step integrates all     son over multiple dispread sentences. Following
+consistent sub-answers.                                   previous work (Trivedi et al., 2023; Press et al.,
+                                                          2023; Gutiérrez et al., 2024), we utilize 1000 ran-
+5   Experiments                                           dom samples from each validation set and corre-
+                                                          sponding texts as the knowledge base.
+5.1 Experimental Setup                                    Baselines. We meticulously categorize diverse
+We evaluate ReAgent on three widely used,                 models into different groups to compare their ca-
+knowledge-intensive multi-hop QA benchmarks:              pabilities in multi-hop QA. (1) Regular Mod-
+HotpotQA (Yang et al., 2018), 2WikiMulti-                 els: We select non-reasoning models in this group.
+HopQA (Ho et al., 2020), and MuSiQue (Trivedi             The models include: Llama-4 2 , Qwen-2.5 (Yang
+et al., 2022). We compare ReAgent against three           et al., 2024a) series, DeepSeek-V3-2024-03 (Liu
+main groups of baselines: (1) standard LLMs,              et al., 2024), Genmini-1.5-Flash-2024-09 (Gemini
+(2) dedicated reasoning models, and (3) agent-            et al., 2023), Gemini-2.0-flash-2025-02 (Gemini
+based models. Experimental results demonstrate            et al., 2023), GPT-4o-latest (Hurst et al., 2024),
+that ReAgent consistently outperforms all baseline        GPT-4.1 (Meta AI, 2024), GPT-4o with CoT (Wei
+groups and is particularly effective in solving tasks     et al., 2023). (2) Reasoning Models: This
+that require iteratively corrected reasoning.             group includes several strong reasoning baselines
+Datasets. HotpotQA is a large-scale, open-domain          for comparison. The models include: Qwen-3-
+dataset that explicitly promotes multi-hop reason-        Thinking (Qwen3, 2025) in 32B and 253B size,
+ing by requiring the integration of information           DeepSeek-R1 (DeepSeek-AI, 2025), Gemini-2.5-
+across multiple full-length Wikipedia passages.           pro (Google DeepMind, 2025), O1 (OpenAI, 2024),
+2WikiMultiHopQA selects distinct Wikipedia do-               2
+                                                             https://ai.meta.com/blog/llama-4-multimoda
+mains for each question, focusing on evaluating           l-intelligence/
+
+                                                      4071
+                                         HotpotQA               2Wiki           Musique           Average
+   Model
+                                       EM        F1        EM           F1   EM        F1       EM        F1
+   Regular Models
+   Llama-4-Scout-17B-16E-Instruct      0.263    0.389     0.332     0.467    0.107   0.185     0.234    0.346
+   DeepSeek-V3                         0.352    0.491     0.466     0.579    0.223    0.33     0.347    0.467
+   Qwen-2.5-32B-Instruct               0.372    0.509     0.557     0.663    0.159   0.273     0.363    0.482
+   Qwen-2.5-72B-Instruct               0.363    0.519     0.543     0.631    0.222   0.327     0.376    0.492
+   Gemini-1.5-Flash                    0.374    0.488     0.563     0.650    0.208   0.310     0.381    0.482
+   Gemini-2.0-Flash                    0.371    0.490     0.538     0.651    0.246   0.338     0.385    0.493
+   GPT-4o                              0.381    0.549     0.517     0.649    0.245   0.379     0.381    0.525
+   GPT-4.1                             0.389    0.563     0.544     0.665    0.271   0.413     0.401    0.547
+   CoT (GPT-4o)                        0.408    0.531     0.558     0.638    0.272   0.360     0.413    0.509
+   Reasoning Models
+   Qwen-3-32B-Thinking                 0.332    0.474     0.241     0.357    0.387   0.511     0.387    0.511
+   DeepSeek-R1                         0.356    0.483     0.601     0.707    0.298   0.416     0.418    0.535
+   Qwen-3-235B-A22B-Thinking           0.361    0.506     0.624     0.729    0.271   0.387     0.418    0.540
+   Gemini-2.5-Pro                      0.430    0.560     0.743     0.829    0.383   0.491     0.518    0.626
+   O1                                  0.505    0.661     0.656     0.758    0.417   0.551     0.526    0.656
+   O3                                  0.535    0.696     0.706     0.787    0.442   0.579     0.561    0.687
+   Agentic Models (w.GPT-4o)
+   CoA (Zhang et al., 2024)            0.391    0.558     0.575     0.697    0.239   0.361     0.402    0.539
+   HippoRAG (Gutiérrez et al., 2025)   0.528    0.717     0.633     0.725    0.353   0.507     0.504    0.649
+   KAG (Liang et al., 2024)            0.603    0.782     0.681     0.781    0.348   0.489     0.544    0.684
+   ReAgent (Ours)                      0.630    0.795     0.711     0.793    0.371   0.515     0.571    0.701
+
+Table 1: Performance of different models across three multi-hop QA datasets. In each column, the highest and the
+second highest performance is highlighted in red and blue ; and within each method group, the top performer is
+underlined.
+
+and O3 (OpenAI, 2025). (3) Agentic Models.                 all baseline models on both EM and F1 met-
+Chain-of-Agents (CoA) (Zhang et al., 2024), Hip-           rics. Specifically, it achieves an average EM of
+pRAG (Gutiérrez et al., 2025), KAG (Liang et al.,          0.571 and an average F1 of 0.701, surpassing the
+2024), and our method. To compare fairly, we em-           strongest baseline—knowledge-augmented GPT-
+ploy GPT-4o as the backbone for both COT and               4o—by 2.3% in EM and 0.8% in F1. It also outper-
+Agentic Models.                                            forms strong reasoning models, including O1 and
+Implementation. For large-scale LLMs (e.g.,                O3. Moreover, it also surpasses the recent agentic
+DeepSeek-V3, the Gemini family, GPT-4o, and                models such as CoA, HippoRAG, and KAG across
+Qwen-3-235B), we access the models via API. For            all datasets. We summarize the following insights:
+the medium-sized LLMs, we use their official open-         Agent-based and reasoning enhances perfor-
+source repositories. The temperature is set to 0.3         mance. Some reasoning models and agentic mod-
+to ensure deterministic outputs, while other param-        els have a competitive performance (such as O1,
+eters follow their default settings. ReAgent is im-        O3, and KAG) than regular models. Notably,
+plemented using GPT-4o as the backbone model.              ReAgent outperforms O3, one of the strongest rea-
+Specifically, we set the temperature to 0.8 for the        soning models, and improves significantly over
+decomposition agent to encourage diverse reason-           GPT-4o+CoT in both EM and F1. This suggests
+ing paths, and 0.6 for all other agents. The cost          that modular execution and collaboration among
+analysis for proprietary models and agentic meth-          agents provide a clearer advantage in complex,
+ods is presented in Appendix B. For open-source            multi-hop settings. While ReAgent can theoret-
+models, all experiments are conducted using four           ically use stronger backbones like O1 or O3, their
+A100-80G GPUs.                                             high cost (645$ and 546$, respectively, as shown in
+Metrics. We measure Exact Match (EM) and F1                Appendix B) makes them not a good option. Our
+scores for the QA evaluation.                              focus is to show that even with GPT-4o, ReAgent
+                                                           is able to beat the expensive O1 and O3.
+5.2 Results and Analysis                                   ReAgent excels in manageable context length.
+Table 1 presents the overall performance across            Specifically, ReAgent achieves the highest F1 score
+all datasets. ReAgent consistently outperforms             on HotpotQA (0.795), demonstrating strong per-
+                                                        4072
+                                                                                                                                                                   $ E O D W L R Q  6 W X G \  R Q  % D F N W U D F N L Q J
+                      formance in tasks that require structured reason-                                                                                                                                                                   
+                                                                                                                                                                * 3 7   R
+                      ing over relatively short contexts. In contrast,                                                                                       ' H H S V H H N  9 
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                       
+                      Gemini-2.5-Pro performs well on 2Wiki but un-                                                                                                                                                          
+                      derperforms on other datasets, while O1 and O3                                                  ( 0      
+                                                                                                                                                                                   
+                      show stronger results on Musique but fall short on                                                                                                                
+                      HotpotQA. This discrepancy is partly attributed to                                                                                           
+
+                      the increased complexity of the Musique dataset,                                                         
+                                                                                                                                                1 R  % 7                     * O R E D O  % 7  / R F D O  % 7                      % R W K  % 7
+                      which involves longer contexts. While ReAgent
+                      is built on GPT-4o and may be less optimized for                                      Figure 3: Ablation Study on Local and Global Back-
+                      long documents than dedicated reasoning models,                                       tracking (BT): EM comparison on HotpotQA using
+                                                                                                            GPT-4o and DeepSeek-V3.
+                      its agentic design, including traceback and self-
+                      check mechanisms, proves particularly effective in
+                      scenarios requiring precision, stepwise planning,
+                      and robust verification. These strengths enable
+                      ReAgent to outperform other models on tasks like
+                      HotpotQA, highlighting its superior general reason-
+                      ing capabilities within manageable context lengths.
+                         Overall, we emphasized the value of reversible
+                      reasoning mechanisms to mitigate error propaga-
+                      tion. Results in Table 1 align with this assumption:
+                      even with strong models, single-pass reasoning can                                    Figure 4: Ablation Study on Backtracking Depth (left)
+                      fail unless the correct context is identified or re-                                  and Number of Decomposed Sub-Questions (right): EM
+                      checked. Our method’s ability to backtrack helps                                      comparison on HotpotQA using GPT-4o and DeepSeek-
+                                                                                                            V3.
+                      resolve contradictions, leading to more stable per-
+                      formance in multi-hop scenarios.
+                                                                                                  abling it to effectively recover from earlier reason-
+                      5.3 Ablation Study
+                                                                                                  ing errors. However, the benefits gradually saturate,
+                      Effectiveness Analysis of Backtracking Mecha- indicating that further increasing the backtracking
+                      nism.    WeLayer
+                       Execution     conduct an ablation study by disabling                       depth yields diminishing   Supervisory Layerreturns.
+       Question       backtracking       under
+                              Decomposer Agent
+                                                  the  same     settings    to
+                                                                 Retriever Agent
+                                                                                verify     its    Impact         of the Number                   of Decomposed Sub-
+                                                                                                  Verifier Agent                      Controller Agent
+Which U.S. state      importance. In this setup, the system operates                              Questions. Figure 4 (right) demonstrates how a dif-
+has a capital city                                                                                  √ × √                           High-level Regulation
+whose population
+                                 Sub-Question 1
+                      strictly forward
+                               1            without the ability         to revert to ear- √ ferent
+                                                                    Evidence 1
+                                                                        1                          1
+                                                                                                              number of decomposed sub-questions affects
+
+                                                                                                                                     Local Backtracking
+is smaller than the
+state’s largest
+                      lier intermediate
+                               2
+                                              states. Figure 3Evidence
+                                 Sub-Question 2                     2compares2      perfor- √ performance.
+                                                                                                   2
+                                                                                                    √ √ √                       Challenge Suspicious Claims
+                                                                                                                           The results show that decomposing
+city, given that      mance between different backbones, with and with- the input question into                                     Trigger Reevaluation
+                                                                                                                                         multiple sub-questions sig-
+this state hosted
+the 1984 Summer       out backtracking,
+                                 Sub-Question n on  HotpotQA         dataset.
+                                                                    Evidence n
+                                                                        n
+                                                                                 The     per-     nificantly
+                                                                                                × √ √         √ improves Supervisor performance.     Agent Specifically, us-
+Olympics?                      n                                                                   3
+
+                      formance drop highlights the importance of back- ing 3 sub-questions is the optimal trade-off choice,
+                                                                                                                               Identify               triger
+                      tracking in     mitigating
+                            Answer-Assembler    Agenterror propagation, where an      1    2      with an improvement
+                                                                                                        n
+                                                                                                                               Minimal of 0.161 EM on the GPT-
+                                                                1           2   n                              1        2    Conflict set          n
+        Answer        early misstep without if no    backtracking cannot be cor- 4o and 0.142 EM on DeepSeek-V3 compared to
+                           Final Answer                                                                        escalate
+                      rected, resulting in deteriorated performance.
+                                                  contradiction
+                                                                                         No-detected
+                                                                                contradiction        !!!
+                                                                                                  directly       processing aGlobal          Backtracking
+                                                                                                                                          single        question. Beyond
+     California.
+                      tably,  the Layer
+                       Interaction DeepSeek-V3 backbone exhibits general                          this point, increasing
+                                                                                                   Backtracking                       the number              of sub-questions
+                                                                                                                               rollback               co
+                                                                                                                                                         nf
+                      improvements
+                           Persistent Log with Temporal
+                                                   backtracking,
+                                                            Tracker     demonstrating
+                                                                           Messaging Channel      brings only marginal gains but ict !!
+                                                                                                                                                            l
+                                                                                                                                                          higher costs.
+                      its robustness across various settings.                                         State 1       State 2                  State i
+
+
+                      Impact of Different Local Backtracking (BT)
+                        Execution
+                      Depth.         further analyze the impact of local back- 6 Case StudySupervisory Layer
+                                 ToLayer
+       Question
+                      tracking    depths Agent
+                               Decomposer   (the number of steps Retrieverthe
+                                                                           Agentsystem is          Verifier Agent                     Controller Agent
+Which U.S. state
+                      allowed Sub-Question
+                                  to revert),1 we analyze theEvidence  performance         of     6.1 ReAgent Walk Through
+has a capital city
+                                   1                                    1
+                                                                              1                  √ √ × √
+                                                                                                    1
+                                                                                                                                     High-level Regulation
+whose population      our proposed ReAgent under different settings, as                           To illustrate how recursive                   feedback enables robust
+
+                                                                                                                                         Local Backtracking
+is smaller than the              Sub-Question 2                     Evidence 2                   √ √ √ √                         Challenge Suspicious Claims
+state’s largest       shown in Figure 4 (left). The results show that on
+                                2                                       2
+                                                                                                  multi-agent reasoning,
+                                                                                                    2
+                                                                                                                                         we    present
+                                                                                                                                    Trigger Reevaluation
+                                                                                                                                                              a case where the
+city, given that
+this state hosted     two selected backbones, DeepSeek-V3 and GPT- system answers the question: “Which U.S. state
+the 1984 Summer
+Olympics?
+                                 Sub-Question n
+                      4o, the performance
+                                   n
+                                                                    Evidence n
+                                                  of ReAgent improves   n
+                                                                                 as the lo- ×has    3
+                                                                                                     √ √ √
+                                                                                                            a capital city            Supervisor
+                                                                                                                                              whose   Agentpopulation is
+
+                      cal backtracking depth increases, suggesting that a                         smaller than the              Identifystate’s        trigerlargest city,
+                            Answer-Assembler Agent                                                                              Minimal
+                      deeper backtracking depth benefits the agent by en- given that this
+                                                                    1       2   n      1    2           n        1      2              state hosted the 1984
+                                                                                                                              Conflict set                n
+        Answer                                          if no
+                            Final Answer            contradiction                                4073
+                                                                                    contradiction detected !!!
+                                                                                                                             escalate                                              Global Backtracking
+
+     California.
+                       Interaction Layer                                                                     Backtracking
+                                                                                                                                                                           rollback                            co
+                                                                                                                                                                                                                  nf
+                                                                                                                                                                                                                     li   ct
+                            Persistent Log         Temporal Tracker             Messaging Channel                                                                                                                              !!
+                                                                                                              State 1                State 2                                                     State i
+ Question: What is the name of the fight song of the university whose main campus is in Lawrence, Kansas and whose branch campuses are in the Kansas City metropolitan area?
+
+O3                                        CoA (Chain-of-Agent) w. GPT-4o                                                                          ReAgent (Ours)
+ 1. Identify the university described.    Worker 1:                         Worker 2:                        Worker 3:                            Decomposer:              Retriever 1 (Q1): University of Kansas has its Backtracking:
+ The context says the university’s main   (1) Scanned the text, listing     (1) Locate candidate schools     (1) Pattern-match location           Decompose question       main campus in Lawrence, KS                    • “Kansas Song” was
+ campus is in Lawrence, Kansas, with      every university mentioned.       → University of Kansas           descriptors → KU lines.              into 6 sub-questions     Retriever 2 (Q2): Same university has two KC- adopted as KU’s official fight
+ branch campuses in the Kansas City       (2) Selected the University of    (2) Verifies only KU fits both   (2) Invoke model-internal memory →   Q1: University           area branch campuses                           song in 1928 (date present in
+ metropolitan area.                       Kansas paragraph.                 constraints.                     top hit = I’m a Jayhawk; secondary   identification           Retriever 3 (Q3): No other school meets both the primary source).
+ → This matches the University of         (3) Searched the whole chunk      (3) Search in-chunk for fight-   hit = Kansas Song (less commonly     Q2: Branch-campus        criteria → KU is unique                        • “I’m a Jayhawk” emerged
+ Kansas (KU).                             for tokens such as “fight song”   song phrases → “I’m a            cited).                              check                                                                   later as a popular rally tune
+                                                                                                                                                                           Retriever 4 (Q4): Fight-song candidate
+                                          → No matches.                     Jayhawk”.                        (3) Chooses the song with higher     Q3: Uniqueness                                                          but was never legislated as
+ 2. Recall KU’s official fight song.                                                                                                                                       “I’m a Jayhawk”
+                                          (4) Output: Answer = Unknown      (4) Output: Answer = “I’m a      pop-culture frequency → I’m a        confirmation                                                            the official fight song.
+ The University of Kansas’ long-                                                                                                                                           Retriever 5 (Q5): Conflicting candidate
+                                                                            Jayhawk”.                        Jayhawk.                             Q4: Fight-song
+ standing fight song is titled “I’m a     Manager:                                                                                                                         “Kansas Song”                                    Final answer: “Kansas Song”
+                                                                                                             (4) Return: Answer = “I’m a          retrieval
+ Jayhawk.”                                (1) Collect worker outputs: 2×“I’m a Jayhawk”, 1×“Unknown”.                                                                      Retriever 6 (Q6): Fight-song candidate “I’m a
+                                                                                                             Jayhawk”.                            Q5: Conflict detection
+                                          (2) Adopt majority output → "I'm a Jayhawk"                                                             Q6: Final resolution     Jayhawk”
+ 3. State the answer.
+                                          (3) Emit final answer: "I'm a Jayhawk"                                                                                                                        Conflict detected
+ “I’m a Jayhawk.”
+
+
+
+
+Figure 5: Case study comparing GPT-O3 (left), CoA (middle), and ReAgent (right) on HotpotQA. The back-tracking
+mechanism enhances iterative reasoning, enabling conflict detection and correction to reach the correct answer.
+
+
+Summer Olympics?”, shown in Figure 6. The ques-                                                                                    rectly answering therefore hinges on (a) verifying
+tion is first decomposed by the Question Decom-                                                                                    that KU is the only university matching the cam-
+poser agent (AQ ) into four sub-questions: identify-                                                                               pus pattern, and (b) resolving the potential conflict
+ing the host state of the 1984 Olympics, retrieving                                                                                between the two candidate songs.
+its capital and largest city, comparing their popula-
+tions, and returning the state if the capital is smaller.                                                                             The reasoning model O3 (left) performs the first
+The Retriever agent (AR ) retrieves that California                                                                                hop successfully but then falls back on memorised
+hosted the 1984 Olympics, with Sacramento as its                                                                                   popularity cues, assuming that the song most famil-
+capital and Los Angeles as its largest city. How-                                                                                  iar to the public must be official.
+ever, inconsistent population data for Sacramento
+(508k vs. 1.5M) triggers a local conflict, which is                                                                                   The CoA (middle) multi-worker system executes
+resolved by the Verifier agent (AV ) through local                                                                                 three independent workers and lets a manager pick
+backtracking—discarding the unreliable 1.5M es-                                                                                    the majority vote. Worker 1 fails to locate any
+timate. In this case, the local backtracking step is                                                                               fight-song information due to the chunk division.
+able to figure out the correct information, then the                                                                               Worker 2 repeats O3’s mistake. Worker 3 extracts
+Answer Assembler (AA ) is able to gather all the                                                                                   the correct answer “Kansas Song” but discards it
+information locally and then globally, and finally                                                                                 because it is less commonly used, and the third fails
+present the final answer to be California. We                                                                                      to locate any fight-song information. The manager
+eliminate other parts when another conflict may oc-                                                                                simply adopts the majority answer (“I’m a Jay-
+cur, a full walk-through is presented in Appendix D.                                                                               hawk”), which causes the error.
+Another case study is presented in Appendix C
+                                                                                                                                     Our ReAgent (right) framework handles the
+                                                                                                                                  same example with six specialized retriever agents
+6.2 Comparison with Baseline Models
+                                                                                                                                  answering the sub-questions generated by the De-
+To elucidate differences in reasoning dynamics, we                                                                                composer: (a) Q1–Q3 (entity verification). Three
+perform a case study comparing ReAgent with a                                                                                     agents collectively confirm that only KU satisfies
+single-agent reasoning baseline, O3 and an agen-                                                                                  the main-campus/branch-campus constraints, elim-
+tic baseline, Chain-of-Agents (CoA) (Zhang et al.,                                                                                inating alternative schools early. (b) Q4–Q5 (con-
+2024) on the query “What is the name of the                                                                                       flict surfacing). Independent retrieval agents sur-
+fight song of the university whose main                                                                                           face both “I’m a Jayhawk” and “Kansas Song”, trig-
+campus is in Lawrence, Kansas and whose                                                                                           gering an explicit conflict state. (c) Backtracking
+branch campuses are in the Kansas City                                                                                            (Q6). The controller reverses to Q4 and re-weights
+metropolitan area?”, as illustrated in Figure 7.                                                                                  evidence. The source for “Kansas Song” contains
+The full comparison is presented in Appendix D.                                                                                   the enactment year (1928) and the keyword “offi-
+The example question requires two separate hops:                                                                                  cial”, while “I’m a Jayhawk” is marked only as a
+(i) identifying which university satisfies the geo-                                                                               “rally tune”. Therefore, our model successfully
+graphical constraints, and (ii) retrieving the “offi-                                                                             reach the correct answer “Kansas Song”. This
+cial” fight-song of that school. Although seemingly                                                                               demonstrates that, thanks to its conflict-detection
+simple, the task hides a subtle distinction: the Uni-                                                                             and backtracking mechanisms, ReAgent can re-
+versity of Kansas (KU) has both an official fight                                                                                 visit earlier reasoning, resolve contradictory evi-
+song (“Kansas Song”, adopted in 1928) and a far                                                                                   dence, and consistently converge on the correct
+better-known rally tune (“I’m a Jayhawk”). Cor-                                                                                   knowledge-grounded answer.
+                                                                                                                         4074
+     Question: "Which U.S. state has a capital city whose population is smaller than               may reduce its robustness in scenarios with limited
+     the state’s largest city, given that this state hosted the 1984 Summer Olympics?"
+                                                                                                   resources or noisy inputs. In the future, we aim to
+     Question Decomposition
+                                              Source 1: …The 1984 Summer Olympics were             improve the design of the agents, with a particular
+                                              primarily hosted in Los Angeles, California….
+    • Sub-question 1: Which U.S. state                                                             focus on enhancing their collaboration strategies
+    hosted the 1984 Summer Olympics?
+    • Sub-question 2: What is the capital
+    city of that state, and what is the
+                                              Source 2: Capital of California is Sacramento.
+                                              Source 3: Largest city is Los Angeles.               to further reduce error propagation and improve
+                                              Source 4: Sacramento population: ∼ 508, 000
+    largest city?
+    • Sub-question 3: Compare the
+                                              Source 5: Los Angeles population: ∼ 3, 900, 000      reasoning efficiency.
+                                              Source 6: Sacramento population: ∼ 1,500,000
+    populations of the capital and the
+    largest city.
+    • Sub-question 4: Return the state
+    name if the capital’s population is
+                                            Local Backtracking                                     Acknowledgements
+    smaller.
+                                                  Population of Sacramento         Conflict
+
+        Population of Sacramento:508k ✅
+                                                  cannot be both 508k and 1.5M.    Occurs
+                                                                                                   This work was supported by JST ACT-X (Grant
+                                                  Other Local Answers...
+                                                                                   Global
+                                                                                   Answer
+                                                                                                   JPMJAX24CU) and JSPS KAKENHI (Grant
+         Local Answer Assemble                 Other Local Answers…
+
+    - The capital is Sacramento (population: ∼ 508, 000).
+                                                                                  Assemble         24K20832). This work used supercomputers pro-
+    - The largest city is Los Angeles (population: ∼ 3, 900,
+      000)....
+                                                                           Final Answer:           vided by the Research Institute for Information
+                                                                           California
+                                                                                                   Technology, Kyushu University, through the HPCI
+Figure 6: Case study: We illustrate the main steps of                                              System Research Project (Project ID: hp250092).
+how ReAgent answers a question, where local back-                                                  This work was also supported by NVIDIA Aca-
+tracking is highlighted to resolve a conflict.                                                     demic Grant Program, Google Cloud (Gemma 3
+                                                                                                   Academic Program), and Google Academic Re-
+7      Conclusion                                                                                  search Award 2025.
+
+In this paper, we introduced a multi-agent QA
+framework, R E AGENT, that incorporates back-                                                      References
+tracking mechanisms to mitigate error propagation
+                                                                                                   Xiaohe Bo, Zeyu Zhang, Quanyu Dai, Xueyang Feng,
+in multi-hop reasoning. Our hierarchical approach                                                    Lei Wang, Rui Li, Xu Chen, and Ji-Rong Wen. 2024.
+addresses the long-standing challenge that a single                                                  Reflective multi-agent collaboration based on large
+misstep during inference often invalidates the en-                                                   language models. arXiv preprint arXiv:2409.14880.
+tire reasoning chain. By allowing partial or global                                                  Presented as a poster at NeurIPS 2024.
+rollback, each agent can detect and correct con-                                                   Rajarshi Das, Shehzaad Dhuliawala, Manzil Zaheer,
+flicting evidence, leading to more stable and inter-                                                 Luke Vilnis, Ishan Durugkar, Akshay Krishnamurthy,
+pretable solutions. Experiments on three multi-hop                                                   Alex Smola, and Andrew McCallum. 2018. Go for a
+QA benchmarks—HotpotQA, 2WikiMultiHopQA,                                                             walk and arrive at the answer: Reasoning over paths
+                                                                                                     in knowledge bases using reinforcement learning. In
+and Musique—demonstrate that explicit backtrack-                                                     International Conference on Learning Representa-
+ing and conflict resolution improve performance                                                      tions (ICLR).
+beyond forward-only baselines, confirming the im-
+portance of error revision for complex question                                                    DeepSeek-AI. 2025. Deepseek-r1: Incentivizing rea-
+                                                                                                     soning capability in llms via reinforcement learning.
+answering. We believe that the reversible, mod-                                                      Preprint, arXiv:2501.12948.
+ular design can be extended to other knowledge-
+intensive applications, laying the groundwork for                                                  Jon Doyle. 1979. A truth maintenance system. Artificial
+more trustworthy collaborative AI agents.                                                            Intelligence, 12(3):231–272.
+
+                                                                                                   Fan Gao, Hang Jiang, Rui Yang, Qingcheng Zeng,
+Limitations                                                                                          Jinghui Lu, Moritz Blum, Dairui Liu, Tianwei She,
+                                                                                                     Yuang Jiang, and Irene Li. 2023. Evaluating large lan-
+In this paper, we present the ReAgent model for                                                      guage models on wikipedia-style survey generation.
+multi-hop QA, which introduces explicit backtrack-                                                   In Annual Meeting of the Association for Computa-
+ing mechanisms that allow the system to correct                                                      tional Linguistics.
+errors during reasoning, leading to more accurate
+                                                                                                   Gemini, Rohan Anil, Sebastian Borgeaud, Jean-Baptiste
+and reliable answers. However, this design in-                                                       Alayrac, Jiahui Yu, Radu Soricut, Johan Schalk-
+troduces certain limitations. First, the ability to                                                  wyk, Andrew M Dai, Anja Hauth, Katie Milli-
+backtrack multiple times can increase the overall                                                    can, and 1 others. 2023. Gemini: a family of
+inference time, potentially making the reasoning                                                     highly capable multimodal models. arXiv preprint
+                                                                                                     arXiv:2312.11805.
+process less efficient. Second, although ReAgent
+demonstrates improved performance over selected                                                    Google DeepMind. 2025. Gemini 2.5: Our most intelli-
+reasoning models, its more complex architecture                                                      gent ai model. Accessed: 2025-05-16.
+                                                                                                4075
+Bernal Jiménez Gutiérrez, Yiheng Shu, Yu Gu, Michi-        Lei Liang, Mengshu Sun, Zhengke Gui, Zhongshu
+  hiro Yasunaga, and Yu Su. 2024. Hipporag: Neu-             Zhu, Zhouyu Jiang, Ling Zhong, Yuan Qu, Pei-
+  robiologically inspired long-term memory for large         long Zhao, Zhongpu Bo, Jin Yang, Huaidong Xiong,
+  language models. In The Thirty-eighth Annual Con-          Lin Yuan, Jun Xu, Zaoyang Wang, Zhiqiang Zhang,
+  ference on Neural Information Processing Systems.          Wen Zhang, Huajun Chen, Wenguang Chen, and
+                                                             Jun Zhou. 2024. Kag: Boosting llms in profes-
+Bernal Jiménez Gutiérrez, Yiheng Shu, Yu Gu, Michi-          sional domains via knowledge augmented generation.
+  hiro Yasunaga, and Yu Su. 2025. Hipporag: Neu-             Preprint, arXiv:2409.13731.
+  robiologically inspired long-term memory for large
+  language models. Preprint, arXiv:2405.14831.             Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang,
+                                                             Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi
+Gaole He, Yunshi Lan, Jing Jiang, Wayne Xin Zhao, and        Deng, Chenyu Zhang, Chong Ruan, and 1 others.
+  Ji-Rong Wen. 2021. Improving multi-hop knowledge           2024. Deepseek-v3 technical report. arXiv preprint
+  base question answering by learning intermediate           arXiv:2412.19437.
+  supervision signals. In Proceedings of the 14th ACM
+  International Conference on Web Search and Data          Dairui Liu, Boming Yang, Honghui Du, Derek Greene,
+  Mining (WSDM), pages 553–561. ACM.                         Neil J. Hurley, Aonghus Lawlor, Ruihai Dong, and
+                                                             Irene Li. 2023. Recprompt: A self-tuning prompt-
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,               ing framework for news recommendation using large
+  and Akiko Aizawa. 2020. Constructing a multi-              language models. In International Conference on
+  hop QA dataset for comprehensive evaluation of             Information and Knowledge Management.
+  reasoning steps. In Proceedings of the 28th Inter-       Alex Long, Joel Mason, Alan Blair, and Wei Wang.
+  national Conference on Computational Linguistics,          2019. Multi-hop reading comprehension via deep
+  pages 6609–6625, Barcelona, Spain (Online). Inter-         reinforcement learning based document traversal.
+  national Committee on Computational Linguistics.           arXiv preprint arXiv:1905.09438.
+Siyuan Huang, Zhiyuan Ma, Jintao Du, Changhua              Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler
+  Meng, Weiqiang Wang, and Zhouhan Lin. 2024.               Hallinan, Luyu Gao, Sarah Wiegreffe, Nicholas
+  Mirror-consistency: Harnessing inconsistency in ma-       Lourie, Gabriel Ilharco, Daphne Ippolito, Sam Singh,
+  jority voting. arXiv preprint arXiv:2410.10857.           and 1 others. 2023. Self-refine: Iterative refinement
+                                                            with self-feedback. In Advances in Neural Informa-
+Aaron Hurst, Adam Lerer, Adam P Goucher, Adam               tion Processing Systems (NeurIPS).
+  Perelman, Aditya Ramesh, Aidan Clark, AJ Ostrow,
+  Akila Welihinda, Alan Hayes, Alec Radford, and 1         Meta AI. 2024. Introducing llama 4: Advancing multi-
+  others. 2024. Gpt-4o system card. arXiv preprint          modal intelligence.
+  arXiv:2410.21276.
+                                                           OpenAI. 2024. Openai o1 system card. Preprint,
+Naoya Inoue, Pontus Stenetorp, and Kentaro Inui. 2020.       arXiv:2412.16720.
+  R4c: A benchmark for evaluating rc systems to get
+  the right answer for the right reason. In Proceedings    OpenAI. 2025. Introducing openai o3 and o4-mini.
+  of the 58th Annual Meeting of the Association for          Accessed: 2025-05-16.
+  Computational Linguistics (ACL), pages 6740–6750,
+  Online. Association for Computational Linguistics.       Elham Parhizkar, Mohammad Hossein Nikravan,
+                                                             Robert C. Holte, and Sandra Zilles. 2020. Com-
+                                                             bining direct trust and indirect trust in multi-agent
+Yuhe Ke, Rui Yang, Sui An Lie, Taylor Xin Yi Lim,
+                                                             systems. In Proceedings of the 29th International
+  Yilin Ning, Irene Li, Hairil Rizal Abdullah, Daniel
+                                                             Joint Conference on Artificial Intelligence (IJCAI),
+  Shu Wei Ting, and Nan Liu. 2024. Mitigating cogni-
+                                                             pages 311–317.
+  tive biases in clinical decision-making through multi-
+  agent conversations using large language models:         Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt,
+  Simulation study. J Med Internet Res, 26:e59439.           Noah Smith, and Mike Lewis. 2023. Measuring and
+                                                             narrowing the compositionality gap in language mod-
+Akbir Khan, John Hughes, Dan Valentine, Laura                els. In Findings of the Association for Computational
+  Ruis, Kshitij Sachan, Ansh Radhakrishnan, Edward           Linguistics: EMNLP 2023, pages 5687–5711, Singa-
+  Grefenstette, Samuel R. Bowman, Tim Rocktäschel,           pore. Association for Computational Linguistics.
+  and Ethan Perez. 2024. Debating with More Persua-
+  sive LLMs Leads to More Truthful Answers. arXiv          Haritz Puerto, Gözde Gül Şahin, and Iryna Gurevych.
+  preprint arXiv:2402.06782.                                 2023. Metaqa: Combining expert agents for multi-
+                                                             skill question answering. In Proceedings of the 17th
+Guohao Li, Hasan Abed Al Kader Hammoud, Hani                 Conference of the European Chapter of the ACL
+  Itani, Dmitrii Khizbullin, and Bernard Ghanem. 2023.       (EACL), pages 3566–3580, Dubrovnik, Croatia. As-
+  CAMEL: Communicative Agents for "Mind" Explo-              sociation for Computational Linguistics.
+  ration of Large Language Model Society. In Ad-
+  vances in Neural Information Processing Systems          Qwen3. 2025. Qwen3 technical report.         Preprint,
+  (NeurIPS).                                                arXiv:2505.09388.
+                                                       4076
+Noah Shinn, Federico Cassano, Edward Berman, Ash-            Processing, pages 155–166, Bangkok, Thailand. As-
+  win Gopinath, Karthik Narasimhan, and Shunyu Yao.          sociation for Computational Linguistics.
+  2023. Reflexion: Language Agents with Verbal Re-
+  inforcement Learning. In Advances in Neural Infor-      Rui Yang, Yilin Ning, Emilia Keppo, Mingxuan
+  mation Processing Systems (NeurIPS).                      Liu, Chuan Hong, Danielle S Bitterman, Jasmine
+                                                            Chiat Ling Ong, Daniel Shu Wei Ting, and Nan Liu.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,       2025a. Retrieval-augmented generation for genera-
+  and Ashish Sabharwal. 2022. MuSiQue: Multi-               tive artificial intelligence in health care. npj Health
+  hop questions via single-hop question composition.        Systems, 2(1):2.
+  Transactions of the Association for Computational
+  Linguistics, 10:539–554.                                Rui Yang, Boming Yang, Aosong Feng, Sixun Ouyang,
+                                                            Moritz Blum, Tianwei She, Yuang Jiang, Freddy
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,       Lecue, Jinghui Lu, and Irene Li. 2024c. Graphu-
+  and Ashish Sabharwal. 2023. Interleaving retrieval        sion: a rag framework for knowledge graph con-
+  with chain-of-thought reasoning for knowledge-            struction with a global perspective. arXiv preprint
+  intensive multi-step questions. In Proceedings of         arXiv:2410.17600.
+  the 61st Annual Meeting of the Association for Com-
+  putational Linguistics (Volume 1: Long Papers),         Rui Yang, Boming Yang, Xinjie Zhao, Fan Gao, Aosong
+  pages 10014–10037, Toronto, Canada. Association           Feng, Sixun Ouyang, Moritz Blum, Tianwei She,
+  for Computational Linguistics.                            Yuang Jiang, Freddy Lecue, Jinghui Lu, and Irene Li.
+                                                            2025b. Graphusion: A rag framework for scientific
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le,           knowledge graph construction with a global perspec-
+  Ed H. Chi, Sharan Narang, Aakanksha Chowdh-               tive. In Proceedings of the NLP4KGC Workshop at
+  ery, and Denny Zhou. 2023. Self-consistency im-           the World Wide Web Conference (WWW) 2025.
+  proves chain of thought reasoning in language mod-
+  els. In Proceedings of the International Conference     Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  on Learning Representations (ICLR).                       gio, William W. Cohen, Ruslan Salakhutdinov, and
+                                                            Christopher D. Manning. 2018. Hotpotqa: A dataset
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten            for diverse, explainable multi-hop question answer-
+   Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc Le, and       ing. In Proceedings of the 2018 Conference on Em-
+   Denny Zhou. 2023. Chain-of-thought prompting elic-       pirical Methods in Natural Language Processing
+   its reasoning in large language models. Preprint,        (EMNLP), pages 2369–2380.
+   arXiv:2201.11903.
+                                                          Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten            Shafran, Karthik Narasimhan, and Yuan Cao. 2023.
+   Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc Le,        ReAct: Synergizing Reasoning and Acting in Lan-
+   and Denny Zhou. 2022. Chain-of-thought prompt-           guage Models. In Proceedings of the International
+   ing elicits reasoning in large language models. In       Conference on Learning Representations (ICLR).
+  Advances in Neural Information Processing Systems
+  (NeurIPS), volume 35, pages 24824–24837.                Yusen Zhang, Ruoxi Sun, Yanfei Chen, Tomas Pfister,
+                                                            Rui Zhang, and Sercan Ö. Arik. 2024. Chain of
+Johannes Welbl, Pontus Stenetorp, and Sebastian Riedel.     agents: Large language models collaborating on long-
+  2018. Constructing datasets for multi-hop reading         context tasks. Preprint, arXiv:2406.02818.
+  comprehension across documents. Transactions of
+  the Association for Computational Linguistics, 6:287–   Zhuosheng Zhang, Aston Zhang, Mu Li, Hai Zhao,
+  302.                                                      George Karypis, and Alexander J. Smola. 2023. Mul-
+                                                            timodal Chain-of-Thought Reasoning in Language
+Kai Xiong, Xiao Ding, Yixin Cao, Ting Liu, and Bing         Models. arXiv preprint arXiv:2302.00923.
+  Qin. 2023. Examining Inter-Consistency of Large
+  Language Models Collaboration: An In-depth Analy-       Jun Zhao, Can Zu, Xu Hao, Yi Lu, Wei He, Yiwen
+  sis via Debate. In Findings of the Association for        Ding, Tao Gui, Qi Zhang, and Xuanjing Huang. 2024.
+  Computational Linguistics: EMNLP 2023, pages              Longagent: Achieving question answering for 128k-
+  7572–7590.                                                token-long documents through multi-agent collabo-
+                                                            ration. In Proceedings of the 2024 Conference on
+An Yang, Baosong Yang, Beichen Zhang, Binyuan Hui,          Empirical Methods in Natural Language Process-
+  Bo Zheng, Bowen Yu, Chengyuan Li, Dayiheng Liu,           ing (EMNLP), pages 16310–16324, Miami, Florida,
+  Fei Huang, Haoran Wei, and 1 others. 2024a. Qwen2.        USA. Association for Computational Linguistics.
+  5 technical report. arXiv preprint arXiv:2412.15115.
+                                                          Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han,
+Rui Yang, Haoran Liu, Edison Marrese-Taylor,                Keiran Paster, Silviu Pitis̆, Harris Chan, and Jimmy
+  Qingcheng Zeng, Yuhe Ke, Wanxin Li, Lechao                Ba. 2023. Large Language Models Are Human-Level
+  Cheng, Qingyu Chen, James Caverlee, Yutaka Mat-           Prompt Engineers. arXiv preprint arXiv:2211.01910.
+  suo, and Irene Li. 2024b. KG-rank: Enhancing large
+  language models for medical QA with knowledge
+  graphs and ranking techniques. In Proceedings of
+  the 23rd Workshop on Biomedical Natural Language
+                                                      4077
+Appendix
+A   Multi-Agent Prompt Templates
+A.1 Question-Decomposer Agent
+
+      Question-Decomposer Agent Prompt
+
+
+
+      Role Description: You are the Question-Decomposer Agent, specializing in breaking
+      down the user’s complex query into smaller, manageable sub-questions or sub-tasks.
+      This decomposition is crucial for multi-hop question answering and will be consumed
+      by downstream agents (Retriever, Verifier, etc.) in the pipeline.
+      Your Goals:
+
+          1. Parse the original query into logically independent or sequential sub-questions.
+
+          2. Preserve all necessary context so that other agents can retrieve relevant evidence
+             and validate partial answers.
+
+          3. Output your decomposition in a structured JSON format.
+
+      Example Usage:
+
+           • Original Query: “Which U.S. state has a capital city whose population is smaller
+             than the state’s largest city, given that this state hosted the 1984 Summer Olympics?”
+
+           • Decomposition:
+               – q1 : Identify which U.S. state hosted the 1984 Summer Olympics.
+               – q2 : Find the capital city and the largest city of that state.
+               – q3 : Compare population sizes of the capital and largest city.
+               – q4 : Return the state if the capital is indeed smaller.
+
+      Output Format (JSON Only):
+      {
+          "sub_questions": [
+             "Sub-question 1",
+             "Sub-question 2",
+             ...
+          ],
+          "decomposition_reasoning": "A short textual explanation of your decomposition
+             process"
+      }
+
+      Instruction: Please ensure your final output is a valid JSON object matching the above
+      schema.
+
+
+
+
+                                                  4078
+A.2 Retriever Agent
+
+       Retriever Agent Prompt
+
+
+
+      Role Description: You are the Retriever Agent, responsible for fetching relevant ev-
+      idence from external sources (a text corpus, a knowledge graph, or both) based on
+      sub-questions provided by the Question-Decomposer Agent. This includes documents,
+      passages, knowledge graph triples, and any other data needed for multi-hop QA.
+      Your Goals:
+
+           1. Given a sub-question, retrieve the most relevant facts or passages.
+
+           2. Include confidence scores or other metadata if available.
+
+           3. Return your findings in a standardized JSON structure so that the Verifier and
+              Answer-Assembler Agents can process them.
+
+       Example Usage:
+
+            • Input Sub-question: “Which U.S. state hosted the 1984 Summer Olympics?”
+
+            • Retrieved Evidence (text-based):
+                   { "document": "History of the Olympics", "passage": "The 1984 Summer Olympics
+                   were held primarily in Los Angeles, California." }
+
+       Output Format (JSON Only):
+       {
+           "retrieved_evidence": [
+              {
+                "source": "e.g., 'Wikipedia excerpt' or 'KG triple ID'",
+                "content": "string or structured data relevant to the sub-question",
+                "confidence": 0.0-1.0 (optional)
+              },
+              ...
+           ],
+           "retrieval_reasoning": "Short justification for why this evidence is relevant"
+       }
+
+       Instruction: Output only valid JSON, strictly matching the above schema.
+
+
+
+
+                                                    4079
+A.3 Verifier Agent
+
+       Verifier Agent Prompt
+
+
+
+       Role Description: You are the Verifier Agent, focusing on assessing consistency and
+       correctness of the newly retrieved evidence or intermediate inferences. You detect
+       contradictions or conflicts either within the new data or against the previously verified
+       knowledge. If necessary, you trigger local backtracking to remove or adjust statements
+       causing inconsistency.
+       Your Goals:
+
+           1. Validate whether new information is consistent with existing verified knowledge.
+
+           2. Identify contradictions and either correct them or escalate them to a higher-level
+              supervisor if unresolved.
+
+           3. Produce a final set of verified facts or a signal indicating a conflict.
+
+       Example Usage:
+
+            • Incoming Evidence:
+                   "Sacramento population: 508,000" and "Sacramento population: 1,500,000"
+
+            • Detected Inconsistency:
+                   "Sacramento cannot have two drastically different population values."
+
+            • Local Backtracking Action:
+                   "Discard the erroneous or lower-confidence figure (1,500,000)."
+
+       Output Format (JSON Only):
+       {
+           "verified_facts": [
+              "Fact 1",
+              "Fact 2",
+              ...
+           ],
+           "conflicts_detected": [
+              "Conflict 1 description, if any",
+              ...
+           ],
+           "local_backtracking_action": "Description of any backtracking performed, or
+              'none'"
+       }
+
+       Instruction: Return only valid JSON with the fields above. Provide a concise summary
+       if backtracking occurs.
+
+
+
+
+                                                      4080
+A.4 Answer-Assembler Agent
+
+      Answer-Assembler Agent Prompt
+
+
+
+      Role Description: You are the Answer-Assembler Agent. You gather verified facts
+      from the Verifier Agent and partial answers from the Decomposer and Retriever Agents.
+      You then synthesize a coherent, contextually relevant response, producing a final or
+      intermediate answer for the user. If you detect a major conflict among partial answers,
+      you escalate to the Supervisor Agent.
+      Your Goals:
+
+          1. Aggregate partial answers logically.
+
+          2. Compose a natural-language (or structured) final answer to the user’s multi-hop
+             query.
+
+          3. Escalate unresolvable contradictions to the Supervisor Agent if needed.
+
+      Example Usage:
+
+           • Partial Answers and Verified Facts:
+                 {"hosted_1984_olympics": "California"}
+                 {"capital": "Sacramento"}, {"largest_city": "Los Angeles"}
+                 {"pop_sacramento": 508000}, {"pop_los_angeles": 3900000}
+
+           • Composed Final Answer:
+                  "The state is California, since its capital city (Sacramento) has a popula-
+                  tion smaller than that of Los Angeles."
+
+      Output Format (JSON Only):
+      {
+          "final_answer": "A concise or structured answer to the main query",
+          "partial_answer_synthesis": [
+             "Short bullet points on how partial answers were combined"
+          ],
+          "escalation_signal": "Set to 'none' if no escalation is needed, otherwise a short
+             reason"
+      }
+
+      Instruction: Return only valid JSON. If you detect a major conflict you cannot resolve,
+      set "escalation_signal" to a reason for Supervisor Agent intervention.
+
+
+
+
+                                                    4081
+A.5 Supervisor Agent
+
+      Supervisor Agent Prompt
+
+
+
+      Role Description: You are the Supervisor Agent, responsible for orchestrating global
+      conflict resolution and global backtracking if needed. When partial answers or verified
+      facts across multiple agents yield irreconcilable contradictions, you identify a minimal
+      conflict set and roll back the entire system’s state to a previously consistent checkpoint
+      if local fixes fail.
+      Your Goals:
+
+          1. Collect escalation signals from the Answer-Assembler or Verifier Agents.
+
+          2. If local backtracking does not resolve the conflict, execute system-wide or multi-
+             agent rollback.
+
+          3. Provide a summary of changes, indicating which statements or partial answers are
+             discarded or revised.
+
+      Example Usage:
+
+          • Received Escalation: “Capital(California, Sacramento) conflicts with Capi-
+            tal(California, Los Angeles).”
+
+          • Global Backtracking Action: “Rollback to a state before the second capital claim
+            was introduced. Discard that erroneous claim from the knowledge base.”
+
+      Output Format (JSON Only):
+      {
+          "conflict_summary": [
+             "Brief descriptions of contradictory sets"
+          ],
+          "global_backtracking_decision": "Description of how far to roll back or 'none'",
+          "updated_consensus_state": [
+             "Any statements or facts that remain accepted after rollback"
+          ],
+          "reasoning_notes": "Explanation of the chosen resolution strategy"
+      }
+
+      Instruction: Output valid JSON. If no global conflict is found, indicate "none" for
+      "global_backtracking_decision".
+
+
+
+
+                                                 4082
+A.6 Controller Agent
+
+       Controller Agent Prompt
+
+
+
+      Role Description: You are the Controller Agent, providing high-level strategic oversight.
+      You may override local decisions, impose extra checks, or challenge specific assumptions
+      if repeated conflicts persist. You also maintain meta-information such as agent reliability
+      scores or fallback strategies.
+      Your Goals:
+
+           1. Intervene in situations where standard local or global backtracking repeatedly fails.
+
+           2. Challenge or confirm critical assumptions by requesting additional evidence or
+              verification from subordinate agents.
+
+           3. Log meta-data about agent reliability and final decision paths for interpretability.
+
+       Example Usage:
+
+            • Conflict Re-emerges: Repeated contradictory statements about a single piece of
+              evidence.
+
+            • Your Action: Issue a "challenge" directive to the Verifier Agent or the Retriever
+              Agent, requesting additional sources or alternative cross-checks.
+
+       Output Format (JSON Only):
+       {
+           "intervention_type": "challenge | override | escalate | none",
+           "target_of_intervention": "Which agent or assertion is challenged",
+           "rationale": "Explanation of why the Controller intervened",
+           "meta_notes": "Optional additional commentary or reliability signals"
+       }
+
+       Instruction: Produce valid JSON only. This agent acts rarely, but can do so when
+       repeated failures occur or when a major conflict must be forcibly resolved.
+
+
+
+
+                                                   4083
+A.7 Usage and Integration Notes
+The above prompts constitute a cooperative multi-agent system designed for reversible multi-hop question
+answering. The usage scenario is as follows:
+
+    1. Question-Decomposer Agent (§A.1) receives the user’s original query and splits it into sub-
+       questions.
+
+    2. Retriever Agent (§A.2) fetches relevant information for each sub-question from external sources
+       (text or KG).
+
+    3. Verifier Agent (§A.3) checks for local inconsistencies and can trigger local backtracking if contra-
+       dictory evidence arises.
+
+    4. Answer-Assembler Agent (§A.4) merges partial answers into a final solution. If irreconcilable
+       conflicts appear, it escalates to the Supervisor.
+
+    5. Supervisor Agent (§A.5) coordinates global resolution or wide-scale backtracking if multiple agents’
+       statements are in conflict.
+
+    6. Controller Agent (§A.6) optionally intervenes if repeated or severe conflicts persist, forcing extra
+       checks or overrides.
+
+   This architecture supports non-monotonic reasoning, allowing the system to roll back to earlier states
+to correct errors and ensure robust, interpretable multi-hop QA. “Local backtracking” is handled by
+individual agents (especially the Verifier), whereas “global backtracking” is orchestrated by the Supervisor
+Agent when local corrections are insufficient.
+   All final outputs from each agent must adhere to the specified JSON schema to ensure interoperability.
+Downstream agents read the previous agent’s JSON fields directly, enabling a structured, chain-of-thought
+style pipeline that remains reversible at every step.
+
+B     Analysis of Computational Cost
+We conduct a comparative analysis of computational cost on the HotpotQA, 2Wiki, and MuSiQue datasets
+across GPT-4o, reasoning models O1 and O3, and our ReAgent. The evaluation includes average inference
+calls, inference time (s), input/output tokens, and total cost($), as shown in Table 2. The results highlight
+that our ReAgent, built on GPT-4o, achieves superior performance compared to reasoning models O1 and
+O3, while incurring significantly lower computational cost. Although its cost is higher than the GPT-4o
+baseline, ReAgent delivers substantially better performance. These findings demonstrate the effectiveness
+of our method in balancing performance and efficiency.
+
+                                                Avg.   Avg.     Avg.     Avg.     Total
+                      Model
+                                                Calls Time(s) Input(T) Output(T) Cost($)
+                      GPT-4o                     1      2.7    9 289       5        69
+                      O1                         1      43     9 289     1 471     645
+                      O3                         1      27     9 289     1 471     546
+                      Ours (ReAgent,(GPT-4o))    29     46     12 400    1 920     275
+
+Table 2: Cost Comparison. T denotes Tokens. Note that the input token counts are aggregated across the three
+datasets. Since the complete reasoning outputs for O1 and O3 were unavailable, their output token counts are
+estimated based on the reasoning outputs generated by Qwen-3-235B.
+
+
+C     Case Study on Puzzle Solving
+We illustrate our multi-agent backtracking (R E AGENT) through a single-culprit puzzle with four suspects
+{A, B, C, D}. Each suspect gives statements about who might be guilty or lying. The puzzle’s only correct
+                                                      4084
+     Algorithm 2 R E AGENT Multi-Agent Puzzle Solving
+       1: Input: Puzzle statements from A, B, C, D.
+       2: Goal: Identify unique culprit (one of {A,B,C,D}) with minimal contradictions.
+
+       3: Initialization
+       4: Decomposer ← enumerates four hypotheses {HA , HB , HC , HD }.
+       5: Checker Agents ← each assigned to test one hypothesis’ consistency.
+
+       6: Round 1: Checking A as culprit
+       7: T1 : CheckerA :   Evaluate puzzle statements assuming A is culprit.
+       8: T2 : CheckerA detects contradiction:     (A’s claims vs. C’s claims cannot both hold).
+       9: T3 : Conflict Detector signals rollback to discard A-culprit assumption.
+
+      10: Round 2: Checking B as culprit
+      11: T4 : CheckerB collects statements {A, B, C, D} under B=culprit.
+      12: T5 : Finds no fatal conflicts (B’s statements can be partly false, others partly true).
+      13: T6 : Conflict Detector sees consistency, no rollback needed.
+
+      14: Rounds 3 and 4: Checking C or D as culprit
+      15: T7 : Similar to HA , each leads to irreconcilable contradictions.
+      16:         ⇒ Supervisor triggers rollback again; discards these.
+
+      17: Conclusion:       Only HB remains consistent throughout.        Answer: B is culprit.
+
+
+
+solution is that B is the culprit, but identifying this requires partially retracting initial assumptions along
+the way, as shown in Algorithm 2.
+Why a Rollback Mechanism is Needed. Naive single-pass (or single-thread) models often fixate
+prematurely on one suspect, disregard contradictory evidence, and produce unsound conclusions. By
+contrast, our multi-agent approach enumerates possible culprits in parallel, detects conflicts, and rolls
+back to revise incorrect assumptions.
+Suspects and Rules:
+   • There are four suspects: A, B, C, D.
+
+   • Exactly one of them is the culprit.
+
+   • The culprit must have at least one false statement. Non-culprits may also have errors, but are not
+     forced to be entirely truthful or untruthful.
+
+   • Each suspect makes the following statements:
+       1. A:
+          (a) “I did not do it.”
+          (b) “If B is the culprit, then C is lying (i.e., at least one statement from C is false).”
+       2. B:
+          (a) “Either A is lying, or D is the culprit.”
+          (b) (No second statement given in some puzzle variants, or it might be omitted. We assume just
+              one statement from B here.)
+       3. C:
+          (a) “B did not do it.”
+          (b) “D has at least one untrue statement.”
+                                                     4085
+         4. D:
+            (a) “C is lying about everything.” (i.e., both C(i) and C(ii) are false)
+            (b) “I definitely did not do it.”
+
+Question: Which single suspect is guilty, respecting the puzzle rules?
+
+D     Case Study on Traditional Multi-hop QA Tasks
+D.1 User’s question:
+"Which U.S. state has a capital city whose population is smaller than the state’s largest city, given that
+this state hosted the 1984 Summer Olympics?"
+    To answer this, the system must:
+
+    1. Identify the state that hosted the 1984 Summer Olympics.
+
+    2. Compare the capital city’s population to the largest city’s population in that state.
+
+    3. Confirm the capital city’s population is indeed smaller.
+
+    4. Provide the name of that state.
+
+   Although it may appear straightforward, we deliberately introduce contradictory or erroneous data
+along the way to showcase the reversible (backtracking) mechanisms.
+
+
+D.2 Agents and Their Roles
+    1. Question-Decomposer Agent (AQ )
+       Splits the complex question into sub-questions:
+          • Sub-question 1: Which U.S. state hosted the 1984 Summer Olympics?
+          • Sub-question 2: What is the capital city of that state, and what is the largest city?
+          • Sub-question 3: Compare the populations of the capital and the largest city.
+          • Sub-question 4: Return the state name if the capital’s population is smaller.
+
+    2. Retriever Agent (AR )
+       Searches external knowledge (e.g., a text corpus or knowledge graph) to gather relevant facts:
+          • Text passages or data about U.S. states, capitals, largest cities, and historical Olympic hosts.
+
+    3. Verifier Agent (AV )
+       Cross-checks newly retrieved information for consistency against its local knowledge or prior verified
+       facts. If a contradiction is detected, it triggers local backtracking.
+
+    4. Answer-Assembler Agent (AA )
+       Synthesizes partial answers from the other agents. If contradictory partial answers cannot be
+       reconciled at the local level, AA escalates the conflict to the Supervisory layer.
+
+    5. Supervisor Agent (AS )
+       Oversees system-wide conflicts. It can perform global backtracking (rolling back all agents) if
+       needed.
+
+    6. Controller Agent (AC )
+       Provides strategic oversight. In the example below, it will issue “challenges” to specific assertions
+       when local backtracking fails.
+
+
+                                                      4086
+D.3 Walkthrough of the Reasoning and Backtracking
+
+Initial Question Decomposition
+ 1. AQ receives the question:
+    AQ parses the main query:
+         “Which U.S. state has a capital city whose population is smaller than the state’s largest city,
+         given that this state hosted the 1984 Summer Olympics?”
+ 2. AQ produces sub-questions:
+       • q1 : “Which U.S. state hosted the 1984 Summer Olympics?”
+       • q2 : “What is the capital city of that state? Also, what is the largest city of that state?”
+       • q3 : “Compare the population of the capital city to that of the largest city.”
+       • q4 : “Return the state if the capital’s population is smaller.”
+    These sub-questions (q1 –q4 ) are broadcast to the Retriever (AR ) and Verifier (AV ).
+
+  Retrieval and a Local Conflict
+ 1. AR retrieves answers:
+       • For q1 , AR returns:
+            “The 1984 Summer Olympics were primarily hosted in Los Angeles, California.”
+       • For q2 , AR retrieves partial data:
+          – Capital of California is Sacramento.
+          – Largest city is Los Angeles.
+          – Population estimates (unfortunately, one item is erroneous or inconsistent):
+             * Sacramento population: ∼ 508, 000 (from official records).
+             * Los Angeles population: ∼ 3, 900, 000 (correct).
+             * But a second retrieved record incorrectly lists Sacramento’s population as 1,500,000.
+ 2. AV (Verifier) checks local consistency:
+    AV notices that two different population figures for Sacramento are contradictory:
+       • Data point D1 : 508,000
+       • Data point D2 : 1,500,000
+    AV identifies these as mutually exclusive facts. It flags a local conflict:
+         “Population of Sacramento cannot be both 508k and 1.5M.”
+ 3. Local Backtracking by AV :
+    Before finalizing any partial answer, AV backtracks to the checkpoint prior to adopting the second,
+    suspicious data point D2 .
+    AV discards the contradictory population figure (1.5M) and retains only 508k as the consistent
+    number for Sacramento.
+    The system continues forward with the corrected value for Sacramento’s population: ∼ 508, 000.
+  (This demonstrates how a single agent can retract contradictory or low-confidence evidence without
+halting the entire process.)
+  Assembling Partial Answers & Uncovering a Global Conflict
+ 1. AA (Answer-Assembler) integrates partial conclusions:
+    So far, the state that hosted the 1984 Olympics is California.
+    The capital is Sacramento (population: ∼ 508, 000).
+    The largest city is Los Angeles (population: ∼ 3, 900, 000).
+                                                    4087
+2. AA composes a preliminary final:
+   Since Sacramento’s population (∼ 508, 000) is indeed smaller than Los Angeles’s (∼ 3, 900, 000),
+   the preliminary answer is: “California” should be the correct state.
+
+3. New conflict introduced:
+   However, suppose the Retriever (AR )—in parallel—fetched an alternative “capital city” record
+   stating that Los Angeles was once referred to as the “capital” in a historical context (erroneous
+   snippet from a non-authoritative source).
+   This implies the contradictory statement: “Los Angeles is also the capital of California,” which
+   directly conflicts with the known fact “Sacramento is the capital of California.”
+
+4. AV tries local resolution:
+   AV cannot reconcile “Los Angeles is capital” with “Sacramento is capital.”
+   Because each piece of evidence was introduced into separate sub-threads, a single local reversion
+   inside AV might not suffice. The conflict is also recognized by AA when finalizing sub-answers.
+
+5. Conflict escalates to the Supervisor (AS ):
+   As soon as multiple agents disagree over fundamental facts (the identity of the capital), the system
+   triggers a global conflict signal.
+   AS identifies the minimal conflicting set:
+
+      • Capital(California, Sacramento)
+      • Capital(California, Los Angeles)
+
+  These two are clearly incompatible. The next step is to identify which statement should be retracted
+  system-wide.
+
+
+Global Backtracking and Final Resolution
+
+1. Global Backtracking:
+   The Supervisor Agent (AS ) issues a global backtracking command, rolling the entire system’s
+   knowledge to a shared checkpoint before the contradictory capital reference was accepted.
+   All local knowledge caches revert to a consistent state in which “Sacramento is the capital” is still
+   true, and “Los Angeles is the capital” is no longer present.
+
+2. Controller (AC ) challenges the suspicious assertion:
+   To prevent the same contradiction from reappearing, AC explicitly “challenges” the statement
+   Capital(California, Los Angeles).
+   This statement is reevaluated or ignored based on domain knowledge or reliability checks (e.g.,
+   confidence weighting from the retriever and the verifier).
+   The system confirms that Los Angeles was never the official capital.
+
+3. Assemble the final consistent answer:
+   With the conflicting statement removed, the pipeline reaffirms:
+
+    (i) The 1984 Summer Olympics took place in Los Angeles, California.
+   (ii) California’s capital is Sacramento.
+   (iii) Sacramento’s population (∼ 508, 000) is smaller than Los Angeles’s (∼ 3, 900, 000).
+
+   Final Answer: California.
+
+
+
+                                                4088
+Question: What is the name of the fight song of the university whose main campus is in Lawrence, Kansas and whose branch campuses are in the Kansas City metropolitan area?
+
+GPT-O3                                   CoA (Chain-of-Agent) w. GPT-4o                                                                                                                                                     ReAgent (Ours)
+1. Identify the university described.    Worker 1:                                                 Worker 2:                                                     Worker 3:                                                  Decomposer:
+The context says the university’s main   (1) Parse chunk & extract entities: Scanned the text,     (1) Locate candidate schools: Parses the chunk;               (1) Pattern-match location descriptors: Uses regex         Decompose question into 6 sub-questions:
+campus is in Lawrence, Kansas, with          listing every university mentioned.                       immediately flags the University of Kansas lines (“main       for “main campus in Lawrence” & “branch campus”        Q1 – University identification                      Retriever 1 (Q1):
+branch campuses in the Kansas City       (2) Apply dual-location filter: Selected the University       campus in Lawrence… two branch campuses in the KC             → immediately anchors on KU lines.                     Find any university whose main campus is in         University of Kansas has its main campus in
+metropolitan area.                           of Kansas paragraph because it explicitly states: •       metro”).                                                  (2) Dual-criterion check: Confirms those lines state       Lawrence, Kansas.                                   Lawrence, KS
+→ This matches the University of             main campus in Lawrence • two branch campuses in      (2) Exclude false matches: Scans other university blocks          both Lawrence + KC branches in a single                Q2 – Branch-campus check                            Retriever 2 (Q2):
+Kansas (KU).                                 the Kansas City metro.                                    (UIW, UFPB, UMKC) and discards them because they              paragraph (strong match score). Gap detection:         Verify that the same university also has branch     Same university has two KC-area branch
+                                         (3) Confirm uniqueness: Checked all other university          either lack a Lawrence campus or KC branches.                 Notices no “fight song” token inside the KU            campuses in the Kansas City metropolitan area. campuses
+2. Recall KU’s official fight song.
+                                             blocks (UIW, UFPB, UMKC) and verified none satisfy    (3) Confirm uniqueness: Verifies only KU fits both                paragraph → flags “info missing in chunk.”             Q3 – Uniqueness confirmation                        Retriever 3 (Q3):
+The University of Kansas’ long-
+                                             both location conditions.                                 constraints.                                              (3) Knowledge completion: Invokes model-internal           Ensure no other institution simultaneously          No other school meets both criteria → KU is
+standing fight song is titled “I’m a
+                                         (4) Keyword hunt for fight-song clues: Searched the       (4) Search in-chunk for fight-song phrases: Finds none            memory for well-known school songs; top hit = I’m      satisfies the Lawrence-plus-KC-branches criteria. unique
+Jayhawk.”
+                                             whole chunk for tokens such as “fight song”,              (“fight song”, “Kansas Song”, “Jayhawk” not present).         a Jayhawk; secondary hit = Kansas Song (lower          Q4 – Fight-song retrieval                           Retriever 4 (Q4):
+3. State the answer.                         “Jayhawk”, “Kansas Song”, “alma mater”, etc. → No     (5) Fallback to prior knowledge: Calls its embedded               confidence because less commonly cited as “fight       Gather the candidate fight song(s) associated with Fight-song candidate
+“I’m a Jayhawk.”                             matches.                                                  knowledge base (“KU fight song = I’m a Jayhawk”, high         song” in general discourse).                           that university.                                    “I’m a Jayhawk”
+                                         (5) Evidence-strict policy trigger: Since no fight-song       confidence).                                              (4) Heuristic tie-break: Chooses the song with higher      Q5 – Conflict detection
+                                             string was found in-chunk, it refused to rely on      (6) Output: Answer = “I’m a Jayhawk”; Reason = steps 1-5.         pop-culture frequency unless an “official” marker is   Look for alternative or conflicting fight-song      Retriever 5 (Q5):
+                                             outside knowledge.                                                                                                      present (not in memory), so picks I’m a Jayhawk.       references and highlight any discrepancies.         Conflicting candidate “Kansas Song”
+                                         (6) Output: Answer = Unknown, Reason = “The fight                                                                       (5) Return: Outputs that tune with step-wise rationale.    Q6 – Final resolution                               Retriever 6 (Q6):
+                                             song isn’t in the supplied context.”                                                                                                                                           Evaluate all evidence and decide which fight song Fight-song candidate “I’m a Jayhawk”
+                                         Manager:                                                                                                                                                                           is the correct, authoritative answer.
+                                                                                                                                                                                                                                                                                                           Conflict detected
+                                         (1) Collect worker outputs: Ingests: 2×“I’m a Jayhawk”, 1×“Unknown”.                                                                                                               Backtracking:
+                                         (2) Verify target university: Confirms every worker identified the University of Kansas using location rules (Lawrence + KC branches).                                             • “Kansas Song” was adopted as KU’s official fight
+                                         (3) Assess fight-song evidence: Notes Worker-1’s “Unknown” is purely context-bound. Sees Workers 2–4 rely on widely-known fact (I’m a Jayhawk) despite missing in                  song in 1928 (date present in the primary source).      Final answer: “Kansas Song”
+                                             chunk. Checks internal knowledge bank: “I’m a Jayhawk” is indeed a KU fight song.                                                                                              • “I’m a Jayhawk” emerged later as a popular rally
+                                         (4) Tie-breaking policy: Applies synthesis rule: if ≥ 60 % of workers agree and no conflicting positive answer, adopt majority output. (2 / 3 = 66 %).                             tune but was never legislated as the official fight
+                                         (5) Produce consolidated reasoning: Writes a short chain: identifies KU, notes absence of song in context, cites external knowledge, chooses “I’m a Jayhawk.”                      song.
+                                         (6) Emit final answer: "I'm a Jayhawk"
+
+
+
+
+                                                                                           Figure 7: Full Comparison with Baseline Models
+
+
+D.4 Full Comparison with Baseline Models (Figure 7)
+D.5 Key Observations
+        • Early-Stage Conflict Resolution: The Verifier Agent (AV ) performed local backtracking when it
+          discovered contradictory population data for Sacramento. This promptly removed an incorrect data
+          point without halting the entire process.
+
+        • Escalation of Irreconcilable Contradictions: When two different sub-threads provided fundamen-
+          tally clashing information (competing claims about the capital), the system automatically escalated
+          the conflict to the Supervisor (AS ) for global action.
+
+        • Strategic Re-check and Override: The Controller Agent (AC ) could forcibly challenge the
+          suspicious statement “Capital(California, Los Angeles)” to eliminate it from the knowledge pool,
+          thus preserving the correct solution.
+
+   Overall, this case exemplifies how reversible, multi-hop reasoning allows for robust error correction:
+local invalid data is undone swiftly, while deeper logic conflicts trigger system-wide backtracking.
+Consequently, the answer “California” remains stable and correct, ensuring that a single faulty retrieval
+step does not irreversibly corrupt the entire reasoning chain.
+
+
+
+
+                                                                                                                                                          4089
+

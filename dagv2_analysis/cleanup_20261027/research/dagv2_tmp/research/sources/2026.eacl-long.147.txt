@@ -1,0 +1,1426 @@
+                Classifying and Addressing the Diversity of Errors in
+                     Retrieval-Augmented Generation Systems
+
+                  Kin Kwan Leung Mouloud Belbahri Yi Sui Alex Labach
+                  Xueying Zhang Stephen Anthony Rose Jesse C. Cresswell
+                                Layer 6 AI, Toronto, Canada
+                          {kk, mouloud, amy, alex, chloe, stephen, jesse}@layer6.ai
+
+
+
+
+                      Abstract                                quires understanding the variety of errors that can
+                                                              occur in order to monitor and minimize them.
+    Retrieval-augmented generation (RAG) is a                    Existing work on RAG errors has generally not
+    prevalent approach for building LLM-based
+                                                              accounted for the complexity of real-world RAG
+    question-answering systems that can take
+    advantage of external knowledge databases.
+                                                              systems and their failure modes. On the data side,
+    Due to the complexity of real-world RAG                   widely used benchmark tasks for evaluating RAG
+    systems, there are many potential causes for              systems are often overly simplistic, typically fea-
+    erroneous outputs. Understanding the range                turing multiple-choice questions (Mihaylov et al.,
+    of errors that can occur in practice is crucial           2018; Guinet et al., 2024; Yang et al., 2024) or re-
+    for robust deployment. We present a new                   quiring short factual answers for ease of validation
+    taxonomy of the error types that can occur                (e.g., Rajpurkar et al. (2016); Yang et al. (2018);
+    in realistic RAG systems, examples of each,
+                                                              Joshi et al. (2017); Kwiatkowski et al. (2019)). In
+    and practical advice for addressing them. Ad-
+    ditionally, we curate a dataset of erroneous              practice, users expect more sophisticated answers
+    RAG responses annotated by error types.                   that thoroughly explain a topic, but as a result can
+    We then propose an auto-evaluation method                 fail in more subtle ways.
+    aligned with our taxonomy that can be used                   On the model side, real RAG systems use com-
+    in practice to track and address errors during            plex multi-step pipelines that go beyond a retriever-
+    development. Code and data are available                  generator pair (Akkiraju et al., 2024), with addi-
+    at https://github.com/layer6ai-labs/
+                                                              tional data processing steps like adaptive chunking
+    rag-error-classification.
+                                                              and reranking. Prior works that categorize RAG er-
+1   Introduction                                              rors have used bare-bones pipelines benchmarked
+                                                              on simple datasets, and as a result have overlooked
+Retrieval-augmented generation (RAG) (Lewis                   entire classes of errors, especially those associ-
+et al., 2020) has become the dominant paradigm for            ated with pre-generation steps (Barnett et al., 2024;
+applying generative large language models (LLMs)              Venkit et al., 2024). As a result, practitioners rely-
+in applications where outputs must incorporate                ing on these works may be left with an overly op-
+knowledge from outside of the model’s training set.           timistic view of their RAG system’s performance,
+This is especially valuable for grounding genera-             and fail to identify the scope and severity of errors
+tion in factual information to reduce fabricated con-         afflicting them. To address these gaps, we use chal-
+tent (Maynez et al., 2020; Shuster et al., 2021), and         lenging public datasets and build a realistic RAG
+when non-public domain knowledge is required.                 question-answering (QA) system reflective of those
+RAG systems are already widely deployed in real-              currently used in industry. We perform a deep anal-
+world applications to provide natural language in-            ysis of RAG failure modes with illustrative exam-
+terfaces to knowledge sources (Amugongo et al.,               ples, and practical advice for mitigating errors.
+2024), but despite their merits they can still be                Finally, we develop auto-evaluation tools to clas-
+error-prone in practice (Venkit et al., 2024; Magesh          sify error types according to our taxonomy. To
+et al., 2025; Grant, 2024). Due to the greater com-           validate these systems, we manually annotate er-
+plexity of RAG pipelines compared to direct LLM               rors producing a first-of-its-kind RAG error type
+generation, these errors are diverse and their causes         dataset. The overall purpose of our taxonomy and
+can be difficult to trace. Deploying a RAG pipeline,          auto-evaluation system is for practitioners to be
+especially in critical industries like healthcare, re-        able to identify weak links and common errors in
+                                                         3185
+       Proceedings of the 19th Conference of the European Chapter of the Association for Computational Linguistics
+                                        Volume 1: Long Papers, pages 3185–3207
+                           March 24-29, 2026 ©2026 Association for Computational Linguistics
+                                                        Retrieval
+                               Chunker    Embedder      E4,E5,E6
+                Documents      E1,E2,E3
+                                                         Search      Reranker
+
+     Dataset
+                                          Embedder                        E7,E8       Generator
+                 Queries
+                                                                                    E9,E10,E11,E12,   Output
+                                                                                    E13,E14,E15,E16
+
+               Ground truths                                  Auto-eval
+
+Figure 1: Diagram of our implemented RAG architecture, reflective of systems currently applied in industry.
+Components are annotated with error types that are caused by them.
+
+
+their RAG pipelines. Hence, we provide an end-to-         require more sophisticated evaluations based in nat-
+end demonstration of how auto-evaluation can be           ural language understanding. Previous works have
+used by identifying the most common errors pro-           applied metrics using LLM-as-a-Judge (Zheng
+duced by our reference pipeline, and implementing         et al., 2023) to automatically evaluate RAG out-
+targeted improvements.                                    puts, including RAGChecker (Ru et al., 2024),
+   Our main contributions are:                            ARES (Saad-Falcon et al., 2024), and RAGAs (Es
+  1. A novel taxonomy of errors made by RAG sys-          et al., 2024). These works are each tailored to a
+     tems, along with examples of each and recom-         specific error classification scheme, with narrower
+     mendations for addressing them;                      scope than ours. Other prior works have devel-
+  2. An auto-evaluation system for identifying and        oped benchmark datasets with LLM-based auto-
+     classifying errors according to our taxonomy;        evaluation (e.g., Zhu et al. (2024); Liu et al. (2024)),
+  3. A dataset of RAG errors annotated by type.           but do not probe the internals of RAG systems to
+                                                          give detailed information on error causes.
+2   Related Works
+                                                          3    RAG Implementation
+RAG Error Taxonomies: Barnett et al. (2024) pro-
+vide the most comparable taxonomy of RAG errors           To demonstrate errors that can occur in realistic,
+to ours with seven types associated to select RAG         production-grade RAG systems, we designed a
+components. Here, we describe a more comprehen-           modular pipeline reflecting common architectural
+sive range of RAG errors relating to every step of a      patterns used in industry (Bleiweiss, 2024; Alexan-
+realistic RAG pipeline, along with specific exam-         der et al., 2025) (see Figure 1). We begin with a
+ples and mitigation strategies, both of which are         chunking stage, where documents are processed to
+lacking in the prior work. Venkit et al. (2024) clas-     optimize granularity and relevance. The chunks are
+sify errors in public black-box QA systems from           indexed using an embedding model, then queried
+the perspectives of human evaluators without ex-          via dense retrieval, which returns top candidates
+amining specific pipeline components or attribut-         based on similarity to the input query. Retrieved
+ing errors to them. Agrawal et al. (2024) focus           chunks are reranked using a separate language
+on RAG systems built on knowledge graphs. Yu              model given the original query as context, which
+et al. (2024a) survey RAG evaluation benchmarks           can better highlight semantic relevance. Finally,
+and metrics but do not break down causes of errors        the top-ranked chunks are fed to a generator LLM,
+beyond the high-level dichotomy of retrieval ver-         which produces the final answer. This architecture
+sus generation. Other works (Huang et al., 2025;          supports component-level variation and allows for
+Magesh et al., 2025) that specifically focus on hal-      in-depth error analysis at each stage of the pipeline.
+lucinations overlook the nuanced ways RAG can             We provide complete details on the options imple-
+fail. Error taxonomies for non-RAG QA settings            mented and used at each stage in Appendix A.
+also exist (Rawte et al., 2023; Huang et al., 2025).         Datasets: We use the DragonBall dataset, part
+   RAG Auto-evaluation: Simple QA benchmarks              of the RAGEval framework (Zhu et al., 2024), an
+can be evaluated using exact match or overlap-            evaluation suite designed to rigorously assess RAG
+based metrics, but realistic questions and answers        systems across diverse domains and scenarios. The
+                                                     3186
+dataset provides a broad benchmark for evaluating        line booking platform is cut off.
+RAG performance in complex settings, spanning
+domains such as finance, law, and medicine. The          E2 Underchunking: Chunks are too large, cover-
+dataset also comes with query type annotations in        ing multiple topics with mixed content. Irrelevant
+seven categories, which allows us to perform thor-       information dilutes keywords or phrases, lowering
+ough analysis on error classification. We used both      retrieval scores on the correct chunks. Chunks pro-
+the English and Chinese portions of the dataset with     vided to the generator contain extraneous content
+3108 and 3601 questions respectively. We also use        that can confuse the model.
+the CLAPnq dataset for additional analysis (Rosen-       Query: What system does CleanCo Housekeep-
+thal et al., 2025), which contains high-quality refer-   ing Services have in place to safeguard assets and
+ence answers and passages for 4946 natural ques-         ensure financial accuracy?
+tions relating to Wikipedia documents.                   Chunk Excerpt: [...] To mitigate risks such as
+                                                         increasing competition, regulatory changes, and
+4   Error Classification                                 economic uncertainties, CleanCo plans to imple-
+We present a practically grounded taxonomy of er-        ment risk management strategies through diversi-
+rors that can be attributed to different parts of a      fication and continuous monitoring. [...]
+RAG system. Errors are grouped by the pipeline           Response: CleanCo has a system in place to
+stage that caused them: chunking, retrieval, rerank-     safeguard assets and ensure financial accuracy
+ing, or generation. For each stage and error type,       through its risk management framework.
+we describe the nature of the error, explain why         Ground Truth: Unable to answer.
+it occurs in RAG systems, provide real examples          Cause: Retrieved chunks contain so much tan-
+from our RAG implementation, and finally give ad-        gential information that the generator uses unre-
+vice for how to reduce their occurrence.                 lated information to answer instead of abstaining.
+   Error types are not mutually exclusive; in prac-
+                                                         E3 Context Mismatch: Chunks split text at arbi-
+tice multiple error types often co-occur, as errors
+                                                         trary points, breaking contextual links by separat-
+early in the pipeline beget later ones. Additionally,
+                                                         ing definitions from the information they support.
+we do not claim that our taxonomy is exhaustive,
+                                                         This ambiguity causes failed retrieval downstream
+since variations in RAG architecture will lead to
+                                                         where keywords are missing.
+different error types. Our taxonomy focuses on er-
+rors that occur within RAG systems, and hence we         Query: Why is the Philippines typhoon prone?
+exclude failures caused by adversarial inputs, faults    Chunk A (Retrieved): The Philippines’ evident
+in the corpus, or similar anomalies.                     risk to natural disasters is due to its location. [...]
+                                                         Chunk B (Not Retrieved): In addition, the coun-
+4.1 Chunking                                             try faces the Pacific Ocean where 60% of the
+E1 Overchunking: Documents are split into exces-         world’s typhoons are made. [...]
+sively small or disjointed segments, causing incom-      Response: Due to its geographical location, cli-
+plete coverage of topics. Individual chunks are frag-    mate, and topography.
+mented or ambiguous. Errors cascade downstream           Ground Truth: It faces the Pacific Ocean where
+when search fails to retrieve consecutive chunks.        60% of the world’s typhoons are made.
+Query: What platform did Sunrise Holidays in-            Cause: Chunk B mentions “the country” but not
+troduce in April 2019?                                   the Philippines by name, which led to the retriever
+Chunk Excerpt: [Excluded from chunk: In                  incorrectly assigning it low relevance.
+April 2019, Sunrise Holidays introduced an on-           Improvement: Straightforward heuristics include
+line booking platform, which greatly improved its        adjusting chunk size, where larger chunks help re-
+competitiveness.] The launch of this user-friendly       duce E1, smaller chunks help reduce E2, while
+platform attracted more customers [...]                  adding small overlaps mitigates E3 by preserv-
+Response: The platform introduced by Sunrise             ing continuity (Safjan, 2023). However, these ap-
+Holidays in April 2019 is not specified.                 proaches require careful tuning and are often insuf-
+Ground Truth: An online booking platform.                ficient on their own. Adaptive chunking strategies
+Cause: The retrieved chunks come from the cor-           handle real-world variability more effectively.
+rect document, but the description of it as an on-
+                                                            Structure-aware chunking preserves document
+                                                     3187
+logic by splitting along units like paragraphs or sec-    Query: According to the judgment of Hartford,
+tion headers. This works especially well for cor-         Ashland, Court and Glenwood, Quailwood, Court,
+pora with consistent structure, such as financial re-     what sentences were given to the defendants M.
+ports (Yepes et al., 2024). Semantic chunking seg-        Cooper and Y. Nelson?
+ments text based on meaning, such as by detect-           Response: M. Cooper was sentenced to four
+ing topic shifts using cosine distance between sen-       years imprisonment.
+tence embeddings (Qu et al., 2025) or spikes in per-      Ground Truth: M. Cooper was sentenced to four
+plexity (Zhao et al., 2024). Hybrid strategies com-       years imprisonment; Y. Nelson was sentenced to
+bine structural and semantic cues to balance coher-       three years imprisonment.
+ence and topical focus. For example, S2 Chunk-            Cause: The retrieved chunks contain information
+ing (Verma, 2025) integrates layout with embed-           about both defendants’ cases, but don’t include
+dings and achieves strong results on document QA.         the sentence for Y. Nelson.
+                                                          Improvements: Retrieval systems present the
+4.2 Retrieval                                             widest diversity of approaches out of the RAG
+                                                          stages, and hence can be tuned in many ways.
+E4 Missed Retrieval: Relevant chunks are not re-
+                                                          First, query rewriting via keyword expansion, para-
+trieved, leading the generator to give incomplete
+                                                          phrasing, or semantic reformulation can improve
+answers, fabricate information to fill gaps, or ab-
+                                                          recall and precision by reducing vocabulary mis-
+stain unnecessarily. Misses can occur when high-
+                                                          match (Ma et al., 2023). Second, hybrid retrieval
+similarity chunks only address part of the question.
+                                                          that combines sparse (e.g., BM25 (Robertson et al.,
+Query: What were the large-scale financing ac-            1994)) and dense (embedding-based) methods can
+tivities undertaken by Vanguard Media Group in            improve robustness by capturing both lexical and
+2019 and Energex Corp. in 2021?                           semantic matches (Ni et al., 2022). Third, top-
+Response: Vanguard Media Group’s large-scale              k retrieval is often insufficient when both E4 and
+financing activities in 2019 included the acquisi-        E5 are frequent. Adaptive thresholds can better
+tion of Silver Screen Studios for $200 million [...]      balance recall and precision (Sun et al., 2025).
+Ground Truth: Vanguard Media Group raised                 Fourth, domain-specific or fine-tuned embedding
+$100 million in capital in 2019, while Energex            models can significantly boost retrieval accuracy
+Corp. conducted large-scale financing in 2021.            and reduce hallucinations (Databricks, 2025). Fi-
+Cause: The query asks about two entities, but all         nally, metadata filtering enhances precision by us-
+top-ranked chunks relate to only one.                     ing structured fields (e.g., source or section) to pri-
+                                                          oritize relevant content (Poliakov and Shvai, 2025).
+E5 Low Relevance: Retrieved chunks are only
+loosely related to the query. Causes include an un-       4.3   Reranking
+balanced corpus with many chunks relating to one
+topic, and vocabulary mismatch where the query            E7 Low Recall: Although the necessary chunks
+uses different terms than the corpus.                     are retrieved, they are reranked too low and not
+                                                          forwarded to the generation model. Low recall
+Query: In which year is the Corporate Gover-              produces false negatives, where relevant data is
+nance Report for Green Fields Agriculture Co.?            available but unintentionally ignored.
+Response: The Corporate Governance Report
+does not provide a specific year, but it appears to       Query: According to Greenfield, Fairview, Court
+cover events and initiatives from 2018 and 2021.          and Vandalia, Bayside, Court, whose sentencing
+Ground Truth: 2018.                                       time is longer, H. Price or G. Torres?
+Cause: Many chunks from the Report were as-               Response: G. Torres’ sentencing time is longer,
+signed high similarity and retrieved, but did not         four years, compared to H. Price, whose sentence
+relate to the Report’s publication year. The gener-       is not mentioned in the provided context.
+ator latches onto years discussed in the content.         Ground Truth: H. Price was sentenced to eight
+                                                          years of imprisonment, while G. Torres was sen-
+E6 Semantic Drift: Retrieved documents match              tenced to four years imprisonment.
+keywords, not the query’s intent, due to reliance on      Cause: The chunk with H. Price’s sentencing
+keyword matching rather than semantic relevance.          was retrieved, but was ranked below the reranker
+
+                                                       3188
+threshold and not passed to the generator.              supported by external evidence.
+
+E8 Low Precision: Irrelevant chunks are ranked          Query: According to the hospitalization records
+highly and forwarded to the generation model, lead-     of Southport General Hospital, summarize the
+ing to the generation model being confused by           past medical history of K. Mendoza.
+noise. Low precision leads to false positives, where    Response: K. Mendoza has a history of Parkin-
+the generator is overly confident in noisy context.     son’s disease, with symptoms including tremors,
+                                                        bradykinesia, and postural instability.
+Query: On which stock exchange is Retail Em-            Ground Truth: K. Mendoza was generally
+porium publicly traded?                                 healthy prior to the onset of his symptoms.
+Response: The New York Stock Exchange.                  Cause: The model fabricates a history of Parkin-
+Ground Truth: Unable to answer.                         son’s disease which is not in the context.
+Cause: Highly ranked but irrelevant chunks ref-
+erence New York, leading the model to make an           E11 Parametric Overreliance: The LLM relies
+inappropriate conclusion.                               on its internal (parametric) knowledge rather than
+                                                        retrieved documents. Internal knowledge may be
+Improvements: Modern RAG pipelines increas-             factual, as opposed to fabricated, but irrelevant.
+ingly include a reranking stage to reorder re-
+trieved chunks based on semantic relevance (Blei-       Query: What was the total amount of liabilities
+weiss, 2024). The two dominant approaches               of Artistic Creations at the end of 2019?
+are cross-encoders, which jointly encode query-         Response: The total amount of liabilities of Artis-
+chunk pairs (Déjean et al., 2024), and LLM-based        tic Creations at the end of 2019 is $150M - $20M
+rerankers, which use prompted models to assess          (acquisition) - $50M (financing) - $10M (invest-
+candidates (Sun et al., 2023). Rerankers may            ment) + $15M (restructuring) = $85M.
+still miss key context (E7) or over-rank irrelevant     Ground Truth: Unable to answer.
+chunks (E8) when domain relevance is poorly un-         Cause: The model does a calculation based on
+derstood. Fine-tuning on in-domain data is the          parametric financial knowledge instead of ac-
+most effective way to improve performance (Mor-         knowledging that it has insufficient information.
+eira et al., 2024; Aarsen, 2025; Yu et al., 2024b),     E12 Incomplete Answer: The response is from
+and even small amounts of labeled data can yield        the corpus and correct, but misses critical details.
+significant gains (Aarsen, 2025). More specifically,
+incorporating hard negatives, which are plausible       Query: How did the dividend in July 2017 reflect
+but non-relevant passages, further helps the model      AMS Inc.’s strong financial performance?
+reduce false positives (E8) (Yu et al., 2024b).         Response: The dividend in July 2017 reflected
+                                                        AMS Inc.’s strong financial performance, which
+4.4 Generation                                          was driven by market demand and changes in
+E9 Abstention Failure: The model should have            product prices, resulting in an operating income
+abstained, but instead answers incorrectly. Absten-     of $450 million and a net profit of $60 million.
+tion is appropriate when the answer is not available    Ground Truth: The dividend demonstrated the
+in the corpus, or when the query is ambiguous.          company’s ability to generate sufficient profits
+                                                        and maintain a healthy cash flow.
+Query: How much did Green Fields Co. raise              Cause: The response affirms the basis of the ques-
+through large-scale financing in December 2018?         tion, but does not analyze the situation.
+Response: Green Fields Co. did not raise any
+funds in December 2018.                                 E13 Misinterpretation: The generator misuses or
+Ground Truth: Unable to answer                          misrepresents retrieved content.
+Cause: The retrieved context contains informa-          Query: According to the judgments of Trenton,
+tion about 2018, but not about fundraising. Hence,      Springfield and Hamilton, Harrison Courts what
+the model assumes fundraising did not occur, but        sentences were given to Q. Ruiz and M. Ward?
+this was not stated in the corpus.                      Response: M. Ward was sentenced to four years
+E10 Fabricated Content: Although the query is           imprisonment, and Q. Ruiz has the right to appeal
+answerable, the response includes unverifiable in-      this judgment within 30 days.
+formation not grounded in the retrieved chunks nor
+                                                     3189
+Ground Truth: M. Ward was sentenced to four             idation, prompt engineering, and tool augmenta-
+years of imprisonment, and Q. Ruiz was sen-             tion. For abstention failures (E9), models can ex-
+tenced to 5 years of imprisonment.                      plicitly use ambiguity detection (Cole et al., 2023;
+Cause: The model misinterprets facts about two          Kim et al., 2023), conformal abstention (Yadkori
+defendants as being related and incorrectly com-        et al., 2024), or fine-tuning approaches like Trust-
+bines them for the answer.                              Align (Song et al., 2025). For content fabrication
+                                                        (E10), post-generation validation such as Chain-
+E14 Contextual Misalignment: The response is
+                                                        of-Verification (Dhuliawala et al., 2024) or cri-
+factual and comes from related information in the
+                                                        tique modules (Asai et al., 2023) encourage fact-
+corpus, but does not address the query.
+                                                        checking and grounding. Errors related to context
+Query: According to the judgment of Preston,            misuse (E11-E14) often stem from noisy retrieval;
+Lancaster, Court, summarize the facts of M. Har-        refinement modules can filter context before gen-
+ris’s crimes.                                           eration (Jin et al., 2025; Chirkova et al., 2025;
+Response: M. Harris was found guilty of homi-           Wang et al., 2025). Query decomposition (Lin
+cide and was sentenced to life imprisonment.            et al., 2023) helps reduce E12 by breaking com-
+Ground Truth: M. Harris committed the crime             plex queries into sub-questions, especially for com-
+of intentional homicide by tampering with the           parisons, causal questions, or multi-step reason-
+brakes of her business partner.                         ing. For temporal and numerical errors (E15–E16),
+Cause: The response contains factual informa-           structured prompting (Wei et al., 2022), timeline
+tion, but discusses sentences rather than the re-       reasoning (Bazaga et al., 2025), or tool-augmented
+quested facts of the crimes.                            generation with code modules like PAL (Gao et al.,
+                                                        2023) can boost reliability.
+E15 Chronological Inconsistency: The response
+presents events or facts in the wrong temporal order,   5   RAGEC: RAG Error Classification
+or confuses past, present, or future timelines.
+Query: Which company, Green Fields or                   To deepen our understanding of the RAG error
+JetWing, changed their board of directors earlier?      taxonomy and aid practitioners in applying it,
+Response: Green Fields made changes to their            we developed a RAG Error Classification system
+board of directors earlier, in December 2021,           (RAGEC). In this section we describe its design,
+while JetWing made changes in October 2021.             curate a dataset with human annotations to validate
+Ground Truth: JetWing made changes earlier              it, and demonstrate its use via our reference RAG
+in September 2021, while Green Fields made              system with standard research datasets.
+changes in December 2021.                                   The primary objective of RAGEC is to identify
+Cause: The model provides a wrong date, and in-         weak links in the RAG pipeline by classifying the
+correctly considers Dec. earlier than Oct.              stage responsible for errors. More granular error
+                                                        types, which can co-occur and overlap, are classi-
+E16 Numerical Error: The response includes in-          fied secondarily. Identifying the first stage where
+correct calculations, quantities, or misrepresents      an error occurred enables the developer to imple-
+numerical data from the retrieved documents.            ment targeted improvements on the RAG pipeline.
+Query: Which company reduced its liabilities                Design. Given a RAG pipeline and dataset,
+more, InnovateTech or Sparkling Clean?                  RAGEC consists of 3 steps: answer evaluation,
+Response: InnovateTech reduced its liabilities by       stage classification, and error type classification.
+a larger amount, a total of $50 million, compared       For answer evaluation, we prompt an LLM on
+to Sparkling Clean’s £500,000.                          each datapoint individually to determine whether
+Ground Truth: InnovateTech reduced its liabili-         the generated answer is incorrect. Included as con-
+ties by a larger amount ($30 million) compared          text are the original query, ground-truth answer and
+to Sparkling Clean (£500,000).                          documents according to the dataset, and the gen-
+Cause: The model incorrectly added together two         erated answer. This evaluation yields a subset of
+numbers from the context giving $50 million.            Nerr examples identified as incorrect. For stage
+                                                        classification on an erroneous example, we apply a
+Improvements: Generation-stage errors can be            rules-based approach to cascade over the stages, us-
+mitigated through abstention modeling, answer val-      ing specialized information to determine if an error
+                                                     3190
+    Table 1: Stage classification agreement matrix                       50   CLAPnq
+                                                                         40   DragonBall
+
+                                                            Percentage
+Human            RAGEC Stage Classification                              30
+Annotation Chunking Retrieval Reranking Generation
+                                                                         20
+Chunking       49        13          5         10                        10
+Retrieval      24        85         12         40
+Reranking       6         8         22         10                         0
+                                                                   O
+Generation      4        21          6         62
+                                                                  Unverch
+                                                                     d
+                                                                  C er un
+                                                               Mis ont chunk.
+                                                                   s e k
+                                                                Lo ed Rxt Mi .
+                                                                   w r et s.
+                                                                Se ele rie
+                                                                   ma va v.
+                                                                       nti nce
+                                                                 Lo Low c drif
+                                                               Ab w p rec t
+                                                                  ste rec all
+                                                                  Fa ntio ision
+                                                                 Pa b. Con Fai
+                                                              Inc ram nt l.
+                                                                 om . O en
+                                                                     p v t
+                                                                   M let er
+                                                                Co isin e An r.
+                                                                         t s
+                                                                Chntext erpr .
+                                                                   ron M et
+                                                                       . In isal
+                                                                      Nu cons.
+                                                                          m. .Err
+is present. Starting with the generation stage, we
+                                                            Figure 2: Modal error type distribution per dataset.
+check whether the generator had sufficient informa-
+tion to answer the query by computing the chunk-
+level recall and comparing to a threshold. If so,       used all available context including ground truth
+we conclude the generation stage caused the error.      answer, generated response, retrieved and reranked
+Otherwise, we continue and check if the reranker        chunks, and the corpus. First, annotators selected
+recall dropped compared to the retrieval recall, in-    the earliest stage in the pipeline which demon-
+dicating that the reranker caused the error. If not,    strated erroneous behaviour, since errors propagate
+we move to the final comparison between retrieval       through RAG systems. Subsequently, one or more
+and chunking. To differentiate these two we adapt       error types were selected within that stage. The
+the idea from Matton et al. (2025) to extract key       repo at https://github.com/layer6ai-labs/
+concepts in the query. We then prompt the LLM as        rag-error-classification contains our anno-
+to whether each concept is included in the ground       tated data.
+truth chunks. If query concepts fail to appear in          Results & Analysis. In the first step of RAGEC,
+the chunks, it indicates the chunking stage caused      answer evaluation, 27% (25%) of responses for the
+the error. Otherwise, by process of elimination, we     DragonBall-EN (CLAPnq) dataset were classified
+conclude the retriever was responsible. This design     as incorrect, giving Nerr = 832 (1222) responses
+is empirically motivated, and provided the highest      to analyze. Of these, 406 queries were manually
+alignment with our human-annotated results. Other       annotated, and 377 were confirmed as erroneous,
+designs we tested are described in Appendix B.4.        reaching an agreement rate of 92.9%.
+   For error type classification, we take informa-         For stage classification, RAGEC achieves a
+tion relevant to the identified stage, and conduct      57.8% agreement rate with human annotations. De-
+detailed analysis using LLM-as-a-Judge (Zheng           tails of the results are shown in Table 1. We find
+et al., 2023). For example, on a chunking error we      that human annotations more often identify the re-
+only provide the query, ground truth answer, and        trieval stage as causing errors, whereas RAGEC fa-
+chunks from the ground truth document. Other in-        vors blaming the generator. While RAGEC’s agree-
+formation, like the retrieved chunks or generated       ment rate is not close to perfect, we tested several
+answer are irrelevant for classifying a chunking er-    other methods to engineer the context for LLM-
+ror type. To account for uncertainty in the classi-     based auto-evaluation that all performed worse (de-
+fication, each erroneous example is annotated K         scribed in Appendix B.4). Hence, RAG error clas-
+times (Wang et al., 2023). We then compute the          sification appears to be a challenging problem due
+modal vote over error types and metrics that cap-       to the highly complex set of intermediate outputs
+ture the self-consistency of the LLM’s predictions.     produced by RAG pipelines. We encourage the
+   Further details on the implementation of             community to further explore this topic by releas-
+RAGEC, including the complete methodologies,            ing our reference pipeline and annotated error data.
+inputs used for each step, and LLM prompts, are            For error type classification, we query the LLM
+included in Appendix B.                                 K = 10 times for each datapoint and extract the
+   Data Curation. No existing dataset details the       most and second-most frequently predicted error
+types of errors which can occur in RAG systems.         types. Compared to human-annotated error types,
+Hence, to validate RAGEC, we manually annotated         RAGEC achieves an accuracy of 40.3%. Figure 2
+406 erroneous responses generated by our reference      shows the distribution of the modal error type for
+system on the DragonBall dataset as to the respon-      DragonBall-EN and CLAPnq. Table 2 shows more
+sible stage, and error types present. Annotators        details for the DragonBall-EN dataset (CLAPnq is
+                                                     3191
+Table 2: Error-type distributions for DragonBall-EN.        grained analysis with RAGEC. Table 3 shows the
+Mode and 2nd Mode show the original RAG pipeline,           distribution of the error types across knowledge do-
+while Impr. shows the mode after targeted improve-
+                                                            mains and query types defined in DragonBall-EN.
+ments to the RAG pipeline.
+                                                               Error Types across Knowledge Domains. We
+ Error Classification             Mode 2nd Mode Impr.       see that finance queries lead to the most diversity in
+ E1 Overchunking                      0       19     0      error types, but also skew more towards generation
+ E2 Underchunking                    32       92    10      errors. Misinterpretation (E13) is the single biggest
+ E3 Context Mismatch                207       32    78
+ Percentage Chunking             29.7%    32.2% 16.4%       challenge. For law queries three of the RAG stages
+ E4 Missed Retrieval                229       27   122      contribute roughly the same amount of errors, and
+ E5 Low Relevance                    33      107     8
+ E6 Semantic Drift                    0        7     0
+                                                            overall law is the most difficult domain. Numer-
+ Percentage Retrieval            31.5%    31.8% 24.3%       ical errors (E16) are more common for law than
+ E7 Low Recall                       53        5    28      any other domain which may reveal an underlying
+ E8 Low Precision                     6       21     0
+ Percentage Reranking             7.1%     5.9% 5.2%        deficiency in the generation model around calcula-
+ E9 Abstention Failure                6        0     5      tions that are typically done in law, as opposed to
+ E10 Fabricated Content              34       37    53      finance. Medical queries are by far dominated by
+ E11 Parametric Overreliance          4        6     0
+ E12 Incomplete Answer               17       22    26      chunking errors, with context mismatch (E3) hav-
+ E13 Misinterpretation              178       42   164      ing an outsized presence. A practitioner seeing this
+ E14 Contextual Misalignment         14       18     8
+ E15 Chronological Inconsistency      3        3    13      could simply increase chunk size, return entire doc-
+ E16 Numerical Error                 16        6    19      uments corresponding to the top chunks, or invest
+ Percentage Generation           32.7%    30.2% 53.9%
+                                                            in more complex solutions like expanding chunked
+ Total                              832      444   534
+                                                            text to include explicit definitions.
+                                                               Error Types across Query Types. For factual
+                                                            questions three error types dominate (E3, E4, E13),
+shown in Table 6 of Appendix C.1). These distribu-          whereas unanswerable questions, where the cor-
+tions differ, showing that the nature of the dataset        rect response is to abstain, show the highest diver-
+can affect the types of errors committed by a given         sity in error types. As expected, the abstention fail-
+RAG pipeline. This type of information can direct           ure (E9) error type is used nearly exclusively for
+diagnosis and triaging of problems in RAG. For ex-          unanswerable questions. Summarization queries,
+ample, CLAPnq exhibited no chunking errors, as              the most difficult type, are dominated by chunking
+its source documents were manually curated by the           errors (E2, E3). Multiple semantically related pas-
+dataset annotators into self-contained paragraphs           sages are typically needed to produce a coherent
+designed to answer the corresponding queries. In            and complete summary, and these connections can
+contrast, DragonBall-EN almost never shows Para-            be lost because of chunking. Numerical compari-
+metric Overreliance (E11) for both English and              son queries show fewer generation errors than other
+Chinese (See Appendix C.2 for details). This can            types, and numerical errors (E16) are not particu-
+be attributed to the dataset’s domain-specific and          larly troublesome. Errors are instead coming from
+context-dependent queries, which are unlikely to            context mismatch (E3) and missed retrieval (E4).
+be covered by the LLM’s parametric knowledge.               Finally, as expected, multi-hop reasoning is one
+RAGEC also demonstrates that some error types               of the more challenging types and displays a wide
+dominate their stage, like E3 for chunking, while           range of error types for this RAG implementation.
+others like E5 primarily occur as a secondary error         This range accurately reflects the more complicated
+along with another type. Notably, Fabricated Con-           nature of multi-hop reasoning queries where many
+tent (E10)—often referred to as hallucination—is            things can go wrong, and demonstrates that the pro-
+relatively rare in our analysis. This observation           posed error categories are expressive enough to cap-
+stands in contrast to the focus on hallucination in         ture the diversity of errors in complex query types.
+recent research and public discourse surrounding               Classification Consistency. Finally, in Table 4
+LLMs (Ji et al., 2023). Our findings suggest that,          we examine the consistency of classifications via
+in the context of RAG, other types of errors such           mode frequency, the number of the K runs that
+as retrieval or chunking issues are more prevalent          agreed with the modal error type. For the majority
+and may warrant greater attention.                          of the queries, RAGEC is quite consistent in deter-
+   Next we demonstrate how insights can be gath-            mining error categories. Appendix C.3 discusses
+ered into a RAG pipeline’s behaviour through fine-          the co-occurrence of the error categories.
+                                                         3192
+Table 3: Modal error type distributions for DragonBall-EN across knowledge domains and query types. Query type
+labels are provided by the dataset.
+
+                               Knowledge Domain                                     Query Type
+Error Classification
+                                                      Factual Unanswerable Numerical Information Temporal Multi-hop Summari-
+                             Finance Law Medicine
+                                                      Question  Question   Comparison Integration Sequence Reasoning zation
+E1 Overchunking                    0     0       0        0         0           0           0         0         0        0
+E2 Underchunking                   2    19       11       1         3           1           0         1         7       19
+E3 Context Mismatch                19   71      117      19         5          22          43        12        24       82
+Percentage Chunking             5.9% 32.8%    62.4%    36.4%     16.3%       29.1%       18%       14.6%     27%      49%
+E4 Missed Retrieval                94   76       59      22         7          29          87        35        20       29
+E5 Low Relevance                   25    6        2       1         0           4          20         1         3        4
+E6 Semantic Drift                  0     0       0        0         0           0           0         0         0        0
+Percentage Retrieval            33.7% 29.9%   29.8%    41.8%     14.3%       41.8%      44.8%      40.4%     20%      16%
+E7 Low Recall                      28   23        2       0         2           3          25        10         8        5
+E8 Low Precision                    4    2        0       1         1           2           0         1         0        1
+Percentage Reranking             9.1% 9.1%      1%     1.8%      6.1%        6.3%       10.5%      12.4%      7%      2.9%
+E9 Abstention Failure               5    1        0       0         5           0           1         0         0        0
+E10 Fabricated Content             30    4        0       0         4           2           5         0         8       15
+E11 Parametric Overreliance         4    0        0       0         0           0           0         0         1        3
+E12 Incomplete Answer               8    8        1       0         0           0           7         0         8        2
+E13 Misinterpretation             116   50       12      10        16          11          46        29        26       40
+E14 Contextual Misalignment        11    2       1        0         4           2           3         0         0        5
+E15 Chronological Inconsistency     2    1        0       1         0           0           1         0         0        1
+E16 Numerical Error                5    11       0        0         2           3           1         0        10        0
+Percentage Generation           51.3% 28.1%    6.8%     20%      63.3%       22.8%      26.8%      32.6%    46.1%     32%
+Total Errors                      353  274      205      55        49          79         239        89       115      206
+Total Queries                    1574  782      752      535       233        297         737       241       532      533
+Error Rates                     22.4% 35%     27.3%    10.3%      21%        26.6%      32.4%      36.9%    21.6%    38.6%
+
+
+
+ Table 4: Distribution of mode frequency (K = 10).                textual links are broken across chunks, we follow
+                                                                  the recommendation in Section 4.1 and modify the
+         Mode Frequency DragonBall CLAPnq
+                                                                  chunking strategy from fixed-length segmentation
+                  3                1            4                 to a recursive, sentence-level segmentation of ap-
+                  4                7           32
+                  5               41           91                 proximately the same size. In addition, RAGEC
+                  6               74          123                 indicates that most retrieval and reranking errors
+                  7               74          135                 come from Missed Retrieval (E4) and Low Recall
+                  8               94          149
+                  9              153          172                 (E7) which are addressed by increasing the number
+                  10             388          516                 of chunks retrieved and passed to the generator.
+                                                                     With these improvements, we reran the RAG
+                                                                  pipeline and RAGEC. The improved pipeline re-
+   Summary. RAGEC provides an entry point                         sulted in fewer errors overall, only 534 (82.8% cor-
+for debugging and improvement of RAG pipelines,                   rect). In Table 2 (column Impr.) we observe that
+which can be complex and opaque to developers.                    chunking-, retrieval-, and reranker-related errors
+Instead of manually sifting through individual gen-               were signficantly reduced, while generator errors
+erations, our system automatically captures inter-                stay similar as no intervention was done.
+mediate information like retrieved and reranked
+chunks, and distills the information into high-level              6    Conclusion
+descriptive statistics. Hence, our focus is not on nu-
+merical metrics of performance, but on understand-                Our contributions in this work provide a framework
+ing the types and causes of errors so that develop-               for practitioners working with RAG systems to un-
+ers can intelligently prioritize aspects to improve.              derstand, categorize, track, and fix model errors.
+   Using RAGEC to Improve RAG. We con-                            Our findings also indicate the wide range of possi-
+duct a case study on how RAGEC can be used                        ble avenues for improving the robustness of RAG
+in practice to improve a RAG pipeline. We fo-                     systems in future works. While our RAG error clas-
+cus on DragonBall-EN where 832 errors were orig-                  sification method, RAGEC, achieves a useful level
+inally identified (73.3% correct). RAGEC indi-                    of agreement to human error annotations, it is far
+cates that chunking, retrieval, and generation all                from perfect, indicating that error classification re-
+caused roughly the same proportion of errors (Ta-                 mains a challenging problem for LLM-based sys-
+ble 2, Mode), and hence are the primary candi-                    tems. To promote future research in this area, we
+dates for improvement. Since most chunking er-                    release our annotated dataset of error types as a re-
+rors come from Context Mismatch (E3) where con-                   source for the community.
+                                                             3193
+Limitations                                                 Raj, Abhinav Balasubramanian, Murali Maram,
+                                                            Guru Muthusamy, Shivakesh Reddy Annepally,
+Our RAG error taxonomy is more expansive than               Sidney Knowles, Min Du, Nick Burnett, Sean
+prior works in this vein, but still is not exhaustive       Javiya, and 19 others. 2024. Facts about build-
+of all possible errors that could occur, especially if      ing retrieval augmented generation-based chatbots.
+                                                            arXiv:2407.07858.
+further stages were to be added to the RAG pipeline.
+We focused on the most prevalent types observed          John Alexander, Kristine Toliver, and Schofield
+in practice.                                               McLean. 2025.         Build advanced retrieval-
+   The RAG pipeline we used for demonstrating              augmented generation systems. https://learn.
+                                                           microsoft.com/en-us/azure/developer/ai/
+auto-evaluation for error classification reflects the
+                                                           advanced-retrieval-augmented-generation.
+general architecture of modern pipelines used in           Accessed: 2025-05-01.
+real-world applications. However, it was not highly
+tuned for the DragonBall and CLAPnq datasets, for        Lameck Mbangula Amugongo, Pietro Mascheroni,
+example by implementing the many improvements              Steven Geoffrey Brooks, Stefan Doering, and Jan Sei-
+                                                           del. 2024. Retrieval augmented generation for large
+we listed in Section 4. Our aim was to show a              language models in healthcare: A systematic review.
+starting point, where practitioners can understand         Preprints.
+errors in their system before making changes.
+   Additionally, our study focuses on single-turn        Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil,
+textual queries. Expanding the evaluation frame-           and Hannaneh Hajishirzi. 2023. Self-RAG: Learn-
+                                                           ing to Retrieve, Generate, and Critique through Self-
+work to handle multi-turn conversations or multi-          Reflection. In The Twelfth International Conference
+modal inputs remains an important direction for fu-        on Learning Representations.
+ture work.
+   Finally, we found RAG error classification ac-        Scott Barnett, Stefanus Kurniawan, Srikanth Thudumu,
+cording to our taxonomy to be a challenging predic-        Zach Brannelly, and Mohamed Abdelrazek. 2024.
+                                                           Seven failure points when engineering a retrieval
+tion problem. Part of this stems from the difficulty       augmented generation system. In Proceedings of
+of collecting labeled data. The error type labels we       the IEEE/ACM 3rd International Conference on AI
+collected require annotators to be experts in RAG          Engineering-Software Engineering for AI, pages 194–
+systems so that they comprehend the role and oper-         199.
+ation of each stage, and can disambiguate the error
+                                                         Adrián Bazaga, Rexhina Blloshmi, Bill Byrne, and
+types. Hence, crowdsourcing the annotation work            Adrià de Gispert. 2025. Learning to reason over time:
+was not possible, and all annotation was done man-         Timeline self-reflection for improved temporal rea-
+ually by the authors to ensure the highest quality la-     soning in language models. In Proceedings of the
+bels. Still, LLM-as-a-Judge systems were not fully         63rd Annual Meeting of the Association for Compu-
+                                                           tational Linguistics (Volume 1: Long Papers).
+capable of reasoning over all the intermediate infor-
+mation created throughout the RAG pipeline, lead-        Amit Bleiweiss. 2024.      Enhancing RAG
+ing to rather low stage-classification accuracy. We       Pipelines with Re-Ranking.          https:
+expect this to increase as LLMs become more pro-          //developer.nvidia.com/blog/
+                                                          enhancing-rag-pipelines-with-re-ranking/.
+ficient with multi-step reasoning and assimilating
+                                                          Accessed: 2025-05-01.
+information over long contexts.
+                                                         Nadezhda Chirkova, Thibault Formal, Vassilina
+                                                           Nikoulina, and Stéphane Clinchant. 2025. Provence:
+References                                                 efficient and robust context pruning for retrieval-
+                                                           augmented generation. In The Thirteenth Interna-
+Tom Aarsen. 2025. Training and finetuning reranker         tional Conference on Learning Representations.
+  models with sentence transformers v4. https://
+  huggingface.co/blog/train-reranker.
+                                                         Jeremy Cole, Michael Zhang, Daniel Gillick, Julian
+Garima Agrawal, Tharindu Kumarage, Zeyad Alghamdi,          Eisenschlos, Bhuwan Dhingra, and Jacob Eisenstein.
+  and Huan Liu. 2024. Mindful-RAG: A Study of               2023. Selectively answering ambiguous questions.
+  Points of Failure in Retrieval Augmented Generation.      In Proceedings of the 2023 Conference on Empirical
+  In 2nd International Conference on Foundation and         Methods in Natural Language Processing, pages 530–
+  Large Language Models, pages 607–611.                     543.
+
+Rama Akkiraju, Anbang Xu, Deepak Bora, Tan               Databricks. 2025. Improving Retrieval and RAG with
+  Yu, Lu An, Vishal Seth, Aaditya Shukla, Pritam           Embedding Model Fine-Tuning. Accessed: 2025-05-
+  Gundecha, Hridhay Mehta, Ashwin Jha, Prithvi             01.
+                                                     3194
+Shehzaad Dhuliawala, Mojtaba Komeili, Jing Xu,               the 2023 Conference on Empirical Methods in Natu-
+  Roberta Raileanu, Xian Li, Asli Celikyilmaz, and Ja-       ral Language Processing, pages 996–1009.
+  son Weston. 2024. Chain-of-verification reduces hal-
+  lucination in large language models. In Findings of     Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+  the Association for Computational Linguistics ACL         field, Michael Collins, Ankur Parikh, Chris Alberti,
+  2024, pages 3563–3578.                                    Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+                                                            ton Lee, Kristina Toutanova, Llion Jones, Matthew
+Hervé Déjean, Stéphane Clinchant, and Thibault For-         Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  mal. 2024. A thorough comparison of cross-                Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natural
+  encoders and llms for reranking splade. Preprint,         Questions: A Benchmark for Question Answering
+  arXiv:2403.10407.                                         Research. Transactions of the Association for Com-
+Shahul Es, Jithin James, Luis Espinosa Anke, and            putational Linguistics, 7.
+  Steven Schockaert. 2024. RAGAs: Automated evalu-
+  ation of retrieval augmented generation. In Proceed-    Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+  ings of the 18th Conference of the European Chap-         Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+  ter of the Association for Computational Linguistics:     rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  System Demonstrations.                                    täschel, Sebastian Riedel, and Douwe Kiela. 2020.
+                                                            Retrieval-Augmented Generation for Knowledge-
+Luyu Gao, Aman Madaan, Shuyan Zhou, Uri Alon,               Intensive NLP Tasks. In Advances in Neural Infor-
+  Pengfei Liu, Yiming Yang, Jamie Callan, and Gra-          mation Processing Systems, volume 33, pages 9459–
+  ham Neubig. 2023. PAL: Program-aided Language             9474.
+  Models. In Proceedings of the 40th International
+  Conference on Machine Learning, volume 202, pages       Kevin Lin, Kyle Lo, Joseph Gonzalez, and Dan Klein.
+  10764–10799.                                              2023. Decomposing complex queries for tip-of-the-
+                                                            tongue retrieval. In Findings of the Association for
+Nico Grant. 2024. Google’s AI Search errors cause a         Computational Linguistics: EMNLP 2023, pages
+  furor online. The New York Times. Accessed: 2025-         5521–5533.
+  05-01.
+                                                          Jintao Liu, Ruixue Ding, Linhao Zhang, Pengjun Xie,
+Gauthier Guinet, Behrooz Omidvar-Tehrani, Anoop De-
+                                                             and Fie Huang. 2024. CoFE-RAG: A Comprehen-
+  oras, and Laurent Callot. 2024. Automated evalu-
+                                                             sive Full-chain Evaluation Framework for Retrieval-
+  ation of retrieval-augmented language models with
+                                                             Augmented Generation with Enhanced Data Diver-
+  task-specific exam generation. In Proceedings of the
+                                                             sity. arXiv:2410.12248.
+  41st International Conference on Machine Learning,
+  volume 235.
+                                                          Xinbei Ma, Yeyun Gong, Pengcheng He, Hai Zhao,
+Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong,           and Nan Duan. 2023. Query rewriting in retrieval-
+  Zhangyin Feng, Haotian Wang, Qianglong Chen,              augmented large language models. In Proceedings
+  Weihua Peng, Xiaocheng Feng, Bing Qin, and Ting           of the 2023 Conference on Empirical Methods in
+  Liu. 2025. A Survey on Hallucination in Large Lan-        Natural Language Processing.
+  guage Models: Principles, Taxonomy, Challenges,
+  and Open Questions. ACM Trans. Inf. Syst., 43(2).       Varun Magesh, Faiz Surani, Matthew Dahl, Mirac Suz-
+                                                            gun, Christopher D. Manning, and Daniel E. Ho.
+Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan        2025. Hallucination-Free? Assessing the Reliability
+  Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea             of Leading AI Legal Research Tools. Journal of Em-
+  Madotto, and Pascale Fung. 2023. Survey of halluci-       pirical Legal Studies, 22(2):216–242.
+  nation in natural language generation. ACM Comput.
+  Surv., 55(12).                                          Katie Matton, Robert Ness, John Guttag, and Emre Kici-
+                                                            man. 2025. Walk the talk? measuring the faithfulness
+Jiajie Jin, Xiaoxi Li, Guanting Dong, Yuyao Zhang, Yu-      of large language model explanations. In The Thir-
+   tao Zhu, Yongkang Wu, Zhonghua Li, Qi Ye, and            teenth International Conference on Learning Repre-
+   Zhicheng Dou. 2025. Hierarchical Document Refine-        sentations.
+   ment for Long-context Retrieval-augmented Genera-
+   tion. arXiv:2505.10413.                                Joshua Maynez, Shashi Narayan, Bernd Bohnet, and
+Mandar Joshi, Eunsol Choi, Daniel S. Weld, and Luke         Ryan McDonald. 2020. On Faithfulness and Factual-
+ Zettlemoyer. 2017. TriviaQA: A Large Scale Dis-            ity in Abstractive Summarization. In Proceedings of
+ tantly Supervised Challenge Dataset for Reading            the 58th Annual Meeting of the Association for Com-
+ Comprehension. In Proceedings of the 55th Annual           putational Linguistics, pages 1906–1919.
+ Meeting of the Association for Computational Lin-
+ guistics.                                                Todor Mihaylov, Peter Clark, Tushar Khot, and Ashish
+                                                            Sabharwal. 2018. Can a Suit of Armor Conduct Elec-
+Gangwoo Kim, Sungdong Kim, Byeongguk Jeon, Joon-            tricity? A New Dataset for Open Book Question An-
+  suk Park, and Jaewoo Kang. 2023. Tree of clarifica-       swering. In Proceedings of the 2018 Conference on
+  tions: Answering ambiguous questions with retrieval-      Empirical Methods in Natural Language Processing.
+  augmented large language models. In Proceedings of        Association for Computational Linguistics.
+                                                      3195
+Gabriel de Souza P Moreira, Ronay Ak, Benedikt Schif-         Systems. In Proceedings of the 2024 Conference of
+  ferer, Mengyao Xu, Radek Osmulski, and Even                 the North American Chapter of the Association for
+  Oldridge. 2024. Enhancing Q&A Text Retrieval with           Computational Linguistics: Human Language Tech-
+  Ranking Models: Benchmarking, fine-tuning and de-           nologies (Volume 1: Long Papers), pages 338–354.
+  ploying Rerankers for RAG. arXiv:2409.07691.
+                                                           Krystian Safjan. 2023. From Fixed-Size to NLP Chunk-
+Jianmo Ni, Chen Qu, Jing Lu, Zhuyun Dai, Gustavo             ing – A Deep Dive into Text Chunking Techniques.
+   Hernandez Abrego, Ji Ma, Vincent Zhao, Yi Luan,           Accessed: 2025-05-01.
+   Keith Hall, Ming-Wei Chang, and Yinfei Yang. 2022.
+   Large dual encoders are generalizable retrievers. In    Kurt Shuster, Spencer Poff, Moya Chen, Douwe Kiela,
+   Proceedings of the 2022 Conference on Empirical           and Jason Weston. 2021. Retrieval Augmentation
+   Methods in Natural Language Processing.                   Reduces Hallucination in Conversation. In Find-
+                                                             ings of the Association for Computational Linguis-
+Mykhailo Poliakov and Nadiya Shvai. 2025. Multi-             tics: EMNLP 2021.
+ Meta-RAG: Improving RAG for Multi-hop Queries
+ Using Database Filtering with LLM-Extracted Meta-         Maojia Song, Shang Hong Sim, Rishabh Bhardwaj,
+ data. In Information and Communication Technolo-           Hai Leong Chieu, Navonil Majumder, and Soujanya
+ gies in Education, Research, and Industrial Applica-       Poria. 2025. Measuring and Enhancing Trustworthi-
+ tions. Springer Nature Switzerland.                        ness of LLMs in RAG through Grounded Attribu-
+                                                            tions and Learning to Refuse. In The Thirteenth In-
+Renyi Qu, Ruixuan Tu, and Forrest Sheng Bao. 2025. Is       ternational Conference on Learning Representations.
+  semantic chunking worth the computational cost? In
+  Findings of the Association for Computational Lin-       Jiashuo Sun, Xianrui Zhong, Sizhe Zhou, and Ji-
+  guistics: NAACL 2025. Association for Computa-              awei Han. 2025. DynamicRAG: Leveraging Out-
+  tional Linguistics.                                         puts of Large Language Model as Feedback for Dy-
+                                                              namic Reranking in Retrieval-Augmented Genera-
+Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev, and         tion. arXiv:2505.07233.
+   Percy Liang. 2016. SQuAD: 100,000+ questions
+   for machine comprehension of text. In Proceedings       Weiwei Sun, Lingyong Yan, Xinyu Ma, Shuaiqiang
+   of the 2016 Conference on Empirical Methods in           Wang, Pengjie Ren, Zhumin Chen, Dawei Yin, and
+  Natural Language Processing, pages 2383–2392.             Zhaochun Ren. 2023. Is ChatGPT Good at Search?
+                                                            Investigating Large Language Models as Re-Ranking
+Vipula Rawte, Swagata Chakraborty, Agnibh Pathak,           Agents. In Proceedings of the 2023 Conference on
+  Anubhav Sarkar, S.M Towhidul Islam Tonmoy,                Empirical Methods in Natural Language Processing,
+  Aman Chadha, Amit Sheth, and Amitava Das. 2023.           pages 14918–14937.
+  The Troubling Emergence of Hallucination in Large
+  Language Models - An Extensive Definition, Quan-         Pranav Narayanan Venkit, Philippe Laban, Yilun
+  tification, and Prescriptive Remediations. In Proceed-     Zhou, Yixin Mao, and Chien-Sheng Wu. 2024.
+  ings of the 2023 Conference on Empirical Methods           Search Engines in an AI Era: The False Promise
+  in Natural Language Processing, pages 2541–2573.           of Factual and Verifiable Source-Cited Responses.
+                                                             arXiv:2410.22349.
+Stephen E. Robertson, Steve Walker, Susan Jones,
+   Micheline Hancock-Beaulieu, and Mike Gatford.           Prashant Verma. 2025.      S2 Chunking: A Hy-
+  1994. Okapi at TREC-3. In Proceedings of the Third         brid Framework for Document Segmentation
+  Text REtrieval Conference, pages 109–126. NIST             Through Integrated Spatial and Semantic Analysis.
+   Special Publication.                                      arXiv:2501.05485.
+
+Sara Rosenthal, Avirup Sil, Radu Florian, and Salim        Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le,
+  Roukos. 2025. CLAPnq: Cohesive Long-form An-               Ed H. Chi, Sharan Narang, Aakanksha Chowdhery,
+  swers from Passages in Natural Questions for RAG           and Denny Zhou. 2023. Self-consistency improves
+  systems. Transactions of the Association for Compu-        chain of thought reasoning in language models. In
+  tational Linguistics, 13:53–72.                            The Eleventh International Conference on Learning
+                                                             Representations.
+Dongyu Ru, Lin Qiu, Xiangkun Hu, Tianhang Zhang,
+  Peng Shi, Shuaichen Chang, Cheng Jiayang, Cunxi-         Zilong Wang, Zifeng Wang, Long Le, Steven Zheng,
+  ang Wang, Shichao Sun, Huanyu Li, Zizhao Zhang,             Swaroop Mishra, Vincent Perot, Yuwei Zhang,
+  Binjie Wang, Jiarong Jiang, Tong He, Zhiguo Wang,           Anush Mattapalli, Ankur Taly, Jingbo Shang, Chen-
+  Pengfei Liu, Yue Zhang, and Zheng Zhang. 2024.             Yu Lee, and Tomas Pfister. 2025. Speculative RAG:
+  RAGChecker: A Fine-grained Framework for Di-                Enhancing retrieval augmented generation through
+  agnosing Retrieval-Augmented Generation. In Ad-             drafting. In The Thirteenth International Conference
+  vances in Neural Information Processing Systems,            on Learning Representations.
+  volume 37, pages 21999–22027.
+                                                           Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+Jon Saad-Falcon, Omar Khattab, Christopher Potts, and         Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc V Le,
+  Matei Zaharia. 2024. ARES: An Automated Evalua-             and Denny Zhou. 2022. Chain-of-thought prompt-
+  tion Framework for Retrieval-Augmented Generation           ing elicits reasoning in large language models. In
+                                                       3196
+  Advances in Neural Information Processing Systems,
+  volume 35, pages 24824–24837.
+Yasin Abbasi Yadkori, Ilja Kuzborskij, David Stutz, An-
+  drás György, Adam Fisch, Arnaud Doucet, Iuliya Be-
+  loshapka, Wei-Hung Weng, Yao-Yuan Yang, Csaba
+  Szepesvári, Ali Taylan Cemgil, and Nenad Tomasev.
+  2024. Mitigating LLM Hallucinations via Confor-
+  mal Abstention. arXiv:2405.01563.
+Xiao Yang, Kai Sun, Hao Xin, Yushi Sun, Nikita Bhalla,
+  Xiangsen Chen, Sajal Choudhary, Rongze Daniel
+  Gui, Ziran Will Jiang, Ziyu Jiang, Lingkun Kong,
+  Brian Moran, Jiaqi Wang, Yifan Ethan Xu, An Yan,
+  Chenyu Yang, Eting Yuan, Hanwen Zha, Nan Tang,
+  and 8 others. 2024. CRAG - Comprehensive RAG
+  Benchmark. In Advances in Neural Information Pro-
+  cessing Systems, volume 37, pages 10470–10490.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+  William Cohen, Ruslan Salakhutdinov, and Christo-
+  pher D. Manning. 2018. HotpotQA: A Dataset for
+  Diverse, Explainable Multi-hop Question Answering.
+  In Proceedings of the 2018 Conference on Empiri-
+  cal Methods in Natural Language Processing, pages
+  2369–2380.
+
+Antonio Jimeno Yepes, Yao You, Jan Milczek, Sebas-
+  tian Laverde, and Renyu Li. 2024. Financial Report
+  Chunking for Effective Retrieval Augmented Gener-
+  ation. arXiv:2402.05131.
+
+Hao Yu, Aoran Gan, Kai Zhang, Shiwei Tong, Qi Liu,
+  and Zhaofeng Liu. 2024a. Evaluation of retrieval-
+  augmented generation: A survey. In CCF Conference
+  on Big Data, pages 102–120. Springer.
+
+Yue Yu, Wei Ping, Zihan Liu, Boxin Wang, Jiaxuan You,
+  Chao Zhang, Mohammad Shoeybi, and Bryan Catan-
+  zaro. 2024b. RankRAG: Unifying Context Ranking
+  with Retrieval-Augmented Generation in LLMs. In
+  Advances in Neural Information Processing Systems,
+  volume 37.
+Jihao Zhao, Zhiyuan Ji, Yuchen Feng, Pengnian
+   Qi, Simin Niu, Bo Tang, Feiyu Xiong, and
+   Zhiyu Li. 2024. Meta-Chunking: Learning Ef-
+   ficient Text Segmentation via Logical Perception.
+   arXiv:2410.12788.
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan
+  Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin,
+  Zhuohan Li, Dacheng Li, Eric Xing, Hao Zhang,
+  Joseph E Gonzalez, and Ion Stoica. 2023. Judging
+  LLM-as-a-Judge with MT-Bench and Chatbot Arena.
+  In Advances in Neural Information Processing Sys-
+  tems, volume 36.
+Kunlun Zhu, Yifan Luo, Dingling Xu, Yukun Yan,
+  Zhenghao Liu, Shi Yu, Ruobing Wang, Shuo Wang,
+  Yishan Li, Nan Zhang, Xu Han, Zhiyuan Liu, and
+  Maosong Sun. 2024. RAGEval: Scenario Specific
+  RAG Evaluation Dataset Generation Framework.
+  arXiv:2408.01262.
+
+
+                                                      3197
+A    RAG Pipeline and Dataset Details                      Table 5: RAG Implementation Hyperparameters
+
+This section outlines the configurable components       Parameter DragonBall             CLAPnq
+of our RAG pipeline and provides details on the         Chunker   Fixed-Length          Semantic
+specific configurations used to obtain the experi-                size=128, overlap=25
+                                                        Embedder gte-large-en-v1.5      gte-large-en-v1.5
+mental results presented in the main paper. In Ta-      Search    Top-k=8               Top-k=5
+ble 5, we list important hyperparameters used on        Reranker rank-zephyr-7b-v1-full rank-zephyr-7b-v1-full
+the DragonBall and CLAPnq datasets. Note that                     Top-k′ =5             Top-k′ =3
+                                                        Generator Llama-3-8B-Instruct Llama-3-8B-Instruct
+the DragonBall dataset is publicly available under
+a CC BY-NC-SA 4.0 license. The CLAPnq dataset
+                                                        """
+is publicly available under an Apache 2.0 license.      System :
+                                                        You are RankLLM , an intelligent
+Chunker. We implemented multiple chunking                   assistant that can rank passages
+strategies, including fixed-length chunking (with           based on their relevancy to the
+                                                            query .
+and without overlap) and recursive chunking at the
+sentence level. These methods enable flexible pre-      User :
+processing of documents depending on the context        I will provide you with {{ K }} passages ,
+                                                            each indicated by a numerical
+granularity needed. When available, our implemen-           identifier []. Rank the passages
+tation also handles pre-defined semantic chunks             based on their relevance to the
+provided by the dataset. For instance, the CLAPnq           search query : {{ query }}
+dataset provides pre-chunked documents aligned          [1] {{ chunk1 }}
+with natural discourse boundaries, which we use         [2] {{ chunk2 }}
+directly in our experiments. For the DragonBall         ...
+                                                        [ K] {{ chunkK }}
+dataset, we follow the original paper’s best configu-
+ration and apply fixed-length chunking with a win-      Search Query : {{ query }}.
+dow size of 128 tokens and an overlap of 25 tokens
+                                                        Rank the {{ K }} passages above based on
+(Zhu et al., 2024).                                         their relevance to the search query .
+                                                              All the passages should be included
+Retrieval. For dense retrieval, we used mod-                  and listed using identifiers , in
+els from the Hugging Face repository (e.g.,                 descending order of relevance . The
+                                                            output format should be [] > [] , e . g
+gte-large-en-v1.5) to generate embeddings of                . , [2] > [1]. Only respond with the
+the queries and chunks. Retrieval computes vec-             ranking results , do not say any word
+tor similarity (using cosine similarity) between the          or explain .
+query and document chunks and selects the top-k         Assistant :
+most relevant candidates. The value of k is treated     """
+as a hyperparameter. We fixed k = 8 and k = 5 for
+                                                        Listing 1: System Prompt Used for our RAG Reranker
+the DragonBall and CLAPnq datasets respectively.
+Reranker. For the reranking stage, we use spe-          Generator. The final stage involves generating
+cialized LLM reranker models fine-tuned for rank-       answers using an LLM. The reranked top k ′ chunks
+ing tasks (e.g., rank-zephyr-7b-v1-full), also          are concatenated and provided as context to the
+sourced from Hugging Face. Given a set of re-           model alongside the query. Note that only the re-
+trieved candidate chunks and the original query,        trieved chunks (not full documents) are used as
+this model assigns a relevance score to each chunk.     context. Our implementation is modular enough
+We then select the top k ′ candidates (with k ′ < k     so that one can experiment with several LLMs
+from retrieval) to ensure that only the most rele-      from Hugging Face and select the one that best
+vant context is passed to the generator. The rerank-    suits the needs. In our experiments, we used
+ing step plays a critical role in filtering noisy or    Meta-Llama-3-8B-Instruct. The system prompt
+marginally relevant content returned by dense re-       is reproduced in Listing 2.
+trieval. This two-stage process is meant to enhance     """
+retrieval precision, thereby improving final answer     System :
+quality. We fixed k ′ = 5 and k ′ = 3 for the Drag-     You are an assistant for answering
+                                                            queries . You are given a list of
+onBall and CLAPnq datasets respectively. The sys-           context ( extracted parts of some
+tem prompt is reproduced in Listing 1.                      documents ) and a query . Based on the
+
+                                                    3198
+       given context , provide an answer to                  3. A proposed answer to evaluate <
+       the query . Please be concise and to                      proposed_answer >
+       the point . If you don ' t know the                   4. ( Optional ) the proposed answer ' s
+      answer say 'I don ' t know ! ' Don ' t                     cited information <
+      make up an answer . Cite the document                      ground_truth_citations >
+       id used . The output format should
+      be answer with citations . Only                        Please evaluate the proposed answer
+      respond with the answer , do not                           based on the following criteria :
+      explain .                                              - Abstain : If the proposed answer is
+                                                                  "I don ' t know " or "I don ' t have
+User :                                                            enough information to answer
+Query :                                                          this question " , then the label
+Where is the capital of France ?                                 is ' abstain '.
+Context :                                                    - Accuracy : Does it contain the same
+{ document id : 1, content : Paris is the                         key information as the ground
+     capital of France , the largest                             truth ?
+     country of Europe with 550 000 km2 )                    - Completeness : Does it cover all
+     .}{ document id : 2 , content : France                      important points from the ground
+     is a country in Europe .}                                    truth ?
+                                                             - Correctness : Are there any factual
+Assistant :                                                       errors compared to the ground
+Answer : Paris . [1]                                             truth ?
+
+User :                                                       Provide your evaluation as a JSON
+Query :                                                          object with the following fields
+{{ query }}                                                      :
+Context :                                                    {{
+{{ Context }}                                                    \" label \": \" correct \" | \"
+"""                                                                   possible_correct \" | \"
+                                                                      incorrect \" | \" abstain \" ,
+Listing 2: System Prompt Used for our RAG Generator              \" reasoning \": string // A very
+                                                                      brief explanation of your
+                                                                      evaluation
+                                                             }}
+B     Automatic Error Classification Details
+                                                             Here are some examples :
+This section provides additional materials that sup-
+                                                             <... >
+port our main auto-evaluation analysis from sec-
+tion 5. We begin with an extended description of             < question >
+our auto-evaluation pipeline, RAGEC, including               { question }
+                                                             </ question >
+details such as the system prompts we used. Ad-
+ditionally, we present alternative auto-evaluation           < ground_truth >
+methods which empirically had lower agreement                { ground_truth }
+                                                             </ ground_truth >
+with our human annotations.
+                                                             < proposed_answer >
+B.1    Answer Evaluation System Prompts                      { proposed_answer }
+                                                             </ proposed_answer >
+The first step of RAGEC, answer evaluation uses
+an LLM to determine if a generated response is               { citations }
+correct, given the query, and ground-truth answer            Your evaluation :
+and documents. In practice, we used GPT-4o with              """
+the prompt in Listing 3.                               Listing 3: System Prompt Used for Answer Evaluation
+      """
+      You are an expert evaluator . Your
+          task is to evaluate if a                     B.2     Error Stage Classification
+          proposed answer matches the
+          ground truth answer for a given              This section describes the algorithm for the identi-
+          question .                                   fication of which stage in the RAG pipeline caused
+      You will be provided with                        the error.
+          information between special tags
+          :                                            B.2.1    Determining the ground truth chunks
+      1. The original question < question >
+      2. The ground truth ( correct ) answer           The first step is to determine which chunks contain
+            < ground_truth >                           the ground truth information from the corpus. For
+                                                   3199
+CLAPnq, the dataset provides short ground truth         B.2.2   Determining errors in the generation
+chunks along with each query; thus we use the                   stage
+dataset’s chunks directly.                              Given the ground truth chunks, if we know that the
+   For DragonBall, only the document containing         chunks being passed to the generator are sufficient
+the ground truth is given with the query, but these     to determine the answer, we can conclude the error
+documents are long, so we perform the chunk-            happened in the generation stage. Thus we look at
+ing ourselves. We leverage an LLM to determine          the fraction of the ground truth chunks being passed
+which chunks are necessary to answer the query.         to the generator. However, we must account for the
+We provide GPT-4o-mini the query, ground truth          possibility that multiple chunks contain the ground
+answer, and all the chunks from the ground truth        truth. In these cases, using only a subset of the
+documents, and ask for the IDs of chunks that con-      ground truth chunks may be sufficient to determine
+tain information necessary to answer the query. We      the correct answer. To this end, we specify that
+perform this process 10 times and select chunks ap-     if more than half of the ground truth chunks are
+pearing more than 8 times as ground truth chunks.       passed to the generator, it is deemed a generator
+The repetition accounts for the stochasticity of us-    error.
+ing an LLM, and better reflects its confidence. The        If there are no ground truth chunks extracted,
+prompt is shown below in Listing 4.                     it is likely that the error is an abstention error as
+                                                        the question may be unanswerable. Thus it is also
+"""                                                     deemed a generator error in this case.
+You are an expert evaluator for
+    Retrieval Augmented Generation ( RAG )              B.2.3   Determining errors in the reranking
+     systems . You will help identify                           stage
+    chunking - related errors in RAG
+    systems by analyzing the                            An error occurs in the reranking stage if the
+    relationship between queries , ground               reranker filters out some ground truth chunks which
+     truth answers , and document chunks .
+     Your task is to identify which                     the retriever had returned. Thus if there is any
+    chunks from the ground truth                        ground truth chunk that is filtered out at this stage,
+    document are relevant to answering
+    the query .
+                                                        we deem the error a reranker error.
+                                                            Note that it could be the case that the reranker
+## Instructions                                         filters out redundant chunks containing the ground
+1. Review ALL available chunks from the
+    ground truth document                               truth, as described in the above step. However,
+2. Identify ALL chunks containing                       in practice, if both chunks containing the correct
+    information relevant to answering                   answer to the question are retrieved, it is not likely
+    the query
+3. Consider both direct and indirect                    that the reranker would treat them differently. We
+    relevance to the query                              found the described method to be the most effective
+4. Select chunks that together provide                  in determining whether there is a reranker error.
+    sufficient information to answer the
+     query
+                                                        B.2.4 Distinguishing between chunking errors
+## Context                                                    and retrieval errors
+** Query **: { query }
+** Ground Truth Answer **: { ground_truth }             Chunking errors and retrieval errors are difficult to
+                                                        distinguish, as the efficacy of the retriever is tightly
+** Available Chunks from Ground Truth                   coupled to the quality of chunks. Chunking error
+     Document **:
+{ chunks }                                              types E1, E2, and E3 all relate to cases where im-
+                                                        portant information is missing or overshadowed in
+## Output Format                                        the chunks. Thus we aim to check if each “con-
+Provide your answer in the following
+    format :                                            cept” in each query is preserved in at least one of
+Relevant Chunks : [45 _1 , 45 _4 , 45 _10 ]             the chunks containing the ground truth.
+"""                                                        To extract the concepts in each query, we fol-
+                                                        low closely the method from Matton et al. (2025).
+Listing 4: System prompt for determining the chunks     We ask GPT-4o-mini to extract the concepts from
+containing the ground truth on the DragonBall dataset   each query, then for each concept, we ask the LLM
+                                                        which ground truth chunks contain that concept.
+                                                        We then compute the fraction of all concepts which
+                                                    3200
+are included in at least one of the ground truth
+chunks. If this fraction is less than 0.8, we deem        Example 1:
+                                                          ** Concepts **: Peter
+the error to be a chunking error. Otherwise it is         ** Excerpts **:
+deemed a retrieval error.                                 [45 _3 ] John is running
+                                                          [45 _6 ] Peter is walking
+   The parameter 0.8 was chosen to reflect that if        ** Answer **:
+the number of concepts extracted from the query is        [45 _3 ] False
+high, it is likely that not all the concepts are needed   [45 _6 ] True
+to answer the question. Thus we allow some leeway         Example 2:
+for the cases where the number of concepts is high        ** Concepts **: running
+(namely greater than 6).                                  ** Excerpts **:
+                                                          [45 _3 ] John is running
+   The prompt for determining the concepts in the         [45 _6 ] Peter is walking
+query is given in Listing 5, and for determining          ** Answer **:
+whether a concept is contained in the ground truth        [45 _3 ] True
+                                                          [45 _6 ] False
+chunks is given in Listing 6.
+                                                          Question :
+"""
+                                                          ** Concepts **: { concept }
+Consider the following questions . Your
+                                                          ** Excerpts **:
+    task is to list the set of distinct
+                                                          { excerpts }
+    concepts , or high - level pieces of
+                                                          ** Answer **:
+    information , in the ' Context ' that
+                                                          """
+    could possibly influence someone ' s
+    answer to the question . Each concept                 Listing 6: System prompt used for determining whether
+     should appear word - to - word in the
+    question , or a very minor rewording .                a concept is contained in the ground truth chunks
+     Here are three examples .
+Example 1:
+Question :                                                B.3     Error Type Classification
+Compare the debt restructuring efforts
+    of Company A in 2018 and Company B                    After determining the RAG stage responsible for
+    in 2021. Which company reduced more                   the error, we then prompt GPT-4o-mini K = 10
+    liabilities through debt                              times to judge the error type, and use the distribu-
+    restructuring ?
+                                                          tion of results to evaluate the LLM’s confidence.
+Concept List :                                            Each stage uses a different system prompt and dif-
+Debt restructuring efforts
+Company A
+                                                          ferent contextual information relevant to that stage.
+2018
+Company B                                                 B.3.1    Chunking error type
+2021                                                      If stage classification determined the error to be
+Reducing liabilities through debt
+    restructuring                                         a chunking error, then classifying which type of
+                                                          chunking error only requires the query, ground
+{ examples 2 and examples 3}                              truth answer, and chunks from the ground truth doc-
+Please fill out the ' Concept List ' for                  ument. The prompt for chunking errors is given in
+     the fourth example by providing a                    Listing 7.
+     numbered list . You should not
+     restate the ' Concept List ' header .                """
+     You should not put dash ( ' - ') or                  You are an expert Retrieval Augmented
+     numbers before each item in the list                     Generation ( RAG ) system evaluator .
+     .                                                    Background :
+Example 4                                                 Given a query , and a list of documents
+{ query }                                                     possibly containing the answer to
+"""                                                           the query , a RAG model has tried to
+                                                              answer the query using the following
+Listing 5: System prompt used for determining the              4 steps .
+concepts in each query                                    - Chunking : Each document in the
+                                                              document list is split into smaller
+                                                              chunks .
+"""                                                       - Retrieval : A specified number of
+You will be given a list of excerpts and                      chunks closest to the query will be
+     a concept . Your job is to determine                     retrieved .
+     whether the concept given is                         - Reranking : The retrieved chunks are
+    contained in each excerpt . Output a                      ranked for the second time ,
+    line for excerpt , output " True " or "                   according to how relevant the chunks
+    False ".                                                   are to the query . Then , only a
+
+                                                      3201
+    specified number of reranked chunks                - Retrieval : A specified number of
+    are retained .                                         chunks closest to the query will be
+- Generation : The query and reranked                      retrieved .
+    chunks are passed to the generator                 - Reranking : The retrieved chunks are
+    LLM to generate an answer .                            ranked for the second time ,
+                                                           according to how relevant the chunks
+You will be given a query and the ground                    are to the query . Then , only a
+     truth answer , as well as all the                     specified number of reranked chunks
+    chunks that belong to the document                     are retained .
+    containing the ground truth answer .               - Generation : The query and reranked
+    As described in the background , each                  chunks are passed to the generator
+     chunk will be seen as independent                     LLM to generate an answer .
+    text blocks by the RAG model . Given
+    there is an error in the chunking                  You will be given a query and the ground
+    step , your job is to determine the                     truth answer . You will also be
+    best description of the error from                     given IDs of the documents
+    the list below .                                       containing the ground truth and a
+- Overchunking : Document is split into                    selection of document chunks
+    excessively small chunks , causing                     retrieved .
+    important context to be lost .                     Given there is an error in the retrieval
+    Individual chunks appear incomplete                     step , your job is to determine the
+    or ambiguous .                                         best description of the error from
+- Underchunking : Chunks are too large ,                   the list below .
+    covering multiple topics with mixed                - Missed Retrieval : Retrieved chunks do
+    content . Individual chunks can be                     not contain the relevant information
+    confusing and crucial information is                    to answer the query from the ground
+     diluted .                                              truth documents
+- Context Mismatch : Chunks are split at               - Low Relevance : Retrieved chunks are
+    arbitrary boundaries , disrupting the                  only loosely related to the query
+     logical structure of the document .               - Semantic Drift : Retrieved chunks
+    Key contextual links are separated                     appear to match keywords but do not
+    from the information they link to                      align with the query ' s intent
+
+Context :                                              Context :
+** Query **: { query }                                 ** Query **: { query }
+** Ground Truth **: { ground_truth }                   ** Ground Truth **: { ground_truth }
+** Document Chunks **:                                 ** Ground Truth Document ID **: {
+{ ground_truth_chunks }                                     ground_truth_doc_ids }
+                                                       ** Retrieved Chunks **:
+** Output format **:                                   { retrieved_chunks }
+Your answer should only contain one of
+     the following ,                                   ** Output format **:
+Overchunking , Underchunking , Context                 Your answer should only contain one of
+     Mismatch                                               the following :
+"""                                                    Missed Retrieval , Low Relevance ,
+                                                            Semantic Drift
+Listing 7: System prompt used for determining          """
+chunking error types
+                                                       Listing 8: System prompt used for determining retrieval
+                                                       error types
+B.3.2 Retrieval error type
+For retrieval errors, the LLM only needs the query,    B.3.3 Reranking error type
+the ground truth answer, the ID for the ground truth   To determine the reranking error type, the LLM
+documents, and the retrieved chunks. The prompt        only needs the query, the ground truth answer, the
+for retrieval errors is given in Listing 8.            retrieved chunks, and the reranked chunks. The
+                                                       prompt for reranking error is given in Listing 9.
+"""
+You are an expert Retrieval Augmented                  """
+    Generation ( RAG ) system evaluator .              You are an expert Retrieval Augmented
+Background :                                               Generation ( RAG ) system evaluator .
+Given a query , and a list of documents                Background :
+    possibly containing the answer to                  Given a query , and a list of documents
+    the query , a RAG model has tried to                   possibly containing the answer to
+    answer the query using the following                   the query , a RAG model has tried to
+     4 steps .                                             answer the query using the following
+- Chunking : Each document in the                           4 steps .
+    document list is split into smaller                - Chunking : Each document in the
+    chunks .                                               document list is split into smaller
+
+                                                   3202
+    chunks .                                         - Chunking : Each document in the
+- Retrieval : A specified number of                      document list is split into smaller
+    chunks closest to the query will be                  chunks .
+    retrieved .                                      - Retrieval : A specified number of
+- Reranking : The retrieved chunks are                   chunks closest to the query will be
+    ranked for the second time ,                         retrieved .
+    according to how relevant the chunks             - Reranking : The retrieved chunks are
+     are to the query . Then , only a                    ranked for the second time ,
+    specified number of reranked chunks                  according to how relevant the chunks
+    are retained .                                        are to the query . Then , only a
+- Generation : The query and reranked                    specified number of reranked chunks
+    chunks are passed to the generator                   are retained .
+    LLM to generate an answer .                      - Generation : The query and reranked
+                                                         chunks are passed to the generator
+You will be given a query and the ground                 LLM to generate an answer .
+     truth answer . You will also be
+    given a selection of document chunks             You will be given a query , the ground
+     retrieved . The retrieved chunks                    truth answer and an incorrect answer
+    will be reranked so that only {                       to the query generated by the RAG
+    num_reranked_chunks } chunks are                     model . You will also be given {
+    further selected . Given there is an                 num_reranked_chunks } document chunks
+    error in the reranking step , your                   . Your job is to determine the
+    job is to determine the best                         reason why the model outputs the
+    description of the error from the                    incorrect answer , from the list
+    list below .                                         below .
+- Low Recall : Necessary chunks are                  - Abstention Failure : The model should
+    retrieved but reranked too low and                   have abstained but provided an
+    not forwarded to the generator                       incorrect answer
+- Low Precision : Irrelevant chunks are              - Fabricated Content : The response
+    reranked highly and forwarded to the                 includes information not present in
+     generator , with greater importance                 the source document chunks and is
+    than the truly relevant chunks                       unverifiable
+                                                     - Parametric Overreliance : The response
+Context :                                                depends on the LLM ' s internal
+** Query **: { query }                                   knowledge rather than the source
+** Ground Truth **: { ground_truth }                     document chunks
+** Ground Truth Document ID **: {                    - Incomplete Answer : The response is
+     ground_truth_doc_ids }                              correct but missing critical details
+** Reranked Chunks **:                               - Misinterpretation : The generator
+{ reranked_chunks }                                      misuses or misrepresents the source
+                                                         document chunks
+** Output format **:                                 - Contextual Misalignment : The response
+Your answer should only contain one of                   is correct but does not address the
+     the following :                                     query
+Low Recall , Low Precision                           - Chronological Inconsistency : The
+"""                                                      response presents events or facts in
+                                                          the wrong temporal order , or
+Listing 9: System prompt used for determining            confuses past , present , or future
+reranking error types                                    timelines
+                                                     - Numerical Error : The response includes
+                                                          incorrect calculations , quantities ,
+                                                          or misrepresents numerical data
+B.3.4 Generation error type                              from the retrieved documents
+
+To determine the generation error type, the LLM      Context :
+only needs the query, the ground truth answer, in-   ** Query **: { query }
+                                                     ** Ground Truth **: { ground_truth }
+correct answer by RAG model and the reranked         ** Incorrect Answer **: {
+chunks. The prompt for generation error types is          incorrect_rag_answer }
+as follows.                                          ** Reranked Chunks **:
+                                                     { reranked_chunks }
+"""
+You are an expert Retrieval Augmented                ** Output format **:
+    Generation ( RAG ) system evaluator .            Your answer should only contain one of
+Background :                                              the following :
+Given a query , and a list of documents              Abstention Failure , Fabricated Content ,
+    possibly containing the answer to                     Parametric Overreliance , Incomplete
+    the query , a RAG model has tried to                  Answer , Misinterpretation ,
+    answer the query using the following                  Contextual Misalignment ,
+     4 steps .                                            Chronological Inconsistency ,
+
+                                                 3203
+      Numerical Error                                        In more detail, for the chunking stage, the con-
+"""                                                       text contains the query, ground truth response from
+Listing 10: System prompt psed for determining            the dataset, and all chunks from the ground truth
+generation error types                                    document. Notably, we do not include information
+                                                          like the generated response or retrieved chunks,
+B.4    Alternative Auto-evaluation Approaches             because these are not available during the chunk-
+                                                          ing step and hence are not relevant to determining
+So far this appendix has described in detail
+                                                          chunking errors. Next, for the retrieval stage we
+RAGEC, our proposed error classification method.
+                                                          provide the query and ground truth response, but
+While designing RAGEC, we explored many other
+                                                          now include the retrieved chunks and the ground
+systems for LLM-based error classification, but
+                                                          truth document ID. Continuing to reranking if nec-
+RAGEC empirically had the best agreement rates
+                                                          essary, the retrieved chunks are replaced by the
+with our human-annotated data. For comparison, in
+                                                          reranked chunks. Because of the sequential nature
+this section we describe two alternative approaches
+                                                          of the pipeline, retrieved chunks are not strictly nec-
+to error classification that we tested. For each alter-
+                                                          essary here. Finally, if no error is identified in the
+native, we used GPT-4o-mini, the same model as
+                                                          first three stages, we assume the generator caused
+RAGEC above for fair comparison.
+                                                          the error by process of elimination. The LLM is
+B.4.1 Single-step error type classification               prompted to classify the error type given the query,
+The most straightforward approach to error type           ground truth response, generated response, and
+classification is to directly prompt an LLM to out-       reranked chunks.
+put one of the 16 defined error types given all avail-       Stage-sequential error type classification per-
+able contextual information, including the query,         formed better than single-step with 47.5% stage
+ground truth response from the dataset, generated         classification agreement, and 36.3% error-type clas-
+response, retrieved chunks, and reranked chunks.          sification, but this still falls short of RAGEC by
+Consistently with other methods, the 16 error types       a considerable margin. We analysed the perfor-
+are defined and described in the system prompt. We        mance of stage-sequential error type classification
+apply this method directly after the answer evalua-       compared to human annotations and found that it
+tion step of RAGEC, such that the same set of 832         lacked the ability to correctly classify any chunk-
+potential errors from DragonBall are annotated.           ing errors. Without context on the generated re-
+   Compared to RAGEC which achieved 57.8%                 sponse or how chunks were used downstream in
+stage classification agreement, and 40.3% error-          the RAG pipeline, determining that chunking was
+type classification agreement, single-step prompt-        the primary culprit is extremely difficult. This in-
+ing had only 41.1% and 31.1% agreement rates, re-         formed how we designed RAGEC, which also it-
+spectively. Note that stage classification is done        erates over stages sequentially, but in a backward
+implicitly, taking the stage of the modal error type.     fashion, starting from generation and proceeding
+Single-step prompting overloads the LLM with in-          back to chunking. We also provided RAGEC more
+formation which must be digested and synthesized          information for the chunking stage by generating
+in a single shot. Breaking the classification up by       ground truth chunk labels with concept extraction.
+stage helps to guide the LLM’s reasoning towards a
+smaller set of possibilities, potentially with a more     C     Additional Results
+focused collection of contextual information.
+                                                          In this section we present extended results on the
+B.4.2 Stage-sequential error type classification          co-occurrence patterns of error types, which offer
+As above, we begin with the answer evaluation             further insight into the structure and dependencies
+stage of RAGEC to identify which RAG responses            among different failure modes observed in RAG
+need to be classified. After this, we proceed se-         systems beyond what was discussed in Section 5.
+quentially over the stages of the RAG pipeline in
+                                                          C.1    CLAPnq Error Type Distribution
+order, starting with chunking. At each stage, an
+LLM is prompted with context to determine if an           Dataset characteristics can influence the failure
+error occurred at this stage, and if so, which of the     modes of RAG systems. In Table 6, we present the
+error types occurred within that stage. Once the          distribution of the most and second most frequent
+earliest error is identified, the evaluation stops.       error types as identified by RAGEC on the CLAPnq
+                                                      3204
+Table 6: Distribution of most and second most common   Table 7: Distribution of most and second most common
+error types across the CLAPnq dataset.                 error types across the DragonBall-CN dataset.
+
+Error Classification              Mode Second Mode     Error Classification              Mode Second Mode
+E1 Overchunking                       0           0    E1 Overchunking                       1          27
+E2 Underchunking                      0           0    E2 Underchunking                      8          75
+E3 Context Mismatch                   0           0    E3 Context Mismatch                 185           9
+Percentage Chunking                 0%          0%     Percentage Chunking             15.11%      18.32%
+E4 Missed Retrieval                 180          69    E4 Missed Retrieval                 296          19
+E5 Low Relevance                     84          99    E5 Low Relevance                     25          89
+E6 Semantic Drift                     1          16    E6 Semantic Drift                     0           6
+Percentage Retrieval            21.69%      26.10%     Percentage Retrieval            25.00%      18.81%
+E7 Low Recall                        23           1    E7 Low Recall                       378          19
+E8 Low Precision                      1           3    E8 Low Precision                     21         155
+Percentage Reranking             1.96%       0.57%     Percentage Reranking            31.07%      28.71%
+E9 Abstention Failure                 9          23    E9 Abstention Failure                16          15
+E10 Fabricated Content               87         125    E10 Fabricated Content               93          57
+E11 Parametric Overreliance          46          98    E11 Parametric Overreliance           0           7
+E12 Incomplete Answer                51          38    E12 Incomplete Answer                 3           5
+E13 Misinterpretation               607         136    E13 Misinterpretation               213          77
+E14 Contextual Misalignment         112          87    E14 Contextual Misalignment          30          42
+E15 Chronological Inconsistency       4           6    E15 Chronological Inconsistency       4           1
+E16 Numerical Error                  17           4    E16 Numerical Error                  11           3
+Percentage Generation           76.35%      73.33%     Percentage Generation           28.82%      34.16%
+Total                              1222         705    Total                              1284         705
+
+
+
+dataset. Compared to the DragonBall-EN dataset         确保每个Key Point覆盖不同的内容。
+(see Table 2 in Section 5), the CLAPnq error distri-   所有答案必须使用中文进行回答。
+bution is much more heavily weighted towards gen-      示例问题：
+eration errors, with few reranking errors. The lack    新修订的《公司法》有哪些重大变化？
+of chunking errors is because the dataset comes        示例回答：
+pre-chunked with ground truth properly included.       Key Points:
+                                                       1. 修订强化了对公司治理的监管，明确了董
+C.2 DragonBall-CN Error Type Distribution              事会和监事会的具体职责。[12-1]
+                                                       2. 引入了强制性的ESG报告披露要求。[14-2]
+To demonstrate that our method extends to lan-
+                                                       3. 调整了公司资本制度，降低了最低注册资
+guages other than English, we tested our method
+                                                       本要求。[12-1]
+on the Chinese subset of the DragonBall dataset.
+                                                       4. 为 中 小 企 业 引 入 了 专 项 扶 持 措
+Note that the documents and the queries are in Sim-
+                                                       施。[15-1][13-2]
+plified Chinese. As in Table 5, the parameters used
+                                                       Answer:
+for chunking, embedding, retrieval, reranking, and
+                                                       2023年修订的《公司法》引入了几项重大变
+generation are all the same as DragonBall-EN, with
+                                                       化。首先，此次修订强化了公司治理的监管，
+the exception that chunking uses 512 characters in-
+                                                       具体明确了董事会和监事会的职责。[12-1]其
+stead of 128 tokens, which is more suitable for the
+                                                       次，引入了强制性的环境、社会及公司治理
+structure of Chinese. We also express the generator
+                                                       （ESG）报告披露要求。[14-3]此外，修订还
+prompt in Chinese, as listed below:
+                                                       调整了公司资本制度，降低了最低注册资本要
+在此任务中，你需要总结出回答问题所必需                                    求。[12-2]最后，此次修订为中小企业引入了
+的Key Points，并使用这些Key Points来帮助                         专项扶持措施，以促进其发展。[14-2][12-1]
+你回答问题。
+请按以下格式列出Key Points：                                   C.3 Error-types Co-occurrence Analysis
+1. ...
+2. ...                                                To understand whether certain error types tend to
+依 此 类 推 ， 根 据 需 要 增 加 序 号,但 不 超                       appear together, we analyze the relationship be-
+过10个。                                                 tween the mode and second most frequent error
+每个Key Points必须附带引用来源。随后，利                             types for each example for each of the RAG stages.
+用这些Key Points，在“Answer:”之后生成最                           Figure 3 shows the co-occurrence counts be-
+终答案。                                                  tween  generation error types for DragonBall-EN
+最终答案中也要引用来源。                                          and CLAPnq. We observe that Misinterpretation
+                                                   3205
+Figure 3: Joint distribution of first and second mode error categories for the generation stage. Left: Dragonball-EN
+Right: CLAPnq
+
+
+(E13) often co-occurs with Fabricated Content               annotated error type appears in the counts in the fig-
+(E10) and Contextual Misalignment (E14). In-                ure. We find that some specific error types are pre-
+terestingly, for CLAPnq, Misinterpretation (E13)            ferred by humans or RAGEC, such as Missed Re-
+also frequently co-occurs with Parameter Overre-            trieval (E4) which was heavily used by humans, or
+liance (E11), whereas this pattern is not observed          Context Mismatch (E3) which was overrepresented
+in DragonBall-EN. This can be explained by the              in the RAGEC labels.
+fact that CLAPnq queries are natural questions that
+may exist in the model’s parametric knowledge ac-           D    AI assistant usage
+quired during pre-training, while DragonBall con-           In this research, we used ChatGPT to assist paper
+tains domain-specific queries that are unlikely to          editing, literature search, and Github Copilot for
+appear in the pre-training data.                            coding assistance.
+   Despite both datasets exhibiting significant χ2
+test results, we observe a notable difference in the
+density of their error co-occurrence patterns. The
+contingency table for the DragonBall-EN dataset
+is considerably sparser, indicating that error types
+tend to co-occur in fewer, more specific combina-
+tions. In contrast, the CLAPnq dataset presents a
+denser co-occurrence matrix, with a wider variety
+of error type pairs appearing more frequently. This
+difference may reflect that CLAPnq surfaces more
+complex and intertwined error patterns, reinforc-
+ing the need for fine-grained diagnostic evaluation
+across diverse RAG applications.
+
+C.4 Detailed Error Classification Results
+Detailed error classification results comparing
+RAGEC to human annotations are shown in Fig-
+ure 4. For RAGEC, we show the most frequent
+error type out of the K = 10 repeated LLM calls
+per query. Note that humans sometimes annotated
+more than one error type for a single query (though
+only from a single stage), and did not indicate an
+ordering between types. In such cases, each human
+                                                       3206
+Figure 4: Joint distribution of RAGEC auto-evaluation error type classifications and human annotations for
+DragonBall-EN
+
+
+
+
+                                                  3207
+

@@ -1,0 +1,214 @@
+diff --git a/dagbt/webwalker_browser.py b/dagbt/webwalker_browser.py
+index ffd6455..e78e209 100644
+--- a/dagbt/webwalker_browser.py
++++ b/dagbt/webwalker_browser.py
+@@ -149,7 +149,7 @@ class PageParser(HTMLParser):
+                 region = ('template_ui' if re.search(r'\[#.*?#\]|\{\{.*?\}\}|<%.*?%>',
+                                                     self.anchor['href'] + ' ' + label)
+                           else self.anchor['region'])
+-                self.anchor_contexts.append({'url': url, 'region': region,
++                self.anchor_contexts.append({'url': url, 'text': label, 'region': region,
+                                              'raw_start': self.anchor.get('text_raw_start', self.anchor['raw_start'])})
+             except ValueError:
+                 pass
+@@ -245,6 +245,10 @@ class PageParser(HTMLParser):
+             if old is None or (candidate['region'] in ('main', 'content')
+                                and old['region'] not in ('main', 'content')):
+                 contexts[anchor['url']] = candidate
++                # The label and coordinates must describe the same actual
++                # occurrence, rather than combining a menu label with a body
++                # occurrence of that URL. Replacing a value keeps URL order.
++                unique[anchor['url']] = {'url': anchor['url'], 'text': anchor['text']}
+         return {'title': ' '.join(''.join(self.title).split()), 'text': text,
+                 'links': list(unique.values()), 'text_regions': regions, 'link_contexts': contexts}
+ 
+@@ -474,16 +478,17 @@ class WebBridge:
+         return {'local_candidate_ids': ids, 'candidate_ids': list(self.pages), 'trace': trace}
+ 
+     def _observed_links(self, state, premise_doc_ids=()):
+-        links, seen = [], set()
++        links, positions = [], {}
+         order = list(dict.fromkeys([*reversed(state['delivered']), *premise_doc_ids, *reversed(self.pages)]))
+         for doc_id in order:
+             page = self.pages[doc_id]
+             for link in page['document']['links']:
+                 url = link['url']
+-                if url in self.url_ids or url in self.failed or url in state['skipped'] or url in seen:
++                if url in self.url_ids or url in self.failed or url in state['skipped']:
+                     continue
+-                seen.add(url)
+-                record = {'id': 'l' + str(len(links)), 'source_doc_id': doc_id, **link}
++                position = positions.get(url)
++                record = {'id': 'l' + str(len(links) if position is None else position),
++                          'source_doc_id': doc_id, **link}
+                 context = page['document'].get('link_contexts', {}).get(url)
+                 if context:
+                     title = self.e.docs[doc_id].title
+@@ -493,7 +498,16 @@ class WebBridge:
+                     record['source_region'] = context['region']
+                     record['source_context'] = {'start': start, 'end': end,
+                                                 'text': self.e.docs[doc_id].passage[start:end]}
+-                links.append(record)
++                if position is None:
++                    positions[url] = len(links)
++                    links.append(record)
++                elif (record.get('source_region') in ('main', 'content')
++                      and links[position].get('source_region') not in ('main', 'content')):
++                    # A recently visited global menu must not hide an older
++                    # body occurrence. Keep the URL's frontier position/alias
++                    # and replace its complete provenance together. Ties keep
++                    # the existing page order; no query relevance is inferred.
++                    links[position] = record
+         return links
+ 
+     def has_unvisited_links(self, node_id, identity=None):
+diff --git a/dagbt/webwalker_reading.py b/dagbt/webwalker_reading.py
+index 8055e2f..a361d58 100644
+--- a/dagbt/webwalker_reading.py
++++ b/dagbt/webwalker_reading.py
+@@ -224,6 +224,8 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         self._selected_web_paid_recovery = None
+         self._active_web_paid_recovery = None
+         self.web_navigation_reads = []
++        self._web_navigation_nonempty_slots = {}
++        self._web_navigation_exposure_batches = {}
+         self.web_single_shot_reads = []
+         self.web_source_attempts = []
+         self._selected_web_single_shot = None
+@@ -235,6 +237,8 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         self._active_web_paid_recovery = None
+         self._selected_web_single_shot = None
+         self._active_web_single_shot = None
++        self._web_navigation_nonempty_slots = {}
++        self._web_navigation_exposure_batches = {}
+         first_gap, first_batch = len(self.web_search_gaps), len(self.batches)
+         first_exposure = len(self.source_exposures)
+         try:
+@@ -248,25 +252,35 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+ 
+     def _accept_navigation_reads(self, first_gap, first_batch, first_exposure):
+         """Archive completed empty slots as navigation hints, never facts."""
+-        for batch in self.batches[first_batch:]:
+-            # Valid rows accumulate across all attempts in the common reader.
+-            # A final empty repair cannot turn an earlier frozen partial/fact
+-            # into an empty batch. Conservatively suppress mixed-slot feedback.
+-            if not batch.get('complete') or batch.get('valid_rows') != 0:
++        for batch_index, batch in enumerate(self.batches[first_batch:], first_batch):
++            if not batch.get('complete'):
+                 continue
+-            source_ids = {self.e.mapper.sources[alias]['source_id']
+-                          for alias in batch.get('visible_source_aliases', [])}
+-            matching = [exposure for exposure in self.source_exposures[first_exposure:]
++            matching = [exposure for index, exposure in enumerate(
++                            self.source_exposures[first_exposure:], first_exposure)
+                         if exposure['query_identity'] == batch['identity']
+-                        and {source['source']['source_id'] if 'source' in source else source['source_id']
+-                             for source in exposure['sources']} == source_ids]
+-            if not matching or matching[-1].get('request_status') != 'returned':
+-                continue
+-            final_call = matching[-1]['logical_call_index']
++                        and self._web_navigation_exposure_batches.get(index) == batch_index]
+             for gap in self.web_search_gaps[first_gap:]:
+-                if (gap['query_identity'] != batch['identity']
+-                        or set(gap['source_ids']) != source_ids
+-                        or gap['logical_call_index'] != final_call):
++                if gap['query_identity'] != batch['identity']:
++                    continue
++                # Repairs request only failed variables. Another slot's later
++                # repair does not replace this slot's already completed read.
++                slot_exposures = [exposure for exposure in matching
++                                  if gap['variable'] in exposure['variables']]
++                if (not slot_exposures
++                        or slot_exposures[-1].get('request_status') != 'returned'
++                        or gap['logical_call_index'] != slot_exposures[-1]['logical_call_index']
++                        or gap['request_identity'] != slot_exposures[-1]['request_identity']):
++                    continue
++                source_ids = {source['source']['source_id'] if 'source' in source else source['source_id']
++                              for source in slot_exposures[-1]['sources']}
++                if set(gap['source_ids']) != source_ids:
++                    continue
++                # Valid/frozen rows and unresolved drafts accumulate within a
++                # slot across repairs. Its final empty response cannot relabel
++                # that work as an empty read; successful other slots may still
++                # supply their own independent navigation hints.
++                if any(gap['variable'] in self._web_navigation_nonempty_slots.get(
++                        exposure['logical_call_index'], set()) for exposure in slot_exposures):
+                     continue
+                 record = {**deepcopy(gap), 'doc_ids': list(dict.fromkeys(
+                     source['doc_id'] for source in self.e.mapper.sources.values()
+@@ -461,6 +475,12 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         # Frozen rows are established after the canonical payload is built.
+         # Add a lossless wire-only description; this grants no review offers.
+         wire_data = deepcopy(data)
++        wire_data.pop('web_reading_protocol_diagnostics', None)
++        diagnostics = self._source_reference_repair_diagnostics(wire_data)
++        if diagnostics:
++            wire_data['web_reading_protocol_diagnostics'] = {
++                'read_only': True, 'grants_review_authority': False,
++                'repair_edit_scope_unchanged': True, 'errors': diagnostics}
+         if (self._search_gap_scope(wire_data)
+                 and wire_data.get('repair_scope', {}).get('frozen_observation_ids')):
+             scope = wire_data['repair_scope']
+@@ -479,6 +499,37 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+                 'historical_marker_authorization_unchanged': True, 'slots': edits}
+         return super()._wire_candidates(wire_data)
+ 
++    @staticmethod
++    def _source_reference_repair_diagnostics(data):
++        """Explain a current Web rejection without changing its captured draft.
++
++        Invalid typed Web slots intentionally reach the common reader intact,
++        which captures named/counter drafts before reporting a malformed slot.
++        Recover only the missing source-reference detail for the repair wire;
++        this is neither a second validator nor a review or edit permission.
++        """
++        if not WebJointReader._search_gap_scope(data):
++            return []
++        errors = []
++        for failure_index, failed in enumerate(data.get('repair_scope', {}).get('failed', [])):
++            slot = failed.get('slot')
++            if (not isinstance(slot, dict) or slot.get('reading_status') != 'evidence_assessment'
++                    or not isinstance(slot.get('observations'), list)):
++                continue
++            for observation_index, row in enumerate(slot['observations']):
++                if not isinstance(row, dict):
++                    continue
++                sources = row.get('source_ids')
++                if (not isinstance(sources, list) or not sources
++                        or any(not isinstance(source, str) or not source for source in sources)):
++                    errors.append({
++                        'variable': slot.get('variable'), 'observation_id': row.get('id'),
++                        'path': (f'repair_scope.failed[{failure_index}].slot.'
++                                 f'observations[{observation_index}].source_ids'),
++                        'error': ('evidence_assessment requires a non-empty list of '
++                                  'non-empty original-source alias strings.')})
++        return errors
++
+     @staticmethod
+     def _search_gap_scope(data):
+         return (data.get('task', {}).get('execution') == 'retrieval'
+@@ -1032,6 +1083,10 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+             self._selected_web_paid_recovery = None
+             selection['status'] = 'started'
+             self.e.event({'event': 'web_paid_recovery_started', **deepcopy(selection)})
++        # Batch completion appends its diagnostic only after every local repair.
++        # This private index therefore groups all of one batch's exposures even
++        # when a failed-slot repair narrows its original-source closure.
++        self._web_navigation_exposure_batches[len(self.source_exposures)] = len(self.batches)
+         try:
+             raw = super()._request_with_exposure(operation, data, identity, wire, system, **options)
+         except BaseException:
+@@ -1048,6 +1103,13 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+             self._active_web_paid_recovery['status'] = 'response_received'
+         if self._active_web_single_shot is not None:
+             self._active_web_single_shot['status'] = 'response_received'
++        slots = raw.get('slots', []) if isinstance(raw, dict) else []
++        self._web_navigation_nonempty_slots[self.e.reasoner.sequence] = {
++            slot['variable'] for slot in slots if isinstance(slot, dict)
++            and isinstance(slot.get('variable'), str) and slot['variable'] in data['variables']
++            and any(slot.get(field) for field in ('observations', 'unresolved',
++                'resolved_obligation_ids', 'resolved_failed_batch_ids', 'reviewed_observation_ids'))
++        } if isinstance(slots, list) else set(data['variables'])
+         # Ordinary unresolved issues have no observation draft IDs. Retain
+         # their source scope even if an outer/duplicate-slot error is repaired
+         # by an empty response. Valid envelopes produce the same obligation ID

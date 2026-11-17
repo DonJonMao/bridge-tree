@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator.\n\n[Passage {\"doc_id\": \"hotpotqa:9572\", \"source_id\": \"hotpotqa:9572\"}]\nThe Babymakers\nThe Babymakers is a 2012 American comedy film directed by Jay Chandrasekhar, and starring Paul Schneider, Olivia Munn and Kevin Heffernan. Chandrasekhar and Heffernan are both members of Broken Lizard. The film received a limited release on August 3, 2012 in theaters and on video on demand services. It received a DVD and Blu-ray release September 18, 2012."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "201",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599252.378208,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599253.516254
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0005773161901702686
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 660,
+      "completion_tokens": 2,
+      "total_tokens": 662
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

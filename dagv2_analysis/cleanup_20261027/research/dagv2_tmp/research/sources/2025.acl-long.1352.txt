@@ -1,0 +1,858 @@
+    GRAT: Guiding Retrieval-Augmented Reasoning through Process Rewards
+                               Tree Search
+
+                                       Xianshu Peng1 , Wei Wei1 *
+     1
+         School of Computer Science & Technology, Huazhong University of Science and Technology
+                                    {xspeng, weiw}@hust.edu.cn
+
+
+
+                               Abstract                                            Question                          Question
+                                                                                 Decomposition                     Decomposition
+
+              Enhancing large models for complex multi-                                0                                     0
+              hop question-answering has become a research
+              focus in the Retrieval-augmented generation                              1                           1                 4
+
+              (RAG) area. Many existing approaches aim to
+              mimic human thought processes by enabling                                2                     2           3               5
+
+              large models to perform retrieval-augmented                      Reasoning Process                 Reasoning Process
+              generation step by step. However, these meth-                        with RAG                          with RAG
+
+              ods can only perform single chain reasoning,                     Where was the wife of              Where was the wife of
+                                                                          0   Alexander Pollock Moore    0       Alexander Pollock Moore
+              which lacks the ability for multi-path explo-                           born?                              born?
+              ration, strategic look-ahead, stepwise evalua-
+              tion, and global selection. In addition, to ef-
+                                                                               Where was Alexander               Who is Alexander Pollock
+              fectively decompose complex problems, these                 1    Pollock Moore born?       4            Moore's wife?
+                                                                                                                  Answer: Lillian Russell
+              methods can only rely on labor-intensive inter-                   Answer: Pittsburgh
+
+              mediate annotations for supervised fine-tuning.
+              To address these issues, we propose GRAT, an                    Who is Alexander Pollock           Where was Lillian Russell
+                                                                          2                                              born?
+              algorithm guided by Monte Carlo Tree Search                          Moore's wife?
+                                                                               Answer: Lillian Russell
+                                                                                                         5
+                                                                                                                  Answer: Clinton, Iowa
+              (MCTS) and process rewards. GRAT not only
+              enables self-evaluation and self-correction but
+                                                                                        A                                        B
+              also assigns fine-grained rewards to each in-
+              termediate step in the search path. These fine-
+              grained annotations can be used for model self-      Figure 1: A illustrates the process of linearly decompos-
+              training, which enables GRAT to continuously         ing a multi-hop problem step by step. It can be observed
+              self-update its problem analysis and reasoning       that any error in the intermediate steps will lead to an
+              capabilities. We conducted experiments on four       incorrect final answer. In contrast, B demonstrates the
+              multihop QA datasets: HotPotQA, 2WikiMul-            use of a tree-based search approach. Since the model
+              tiHopQA, MuSiQue, and Bamboogle, demon-              possesses self-evaluation and exploration capabilities, it
+              strating that GRAT outperforms various RAG-          can abandon erroneous paths and select the correct one.
+              based methods. Additionally, incorporating
+              self-training significantly enhances GRAT’s
+              reasoning performance. 1
+                                                                   ral language questions makes it difficult to decom-
+                                                                   pose them. On the other hand, answering multi-
+    1         Introduction
+                                                                   hop questions requires a rigorous reasoning pro-
+    In recent years, retrieval-augmented generation                cess and the ability to interact continuously with
+    (RAG) has emerged as a key approach to address-                external knowledge bases. Many methods have
+    ing factual errors and hallucinations (Mallen et al.,          been proposed to solve complex multi-hop prob-
+    2023; Min et al., 2023), as it provides up-to-date             lems: Self-Ask (Press et al., 2023) generates sub-
+    information for knowledge-intensive tasks (Chen,               questions step by step through self-questioning.
+    2017; Petroni et al., 2021). However, for com-                 IRCoT (Trivedi et al., 2023) interleaves retrieval
+    plex multi-hop questions, directly using RAG is                with CoT generation to improve reasoning. LPKG
+    challenging. On one hand, the complexity of natu-              (Wang et al., 2024) trains the model to parse the
+                                                                   original complex question into different templates.
+          *     Corresponding author.
+          1
+              https://github.com/pxspxspxs1/grat                        However, these methods are limited to linear,
+                                                                27861
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 27861–27875
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+left-to-right decision-making processes during in-      question-answering task T = {⟨q, a⟩}, where q
+ference, making it difficult to explore and perform     represents a question and a represents the corre-
+strategic look-ahead for complex problems. At the       sponding answer. A retrieval-augmented gener-
+same time, these methods lack the ability to self-      ation (RAG) model first retrieves relevant docu-
+evaluate and correct errors. If a mistake occurs in     ments from a knowledge base D using a retriever
+an intermediate step, it will lead to an incorrect      R and then leverages them for answer generation.
+final answer (Figure 1 A). Moreover, existing meth-     The process can be expressed as follows:
+ods tend to focus only on historical information
+during reasoning, lacking exploration and evalua-                       y = M (q, R(q, D))                (1)
+tion of future steps. Additionally, due to the lack
+of supervised training for intermediate reasoning       where y denotes the answer generated by the model
+steps, models struggle to accurately decompose          based on the documents retrieved by R that are
+complex questions. Nevertheless, high-quality su-       relevant to the question q.
+pervision data for intermediate steps requires costly      In many previous works, the retrieval-
+annotation, making it difficult to collect.             augmentation process in this procedure is
+   To address the above issues, we propose GRAT         performed only once, making it difficult to
+(Figure 1 B), a method that: (1) Leverages the          answer questions that require multi-step rea-
+Monte Carlo Tree Search (MCTS) algorithm to ex-         soning. Given a complex multi-hop question
+plore the vast search space while self-evaluating       qm , answering it requires a series of reasoning
+each histroy reasoning step and future steps. It can    steps T = {t0 , t1 , . . . , tn }, where each sub-step
+select the most promising reasoning path within         ti = (qi , ai ) consists of a sub-question qi and a
+the constructed tree structure, allowing for the cor-   sub-answer ai . During the reasoning process, the
+rection of erroneous exploration directions. (2)        sub-question qi is often related to the sub-answer
+Utilizes fine-grained process rewards generated by      ai−1 from the previous step (Figure 1 B). There-
+GRAT to provide supervision signals for each step       fore, coherent multi-step retrieval-augmented
+of the reasoning process. We collect the correct rea-   generation will be key to answering such complex
+soning paths generated by GRAT as training data         questions.
+to perform self-training on the reasoning model,        2.2   Multi-hop Question Inference and
+enhancing its ability to analyze complex questions.           Reasoning Model
+Through this unsupervised training approach, the
+reasoning model can continuously refine its ability     According to the introduction in Section 2.1, we
+to parse complex problems, and this self-update         assume that the model M used for inference should
+capability is challenging for previous methods. (3)     accomplish two tasks: (1) generating next sub-
+Introduces a single-step simulation approach to ef-     questions and (2) answering the sub-questions. In
+ficiently complete rollouts, allowing the model to      practice, M can be instantiated using different pre-
+focus on future reasoning steps at the same time.       trained autoregressive models. Therefore, the gen-
+                                                        eration of sub-questions can be expressed as
+   We conducted various experiments on four
+datasets: HotPotQA (Yang et al., 2018), 2Wiki-
+                                                                        qi = M (T0:i−1 , q)               (2)
+MultiHopQA (Ho et al., 2020), MuSiQue (Trivedi
+et al., 2022), and Bamboogle (Press et al., 2023),      And the answering of sub-questions can be ex-
+demonstrating the effectiveness of our approach.        pressed as
+Additionally, we applied fine-tuning to self-train
+GRAT with the generated data. The experimental                         ai = M (qi , R(qi , D))            (3)
+results show that GRAT achieves excellent perfor-
+mance in solving complex multi-hop problems both        where (2) represents generating a new sub-question
+before and after training.                              based on the history reasoning steps T0:i−1 and
+                                                        the original question q. (3) represents generating
+2   Method                                              the sub-answer based on the sub-question and the
+                                                        knowledge retrieved using the sub-question. As-
+2.1 Problem Setup                                       suming the reasoning policy is π, our goal is to find
+We first define this problem. Assume there is a         the optimal performance of the following expres-
+language model M designed for a downstream              sion (4) in order to solve the multi-hop question.
+                                                   27862
+                                        Question: Where was the
+                                        wife of Alexander Pollock
+                                                                            Previous            ...
+                     value:                                                  steps
+                        0                     Moore born?
+
+                                                  Step1
+                                         Who is Alexander Pollock              sub-
+                                                                             question
+                                                                                         Where was Lillian
+                                              Moore's wife?
+                                        Sub Answer: Lillian Russell         generation    Russell born?
+                              value:
+                               0.25
+                                                                                                             self-training
+                                                Step2
+                                        Where was Lillian Russell           Answer
+                                                born?                         sub-        Clinton, Iowa
+                       value:           Sub Answer:Clinton, Iowa
+                        0.5                                                 question
+
+                                                   Step3
+                                         what is the final answer ?
+                                          Sub Answer: The wife of
+                                       Alexander Pollock Moore was             self-        Value :0.6
+           value:                                                           evaluation
+            1.0
+                                           born in Clinton, Iowa.
+                                                                                                             ...
+                                                  A                                                                    B
+
+
+
+Figure 2: (1) Figure A illustrates the search process of GRAT. On the left, the constructed search tree is shown,
+where the path s0 → s3 → s4 → s5 represents the final correct reasoning path. The figure presents each step’s
+sub-question and its corresponding answer. On the right, the processing details for completing step s4 are depicted.
+(2) Figure B demonstrates the self-training process of GRAT, where the model selects the correct reasoning path for
+self-update.
+
+
+The tuple (t0 , t1 , . . . , tK ) represents the generated                      next sub-question, retrieving external knowledge to
+reasoning path, while a∗ denotes the ground truth                               answer the sub-question, and forming a new state.
+answer.                                                                            Our MCTS-based model evaluates and scores
+                                                                                the reasoning path based on the current reason-
+  Pπ (y = a∗ | q) = E(t0 ,t1 ,...,tK )∼Pπ (T |q)                                ing step and the future simulation results. It then
+                                                                                selects more valuable paths according to the evalua-
+                    [P (y = a∗ | t0 , t1 , . . . , tK , q)] (4)
+                                                                                tion scores, balancing exploitation and exploration,
+                                                                                and efficiently finding high-reward reasoning paths.
+2.3 Evaluation Model
+                                                                                The algorithm will perform multiple iterations until
+The purpose of the evaluation model is to self-                                 a computational budget is reached. The following
+assess the feasibility of the already generated rea-                            part will introduce the components of the algo-
+soning path. This helps the model evaluate whether                              rithm.
+the current reasoning step can help to solve the                                   Selection. The first phase is the selection phase,
+original question, thereby selecting a path more                                where the search begins from the root node (s0 in
+likely to lead to the correct solution. The evalua-                             figure 2 A). In each selection iteration, the next
+tion model is represented as E, which can either be                             node is chosen based on the children’s values, in
+instantiated with the same model as the reasoning                               order to identify more promising nodes for the next
+model or with a new model. It is expressed as:                                  expansion step. The selection phase ends when
+                                                                                a leaf node is reached. During this process, we
+                        vi = E(Ti , q)                                (5)       follow the method of Zhang et al. (2024), using
+                                                                                UCB (Upper Confidence Bound) to select nodes,
+where the input consists of the current reasoning                               balancing exploitation and exploration, which is as
+path Ti and the original problem q, and vi repre-                               follows:
+sents the value of the current branch.
+                                                                                                               s
+                                                                                                                  2 · ln nparent
+2.4 Monte Carlo Tree Search based RAG                                              U CB(child) = vchild + w                       (6)
+                                                                                                                       nchild
+In the process of complex problem answering, we
+use Monte Carlo Tree Search (MCTS) to progres-                                  Here, vchild represents the value of the child node,
+sively decompose the problem. It constructs a tree-                             while nparent and nchild represent the number of
+like reasoning framework, where each node rep-                                  times the parent and child nodes have been visited,
+resents the state, which contains the completed                                 respectively. w is a constant used to control the
+history reasoning paths from root. And the transi-                              weight between exploitation and exploration. Dur-
+tion from one node to another represents an action,                             ing selection, the child node with the highest UCB
+which includes the following steps: generating the                              value is chosen each time. This approach allows
+                                                                       27863
+for selecting the most valuable child node while         the visit count of all nodes along this path needs
+also balancing the exploration of unknown nodes.         to be updated as ni = ni + 1. At the same time,
+   Expansion. After the selection phase is com-          since the value of the child node has changed, the
+pleted, the current node is an unexplored leaf node.     value of its parent node should also change. Thus,
+Given the current node’s state si , the reasoning        we perform a backward update of the values of the
+model will generate d new actions, which are the         nodes along this path, starting from the leaf node:
+next sub-questions qi+1 = M (T0:i , q). Once the                              Pd
+sub-question is obtained, the retriever R is called                              i=1 nchildi · vchildi
+                                                                  vparent =       Pd                       (8)
+to retrieve documents related to the sub-question.                                   i=1 nchildi
+These documents, along with the sub-question, are        Here, d represents the number of child nodes, nchild
+then fed back into the reasoning model to generate       represents the number of times the child node has
+the sub-answer: ai+1 = M (qi+1 , R(qi+1 , D)).           been visited, and vchildi represents the value of the
+   After completing the above steps, our method          child node.
+will invoke the evaluation model E in 2.3 to self-          Final answer generation. When the computa-
+assess the newly generated child node. It is im-         tional budget is reached, or the search is prema-
+portant to note that we set a threshold l (0.9 in        turely terminated, the process will move to the final
+the experiment), and if the evaluation score ex-         answer generation stage. If the computational bud-
+ceeds l, the search will be prematurely termi-           get is reached, we start from the root node and use
+nated. Finally, we generate d new child nodes            a greedy strategy to find the highest-value path as
+    1 , a1 , v 1 ), ..., (q d , ad , v d )}.
+{(qi+1    i+1 i+1            i+1 i+1 i+1          The    the final answer path T ∗ . If the value of a node ex-
+complete expansion process is shown in Figure            ceeds the threshold l, leading to early termination,
+2 A.                                                     the path containing that node will be taken as the
+   Simulation. The simulation phase is designed          answer path T ∗ . Then, this answer path is input
+to evaluate the expected future rewards, providing       into the reasoning model to generate the final an-
+an assessment of the current node’s value from a         swer, as shown in equation (9). Here, y represents
+future perspective. After expansion, we select the       the final predicted answer.
+child node with the highest value for simulation.
+Previous methods, such as those in Hao et al. (2023)                        y = M (T ∗ , q)                (9)
+and Zhou et al., have used iterative generation and
+evaluation rollout methods, but these approaches         2.5   Reasoning model self-training
+incur significant generation and time costs. There-      In order for the model to generate more reasonable
+fore, we use a one-step rollout approach, where the      reasoning paths, we can use the generated correct
+reasoning model generates all the subsequent sub-        reasoning paths as training data to fine-tune the
+questions at once, retrieves the relevant documents,     reasoning model (Figure 2 B). We filter the paths
+and then answers the original question based on          based on the correctness of the predicted answers
+the documents. Finally, all the reasoning steps are      and the value of the reasoning paths, selecting the
+input into the evaluation model to assess the value      paths with correct answers while also having higher
+of this path. Assuming the value of the node being       values as the training data. Let the original training
+rolled-out is vi , and the evaluation value obtained     dataset be Dtrain , where (q, a∗ ) ∈ Dtrain . By
+after simulation is vi′ , we use formula (7) to update   filtering the training data, we obtain the supervised
+the the original value of the node. At this point,       fine-tuning dataset: (q, a∗ , T, D) ∈ DSFT , where
+the updated value of the node takes into account         each data entry contains a reasoning path T that
+both the historical reasoning path and the future        leads to the correct answer and a set of documents
+reasoning path.                                          D relevant to each sub-question. During training,
+                                                         we use the standard supervised fine-tuning method
+             vi = vi · (1 − α) + vi′ · α          (7)    and the following loss function:
+                                                                               N
+Where α represents the parameter that controls the                         1 X
+update.                                                            L=−         logP (ri |h, r<i )         (10)
+                                                                           N
+                                                                               i=1
+  Back-propagation. When simulation is com-
+pleted, every node from the root to the leaf node        Here, h is the input, which consists of the concate-
+with simulation has been visited once. Therefore,        nation of information such as the question, sub-
+                                                    27864
+paths, documents, and prompts. r represents the         ing over complex problems. We use Breadth-First
+target output, and N denotes the length of r.           Search (BFS) as the search algorithm. For effi-
+                                                        ciency reasons, we set the maximum depth to 4
+3   Experiments                                         and the width to 3. (4) InstructRAG (Wei et al.,
+                                                        2024): This method leverages the reasoning abil-
+3.1 Experimental Setting
+                                                        ity of LLMs to filter out the necessary documents
+Datasets. To evaluate the ability of different mod-     for inference through self-synthesized rationales
+els to answer complex questions, we selected four       and generates a reasoning path. It also requires re-
+complex question answering datasets: (1) Hot-           trieving external knowledge. (5) ActiveRAG (Xu
+PotQA (Yang et al., 2018), (2) 2WikiMultiHopQA          et al., 2024): This approach mimics human learn-
+(Ho et al., 2020), (3) MuSiQue (Trivedi et al.,         ing through a multi-agent framework, enabling it
+2022), and (4) Bamboogle (Press et al., 2023).          to comprehend retrieved knowledge from multiple
+Among these datasets, HotPotQA, 2WikiMulti-             perspectives and complete the reasoning process.
+HopQA, and MuSiQue include training, valida-
+tion, and test sets, while Bamboogle is a smaller       3.2     Main Results
+dataset consisting of only 125 test examples. All       Table 1 provides the main results of our exper-
+four datasets require reasoning over multiple differ-   iments: Firstly, it can be observed that, as the
+ent Wikipedia paragraphs to answer the questions.       model parameters increase, the overall ability of
+Following Wang et al. (2024) and Shao et al. (2023),    the model to solve complex problems improves.
+we randomly selected 500 samples from the Hot-          Additionally, using external retrieval significantly
+PotQA, 2WikiMultiHopQA, and MuSiQue datasets            outperforms methods that do not rely on retrieval.
+for testing. For Bamboogle, we used all 125 test        Specifically, for Llama3-Instruct-8B, Qwen2.5-
+examples. To ensure fair comparison, all methods        Instruct-14B, and Llama3-Instruct-70B, the With
+employed a simple sparse retrieval method: BM25         Retrieval method achieves an average improvement
+(Robertson and Walker, 1994), which is a classic        of 35.4%, 51.7%, and 6.8% over the No Retrieval
+method based on term frequency statistics.              method respectively, across the four datasets.
+   Evaluation metrics. Following Wei et al.                Our model, GRAT, outperforms baseline mod-
+(2024), we use accuracy (acc) as the evaluation         els on the 2WikiMultiHopQA, HotPotQA, and
+metric, which measures whether the ground-truth         MuSiQue datasets when using Llama3-Instruct-8B,
+answers are included in the model generations           Qwen2.5-Instruct-14B, and Llama3-Instruct-70B
+(Mallen et al., 2023,Schick et al., 2023).              as backbone models. Specially, on the 2WikiMul-
+   Baselines. We used a total of five large language    tiHopQA dataset, GRAT achieves improvements
+models with different parameter sizes as both the       of 4.8%, 7.3%, and 17.5% over the second-best
+reasoning model and evaluation model (they are          model across the three different backbone settings.
+instantiated using the same model in our setup).        However, on the Bamboogle dataset, our method
+These models include DeepSeek-R1(DeepSeek-AI            does not surpass all baseline models, which may
+et al., 2025), GPT-3.5-turbo (Ouyang et al., 2022),     be due to the limited dataset size (only 125 test
+Llama3-Instruct-8B (AI@Meta, 2024), Qwen2.5-            samples). Nevertheless, GRAT still demonstrates
+Instruct-14B (Yang et al., 2024), and Llama3-           competitive performance.
+Instruct-70B(GPTQ INT4).                                   Additionally, we compare our approach with
+   We use the following methods as baseline mod-        the latest LLMs accessible via their APIs, such
+els: (1) No Retrieval: This approach directly uti-      as GPT3.5-Turbo2 and DeepSeek-R13 . Notably,
+lizes the backbone LLM for reasoning without re-        GRAT only based on Llama3-Instruct-8B can sig-
+lying on external knowledge. It solely depends on       nificantly outperform GPT-3.5-Turbo (both No Re-
+the model’s internal knowledge and reasoning ca-        trieval and With Retrieval) and achieves perfor-
+pabilities. (2) With Retrieval: In this approach,       mance comparable to DeepSeek-R1. Using a back-
+the model retrieves relevant documents from the ex-     bone model with a larger number of parameters
+ternal knowledge base using the given question and      will achieve better results. These results demon-
+then uses the backbone LLM to perform reasoning         strate that our method is highly effective in tackling
+grounded in these retrieved documents. (3) ToT          complex multi-hop reasoning tasks.
+(Yao et al., 2023): The Tree of Thoughts method            2
+                                                               https://platform.openai.com
+is an approach that uses a tree structure for reason-      3
+                                                               https://platform.deepseek.com
+
+                                                   27865
+Table 1: Performance of GRAT and other baselines on the four datasets, with the best values highlighted in bold.
+
+     Method                 Model                                             Datasets
+
+                                                2MultiHopQA         HotPotQA        Bamboogle         MuSiQue
+   No Retrieval          DeepSeek-R1                 53.2              45.4              61.6           22.2
+   No Retrieval                                      32.8              33.6              33.6           9.4
+                            GPT-3.5
+   With Retrieval                                    38.0              42.4              15.2            9.6
+   No Retrieval                                      30.4              22.8              15.2           4.8
+   With Retrieval                                    36.2              38.4              15.2            7.4
+        ToT           Llama3-Instruct-8B             57.8              49.4              32.8           18.4
+ InstructRAG-ICL                                     51.4              51.4              32.0           15.2
+    ActiveRAG                                        53.2              51.2              45.0           15.8
+       GRAT                                          60.6              50.2              32.8           20.2
+   No Retrieval                                      30.0              24.8              28.8           6.8
+   With Retrieval                                    46.4              46.2              24.0           12.4
+        ToT          Qwen2.5-Instruct-14B            60.2              57.8              46.4           22.2
+ InstructRAG-ICL                                     53.4              53.0              45.6           18.8
+    ActiveRAG                                        58.8              56.8              52.0           22.6
+       GRAT                                          64.6              60.0              40.8           25.8
+   No Retrieval                                      33.2              31.8              33.6           8.0
+   With Retrieval                                    34.8              41.8              27.2            9.8
+ InstructRAG-ICL     Llama3-Instruct-70B             60.4              59.6              50.4           24.2
+    ActiveRAG                                        64.0              58.0              59.0           26.6
+       GRAT                                          75.2              61.8              52.0           29.2
+
+
+3.3 Self-Training                                         Table 2: Performance of GRAT and InstructRAG before
+                                                          and after self-training on the 2MultiHopQA dataset. The
+As mentioned in Section 2.5, we use GRAT to per-          backbone model is Llama3-Instruct-8B.
+form reasoning and constructing a search tree, and
+score each sub-path, which can generate reason-                      Method                       Datasets
+ing paths with process rewards. We then select
+                                                                                                2MultiHopQA
+the highest-scoring path among all correct paths
+                                                             InstructRAG(No Training)               51.4
+into training dataset while filtering out noisy paths
+                                                                GRAT(No Training)                   60.6
+(e.g., those where the output contain "No relevant
+                                                            InstructRAG(With Training)              59.4
+information found in the document"). We gener-                 GRAT(With Training)                  66.8
+ate training data using the train set of 2WikiMulti-
+HopQA, ensuring that the data for generating does
+not overlap with the test set. In our experiments,        can significantly enhance the model’s reasoning
+we generate a total of 11,459 training samples and        and comprehension abilities. Additionally, GRAT
+use Llama3-Instruct-8B as the reasoning model,            (With Training) outperforms InstructRAG (With
+applying LoRA for instruction fine-tuning. We             Training) by 12.5%, demonstrating that our model
+use InstructRAG as baseline, which includes both          still achieves better performance than baselines af-
+an In-Context Learning version (No Training) and          ter training.
+a Fine-Tuning version (With Training). For the
+fine-tuning version, we used the publicly available       3.4   Influence of Computational Budget
+model weights provided by Wei et al. (2024) for           Next, we experimented to find the impact of the
+testing. The final results are shown in Table 2.          search iterations on the accuracy of the responses.
+   From the results in Table 2, we can observe that       One search iteration means starting from the root
+both InstructRAG and GRAT show significant im-            node and sequentially completing selection, expan-
+provement after training. GRAT achieves an in-            sion, simulation, and back-propagation. We set
+crease of 10.2% compared to the performance of            the computational budget from 1 to 10 and used
+its No-training version, indicating that self-training    Llama3-Instruct-8B as both the reasoning and eval-
+                                                    27866
+                                                               • w/o Retrieval: This removes the retrieval mod-
+                                                            ule in GRAT, meaning the model can rely solely on
+                                                            its reasoning ability and internal knowledge during
+                                                            reasoning. For comparison, we also present a base-
+                                                            line, Base(No Retrieval), in Table 3, where the
+                                                            base model directly answers the original question
+                                                            without using external retrieval. We can observe
+                                                            that w/o Retrieval shows a significant performance
+                                                            drop compared to the full GRAT, indicating that
+                                                            external retrieval plays a crucial role in answer-
+                                                            ing complex questions. Meanwhile, w/o Retrieval
+                                                            achieves an 8.4 accuracy improvement over Base
+                                                            (No Retrieval) under the same condition of no
+Figure 3: Performance over Different Computational
+                                                            external retrieval, demonstrating the performance
+Budget
+                                                            gain brought by our tree-based search method.
+                                                               • w. Gold-docs: This replaces the retrieved doc-
+uation model to conduct experiments on the 2Wiki-           uments in GRAT with gold documents, which con-
+MultiHopQA dataset. The results are shown in                tain all the necessary information to answer the
+Figure 3. It can be observed that the accuracy              original question. This ensures that the model’s
+increases as the number of iterations increases.            performance is not constrained by missing exter-
+Specifically, the accuracy rises rapidly when the           nal information, demonstrating the upper bound
+number of searches increases from 1 to 3. This              of our model’s potential performance. We can ob-
+is because most questions in the dataset require            serve that under this condition, our model achieves
+two- or three-hop reasoning, making the accuracy            an accuracy of 70.4. This demonstrates the great
+highly sensitive to the number of searches. The ac-         potential of GRAT in solving complex multi-hop
+curacy peaks at 60.6 when the number of searches            problems.
+reaches 8, likely due to the fact that more complex
+questions require multiple iterations of reasoning          3.6    Case Study
+attempts to ultimately derive the correct answer.           Figure 4 illustrates a search tree constructed using
+                                                            GRAT (Qwen2.5-Instruct_14B). The numbers indi-
+3.5 Ablation
+                                                            cate the order of visits. Node 0 represents the ques-
+                                                            tion and its correct answer. Starting from this root
+   Table 3: Results of various ablation experiments.
+                                                            node, nodes 1 and 2 are expanded first. Notably,
+                                                            an error occurs when answering the sub-question
+      Method               Model             Datasets
+                                                            at node 1. However, in the next search step, the
+                                           2MultiHopQA
+ Base(No Retrieval)                            30.4
+                                                            model identifies this factual error and corrects it at
+   w/o Simulate                                57.6         nodes 3 and 4. As a result, in the subsequent ex-
+   w/o Retrieval      Llama3-Instruct-8B       38.8         ploration, the model selects the higher-value path:
+   w. Gold-docs                                70.4
+      GRAT                                     60.6
+                                                            0-2-5. Ultimately it arrives at the correct answer.
+                                                            In addition, the Appendix A presents the templates
+                                                            of the prompts we used.
+   In the ablation experiments, we made the follow-
+ing adjustments to GRAT to evaluate the impact of           4     Related Work
+each module on the final performance:
+   • w/o Simulation: This indicates the ablation of         Retrieval-Augmented Generation. Retrieval-
+the original simulation module in GRAT, meaning             augmented generation (RAG) is a widely used tech-
+the model’s ability to evaluate the future has been         nique across multiple areas that retrieves external
+removed. It can be observed that after removing             knowledge to obtain the latest and up-to-date infor-
+the Simulation module, the accuracy of GRAT                 mation. By providing LLMs with relevant informa-
+on 2WikiMultiHopQA drops from 60.6 to 57.6,                 tion, RAG helps LLMs generate more accurate and
+indicating that estimating future reasoning steps           useful content(Asai et al., 2023a; Chen et al., 2023;
+helps in better solving complex problems.                   Asai et al., 2023b; Jiang et al., 2023; Shao et al.,
+                                                         27867
+                                               In what century did this Native warrior and chief, whose brother 0
+                                                 Tenskwatawa led the Tippecanoe order of battle, become the
+                                                     primary leader of a large, multi tribal confederacy?
+
+                                                               The correct answer: 19th century
+
+
+
+                            Who is the Native warrior and chief         1                 Who was the Native warrior and chief that 2
+                              referred to in the question?                                    Tenskwatawa's brother became?
+                                                                                              Based on the documents provided,
+                          The Native warrior and chief referred to in                     Tecumseh was the Native warrior and chief
+                              the question is Opechancanough                                that Tenskwatawa\'s brother became.
+
+
+                                               3                                                     4                                                  5
+ Was Opechancanough the Native warrior                Is Opechancanough the correct Native
+ and chief who became the primary leader            warrior and chief who became the primary              In what century did Tecumseh become
+  of a large, multi-tribal confederacy after        leader of a large, multi-tribal confederacy          the primary leader of a large, multi-tribal
+      his brother Tenskwatawa led the                  after his brother Tenskwatawa led the                           confederacy?
+         Tippecanoe order of battle?                         Tippecanoe order of battle?
+
+                                                    The question appears to be mixing up several
+                                                     different historical figures and events. The        Tecumseh became the primary leader of a
+                    NO                                documents clarify that Tecumseh was the            large, multi-tribal confederacy in the early
+                                                    primary leader of the multi-tribal confederacy                       19th century.
+                                                           before the Battle of Tippecanoe.
+
+
+
+Figure 4: The detailed reasoning process by GRAT. The root node (Node 0) includes the original question and the
+correct answer. In other nodes, the upper part of the node represents the generated sub-questions, and the lower part
+shows the corresponding answers. The numerical labels indicate the order of visits.
+
+
+2023). At the same time, RAG can also help mit-                                reasoning steps using LLMs and selects the one
+igate the hallucination problem commonly found                                 with the highest score, thereby improving the relia-
+in LLMs(Achiam et al., 2023; Guu et al., 2020;                                 bility of the answer. Tree of Thoughts(ToT) (Yao
+Lewis et al., 2020). Many works have attempted                                 et al., 2024) improves upon Chain of Thought by
+to optimize different stages of this process,for ex-                           transforming linear reasoning into a tree structure,
+ample, (Yoran et al., 2023; Wang et al., 2023; Yu                              allowing multiple reasoning paths to be explored
+et al., 2023) enhance model performance by re-                                 simultaneously, leading to more comprehensive
+ducing noise in relevant documents and improv-                                 thinking. Hao et al. (2023) employed Monte Carlo
+ing the model’s robustness to irrelevant content.                              Tree Search to construct the reasoning tree under
+Chen et al. (2023), Jeong et al. (2024) and Asai                               the guidance of LLMs and rewards, enhancing the
+et al. (2023b) try to avoid irrelevant retrieval by                            model’s ability to select and evaluate paths while
+adjusting the granularity and timing of retrieval.                             balancing exploitation and exploration.
+Some works also focus on optimizing prompts and
+queries (Chan et al., 2024; Ma et al., 2023). Press
+et al. (2023) proposes a Self-ask approach, where                                 Large Language Model Training. To align
+the model continuously asks itself (and answers)                               the content generated by LLMs with human pref-
+follow-up questions to analyze complex problems.                               erences, instruction-tuning can be performed us-
+This essentially serves as an improved strategy for                            ing datasets that contain instructions and human-
+the chain-of-thought method (Wei et al., 2022).                                written completions(Mishra et al., 2022; Sanh et al.,
+Wang et al. (2024) trains the model to parse the                               2022; Chung et al., 2024). However, compared to
+question into a fixed template (plan), which can                               directly constructing human preference data, it is
+then be further decomposed into sub-questions.                                 easier to judge the relative quality of data for hu-
+The LLM only needs to answer each sub-question                                 mans. Therefore, some works first optimize a neu-
+in sequence.                                                                   ral network reward function and then fine-tune the
+   Large Language Model Reasoning. To an-                                      language model using reinforcement learning (RL)
+swer complex questions, many reasoning meth-                                   algorithms (Ramamurthy et al., 2022; Kreutzer
+ods have been proposed. For example, Chain of                                  et al., 2018). Another approach is to use LLMs
+Thought (CoT) (Wei et al., 2022) try to generate                               fine-tuned with human feedback to generate addi-
+intermediate multi-step reasoning steps to provide                             tional synthetic preference data, which is then used
+a step-by-step solution for complex problems. Self-                            to further fine-tune the original model (Bai et al.,
+Consistency (Wang et al., 2022) generates multiple                             2022; Zhang et al., 2024).
+                                                                            27868
+5   Conclusion                                               applications. In Proceedings of the 61st Annual Meet-
+                                                             ing of the Association for Computational Linguistics
+In this paper, we propose a novel retrieval-                 (Volume 6: Tutorial Abstracts), pages 41–46.
+augmented generation model called GRAT, which
+                                                          Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+is based on Monte Carlo Tree Search. GRAT                   Hannaneh Hajishirzi. 2023b. Self-rag: Learning to
+possesses the capabilities of multi-path explo-             retrieve, generate, and critique through self-reflection.
+ration, strategic look-ahead, stepwise evaluation,          arXiv preprint arXiv:2310.11511.
+and global selection, while also balancing exploita-
+                                                          Yuntao Bai, Saurav Kadavath, Sandipan Kundu,
+tion and exploration during the search process.             Amanda Askell, Jackson Kernion, Andy Jones,
+Compared to single-chain RAG methods, it offers             Anna Chen, Anna Goldie, Azalia Mirhoseini,
+significant advantages. Additionally, GRAT can              Cameron McKinnon, et al. 2022. Constitutional
+perform self-training using high-quality stepwise           ai: Harmlessness from ai feedback. arXiv preprint
+                                                            arXiv:2212.08073.
+reasoning data generated by itself, continuously
+refining its problem analysis capabilities. We con-       Chi-Min Chan, Chunpu Xu, Ruibin Yuan, Hongyin Luo,
+ducted extensive experiments on multiple datasets,          Wei Xue, Yike Guo, and Jie Fu. 2024. Rq-rag: Learn-
+                                                            ing to refine queries for retrieval augmented genera-
+demonstrating the effectiveness and superiority of
+                                                            tion. arXiv preprint arXiv:2404.00610.
+our model.
+                                                          D Chen. 2017. Reading wikipedia to answer open-
+Limitations                                                 domain questions. arXiv preprint arXiv:1704.00051.
+
+Our work has some limitations. For example, dur-          Tong Chen, Hongwei Wang, Sihao Chen, Wenhao
+                                                            Yu, Kaixin Ma, Xinran Zhao, Hongming Zhang,
+ing training, we only used correct data and did not         and Dong Yu. 2023. Dense x retrieval: What re-
+utilize the lower-quality generated data. In future         trieval granularity should we use? arXiv preprint
+approaches, we will explore using this data for pref-       arXiv:2312.06648.
+erence optimization. This is because, even though
+                                                          Hyung Won Chung, Le Hou, Shayne Longpre, Barret
+incorrect sub-questions may not directly contribute         Zoph, Yi Tay, William Fedus, Yunxuan Li, Xuezhi
+to the solution, they can help the model recognize          Wang, Mostafa Dehghani, Siddhartha Brahma, et al.
+which actions lead to lower-value outcomes.                 2024. Scaling instruction-finetuned language models.
+   Additionally, for self-training, we conducted ex-        Journal of Machine Learning Research, 25(70):1–53.
+periments only on the 8B model. In the future, we         DeepSeek-AI, Daya Guo, Dejian Yang, Haowei Zhang,
+will explore the impact of self-training on perfor-         Junxiao Song, Ruoyu Zhang, Runxin Xu, Qihao Zhu,
+mance with larger-scale models.                             Shirong Ma, Peiyi Wang, Xiao Bi, Xiaokang Zhang,
+                                                            Xingkai Yu, Yu Wu, Z. F. Wu, Zhibin Gou, Zhihong
+                                                            Shao, Zhuoshu Li, Ziyi Gao, Aixin Liu, Bing Xue,
+Acknowledgements                                            Bingxuan Wang, Bochao Wu, Bei Feng, Chengda Lu,
+                                                            Chenggang Zhao, Chengqi Deng, Chenyu Zhang,
+This work was supported in part by the National
+                                                            Chong Ruan, Damai Dai, Deli Chen, Dongjie Ji,
+Natural Science Foundation of China under Grant             Erhang Li, Fangyun Lin, Fucong Dai, Fuli Luo,
+No.62276110, No.62172039 and in part by the fund            Guangbo Hao, Guanting Chen, Guowei Li, H. Zhang,
+of Joint Laboratory of HUST and Pingan Property             Han Bao, Hanwei Xu, Haocheng Wang, Honghui
+& Casualty Research (HPL). The authors would                Ding, Huajian Xin, Huazuo Gao, Hui Qu, Hui Li,
+                                                            Jianzhong Guo, Jiashi Li, Jiawei Wang, Jingchang
+also like to thank anonymous reviewers for their            Chen, Jingyang Yuan, Junjie Qiu, Junlong Li, J. L.
+comments on improving the quality of this paper.            Cai, Jiaqi Ni, Jian Liang, Jin Chen, Kai Dong, Kai
+                                                            Hu, Kaige Gao, Kang Guan, Kexin Huang, Kuai
+                                                            Yu, Lean Wang, Lecong Zhang, Liang Zhao, Litong
+References                                                  Wang, Liyue Zhang, Lei Xu, Leyi Xia, Mingchuan
+                                                            Zhang, Minghua Zhang, Minghui Tang, Meng Li,
+Josh Achiam, Steven Adler, Sandhini Agarwal, Lama           Miaojun Wang, Mingming Li, Ning Tian, Panpan
+  Ahmad, Ilge Akkaya, Florencia Leoni Aleman,               Huang, Peng Zhang, Qiancheng Wang, Qinyu Chen,
+  Diogo Almeida, Janko Altenschmidt, Sam Altman,            Qiushi Du, Ruiqi Ge, Ruisong Zhang, Ruizhe Pan,
+  Shyamal Anadkat, et al. 2023. Gpt-4 technical report.     Runji Wang, R. J. Chen, R. L. Jin, Ruyi Chen,
+  arXiv preprint arXiv:2303.08774.                          Shanghao Lu, Shangyan Zhou, Shanhuang Chen,
+                                                            Shengfeng Ye, Shiyu Wang, Shuiping Yu, Shunfeng
+AI@Meta. 2024. Llama 3 model card.                          Zhou, Shuting Pan, S. S. Li, Shuang Zhou, Shaoqing
+                                                            Wu, Shengfeng Ye, Tao Yun, Tian Pei, Tianyu Sun,
+Akari Asai, Sewon Min, Zexuan Zhong, and Danqi              T. Wang, Wangding Zeng, Wanjia Zhao, Wen Liu,
+  Chen. 2023a. Retrieval-based language models and          Wenfeng Liang, Wenjun Gao, Wenqin Yu, Wentao
+                                                     27869
+  Zhang, W. L. Xiao, Wei An, Xiaodong Liu, Xiaohan         Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+  Wang, Xiaokang Chen, Xiaotao Nie, Xin Cheng, Xin           Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+  Liu, Xin Xie, Xingchao Liu, Xinyu Yang, Xinyuan Li,        rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  Xuecheng Su, Xuheng Lin, X. Q. Li, Xiangyue Jin,           täschel, et al. 2020. Retrieval-augmented generation
+  Xiaojin Shen, Xiaosha Chen, Xiaowen Sun, Xiaoxi-           for knowledge-intensive nlp tasks. Advances in Neu-
+  ang Wang, Xinnan Song, Xinyi Zhou, Xianzu Wang,            ral Information Processing Systems, 33:9459–9474.
+  Xinxia Shan, Y. K. Li, Y. Q. Wang, Y. X. Wei, Yang
+  Zhang, Yanhong Xu, Yao Li, Yao Zhao, Yaofeng             Xinbei Ma, Yeyun Gong, Pengcheng He, Hai Zhao,
+  Sun, Yaohui Wang, Yi Yu, Yichao Zhang, Yifan Shi,          and Nan Duan. 2023. Query rewriting in retrieval-
+  Yiliang Xiong, Ying He, Yishi Piao, Yisong Wang,           augmented large language models. In Proceedings
+  Yixuan Tan, Yiyang Ma, Yiyuan Liu, Yongqiang Guo,          of the 2023 Conference on Empirical Methods in
+  Yuan Ou, Yuduan Wang, Yue Gong, Yuheng Zou, Yu-            Natural Language Processing, pages 5303–5315.
+  jia He, Yunfan Xiong, Yuxiang Luo, Yuxiang You,
+  Yuxuan Liu, Yuyang Zhou, Y. X. Zhu, Yanhong Xu,          Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,
+  Yanping Huang, Yaohui Li, Yi Zheng, Yuchen Zhu,            Daniel Khashabi, and Hannaneh Hajishirzi. 2023.
+  Yunxian Ma, Ying Tang, Yukun Zha, Yuting Yan,              When not to trust language models: Investigating
+  Z. Z. Ren, Zehui Ren, Zhangli Sha, Zhe Fu, Zhean           effectiveness of parametric and non-parametric mem-
+  Xu, Zhenda Xie, Zhengyan Zhang, Zhewen Hao,                ories. In Proceedings of the 61st Annual Meeting of
+  Zhicheng Ma, Zhigang Yan, Zhiyu Wu, Zihui Gu, Zi-          the Association for Computational Linguistics (Vol-
+  jia Zhu, Zijun Liu, Zilin Li, Ziwei Xie, Ziyang Song,      ume 1: Long Papers), pages 9802–9822.
+  Zizheng Pan, Zhen Huang, Zhipeng Xu, Zhongyu
+  Zhang, and Zhen Zhang. 2025. Deepseek-r1: Incen-         Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis,
+  tivizing reasoning capability in llms via reinforce-       Wen-tau Yih, Pang Koh, Mohit Iyyer, Luke Zettle-
+  ment learning. Preprint, arXiv:2501.12948.                 moyer, and Hannaneh Hajishirzi. 2023. Factscore:
+                                                             Fine-grained atomic evaluation of factual precision
+Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasu-            in long form text generation. In Proceedings of the
+  pat, and Mingwei Chang. 2020. Retrieval augmented          2023 Conference on Empirical Methods in Natural
+  language model pre-training. In International confer-      Language Processing, pages 12076–12100.
+  ence on machine learning, pages 3929–3938. PMLR.
+                                                           Swaroop Mishra, Daniel Khashabi, Chitta Baral, and
+Shibo Hao, Yi Gu, Haodi Ma, Joshua Hong, Zhen                Hannaneh Hajishirzi. 2022. Cross-task generaliza-
+  Wang, Daisy Wang, and Zhiting Hu. 2023. Rea-               tion via natural language crowdsourcing instructions.
+  soning with language model is planning with world          In Proceedings of the 60th Annual Meeting of the
+  model. In Proceedings of the 2023 Conference on            Association for Computational Linguistics (Volume
+  Empirical Methods in Natural Language Processing,          1: Long Papers), pages 3470–3487.
+  pages 8154–8173.
+                                                           Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida,
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,               Carroll Wainwright, Pamela Mishkin, Chong Zhang,
+  and Akiko Aizawa. 2020. Constructing a multi-hop           Sandhini Agarwal, Katarina Slama, Alex Ray, et al.
+  qa dataset for comprehensive evaluation of reasoning       2022. Training language models to follow instruc-
+  steps. In Proceedings of the 28th International Con-       tions with human feedback. Advances in neural in-
+  ference on Computational Linguistics, pages 6609–          formation processing systems, 35:27730–27744.
+  6625.
+Soyeong Jeong, Jinheon Baek, Sukmin Cho, Sung Ju           Fabio Petroni, Aleksandra Piktus, Angela Fan, Patrick
+  Hwang, and Jong C Park. 2024. Adaptive-rag: Learn-         Lewis, Majid Yazdani, Nicola De Cao, James Thorne,
+  ing to adapt retrieval-augmented large language mod-       Yacine Jernite, Vladimir Karpukhin, Jean Maillard,
+  els through question complexity. In Proceedings of         et al. 2021. Kilt: a benchmark for knowledge in-
+  the 2024 Conference of the North American Chap-            tensive language tasks. In Proceedings of the 2021
+  ter of the Association for Computational Linguistics:      Conference of the North American Chapter of the
+  Human Language Technologies (Volume 1: Long Pa-            Association for Computational Linguistics: Human
+  pers), pages 7029–7043.                                    Language Technologies, pages 2523–2544.
+
+Zhengbao Jiang, Frank F Xu, Luyu Gao, Zhiqing Sun,         Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt,
+  Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie              Noah A Smith, and Mike Lewis. 2023. Measuring
+  Callan, and Graham Neubig. 2023. Active retrieval          and narrowing the compositionality gap in language
+  augmented generation. In Proceedings of the 2023           models. In Findings of the Association for Computa-
+  Conference on Empirical Methods in Natural Lan-            tional Linguistics: EMNLP 2023, pages 5687–5711.
+  guage Processing, pages 7969–7992.
+                                                           Rajkumar Ramamurthy, Prithviraj Ammanabrolu,
+Julia Kreutzer, Joshua Uyheng, and Stefan Riezler. 2018.     Kianté Brantley, Jack Hessel, Rafet Sifa, Christian
+   Reliability and learnability of human bandit feedback     Bauckhage, Hannaneh Hajishirzi, and Yejin Choi.
+   for sequence-to-sequence reinforcement learning. In       2022. Is reinforcement learning (not) for natural lan-
+   Proceedings of the 56th Annual Meeting of the As-         guage processing: Benchmarks, baselines, and build-
+   sociation for Computational Linguistics (Volume 1:        ing blocks for natural language policy optimization.
+   Long Papers), pages 1777–1788.                            arXiv preprint arXiv:2210.01241.
+                                                      27870
+Stephen E Robertson and Steve Walker. 1994. Some           Zhepei Wei, Wei-Lin Chen, and Yu Meng. 2024.
+   simple effective approximations to the 2-poisson          Instructrag: Instructing retrieval-augmented gen-
+   model for probabilistic weighted retrieval. In SI-        eration via self-synthesized rationales. Preprint,
+  GIR’94: Proceedings of the Seventeenth Annual In-          arXiv:2406.13629.
+   ternational ACM-SIGIR Conference on Research and
+  Development in Information Retrieval, organised by       Zhipeng Xu, Zhenghao Liu, Yukun Yan, Shuo Wang,
+  Dublin City University, pages 232–241. Springer.           Shi Yu, Zheni Zeng, Chaojun Xiao, Zhiyuan Liu,
+                                                             Ge Yu, and Chenyan Xiong. 2024. Activerag: Au-
+Victor Sanh, Albert Webson, Colin Raffel, Stephen H          tonomously knowledge assimilation and accommo-
+  Bach, Lintang Sutawika, Zaid Alyafeai, Antoine             dation through retrieval-augmented agents. Preprint,
+  Chaffin, Arnaud Stiegler, Teven Le Scao, Arun Raja,        arXiv:2402.13547.
+  et al. 2022. Multitask prompted training enables
+  zero-shot task generalization. In ICLR 2022-Tenth        An Yang, Baosong Yang, Binyuan Hui, Bo Zheng,
+  International Conference on Learning Representa-           Bowen Yu, Chang Zhou, Chengpeng Li, Chengyuan
+  tions.                                                     Li, Dayiheng Liu, Fei Huang, Guanting Dong, Hao-
+                                                             ran Wei, Huan Lin, Jialong Tang, Jialin Wang, Jian
+Timo Schick, Jane Dwivedi-Yu, Roberto Dessì, Roberta         Yang, Jianhong Tu, Jianwei Zhang, Jianxin Ma, Jin
+  Raileanu, Maria Lomeli, Eric Hambro, Luke Zettle-          Xu, Jingren Zhou, Jinze Bai, Jinzheng He, Junyang
+  moyer, Nicola Cancedda, and Thomas Scialom. 2023.          Lin, Kai Dang, Keming Lu, Keqin Chen, Kexin Yang,
+  Toolformer: Language models can teach themselves           Mei Li, Mingfeng Xue, Na Ni, Pei Zhang, Peng
+  to use tools. Advances in Neural Information Pro-          Wang, Ru Peng, Rui Men, Ruize Gao, Runji Lin,
+  cessing Systems, 36:68539–68551.                           Shijie Wang, Shuai Bai, Sinan Tan, Tianhang Zhu,
+                                                             Tianhao Li, Tianyu Liu, Wenbin Ge, Xiaodong Deng,
+Zhihong Shao, Yeyun Gong, Yelong Shen, Minlie                Xiaohuan Zhou, Xingzhang Ren, Xinyu Zhang, Xipin
+  Huang, Nan Duan, and Weizhu Chen. 2023. En-                Wei, Xuancheng Ren, Yang Fan, Yang Yao, Yichang
+  hancing retrieval-augmented large language models          Zhang, Yu Wan, Yunfei Chu, Yuqiong Liu, Zeyu
+  with iterative retrieval-generation synergy. In Find-      Cui, Zhenru Zhang, and Zhihao Fan. 2024. Qwen2
+  ings of the Association for Computational Linguistics:     technical report. arXiv preprint arXiv:2407.10671.
+  EMNLP 2023, pages 9248–9274.
+                                                           Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,        William Cohen, Ruslan Salakhutdinov, and Christo-
+  and Ashish Sabharwal. 2022. ♪ musique: Multi-              pher D Manning. 2018. Hotpotqa: A dataset for
+  hop questions via single-hop question composition.         diverse, explainable multi-hop question answering.
+  Transactions of the Association for Computational          In Proceedings of the 2018 Conference on Empiri-
+  Linguistics, 10:539–554.                                   cal Methods in Natural Language Processing, pages
+                                                             2369–2380.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+  and Ashish Sabharwal. 2023. Interleaving retrieval       Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+  with chain-of-thought reasoning for knowledge-             Tom Griffiths, Yuan Cao, and Karthik Narasimhan.
+  intensive multi-step questions. In 61st Annual Meet-       2023. Tree of thoughts: Deliberate problem solving
+  ing of the Association for Computational Linguistics       with large language models. Advances in neural
+  (Volume 1: Long Papers).                                   information processing systems, 36:11809–11822.
+Junjie Wang, Mingyang Chen, Binbin Hu, Dan                 Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+  Yang, Ziqi Liu, Yue Shen, Peng Wei, Zhiqiang               Tom Griffiths, Yuan Cao, and Karthik Narasimhan.
+  Zhang, Jinjie Gu, Jun Zhou, et al. 2024. Learn-            2024. Tree of thoughts: Deliberate problem solving
+  ing to plan for retrieval-augmented large language         with large language models. Advances in Neural
+  models from knowledge graphs. arXiv preprint               Information Processing Systems, 36.
+  arXiv:2406.14282.
+                                                           Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le,            Berant. 2023. Making retrieval-augmented language
+  Ed Chi, Sharan Narang, Aakanksha Chowdhery, and            models robust to irrelevant context. arXiv preprint
+  Denny Zhou. 2022. Self-consistency improves chain          arXiv:2310.01558.
+  of thought reasoning in language models. arXiv
+  preprint arXiv:2203.11171.                               Wenhao Yu, Hongming Zhang, Xiaoman Pan, Kaixin
+                                                            Ma, Hongwei Wang, and Dong Yu. 2023. Chain-of-
+Zhiruo Wang, Jun Araki, Zhengbao Jiang, Md Rizwan           note: Enhancing robustness in retrieval-augmented
+  Parvez, and Graham Neubig. 2023. Learning to filter       language models. arXiv preprint arXiv:2311.09210.
+  context for retrieval-augmented generation. arXiv
+  preprint arXiv:2311.08377.                               Dan Zhang, Sining Zhoubian, Ziniu Hu, Yisong Yue,
+                                                             Yuxiao Dong, and Jie Tang. 2024. Rest-mcts*: Llm
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten             self-training via process reward guided tree search.
+   Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,            arXiv preprint arXiv:2406.03816.
+   et al. 2022. Chain-of-thought prompting elicits rea-
+   soning in large language models. Advances in neural     Andy Zhou, Kai Yan, Michal Shlapentokh-Rothman,
+   information processing systems, 35:24824–24837.           Haohan Wang, and Yu-Xiong Wang. Language agent
+                                                      27871
+    tree search unifies reasoning acting and planning in
+    language models. In ICLR 2024 Workshop on Large
+    Language Model (LLM) Agents.
+
+A     Prompting Template
+We present the prompt templates for reasoning pro-
+cesses, subquestion answering, and self-evaluation
+in Figures 5 , 6, and 7, respectively. These prompts
+include example cases to help the model generate
+more effectively.
+
+
+
+
+                                                      27872
+                                        PROMPT FOR REASONING STEPS
+
+INSTRUCTION
+Given the following complex multi-hop question, you need to step through and determine what questions to ask at
+each step. The input may already include some steps of sub-questions, and you need to continue generating the
+next sub-question.
+
+EXAMPLES
+Question:
+Which film came out first, Brudebuketten or Vibes (Film)?
+Reasoning steps:
+Step 1: when did film Brudebuketten come out?
+Answer 1: 1953
+Output: <when did film Vibes (Film) come out?>
+
+Question:
+Which film has the director who was born later, Glamour Boy (Film) or Night By The Seashore?
+Reasoning steps:
+Step 1: Who is the director of Glamour Boy (Film)?
+Answer 1: Ralph Murphy
+Step 2: when did director Ralph Murphy born?
+Answer 2: May 1, 1895
+Step 3: Who is the director of Night By The Seashore?
+Answer 3: Erkko Kivikoski
+Step 4: when did director Erkko Kivikoski born?
+Answer 4: 2 July 1936
+Output: <Which film has the director who was born later, Glamour Boy (Film) or Night By The Seashore?>
+
+INPUT
+Next, please continue to generate the next sub-question for the following question. Note that, you should put your
+output in <>, like: < your sub-question>
+Question:
+{##QUESTION}
+Reasoning steps:
+{##HISTORY REASONING STEPS}
+Output:
+
+
+
+                                         Figure 5: Prompt for reasoning
+
+
+
+
+                                                       27873
+                                   PROMPT FOR SUB-QUESTION ANSWERING
+
+INSTRUCTION
+Given an original complex multi-hop question, your task is to refer to the original reasoning steps and relevant
+document content to answer the current sub-question. Note that you do not need to answer the original question or
+sub-questions that have already been answered.
+
+EXAMPLES
+Original question: When did Charles Mathew's father die?
+Reasoning steps:
+Let's think step by step about the sub-questions that need to be queried.
+Step 1: Who is Charles Mathew's father ?
+Answer 1: James Mathews
+Step 2 :When did James Mathews die?
+Documents: Charles was born to James Mathews (died 1804), a Wesleyan Methodist bookseller, printer, and
+pharmacist on the Strand, who also served as minister in one of the Countess of Huntingdon's chapels. Charles
+was educated at Merchant Taylors' School in London, which had some openings for common boys. He was next
+apprenticed to his father. For religious reasons, the father forbade his children from visiting theatres.
+Current sub-question: When did James Mathews die?
+Output: 1804
+
+INPUT
+Note: Please try to use the content from the original documents to answer, and provide a concise response without
+any analysis. Output no more than 15 words.
+Original question:{##QUESTION}
+Reasoning steps:
+{##HISTROY REASONING STEPS}
+Documents:
+{##DOCUMENTS}
+Current sub-question:{##SUB-QUESTION}
+Output:
+
+
+
+
+                                 Figure 6: Prompt for sub-question answering
+
+
+
+
+                                                      27874
+                                         PROMPT FOR SELF-ESTIMATION
+
+INSTRUCTION
+Given a complex multi-hop question, answering this question may require answering multiple sub-questions. Your
+task is to determine, based on the given complex question and existing reasoning steps, whether these existing
+reasoning steps can help to solve some part of the problem and provide a score. The score should be a decimal
+between 0 and 1. If all sub-questions are fully raised and answered, the score is 1. If no relevant sub-questions are
+resolved, the score is 0. The more sub-questions that help answer the original question are resolved, the closer the
+score is to 1; the fewer are resolved, the closer the score is to 0. First, provide a relevant analysis, then give the
+score. Do not generate additional solving steps, only output scores to evaluate the current steps. Please learn from
+the following example:
+
+EXAMPLES
+question 1:
+Which film came out first, Brudebuketten or Vibes (Film)?
+reason steps:
+Let's think step by step about the sub-questions that need to be queried.
+Step 1: when did film Brudebuketten come out?
+Answer 1: 1953
+Step 2: when did film Vibes (Film) come out?
+Answer 2: 1988
+analysis:
+To solve this problem, the first step is to answer when the movie Brudebuketten was released, the second step is to
+answer when the movie Vibes (Film) was released, and the third step should be to compare the two release dates
+and determine which movie was released first, need 3 steps. However, in the reasoning steps above, only the first
+two steps were completed, and the reasoning for the final answer was not finished. Therefore, the final score is
+<0.66>.
+
+INPUT
+Attention, you must put your score in <>, like <score>. Next, you need to analyze the following reasoning steps:
+
+question:
+{##QUESTION},
+reason steps:
+{##HISTORY REASONING STEPS},
+analysis:
+
+
+
+
+                                      Figure 7: Prompt for self-estimation
+
+
+
+
+                                                       27875
+

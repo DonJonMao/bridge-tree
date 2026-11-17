@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:23\", \"source_id\": \"hotpotqa:23\"}]\nPrime Minister of Northern Ireland\nThe Prime Minister of Northern Ireland was the head of the Government of Northern Ireland between 1921 and 1972. No such office was provided for in the Government of Ireland Act 1920, however the Lord Lieutenant, as with Governors-General in other Westminster Systems such as in Canada, chose to appoint someone to head the executive even though no such post existed in statute law. The office-holder assumed the title \"Prime Minister\" to draw parallels with the Prime Minister of the United Kingdom. On the advice of the new Prime Minister, the Lord Lieutenant then created the \"Department of the Prime Minister\". The office of Prime Minister of Northern Ireland was abolished in 1972, along with the contemporary government, when direct rule of Northern Ireland was transferred to London.\n\n[Passage {\"doc_id\": \"hotpotqa:5325\", \"source_id\": \"hotpotqa:5325\"}]\nDeputy Prime Minister of Pakistan\nThe office of the Deputy Prime Minister of Pakistan (Urdu: ‎ ) was created by the Prime Minister of Pakistan on 25 June 2012. The main coalition party, Pakistan Muslim League (Q) (PML-Q), demanded to make a post of Deputy Prime Minister which was accomplished by the newly elected Prime Minister Raja Pervez Ashraf. The main purpose of the post was to give a backup to the government in the absence of the Prime Minister. As a result of an agreement between the ruling Pakistan Peoples Party (PPP) and the PML-Q to share ministries in the federal cabinet, Chaudhry Pervaiz Elahi was made the first Deputy Prime Minister of Pakistan."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "229",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600661.720723,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600662.5513878
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00016881758705736982
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 926,
+      "completion_tokens": 2,
+      "total_tokens": 928
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

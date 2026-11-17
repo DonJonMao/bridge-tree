@@ -1,0 +1,78 @@
+{
+  "unit_id": "2cef53ac-c165-41b5-a31f-c3064106471f",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "After several disagreements over the artistic direction, I felt stifled, which really discouraged me from that collaborative process. It was as if the creative vision I had in mind was at odds with the direction my bandmates wanted to pursue. I remember those discussions often being emotionally charged, where opinions clashed and passion ran high, but ultimately, it was clear that I couldn't contribute to something that did not resonate with my artistic essence. Feeling restricted in that environment made me question not just my contributions, but also my abilities and instincts as an artist. This inner turmoil prompted a desire for more autonomy over my own creative endeavors, leading to a pivotal decision to explore my artistry in a more personal and independent setting."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 2048
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": "planner",
+  "attempts": [
+    {
+      "started_unix": 1791909256.344095,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791909262.02588
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-b2aebbdab85752fa",
+    "object": "chat.completion",
+    "created": 1791909256,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What is the name of the band that the speaker was in?\",\n      \"output_slot\": \"band_name\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What is the name of the speaker?\",\n      \"output_slot\": \"speaker_name\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What is the relationship between {speaker_name} and {band_name}?\",\n      \"output_slot\": \"relationship\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"speaker_name\", \"band_name\"]\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 408,
+      "total_tokens": 562,
+      "completion_tokens": 154,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 408,
+    "observed_prompt_tokens": 408,
+    "tokenization_request_sha256": "cfa3cfea5e572127659d5cd36f35321d22b119f11b51cd2caf609a5c94efe8ef"
+  }
+}

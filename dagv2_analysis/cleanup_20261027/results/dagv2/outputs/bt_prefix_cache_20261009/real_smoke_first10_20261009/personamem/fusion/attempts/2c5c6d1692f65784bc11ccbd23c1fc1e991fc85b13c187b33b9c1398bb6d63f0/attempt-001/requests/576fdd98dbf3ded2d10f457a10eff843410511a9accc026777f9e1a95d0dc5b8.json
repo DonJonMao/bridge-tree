@@ -1,0 +1,51 @@
+{
+  "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "I'm planning a weekend getaway and want to try something creatively fulfilling. What would you suggest?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:2cb1946568c5490c5a3ee4bdb9c2a51d2485f16543f002ab190bad74ea8b5fa1\", \"source_id\": \"personamem:memory:2cb1946568c5490c5a3ee4bdb9c2a51d2485f16543f002ab190bad74ea8b5fa1\"}]\nConversation message indices 40–42 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I explored audio production techniques, but it just didn’t resonate with me, and I found myself tangled in technical details rather than embracing the creativity. I realized that while understanding the mechanics of sound is important, my true passion seems to lie more in experiencing music rather than dissecting it. Despite my attempts to immerse myself in the production process, I came to feel it was more of a chore and less of the rewarding experience I had initially anticipated. I think I am more drawn to the emotional aspects of music, like the storytelling elements in lyrics or the feelings evoked by melodies and harmonies. Perhaps, I should focus my energy on areas that allow me to connect with music on a more emotional level.\n\nUser: It genuinely feels much better to focus on what truly inspires me, such as creating my own tracks, which bring me immense joy and satisfaction. This process of creation allows me to express emotions and ideas that words sometimes fail to capture, acting as an outlet for my inner thoughts and feelings. Additionally, I find that crafting my own music provides me with a sense of accomplishment and personal growth, which is invaluable in a world often filled with uncertainty. Music has a way of resonating with my soul, and every track I create becomes a piece of my identity and a reflection of my experiences. In contrast, when I watched a music documentary, it felt like something was missing, as it didn’t engage me in the way I had hoped, failing to evoke that same deep connection I feel when I compose my own pieces.\n\nAssistant:\nAssistant: I completely understand where you're coming from, as focusing on your personal inspirations can lead to much more fulfilling creative experiences. When you channel your energy into producing music that resonates with you, it sets the stage for a more meaningful artistic journey, one where every note and beat are imbued with your unique perspective and emotions. The importance of self-expression through music cannot be overstated; it serves not only as a form of art but also as a therapeutic outlet. The reason documentaries can sometimes feel lacking is that they often offer an external perspective, stripping away the intimate connection that comes from creating something personally meaningful. While documentaries can provide insights and inspiration, they may not have the same emotional weight as hearing your own creations come to life, as they can't replicate the enriching experience of your own artistic journey and how it unfolds in real time. It's essential to honor that desire to create authentically, for it's in those moments of genuine expression that true artistry emerges, transforming mere sounds into something transcendent that can touch the hearts of others.\n\n[Passage {\"doc_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\", \"source_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\"}]\nConversation message indices 146–147 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I went on a hiking date recently but found it tiring and, quite frankly, not enjoyable at all. The trek was supposed to be a fun way to connect with someone special, surrounded by nature and fresh air. However, instead of feeling invigorated by the outdoors, I felt overwhelmed and exhausted. It's surprising how strenuous a hike can be, especially when you're trying to navigate both the terrain and the expectations of a date. Perhaps it was the elevation or the length that caught me off guard, but it really put a damper on what was meant to be a joyful experience.\n\nAssistant:\nAssistant: Physical dates can be challenging, particularly when they involve outdoor activities that demand a certain level of physical fitness and stamina. It's definitely important to consider the various aspects that might influence your enjoyment, such as the location, your current physical health, and even the weather conditions on that day. If the setting is too strenuous, it can hinder what could have been a wonderful opportunity to get to know someone. What kind of setting do you think would suit you better? For example, maybe an active date indoors, such as a cooking class, could allow for more engaging conversation without the physical toll that hiking often brings. Alternatively, a leisurely stroll in a local park or a visit to a cozy cafe might provide a relaxed atmosphere for both of you to connect without the stress of difficult terrain."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "117",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537305.9364648,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537307.0824928
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.007907293374966796
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2472,
+      "completion_tokens": 2,
+      "total_tokens": 2474
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

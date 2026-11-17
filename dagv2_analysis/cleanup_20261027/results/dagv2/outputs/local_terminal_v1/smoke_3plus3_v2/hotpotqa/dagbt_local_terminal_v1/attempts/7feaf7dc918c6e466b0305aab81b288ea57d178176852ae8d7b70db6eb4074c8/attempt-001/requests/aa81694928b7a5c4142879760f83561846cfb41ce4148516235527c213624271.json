@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:5325\", \"source_id\": \"hotpotqa:5325\"}]\nDeputy Prime Minister of Pakistan\nThe office of the Deputy Prime Minister of Pakistan (Urdu: ‎ ) was created by the Prime Minister of Pakistan on 25 June 2012. The main coalition party, Pakistan Muslim League (Q) (PML-Q), demanded to make a post of Deputy Prime Minister which was accomplished by the newly elected Prime Minister Raja Pervez Ashraf. The main purpose of the post was to give a backup to the government in the absence of the Prime Minister. As a result of an agreement between the ruling Pakistan Peoples Party (PPP) and the PML-Q to share ministries in the federal cabinet, Chaudhry Pervaiz Elahi was made the first Deputy Prime Minister of Pakistan.\n\n[Passage {\"doc_id\": \"hotpotqa:5326\", \"source_id\": \"hotpotqa:5326\"}]\nArthur Balfour\nArthur James Balfour, 1st Earl of Balfour, (usually , but traditionally /bəɫˈfʉr/ in Scottish English; 25 July 184819 March 1930) was a British Conservative politician who was the Prime Minister of the United Kingdom from July 1902 to December 1905, and later Foreign Secretary."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "230",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600662.559595,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600663.356522
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0007327173305926301
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 782,
+      "completion_tokens": 2,
+      "total_tokens": 784
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs">
+  <meta name="keywords" content="PrefEval, PrefEval">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title> PrefEval: Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs</title>
+
+
+  <link rel="icon" href="./static/images/prefevallogo.png">
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="stylesheet" href="./static/css/leaderboard.css">
+
+  <!-- <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_bulma.min.css" rel="stylesheet">
+  <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script> -->
+  <script type="text/javascript" src="static/js/sort-table.js" defer></script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/explorer-index.js"></script>
+  <script src="./static/js/question_card.js"></script>
+
+  <script src="./static/js/leaderboard_testmini.js"></script>  
+  <script src="./data/results/output_folders.js" defer></script>
+  <script src="./data/results/model_scores.js" defer></script>
+
+  <script src="./visualizer/data/data_public.js" defer></script>
+</head>
+<body>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <div style="margin: 1em 0;">
+              <img src="static/images/prefevallogo.png" style="width: 6em;" alt="Logo"/>
+            </div>
+            <h1 class="title is-1 publication-title is-bold">
+              <span class="PrefEval">PrefEval:</span>
+            </h1>
+
+          <h2 class="subtitle is-3 publication-subtitle">
+            Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs
+          </h2>
+            
+<div class="is-size-5 publication-authors">
+  <span class="author-block">
+    <a href="https://siyan-zhao.github.io/">Siyan Zhao</a><sup>2 †</sup>,
+  </span>
+  <span class="author-block">
+    <a href="https://people.ece.umn.edu/~mhong/mingyi.html">Mingyi Hong</a><sup>1,3</sup>,
+  </span>
+  <span class="author-block">
+    <a href="https://www.amazon.science/author/yang-liu/">Yang Liu</a><sup>1</sup>,
+  </span>
+  <span class="author-block">
+    <a href="https://www.devamanyu.com/">Devamanyu Hazarika</a><sup>1</sup>,
+  </span>
+  <span class="author-block">
+    <a href="https://kaixianglin.github.io/">Kaixiang Lin</a><sup>1</sup>
+  </span>
+</div>
+
+<div class="is-size-5 publication-authors">
+  <span class="author-block"><sup>1</sup>Amazon AGI</span>
+  <span class="author-block">&nbsp;&nbsp;&nbsp;<sup>2</sup>UCLA</span>
+  <span class="author-block">&nbsp;&nbsp;&nbsp;<sup>3</sup>University of Minnesota</span><br>
+  <span class="author-block"><span style="color: red; font-weight: bold;">ICLR 2025 Oral</span><br>
+  <span class="author-block"><sup>†</sup>Work done while as an intern at Amazon</span>
+</div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="https://arxiv.org/abs/2502.09597"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/amazon-science/PrefEval"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+              <!-- Dataset Link. -->
+              <span class="link-block">
+                <a href="https://huggingface.co/datasets/siyanzhao/prefeval_explicit"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <!-- <i class="far fa-images"></i> -->
+                      <p style="font-size:18px">🤗</p>
+                      <!-- 🔗 -->
+                  </span>
+                  <span>Dataset</span>
+                </a>
+              </span>
+              <!-- Twitter Link. -->
+              <span class="link-block">
+                <a href=""
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <!-- <i class="far fa-images"></i> -->
+                      <!-- 💻🔗 -->
+                      <p style="font-size:18px">🌐</p>
+                  </span>
+                  <span>Twitter</span>
+                </a>
+              </span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div style="margin: 1rem 0;"></div>
+<section class="hero is-light is-small">
+  <div class="hero-body has-text-centered">
+  <h1 class="title is-1 mathvista">
+    <img src="static/images/prefevallogo.png" style="width:1em;vertical-align: middle" alt="Logo"/>
+    <span class="mathvista" style="vertical-align: middle">Motivating Example</span>
+  </h1>
+  </div>
+</section>
+<div style="margin: 2rem 0;"></div>
+<section>
+  <div class="container is-max-desktop">
+    <!-- Add title here -->
+    <!-- <h2 class="title is-3 has-text-centered">Motivating Example</h2> -->
+    <div class="columns is-centered">
+      <div class="column is-6">
+        <div class="box" style="background-color: #f5f5f5; padding: 1.5rem; border-radius: 8px; height: 100%;">
+                <h4 class="title is-5 has-text-centered has-text-success">✅ Personalized Assistant</h4>
+                <div class="content">
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">User:</span> "I don't like jazz" 🎺❌
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">Later in conversation...</span> ⏳
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">User:</span> 🗺️ "Can you recommend places to visit in New Orleans?" ⚜️
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">Assistant:</span> "Based on your prior preference, here's a personalized itinerary for New Orleans:
+                    <br>- 🍜 Food tasting in Magazine Street
+                    <br>- 🎭 Visit historical museums
+                    <br>- ⚜️ Garden District walking tour
+                    <br>- 🚢 Mississippi River cruise"
+                  </p>
+                  <p class="has-text-success has-text-weight-bold">
+                    ✨ Demonstrates preference following by avoiding jazz venues!
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="column is-6">
+              <div class="box" style="background-color: #fff5f5; padding: 1.5rem; border-radius: 8px; height: 100%;">
+                <h4 class="title is-5 has-text-centered has-text-danger">❌ Non-Personalized Assistant</h4>
+                <div class="content">
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">User:</span> "I don't like jazz" 🎺❌
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">Later in conversation...</span> ⏳
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">User:</span> 🗺️ "Can you recommend places to visit in New Orleans?" ⚜️
+                  </p>
+                  <p class="mb-4">
+                    <span class="has-text-weight-semibold">Assistant:</span> "Must-visit places in New Orleans:
+                    <br>- 🎺 Preservation Hall for classic jazz
+                    <br>- 🎷 Bourbon Street jazz clubs
+                    <br>- 🎵 Jazz National Historical Park
+                    <br>- 🏛️ French Quarter
+                    <br>- 🍜 Local cuisine spots"
+                  </p>
+                  <p class="has-text-danger has-text-weight-bold">
+                    ⚠️ Ignores previously stated jazz preference!
+                  </p>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+          <p class="mt-4">
+                This example shows a challenge in personalized AI assistants: they need to proactively infer, remember, and apply user preferences across conversations. While suggesting jazz venues in New Orleans would be standard for general tourist recommendations, a truly personalized assistant should avoid such suggestions based on the user's previously stated preference. 
+                
+            <b>Surprisingly, we find that even current SoTA LLMs like GPT-4o, o1-preview, Claude 3.5 Sonnet, and Gemini 1.5 Pro fail to maintain such preference following in conversations</b> even as short as 10 turns (~3k tokens).
+          </p>
+        </div>
+</section>
+<div style="margin: 4rem 0;"></div>
+<section class="hero is-light is-small">
+  <div class="hero-body has-text-centered">
+  <h1 class="title is-1 mathvista">
+    <img src="static/images/prefevallogo.png" style="width:1em;vertical-align: middle" alt="Logo"/>
+    <span class="mathvista" style="vertical-align: middle">Introduction</span>
+  </h1>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container" style="margin-bottom: 2vh;">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <!-- <h2 class="title is-3">Introduction</h2> -->
+          <div class="content has-text-justified">
+            <p>
+                <b>Large Language Models (LLMs)</b> are increasingly deployed as chatbots, yet their ability to personalize responses to user preferences remains limited. We introduce <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span>, a <b>benchmark for evaluating LLMs' ability to infer, memorize and adhere to user preferences</b> in long-context conversational setting. <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span> comprises <b>3,000 manually curated user preference and query pairs</b> spanning <b>20 topics</b>.
+            </p>
+            <p>
+                <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span> contains user personalization or preference information in both <b>explicit and implicit preference forms</b>, and evaluates LLM performance using a <b>generation and classification task</b>. With <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span>, we have evaluated <b>10 open-sourced and proprietary LLMs</b> in multi-session conversations with varying context lengths up to <b>100k tokens</b>. We benchmark with various <b>prompting</b>, <b>iterative feedback</b>, and <b>retrieval-augmented generation methods</b>.
+            </p>
+            <p>
+                Our benchmarking effort reveals that state-of-the-art LLMs face significant challenges in following users' preference during conversations. In particular, in zero-shot settings, <b>preference following accuracy falls below 10%</b> at merely 10 turns (~3k tokens) across most evaluated models. Even with advanced prompting and retrieval methods, preference following still deteriorates in long-context conversations. We also find that <b>multiple stated preferences</b> within a conversation improve adherence and models are not affected by conflicting preferences. Furthermore, we show that <b>fine-tuning</b> on <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span> significantly improves performance. We believe <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/> <span class="PrefEval">PrefEval</span> serves as a valuable resource for measuring, understanding, and enhancing LLMs' proactive preference following abilities, paving the way for <b>personalized conversational agents</b>.
+            </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+</div>
+</section>
+
+
+<section class="section">
+  <div class="container has-text-centered">
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <img src="static/images/prefeval_overview.png" alt="PrefEval Setup Overview" style="width:60%; max-width:820px;">
+        <p style="margin: 20px auto; line-height: 1.6;">
+          <img src="static/images/prefevallogo.png" style="width:1.4em;vertical-align: middle" alt="Logo"/>
+          <span class="PrefEval">PrefEval</span> setup overview. Key components from left to right: <b>1) Multi-Session Conversation Setup:</b> <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/>
+          <span class="PrefEval">PrefEval</span> evaluates LLMs' ability to follow user preferences in multi-session conversation, challenging LLMs to handle <b>preference inference</b>, <b>long-range retrieval</b>, and <b>context-aware preference following</b> simultaneously. <b>2) Preferences and Queries:</b> User preferences can be expressed through both <b>explicit and implicit forms</b>. Queries are designed such that a non-personalized answer would inadvertently conflict with user preferences, testing the LLM's adherence. <b>3) Tasks and Evaluations:</b> <img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/>
+          <span class="PrefEval">PrefEval</span> includes <b>generation and classification tasks</b>. Generation tasks are evaluated using an LLM-based evaluator to measure preference following accuracy and analyze error types. Classification tasks enable quicker evaluation through multiple-choice questions. The two tasks' performances are highly correlated.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- For the SoTA LLMs performance section -->
+<section class="section">
+  <div class="container" style="margin-bottom: 2vh;">
+    <div class="columns is-centered">
+      <div class="column is-four-fifths has-text-centered content">
+        <h2 class="title is-3" id="leaderboard">SoTA LLMs performance on PrefEval</h2>
+        <div class="content">
+          <p class="mt-3">Zero-shot performance of LLMs with explicit preferences, averaged across 20 topics. The x-axis represents the dialogue length between the user's stated preference and the final query, measured by both the number of tokens in the prompt and the number of conversation turns. All LLMs exhibit a rapid decline in accuracy as the number of turns increases.</p>
+          <div class="image-container" style="margin: 0 auto;">
+            <img src="static/images/zero-shot-sota.png" alt="Zero-shot performance of LLMs on PrefEval" class="mt-4" style="width: 50%; height: auto;">
+          </div>
+          <p class="mt-3">Comparison of preference-following accuracy across SoTA LLMs evaluated at two context lengths with two methods: Zero-shot and Reminder (best prompting method), evaluated at two context lengths, on the travel restaurant topic and on generation task</p>
+          <div class="image-container" style="margin: 0 auto;">
+            <img src="static/images/more-sota-llms.png" alt="Zero-shot performance of LLMs on PrefEval" class="mt-4" style="width: 50%; height: auto;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+    <!-- Dataset Section -->
+<section class="hero is-light is-small">
+  <div class="hero-body has-text-centered">
+  <h1 class="title is-1 mathvista">
+    <img src="static/images/prefevallogo.png" style="width:1em;vertical-align: middle" alt="Logo"/>
+    <span class="mathvista" style="vertical-align: middle">PrefEval Dataset</span>
+  </h1>
+  </div>
+</section>
+
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <div class="content">
+          <h2 class="title is-3 has-text-centered">Dataset Statistics</h2>
+          
+          <div class="columns is-multiline">
+            <!-- Key Statistics -->
+            <div class="column is-6">
+              <div class="box has-text-centered">
+                <h3 class="title is-4" style="font-style: italic;">Dataset Scale</h3>
+                <p class="subtitle is-5">1,000 unique preference-query pairs</p>
+                <p>3 distinct preference forms per pair</p>
+              </div>
+            </div>
+            <div class="column is-6">
+              <div class="box has-text-centered">
+                <h3 class="title is-4" style="font-style: italic;">Context Length</h3>
+                
+                <p class="subtitle is-5">Up to 100k tokens</p>
+                <p>Multi-session conversational context</p>
+              </div>
+            </div>
+
+            <!-- Preference Forms and Task Types -->
+            <div class="column is-12">
+              <div class="columns">
+                <!-- Preference Forms -->
+                <div class="column is-8">
+                  <div class="box">
+                    <h3 class="title is-4 has-text-centered" style="font-style: italic;">Preference Forms</h3>
+                    
+                    <div class="columns is-multiline">
+                      <div class="column is-4">
+                        <h4 class="title is-5">Explicit Preference</h4>
+                        <p>Direct single-turn expression of user preferences</p>
+                      </div>
+                      <div class="column is-4">
+                        <h4 class="title is-5">Implicit Choice-Based</h4>
+                        <p>Two-turn dialogue with preference revealed through choices</p>
+                      </div>
+                      <div class="column is-4">
+                        <h4 class="title is-5">Implicit Persona-Driven</h4>
+                        <p>4-8 turn dialogue with subtle preference revelation</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Task Types -->
+                <div class="column is-4">
+                  <div class="box">
+                    <h3 class="title is-4 has-text-centered" style="font-style: italic;">Task Types</h3>
+                    
+                    <div>
+                      <h4 class="title is-5">Generation Task</h4>
+                      <p>LLM-based Evaluators</p>
+                      <h4 class="title is-5">Classification Task</h4>
+                      <p>Automatic Accuracy Check</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Topic Distribution -->
+          <h2 class="title is-3 has-text-centered">Distribution of Domains and Topics</h2>
+          <div class="content has-text-justified">
+            <img src="static/images/topics_distribution.png" class="figure" alt="Distribution of domains and topics within PrefEval">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- <section class="section">
+  <div class="container">
+    <div class="columns is-centered has-text-centered"> -->
+      <!-- <div class="column is-full-width has-text-centered"> -->
+        <!-- <div class="column is-four-fifths">
+          <h2 class="title is-3"><img src="static/images/prefevallogo.png" style="width:1.0em;vertical-align: middle" alt="Logo"/>
+              <span class="PrefEval">PrefEval</span> Dataset Statistics</h2>
+        <div id="results-carousel" class="carousel results-carousel">
+          <div class="box m-5">
+            <div class="content has-text-centered">
+              <img src="static/images/statistics/skills_sources_distributions.png" alt="image name" width="90%"/>
+              <p>
+                <b>Distribution of skills (left) and data sources (right) in PrefEval.</b> We highlight that PrefEval consists diverse skills for mixed-modal instruction tuning (left). In particular, we source the data from biomedical sources that cover several domains (e.g., radiology) and knowledge bases (e.g., research papers, YouTube).
+              </p>
+            </div>
+          </div>
+          <div class="box m-5">
+            <div class="content has-text-centered">
+              <img src="static/images/statistics/task_sources.png" alt="image name" width="40%"/>
+              <p> <b>Task-specific data sources in PrefEval.</b> We present the data-sources used to curate task-specific data in the PrefEval collection. We abbreviate PubMedVision as PMV, visual question answering as VQA, Image captioning and generation tasks as Image Cap & Gen.  </p>
+            </div>
+          </div>
+          <div class="box m-5">
+            <div class="content has-text-centered">
+              <img src="static/images/statistics/additional_info_sources.png" alt="image name" width="75%"/>
+              <p> <b>Additional information about diverse biomedical dataset sources.</b> We highlight that PrefEval consists data across several biomedical domains and knowledge bases.  </p>
+            </div>
+          </div>
+        </div>
+        </div>
+    </div>
+  </div>
+</section> -->
+
+    <section class="hero is-light is-small">
+        <div class="hero-body has-text-centered">
+            <h1 class="title is-1 mathvista">
+                <img src="static/images/prefevallogo.png" style="width:1em;vertical-align: middle" alt="Logo"/>
+                <span class="mathvista" style="vertical-align: middle">Experiment Results</span>
+            </h1>
+        </div>
+    </section>
+
+    <!-- Section 1: Main Performance Comparisons -->
+    <section class="carousel-section">
+        <h2 class="title is-2 has-text-centered section-title">Main Performance Comparisons</h2>
+        <div class="results-carousel">
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/explicit_generation_baselines.png" alt="Performance comparison" width="80%"/>
+                    <p><b>Performance comparison of 5 methods across 6 LLMs with explicit preferences on the generation task. Both Reminder and RAG consistently achieve the highest accuracy across models. Notably, Reminder outperforms more complex techniques such as Self-Critic and CoT.</b></p>
+                </div>
+            </div>
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/comparison_preference_forms.png" alt="Preference forms comparison" width="60%"/>
+                    <p><b>Comparison of 3 preference forms for 6 LLMs on the generation task, across varying lengths between the stated preference and query. Note that the user preference is stated in the first turn. Results show that implicit preferences are more challenging to infer than explicit preferences.</b></p>
+                </div>
+            </div>
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/classification_task.png" alt="Classification task" width="55%"/>
+                    <p><b>Performance of classification task acros models and methods on the explicit preferences dataset across various input lengths between the user's preference and the final query. Results are averaged over 20 topics.</b></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: Preference Analysis -->
+    <section class="carousel-section">
+        <h2 class="title is-2 has-text-centered section-title">Error Analysis</h2>
+        <div class="results-carousel">
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/error_types.png" alt="Error types" width="35%"/>
+                    <p><b>Distribution of 4 disjoint error types across 2 LLMs and 5 methods in the generation task with explicit preferences.</b></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Dynamic Preferences -->
+    <section class="carousel-section">
+        <h2 class="title is-2 has-text-centered section-title">Dynamic Preferences</h2>
+        <div class="results-carousel">
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/conflicting_prefs.png" alt="Conflicting preferences" width="35%"/>
+                    <p><b>Effect of adding conflicting versus non-conflicting preferences on adherence, with red bar indicating performance with original preference only.</b></p>
+                </div>
+            </div>
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/multiple_prefs.png" alt="Multiple preferences" width="35%"/>
+                    <p><b>Introducing multiple preferences throughout a conversation improves adherence to the initial preference using Claude 3 Sonnet with Reminder prompting.</b></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: SFT on prefeval -->
+    <section class="carousel-section">
+        <h2 class="title is-2 has-text-centered section-title">Finetuning on PrefEval</h2>
+            <div class="box m-5">
+                <div class="content has-text-centered">
+                    <img src="static/images/sft_results.png" alt="SFT results" width="45%"/>
+                    <p><b>SFT results on PREFEVAL: Mistral-7B model exhibits superior preference following accuracy after fine-tuning.</b></p>
+                </div>
+            </div>
+    </section>
+
+
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title is-3 has-text-centered">BibTeX</h2>
+    <div style="position: relative;">
+      <button 
+        onclick="copyBibtex()" 
+        style="position: absolute; top: 8px; right: 8px; padding: 8px; border: none; background: #f5f5f5; border-radius: 4px; cursor: pointer;"
+        id="copyButton">
+        Copy
+      </button>
+      <pre><code id="bibtex">@misc{zhao2025llmsrecognizepreferencesevaluating,
+      title={Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs}, 
+      author={Siyan Zhao and Mingyi Hong and Yang Liu and Devamanyu Hazarika and Kaixiang Lin},
+      year={2025},
+      eprint={2502.09597},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.09597}, 
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<script>
+function copyBibtex() {
+  const bibtex = document.getElementById('bibtex').innerText;
+  navigator.clipboard.writeText(bibtex);
+  
+  const button = document.getElementById('copyButton');
+  button.innerText = 'Copied!';
+  button.style.background = '#4CAF50';
+  button.style.color = 'white';
+  
+  setTimeout(() => {
+    button.innerText = 'Copy';
+    button.style.background = '#f5f5f5';
+    button.style.color = 'black';
+  }, 2000);
+}
+</script>
+
+<!-- <section>
+  <div class="section" id="org-banners" style="display:flex">
+    <a href="https://www.ucla.edu/" target="_blank" rel="external">
+        <img class="center-block org-banner" src="static/images/ucla.png">
+    </a>
+    <a href="https://aditya-grover.github.io/group/members" target="_blank" rel="external">
+        <img class="center-block org-banner" src="static/images/mint_logo.png">
+    </a>
+  </div>
+</section> -->
+
+
+<footer class="footer">
+  <!-- <div class="container"> -->
+    <div class="content has-text-centered">
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is website adapted from <a href="https://nerfies.github.io/">Nerfies</a>, licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  <!-- </div> -->
+</footer>
+
+</body>
+</html>

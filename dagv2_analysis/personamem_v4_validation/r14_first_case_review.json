@@ -1,0 +1,497 @@
+{
+  "run": "v4_validation_r14",
+  "commit": "25fc3849ab8d4b7ab85cf5efdeafddf2d685c58b",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only saved structural evidence. No generation, tokenization, labels, source/option/prediction text, full snapshots or credentials emitted; no experiment mutations.",
+  "termination_kind": "natural first-case terminal outcome before any later operator stop",
+  "published_row_exists": true,
+  "answer_status": "unresolved_or_exhausted",
+  "audit_complete": false,
+  "pending_variables": [
+    "cultural_interests",
+    "event_history",
+    "taste_changes"
+  ],
+  "ledger": {
+    "limits": {
+      "ann": 36,
+      "set_score": 0,
+      "llm": 24,
+      "reader": 0,
+      "json_repairs": 6
+    },
+    "used": {
+      "llm": 13,
+      "http_attempts": 17,
+      "ann": 4,
+      "embedding_http": 4,
+      "json_repairs": 6
+    },
+    "remaining": {
+      "ann": 32,
+      "set_score": 0,
+      "llm": 11,
+      "reader": 0,
+      "json_repairs": 0
+    }
+  },
+  "cost": {
+    "generation_calls": 13,
+    "joint_read_calls": 6,
+    "repair_calls": 6,
+    "json_repair_reservations": 6,
+    "semantic_compose_calls": 0,
+    "audit_calls": 0,
+    "planner_calls": 1,
+    "ann_calls": 4,
+    "llm_attempts": 13
+  },
+  "cap_selections": [
+    {
+      "sequence": 88,
+      "node_id": "music_prefs",
+      "prefix_groups": 70,
+      "output_token_cap": 425,
+      "structure_floor_tokens": 410,
+      "base_input_tokens": 10853,
+      "whole_review_forecast_input_tokens": 11599,
+      "initial_total_tokens": 11542,
+      "forecast_total_tokens": 16384,
+      "repair_output_reserve": 4096,
+      "input_margin": 256,
+      "safety_margin": 8,
+      "context_tokens": 16384
+    },
+    {
+      "sequence": 237,
+      "node_id": "event_history",
+      "prefix_groups": 40,
+      "output_token_cap": 569,
+      "structure_floor_tokens": 505,
+      "base_input_tokens": 10694,
+      "whole_review_forecast_input_tokens": 11455,
+      "initial_total_tokens": 11527,
+      "forecast_total_tokens": 16384,
+      "repair_output_reserve": 4096,
+      "input_margin": 256,
+      "safety_margin": 8,
+      "context_tokens": 16384
+    }
+  ],
+  "requests": [
+    {
+      "stage": [
+        "planner",
+        "1"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 3476,
+      "completion_tokens": 764
+    },
+    {
+      "stage": [
+        "joint_read",
+        "2"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7354,
+      "completion_tokens": 406
+    },
+    {
+      "stage": [
+        "joint_read",
+        "3"
+      ],
+      "max_tokens": 425,
+      "finish_reason": "length",
+      "prompt_tokens": 10853,
+      "completion_tokens": 425
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "4"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 11416,
+      "completion_tokens": 457
+    },
+    {
+      "stage": [
+        "joint_read",
+        "5"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7298,
+      "completion_tokens": 213
+    },
+    {
+      "stage": [
+        "joint_read",
+        "6"
+      ],
+      "max_tokens": 569,
+      "finish_reason": "stop",
+      "prompt_tokens": 10694,
+      "completion_tokens": 279
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "7"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 11007,
+      "completion_tokens": 279
+    },
+    {
+      "stage": [
+        "joint_read",
+        "8"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7349,
+      "completion_tokens": 325
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "9"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7719,
+      "completion_tokens": 321
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "10"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7708,
+      "completion_tokens": 321
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "11"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 11907,
+      "completion_tokens": 350
+    },
+    {
+      "stage": [
+        "joint_read",
+        "12"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7355,
+      "completion_tokens": 292
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "13"
+      ],
+      "max_tokens": 4096,
+      "finish_reason": "stop",
+      "prompt_tokens": 7688,
+      "completion_tokens": 243
+    }
+  ],
+  "obligation_failure": [
+    {
+      "stage": [
+        "joint_read",
+        "6"
+      ],
+      "conditions": [
+        {
+          "variable": "event_history",
+          "offered_id_exists": true,
+          "offered_variable_matches": true,
+          "required_source_count": 53,
+          "all_required_sources_visible": true,
+          "settled_observation_count": 1,
+          "settled_stance_counts": {
+            "support": 1
+          },
+          "settled_scopes_match": true,
+          "partial_or_unknown_observation_count": 0,
+          "unresolved_count": 0,
+          "covered_source_count": 3,
+          "required_source_covered_count": 3,
+          "missing_required_source_count": 50,
+          "all_required_sources_covered": false
+        }
+      ],
+      "repair_feedback_is_generic_obligation_error": false,
+      "repair_has_explicit_missing_source_feedback": false
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "7"
+      ],
+      "conditions": [
+        {
+          "variable": "event_history",
+          "offered_id_exists": true,
+          "offered_variable_matches": true,
+          "required_source_count": 53,
+          "all_required_sources_visible": true,
+          "settled_observation_count": 1,
+          "settled_stance_counts": {
+            "support": 1
+          },
+          "settled_scopes_match": true,
+          "partial_or_unknown_observation_count": 0,
+          "unresolved_count": 0,
+          "covered_source_count": 3,
+          "required_source_covered_count": 3,
+          "missing_required_source_count": 50,
+          "all_required_sources_covered": false
+        }
+      ],
+      "repair_feedback_is_generic_obligation_error": true,
+      "repair_has_explicit_missing_source_feedback": false
+    }
+  ],
+  "batch_results": [
+    {
+      "sequence": 78,
+      "operation": "joint_read",
+      "identity": "aca7783fac2d64d3110a97e1ed8cce03c47deb28d2a004b40480e46a80297658",
+      "complete": true,
+      "source_count": 54,
+      "visible_source_count": 54,
+      "valid_rows": 1,
+      "failed_slots": []
+    },
+    {
+      "sequence": 112,
+      "operation": "joint_read",
+      "identity": "aca7783fac2d64d3110a97e1ed8cce03c47deb28d2a004b40480e46a80297658",
+      "complete": true,
+      "source_count": 71,
+      "visible_source_count": 88,
+      "valid_rows": 1,
+      "failed_slots": []
+    },
+    {
+      "sequence": 180,
+      "operation": "joint_read",
+      "identity": "1b1ab75888f17e398f2c3a5739d05ea4afce2244fc8346510f9d1f5b694512a5",
+      "complete": true,
+      "source_count": 53,
+      "visible_source_count": 53,
+      "valid_rows": 1,
+      "failed_slots": []
+    },
+    {
+      "sequence": 261,
+      "operation": "joint_read",
+      "identity": "1b1ab75888f17e398f2c3a5739d05ea4afce2244fc8346510f9d1f5b694512a5",
+      "complete": false,
+      "source_count": 40,
+      "visible_source_count": 93,
+      "valid_rows": 1,
+      "failed_slots": [
+        {
+          "variable": "event_history",
+          "category": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue"
+        }
+      ]
+    },
+    {
+      "sequence": 418,
+      "operation": "joint_read",
+      "identity": "336d2a575c3e8b79999795f0459e7db292c5fc561cdc23f554d29b09b446137f",
+      "complete": false,
+      "source_count": 54,
+      "visible_source_count": 54,
+      "valid_rows": 0,
+      "failed_slots": [
+        {
+          "variable": "cultural_interests",
+          "category": "citation_capacity: mandatory downstream request exceeds context including repair reserve"
+        }
+      ]
+    },
+    {
+      "sequence": 448,
+      "operation": "joint_read",
+      "identity": "336d2a575c3e8b79999795f0459e7db292c5fc561cdc23f554d29b09b446137f",
+      "complete": false,
+      "source_count": 53,
+      "visible_source_count": 106,
+      "valid_rows": 0,
+      "failed_slots": [
+        {
+          "variable": "cultural_interests",
+          "category": "citation_capacity: mandatory downstream request exceeds context including repair reserve"
+        }
+      ]
+    },
+    {
+      "sequence": 558,
+      "operation": "joint_read",
+      "identity": "80a100c6b0ea4ce89f32bdc24c6884eb4c849aa8ca6702808777bc5ab79922fb",
+      "complete": false,
+      "source_count": 54,
+      "visible_source_count": 54,
+      "valid_rows": 0,
+      "failed_slots": [
+        {
+          "variable": "taste_changes",
+          "category": "citation_capacity: mandatory downstream request exceeds context including repair reserve"
+        }
+      ]
+    }
+  ],
+  "mandatory_handoff_rejections": [
+    {
+      "sequence": 389,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14297,
+        14524
+      ]
+    },
+    {
+      "sequence": 403,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14291,
+        14518
+      ]
+    },
+    {
+      "sequence": 417,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14291,
+        14518
+      ]
+    },
+    {
+      "sequence": 445,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14291,
+        14518
+      ]
+    },
+    {
+      "sequence": 543,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14226,
+        14454
+      ]
+    },
+    {
+      "sequence": 557,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 95,
+      "support_draft_count": 1,
+      "source_ids_preserved": true,
+      "context_tokens": 16384,
+      "preceding_saved_token_counts": [
+        14161,
+        14389
+      ]
+    }
+  ],
+  "repair_capacity_failures": [
+    {
+      "sequence": 447,
+      "operation": "joint_read_repair",
+      "node_id": "cultural_interests",
+      "repair_attempt": 1,
+      "input_tokens": 12267,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "context_tokens": 16384,
+      "estimated_total_tokens": 16627
+    }
+  ],
+  "unread_obligation_count": 111,
+  "failed_obligation_count": 3,
+  "evidence_obligations": [
+    {
+      "variable": "event_history",
+      "source_count": 53,
+      "description_count": 1
+    }
+  ],
+  "failed_batch_reviews": [
+    {
+      "variable": "cultural_interests",
+      "source_count": 106,
+      "failed_draft_count": 1,
+      "validated_observation_count": 0
+    },
+    {
+      "variable": "taste_changes",
+      "source_count": 54,
+      "failed_draft_count": 1,
+      "validated_observation_count": 0
+    },
+    {
+      "variable": "event_history",
+      "source_count": 93,
+      "failed_draft_count": 1,
+      "validated_observation_count": 1
+    }
+  ],
+  "error_types": {
+    "InputOverflow": 2
+  },
+  "interpretation": [
+    "R14 is a natural unresolved_or_exhausted result with LLM budget remaining, but all six JSON repair reservations consumed. No terminal generation or audit occurred.",
+    "The music large-window cap425 exceeded its measured floor410 but truncated; a full4096 repair completed. A state-preserving floor is not a guarantee of enough output for semantic work.",
+    "The event_history cap569 and full repair both stopped normally. The offered obligation ID, scope and all53 original sources were present, with no unresolved/partial output. A three-source support declared that whole53-source obligation resolved; required<=covered failed because50 sources were not covered.",
+    "Repair feedback retained the offered obligation and original slot but gave a generic condition error, not an explicit missing-source difference. The unchanged scoped repair was subsequently stopped without another generation.",
+    "Failed review kept93 event_history sources. Subsequent support admission was rejected because mandatory semantic composition carried95 original source spans and exceeded16k with full output/repair reserve. A later actual repair total16627 exceeded the limit by243.",
+    "R14 planner has four historical nodes versus three in R13; whole-task call counts are not a controlled policy-only comparison. The fixed archived R12 replay remains the clean admission comparison.",
+    "No source dropping, automatic obligation clearing, accuracy claim or code-defect conclusion is justified by these counts alone."
+  ]
+}

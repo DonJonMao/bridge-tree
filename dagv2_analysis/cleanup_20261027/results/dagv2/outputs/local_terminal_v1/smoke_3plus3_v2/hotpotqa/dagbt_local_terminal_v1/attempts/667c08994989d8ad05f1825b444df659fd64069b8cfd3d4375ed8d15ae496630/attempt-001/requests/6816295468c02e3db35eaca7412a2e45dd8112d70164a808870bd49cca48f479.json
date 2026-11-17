@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:1945\", \"source_id\": \"hotpotqa:1945\"}]\nLittle Children (film)\nLittle Children is a 2006 American drama film directed by Todd Field. It is based on the novel of the same name by Tom Perrotta, who along with Field wrote the screenplay. It stars Kate Winslet, Patrick Wilson, Jennifer Connelly, Jackie Earle Haley, Noah Emmerich, Gregg Edelman, Phyllis Somerville and Will Lyman. The original music score is composed by Thomas Newman. The film screened at the 44th New York Film Festival organized by the Film Society of Lincoln Center. It earned 3 nominations at the 79th Academy Awards: Best Actress for Winslet, Best Supporting Actor for Haley, and Best Adapted Screenplay for Field and Perrotta."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "301",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599349.6475148,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599350.633533
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.004867417345279046
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 728,
+      "completion_tokens": 2,
+      "total_tokens": 730
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

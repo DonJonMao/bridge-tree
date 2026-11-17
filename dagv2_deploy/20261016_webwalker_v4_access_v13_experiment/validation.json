@@ -1,0 +1,524 @@
+{
+  "schema_version": 1,
+  "status": "engineering_handoff_verified_with_partial_historical_qa_success",
+  "created_utc": "2026-10-16T01:35:38.051458+00:00",
+  "engineering_handoff_ready": true,
+  "full_dataset_ready": false,
+  "scope": "Resume the interrupted v13 tar delivery, rebuilding the unchanged source and validating local installation and tests. No full-dataset or complete QA success claim.",
+  "source_commit": "8a491f36aa129d6a869a8df6906f788b03ca0e06",
+  "baseline_commit": "e6677081cdfb33c01db3aaa274a497168f314f78",
+  "payload_files": 147,
+  "baseline_core_files": 107,
+  "dataset_questions": 680,
+  "rebuild_identity": {
+    "tracked_release_inputs_equal_frozen_commit": 151,
+    "source_behavior_changed": false,
+    "historical_source_commit_matches": true,
+    "historical_public_config_sha256_matches": true,
+    "historical_archive_recovered": false,
+    "archive_byte_identical_to_prior_tar_claimed": false,
+    "note": "The previous temporary stage is absent. Archive metadata and validation have been regenerated; generation source/config/data are unchanged."
+  },
+  "current_validation": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "source_tests": {
+      "started_utc": "2026-10-16T01:32:38.192604+00:00",
+      "source_root": "/Users/mao/projects/dagv2-webwalker-v4",
+      "source_commit": "8a491f36aa129d6a869a8df6906f788b03ca0e06",
+      "python": "/Users/mao/projects/dagv2/.venv/bin/python",
+      "command": [
+        "/Users/mao/projects/dagv2/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests",
+        "-p",
+        "no:cacheprovider",
+        "--junitxml=/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/pytest-junit.xml"
+      ],
+      "dependency_wheels": {
+        "/Users/mao/projects/dagv2_deploy/20261015_webwalker_v4_access_v4_experiment/release/dagbt_webwalker_v4_experiment/deps/pypdf-6.1.3-py3-none-any.whl": "eb049195e46f014fc155f566fa20e09d70d4646a9891164ac25fa0cbcfcdbcb5"
+      },
+      "network_policy": "Python socket audit hook permits loopback and AF_UNIX only; HF/Transformers offline flags enabled; no real-model smoke requested",
+      "log": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/pytest.log",
+      "status": "passed",
+      "finished_utc": "2026-10-16T01:34:16.013464+00:00",
+      "elapsed_seconds": 97.82084274999988,
+      "exit_code": 0,
+      "log_sha256": "297be4d092a19e0814279a8e9e00a8a42b4cc6062d2d8cf4a2b0663c0f5e65b1",
+      "blocked_network_attempts": 0,
+      "test_suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "2876",
+          "time": "97.503",
+          "timestamp": "2026-10-16T09:32:38.332952+08:00",
+          "hostname": "maozhifangdeMacBook-Pro-2.local"
+        }
+      ],
+      "junit_sha256": "d2a976fda031e987c9739b2a53ae9ced8007f3cd6ef8490b79aa9bc067a666ca",
+      "result_summary": {
+        "passed": 2876,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 69
+      },
+      "package_versions": {
+        "pytest": "9.1.1",
+        "numpy": "2.2.6",
+        "transformers": "4.57.6",
+        "tokenizers": "0.22.2"
+      },
+      "source_status_after": [
+        "?? _webwalker_browser_vendor",
+        "?? _webwalker_browsers",
+        "?? _webwalker_vendor"
+      ],
+      "tracked_diff_after": "",
+      "initial_collection_note": "Unscoped pytest recursively collected a symlinked third-party greenlet test suite and stopped with 15 psutil import errors; preserved as vendor_collection_* artifacts. Final complete project suite explicitly targeted tests/."
+    },
+    "installed_tests_initial": {
+      "status": "passed",
+      "started_utc": "2026-10-16T01:33:22.025461+00:00",
+      "installed_root": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/candidate_install/installed",
+      "python": "/Users/mao/projects/dagv2/.venv/bin/python",
+      "command": [
+        "/Users/mao/projects/dagv2/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests",
+        "-p",
+        "no:cacheprovider",
+        "--junitxml=/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/installed_tests.junit.xml"
+      ],
+      "network_policy": "Python audit hook permits loopback and AF_UNIX only; offline HF flags; no external model or website requested",
+      "browser_vendor_present": false,
+      "finished_utc": "2026-10-16T01:33:47.934163+00:00",
+      "elapsed_seconds": 25.908463625000195,
+      "exit_code": 0,
+      "log_sha256": "d1e24255310f68ee0dc2873ba36c63d20784949e9946a31dd90bac185630b216",
+      "test_suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "2",
+          "tests": "495",
+          "time": "25.729",
+          "timestamp": "2026-10-16T09:33:22.118193+08:00",
+          "hostname": "maozhifangdeMacBook-Pro-2.local"
+        }
+      ],
+      "junit_sha256": "19728aa992f3ca4ba74d048ce2880523704d72b904ba0fd33ebfe53e818a68a5",
+      "blocked_network_attempts": 0
+    },
+    "installed_browser_tests_supplement": {
+      "status": "passed",
+      "started_utc": "2026-10-16T01:34:26.111203+00:00",
+      "installed_root": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/candidate_install/installed",
+      "python": "/Users/mao/projects/dagv2/.venv/bin/python",
+      "command": [
+        "/Users/mao/projects/dagv2/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_webwalker.py::test_actual_chromium_renders_js_and_freezes_dom_snapshot",
+        "tests/test_webwalker_access.py::test_real_chromium_denied_response_is_typed",
+        "-p",
+        "no:cacheprovider",
+        "--junitxml=/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/current_validation/installed_browser_tests.junit.xml"
+      ],
+      "local_dependency_symlinks": {
+        "_webwalker_browser_vendor": "/Users/mao/projects/dagv2-webwalker/_webwalker_browser_vendor",
+        "_webwalker_browsers": "/Users/mao/projects/dagv2-webwalker/_webwalker_browsers"
+      },
+      "network_policy": "Python audit hook permits loopback and AF_UNIX only; no external model or website requested",
+      "finished_utc": "2026-10-16T01:34:27.863358+00:00",
+      "elapsed_seconds": 1.7519092919999366,
+      "exit_code": 0,
+      "log_sha256": "69a5ba78a8ede85a7e2492283227043b9b9118468e5f25a7ec7e1455cf682094",
+      "test_suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "2",
+          "time": "1.598",
+          "timestamp": "2026-10-16T09:34:26.193304+08:00",
+          "hostname": "maozhifangdeMacBook-Pro-2.local"
+        }
+      ],
+      "junit_sha256": "cb707a830864eeff11933e2bfa910f3fd5627282d895a6b6176a9dbc909ff695",
+      "blocked_network_attempts": 0
+    },
+    "installed_coverage": {
+      "status": "passed",
+      "collected_unique_nodes": 495,
+      "initial_passed": 493,
+      "initial_skipped": 2,
+      "supplement_passed": 2,
+      "supplement_covers_exactly_initial_skips": true,
+      "unique_passed_union": 495,
+      "single_invocation_495_passed_claimed": false,
+      "supplement_nodes": [
+        [
+          "tests.test_webwalker",
+          "test_actual_chromium_renders_js_and_freezes_dom_snapshot"
+        ],
+        [
+          "tests.test_webwalker_access",
+          "test_real_chromium_denied_response_is_typed"
+        ]
+      ]
+    },
+    "fresh_candidate_install_and_offline": {
+      "status": "passed",
+      "started_utc": "2026-10-16T01:32:09.385966+00:00",
+      "finished_utc": "2026-10-16T01:32:12.928085+00:00",
+      "archive": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_access_v13_experiment/candidate/dagbt_webwalker_v4_access_v13_experiment.tar.gz",
+      "archive_sha256": "6e5945c56827ea04260661faad04739c06022809c7247052fa90b3c09c3eeec0",
+      "platform": "macOS-26.2-arm64-arm-64bit",
+      "python": "3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 17.0.0 (clang-1700.6.3.2)]",
+      "source_commit": "8a491f36aa129d6a869a8df6906f788b03ca0e06",
+      "safe_members": 167,
+      "payload_files_verified": 147,
+      "baseline_files_verified": 107,
+      "private_credentials_in_archive": false,
+      "validation_in_archive": false,
+      "fresh_install_exit_code": 0,
+      "offline_exit_code": 0,
+      "offline_certified_arms": 2,
+      "external_model_or_website_used": false,
+      "local_browser_ready": true,
+      "linux_tested": false,
+      "source_baseline_unchanged": true,
+      "logs": {
+        "browser.log": "384ab6bceadd2ad96ae54220a66ed6a003fce4484b0d4ed42f6b022d4a8dfd8e",
+        "offline.log": "a8971aa94609d3ce94cbbbde1e6029ca5c97c7ac16510ec19f122351aae17a16",
+        "install.log": "e4119f9e6f25deceec2bb5cdf033832f21e528f8c26ef8d3cdb053941705cfc8"
+      }
+    },
+    "linux_server_tested": false,
+    "real_model_or_website_rerun": false
+  },
+  "historical_official_qa": {
+    "evidence_kind": "Recovered historical JSON tool stdout; not a new experiment. Original raw task, page, audit and certificate files are no longer available locally.",
+    "provenance_file": "recovery_provenance.json in the persisted recovered_history directory",
+    "source_session": "01a11faa-676a-7351-8ade-6bdfe1036807",
+    "primary_source_line": 22551,
+    "primary_source_timestamp_utc": "2026-10-15T21:21:27.494Z",
+    "partial_validation_original_bytes_sha256": "44e9e76b71ad758af30d981615d87ab23febaf3ddff24037d0b6109a82ecd245",
+    "evaluation_original_bytes_sha256": "770c4db5fb5271f8e5bd56b67a070ea2012ea620fcaf4ae7cebeecdccad2b868",
+    "original_byte_hashes_match_recorded_historical_hashes": true,
+    "official_outcome": {
+      "planned_tasks": 4,
+      "questions": 2,
+      "arms": 2,
+      "generation_status_counts": {
+        "unresolved_or_exhausted": 1,
+        "budget_exhausted": 1,
+        "ok": 2
+      },
+      "budget_exhausted_tasks": 1,
+      "published_answers": 2,
+      "certificates": 2,
+      "not_answered": 2,
+      "environment_excluded_questions": 0,
+      "correct_out_of_planned_questions": {
+        "dagbt_joint_memory_v1": "1/2",
+        "dagbt_residual_memory_v2": "1/2"
+      },
+      "provisional_semantic_candidates": 0,
+      "official_full_set_accuracy_established": false
+    },
+    "tasks": [
+      {
+        "question_id": "wwqa-0000",
+        "arm": "dagbt_joint_memory_v1",
+        "status": "unresolved_or_exhausted",
+        "prediction": null,
+        "completion_kind": "incomplete",
+        "certificate_present": false,
+        "audit_supported_complete": false,
+        "configured_reference_judge_correct": false,
+        "pending_variables": [],
+        "ledger_used": {
+          "llm": 15,
+          "http_attempts": 15,
+          "web_actions": 4
+        }
+      },
+      {
+        "question_id": "wwqa-0000",
+        "arm": "dagbt_residual_memory_v2",
+        "status": "budget_exhausted",
+        "prediction": null,
+        "completion_kind": "incomplete",
+        "certificate_present": false,
+        "audit_supported_complete": false,
+        "configured_reference_judge_correct": false,
+        "pending_variables": [
+          "duration",
+          "funding_program",
+          "start_date"
+        ],
+        "ledger_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 7
+        }
+      },
+      {
+        "question_id": "wwqa-0001",
+        "arm": "dagbt_joint_memory_v1",
+        "status": "ok",
+        "prediction": "{\"location\": \"Charleston, South Carolina\", \"time\": \"November 2002\"}",
+        "completion_kind": "certified_symbolic",
+        "certificate_present": true,
+        "audit_supported_complete": true,
+        "configured_reference_judge_correct": true,
+        "pending_variables": [],
+        "ledger_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 5,
+          "json_repairs": 6
+        }
+      },
+      {
+        "question_id": "wwqa-0001",
+        "arm": "dagbt_residual_memory_v2",
+        "status": "ok",
+        "prediction": "{\"location\": \"Charleston, South Carolina\", \"time\": \"November 2002\"}",
+        "completion_kind": "certified_symbolic",
+        "certificate_present": true,
+        "audit_supported_complete": true,
+        "configured_reference_judge_correct": true,
+        "pending_variables": [],
+        "ledger_used": {
+          "llm": 19,
+          "http_attempts": 19,
+          "web_actions": 5,
+          "json_repairs": 4
+        }
+      }
+    ],
+    "evaluation": {
+      "judge_model": "deepseek-v4-flash",
+      "judge_config_identity": "c430195fba77c5d67b3e5a38f562b1ed1079e695942554efdc00d345a4057bb0",
+      "protocol": "reference_complete_nonconflicting_llm_judge_v1",
+      "access_policy": "paired_root_unavailable_exclusion_v1",
+      "environment_exclusions": {},
+      "accuracy_scope": "Common subset after paired root-page access exclusions; not official full-set accuracy.",
+      "note": "Paper used GPT-4; this report explicitly records the configured judge. No EM substitution.",
+      "arms": {
+        "dagbt_joint_memory_v1": {
+          "questions": 2,
+          "planned_questions": 2,
+          "environment_excluded": 0,
+          "coverage": 1.0,
+          "correct": 1,
+          "judge_failures": 0,
+          "accuracy": 0.5,
+          "accuracy_lower_bound": 0.5,
+          "accuracy_upper_bound": 0.5,
+          "all_planned_accuracy_lower_bound": 0.5,
+          "all_planned_accuracy_upper_bound": 0.5
+        },
+        "dagbt_residual_memory_v2": {
+          "questions": 2,
+          "planned_questions": 2,
+          "environment_excluded": 0,
+          "coverage": 1.0,
+          "correct": 1,
+          "judge_failures": 0,
+          "accuracy": 0.5,
+          "accuracy_lower_bound": 0.5,
+          "accuracy_upper_bound": 0.5,
+          "all_planned_accuracy_lower_bound": 0.5,
+          "all_planned_accuracy_upper_bound": 0.5
+        }
+      },
+      "rows": [
+        {
+          "question_id": "wwqa-0000",
+          "arm": "dagbt_joint_memory_v1",
+          "generation_status": "unresolved_or_exhausted",
+          "correct": false,
+          "judge_status": "not_answered"
+        },
+        {
+          "question_id": "wwqa-0000",
+          "arm": "dagbt_residual_memory_v2",
+          "generation_status": "budget_exhausted",
+          "correct": false,
+          "judge_status": "not_answered"
+        },
+        {
+          "question_id": "wwqa-0001",
+          "arm": "dagbt_joint_memory_v1",
+          "generation_status": "ok",
+          "correct": true,
+          "reason": "The prediction correctly states the location as 'Charleston, South Carolina' and the time as 'November 2002', matching the reference exactly.",
+          "judge_status": "ok"
+        },
+        {
+          "question_id": "wwqa-0001",
+          "arm": "dagbt_residual_memory_v2",
+          "generation_status": "ok",
+          "correct": true,
+          "reason": "The prediction correctly states both the time (November 2002) and location (Charleston, South Carolina) as given in the reference.",
+          "judge_status": "ok"
+        }
+      ]
+    },
+    "separate_costs": {
+      "official_generation": {
+        "logical_llm_charges": 80,
+        "physical_llm_attempts_from_ledgers": 80,
+        "cache_replays": 0,
+        "json_repairs": 10,
+        "web_actions": 21,
+        "summed_task_seconds": 1046.4069695472717,
+        "journal_costs": {
+          "tokenize_http_attempts": 651,
+          "tokenize_seconds": 148.05101221008226,
+          "llm_successful_responses": 80,
+          "llm_prompt_tokens": 685577,
+          "llm_completion_tokens": 15637,
+          "llm_response_seconds": 531.2208099365234,
+          "web_http_requests": 17,
+          "web_browser_network_requests": 251
+        },
+        "scope": "Official four generation tasks only; excludes fixture/preflight/scoring/reviewer work. No monetary estimate."
+      },
+      "judge": {
+        "physical_model_attempts": 2,
+        "logical_requests": 2,
+        "returned_responses": 2,
+        "missing_response_usage_records": 0,
+        "reported_prompt_tokens": 302,
+        "reported_completion_tokens": 79
+      },
+      "preflight": {
+        "physical_model_attempts": 1,
+        "logical_requests": 1,
+        "returned_responses": 1,
+        "missing_response_usage_records": 0,
+        "reported_prompt_tokens": 49,
+        "reported_completion_tokens": 6,
+        "tokenizer_http_attempts_separate": 1
+      },
+      "invented_fixture_by_arm": {
+        "dagbt_joint_memory_v1": {
+          "model_physical_attempts": 7,
+          "model_http_successes": 7,
+          "logical_operation_counts": {
+            "planner": 1,
+            "joint_read": 3,
+            "web_navigate": 2,
+            "audit_joint": 1
+          },
+          "tokenizer_http_attempts_separate": 34,
+          "model_response_seconds_total": 53.636220932006836,
+          "tokenization_http_seconds_separate": 7.806171791860834,
+          "web_actions": 3,
+          "website_http_attempts": 3,
+          "page_cache_hits": 0,
+          "browser_network_requests_separate": 0,
+          "max_admitted_input_plus_reserves_tokens": 16365,
+          "max_context_tokens": 16384,
+          "reported_model_prompt_tokens_total": 43896,
+          "reported_model_completion_tokens_total": 1761,
+          "reported_model_tokens_total": 45657,
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "ledger_used": {
+            "llm": 7,
+            "http_attempts": 7,
+            "web_actions": 3
+          }
+        },
+        "dagbt_residual_memory_v2": {
+          "model_physical_attempts": 7,
+          "model_http_successes": 7,
+          "logical_operation_counts": {
+            "planner": 1,
+            "joint_read": 3,
+            "web_navigate": 2,
+            "audit_joint": 1
+          },
+          "tokenizer_http_attempts_separate": 34,
+          "model_response_seconds_total": 50.91921949386597,
+          "tokenization_http_seconds_separate": 7.72585662396159,
+          "web_actions": 3,
+          "website_http_attempts": 0,
+          "page_cache_hits": 3,
+          "browser_network_requests_separate": 0,
+          "max_admitted_input_plus_reserves_tokens": 16368,
+          "max_context_tokens": 16384,
+          "reported_model_prompt_tokens_total": 43895,
+          "reported_model_completion_tokens_total": 1670,
+          "reported_model_tokens_total": 45565,
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "ledger_used": {
+            "llm": 7,
+            "http_attempts": 7,
+            "web_actions": 3
+          }
+        }
+      },
+      "monetary_cost_inferred": false
+    },
+    "independent_full_reports_recovered": false
+  },
+  "limitations": [
+    "Official first question remains unanswered in both arms; second question succeeded in both arms according to the recovered trial records.",
+    "The two-question trial establishes neither full-benchmark accuracy nor superiority of either method.",
+    "Source regression, installation and Chromium checks were rerun on Darwin; Linux has not been tested here.",
+    "No new real-model or external-website experiment was run during this recovery.",
+    "Original temporary raw generation/page/audit artifacts and previous tar were lost; recovered historical records and their provenance are retained separately.",
+    "Embedded README and alignment notes predate the completed v13 trial; this validation records the subsequent historical outcome and current local checks.",
+    "The 495 installed-test coverage is a disjoint union of 493 initial passes and two browser supplement passes, not one 495-pass invocation."
+  ],
+  "evidence_sha256": {
+    "current_validation/source_identity.json": "c1cb2ea06a04bd61d1ffd20561ea71526e98981ea9e389199faa4a9236a2ef81",
+    "current_validation/pytest_receipt.json": "7854f387d1c642249a14bf0bed587928a6d5664cdd377f4d5c9443c4c9a96c10",
+    "current_validation/pytest.log": "297be4d092a19e0814279a8e9e00a8a42b4cc6062d2d8cf4a2b0663c0f5e65b1",
+    "current_validation/pytest-junit.xml": "d2a976fda031e987c9739b2a53ae9ced8007f3cd6ef8490b79aa9bc067a666ca",
+    "current_validation/installed_tests.receipt.json": "61e1402e02df5328c58df1d71276cc23cf2b13db3a7f640dffdd2d3d1e4a2452",
+    "current_validation/installed_tests.log": "d1e24255310f68ee0dc2873ba36c63d20784949e9946a31dd90bac185630b216",
+    "current_validation/installed_tests.junit.xml": "19728aa992f3ca4ba74d048ce2880523704d72b904ba0fd33ebfe53e818a68a5",
+    "current_validation/installed_browser_tests.receipt.json": "7024cbb754044f8af4d02cfc59252418d3e58c8e2af0900f3892c19a1b4f7d9f",
+    "current_validation/installed_browser_tests.log": "69a5ba78a8ede85a7e2492283227043b9b9118468e5f25a7ec7e1455cf682094",
+    "current_validation/installed_browser_tests.junit.xml": "cb707a830864eeff11933e2bfa910f3fd5627282d895a6b6176a9dbc909ff695",
+    "current_validation/installed_coverage.json": "bea618f0ee7fe18a43877e1a18e543b2792a6863e3045f98290291a8df78c7aa",
+    "current_validation/candidate_install/receipt.json": "8251bc0085cd3180c5a293466034309543e43b2143067e3f1f5456bbe5cdb7d2",
+    "current_validation/candidate_install/install.log": "e4119f9e6f25deceec2bb5cdf033832f21e528f8c26ef8d3cdb053941705cfc8",
+    "current_validation/candidate_install/offline.log": "a8971aa94609d3ce94cbbbde1e6029ca5c97c7ac16510ec19f122351aae17a16",
+    "current_validation/candidate_install/browser.log": "384ab6bceadd2ad96ae54220a66ed6a003fce4484b0d4ed42f6b022d4a8dfd8e",
+    "recovered_history/recovery_provenance.json": "cd57e43184a40aabae8e229f53945d798014405c313657cc286d3aa09bbe9332",
+    "recovered_history/access_v13_partial_validation.json": "44e9e76b71ad758af30d981615d87ab23febaf3ddff24037d0b6109a82ecd245",
+    "recovered_history/access_v13_live_evaluation.json": "770c4db5fb5271f8e5bd56b67a070ea2012ea620fcaf4ae7cebeecdccad2b868",
+    "recovered_history/access_v13_live_generation_summary.json": "98d392410acd9ee24e96a94920add90e315c257146ce14dd64c9ce8573430ea2"
+  }
+}

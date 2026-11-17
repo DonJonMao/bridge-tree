@@ -1,0 +1,1399 @@
+    CondAmbigQA: A Benchmark and Dataset for Conditional Ambiguous
+                        Question Answering
+
+                        Zongxi Li1† * , Yang Li2† , Haoran Xie1 , S. Joe Qin1
+                  1
+                    School of Data Science, Lingnan University, Hong Kong SAR
+    2
+      School of Science and Technology, Hong Kong Metropolitan University, Hong Kong SAR
+                            {zongxili, hrxie, joeqin}@LN.edu.hk
+                                        {liya}@hkmu.edu.hk
+
+
+                           Abstract                              their limited ability to infer a human-like context
+                                                                 (Banerjee et al., 2024).
+         Users often assume that large language mod-                Ambiguity in QA is particularly problematic
+         els (LLMs) share their cognitive alignment of
+                                                                 as human communication relies highly on shared
+         context and intent, leading them to omit critical
+         information in question-answering (QA) and              background knowledge and implicit cognitive
+         produce ambiguous queries. Responses based              frameworks, often omitting mutual contexts that
+         on misaligned assumptions may be perceived              are not universally recognised outside specific envi-
+         as hallucinations. Therefore, identifying possi-        ronments. In addition, language itself is inherently
+         ble implicit assumptions is crucial in QA. To           ambiguous, as people prefer concise expressions
+         address this fundamental challenge, we propose          over exhaustive ones (Wasow et al., 2005). For
+         Conditional Ambiguous Question-Answering                example, the seemingly straightforward question
+         (CondAmbigQA), a benchmark comprising
+                                                                 “When did the US leave the gold standard?” allows
+         2,000 ambiguous queries and condition-aware
+         evaluation metrics1 . Our study pioneers “condi-        multiple valid interpretations: a model might an-
+         tions” as explicit contextual constraints that re-      swer 1933, referring to the suspension of domestic
+         solve ambiguities in QA tasks through retrieval-        convertibility during the Great Depression; 1968,
+         based annotation, where retrieved Wikipedia             when the legal requirement for gold reserves be-
+         fragments help identify possible interpretations        hind US currency was removed; or 1971, when
+         for a given query and annotate answers accord-          President Nixon ended international convertibil-
+         ingly. Experiments demonstrate that models
+                                                                 ity, effectively severing the system globally. Each
+         considering conditions before answering im-
+         prove answer accuracy by 11.75%, with an ad-            answer is historically correct but grounded in a dif-
+         ditional 7.15% gain when conditions are ex-             ferent assumption about what it means to “leave.”
+         plicitly provided. These results highlight that         This illustrates how unstated user assumptions fun-
+         apparent hallucinations may stem from inherent          damentally shape query intent. Since models lack
+         query ambiguity rather than purely model fail-          direct access to these assumptions, responses may
+         ure, and demonstrate the effectiveness of con-          be logically sound with the query’s literal wording
+         dition reasoning in QA, providing researchers           yet misaligned with user expectations. To bridge
+         with tools for rigorous evaluation.
+                                                                 this gap, we approximate these assumptions by
+1        Introduction                                            leveraging retrieval to surface possible interpreta-
+                                                                 tions, which are formalised as explicit conditions.
+Large language models (LLMs) have made remark-                      We consider that identifying and addressing
+able progress in question answering (QA). How-                   these implicit assumptions is key to disambigua-
+ever, these advanced models remain prone to gen-                 tion, ensuring that generated responses are accu-
+erate unreliable responses, especially in ambigu-                rate and aligned with user expectations. Current
+ous contexts, with hallucinations being a primary                research focuses on improving model reasoning,
+concern (Ji et al., 2023). Expectation mismatch                  expanding context length, and enhancing retrieval
+is one of several important causes, and its role is              and the use of relevant information (Shaier et al.,
+especially pronounced when queries omit implicit                 2023; Ding et al., 2024; Sun et al., 2024). Tech-
+assumptions and LLMs misinterpret queries due to                 niques such as Chain-of-Thought (CoT) prompting,
+                                                                 reinforcement learning (Wei et al., 2022; Ahmadian
+     Corresponding author; † Equal contribution.
+     *
+     1
+    The dataset is available at https://huggingface.co/          et al., 2024), and human preference alignment (Ji
+datasets/Apocalypse-AGI-DAO/CondAmbigQA-2K.                      et al., 2024) enhance model capabilities, yet they
+                                                              2269
+           Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 2269–2288
+                               November 4-9, 2025 ©2025 Association for Computational Linguistics
+do not explicitly resolve ambiguity.                    2   Related Work
+   This paper introduces Conditional Ambiguous
+Question-Answering (CondAmbigQA), a novel               Recent advances in LLM alignment for QA have
+framework that tackles ambiguity by incorporating       emphasised interpretability and efficiency through
+explicit conditions. To approximate the implicit as-    Chain-of-Draft (CoD) prompting (Xu et al., 2025),
+sumptions underlying ambiguous queries, we use a        reducing verbosity compared to traditional CoT
+retrieval-based strategy to surface diverse contex-     methods. In addition, Process-Supervised Policy
+tual constraints from external knowledge sources        Optimisation (PSPO) introduces non-linear reward
+(e.g., Wikipedia). These constraints, defined as        shaping to balance correctness and brevity in rea-
+“conditions,” represent contextual prerequisites that   soning steps (Xu et al., 2025; Li et al., 2024).
+clarify plausible interpretations and pinpoint the      However, these alignment strategies may embed
+answer. Unlike existing datasets that attempt to        human-biased rewards, prioritising expected out-
+enumerate all possible answers based on human           comes over proper reasoning (Hewitt et al., 2024).
+knowledge, our framework focuses on identifying            RAG-based methods have shown promise in im-
+key conditions that distinguish a question from sim-    proving factual accuracy through retrieval (Lewis
+ilar ones. We design a human-LLM interactive            et al., 2020; Gao et al., 2023b; Li et al., 2025), but
+annotation process where GPT-4o assists in refin-       they do not directly address ambiguity arising from
+ing condition-answer pairs, significantly reducing      implicit assumptions. Recently, Zhou et al. (2025)
+annotation costs and minimising subjectivity.           study the credibility of retrieval-augmented an-
+   Using CondAmbigQA, we develop an experi-             swers in multi-hop scenarios, providing new meth-
+mental protocol to evaluate models on both con-         ods for assessing and improving factual robustness
+dition identification and conditional answer gen-       through iterative retrieval strategies. While Self-
+eration. Our results demonstrate that incorpo-          RAG (Asai et al., 2024) and CRAG (Yan et al.,
+rating explicit conditions into answer generation       2024) enhance reliability through reflection or eval-
+improves response quality compared to standard          uators, newer approaches further refine retrieval
+retrieval-augmented generation (RAG) methods            credibility, addressing critical gaps in handling
+(Lewis et al., 2020). Larger proprietary mod-           complex queries. Liu et al. (2025) further points out
+els, such as GPT-4o and GLM4-Plus, outperform           that conflicting information from retrieved contexts
+smaller models in both condition adherence and          may result in untruthful and inaccurate answers.
+answer quality. Additionally, we introduce a metric        Evaluation of LLM responses presents unique
+for citation generation, further enhancing answer       challenges, as traditional metrics like ROUGE and
+reliability. Our main contributions are as follows:     BLEU fail to capture the complexity and nuance of
+                                                        modern model outputs. Several frameworks such
+   • We are the first to identify implicit conditions
+                                                        as G-Eval (Wei et al., 2022), self-evolving bench-
+     as the root cause of ambiguity in QA tasks
+                                                        marks (Wang et al., 2024), LiveBench (White et al.,
+     and propose a framework for disambiguation
+                                                        2024), and MixEval (Ni et al., 2024) have emerged.
+     through explicit condition representation.
+                                                        Particularly, Murugadoss et al. (2025) verify the
+   • We propose CondAmbigQA, a novel frame-             adherence of LLM-based evaluators to task evalua-
+     work that structures QA responses around           tion instructions, offering methodological guidance
+     identified conditions, ensuring clarity and rel-   for robust and precise evaluation. Nevertheless, es-
+     evance in context-specific answers.                tablishing unbiased and comprehensive metrics re-
+                                                        mains an ongoing challenge (Magesh et al., 2024).
+   • We adopt a human-LLM interactive annota-              While existing research has made important ad-
+     tion process that uses GPT-4o to assist in gen-    vances in ambiguous QA, it faces critical limita-
+     erating condition-answer pairs, significantly      tions. AmbigQA (Min et al., 2020) rewrite ambigu-
+     reducing annotation costs and maintaining          ous questions to capture possible answers; however,
+     high data quality.                                 its reliance on human annotators introduce bias and
+   • Our experiments highlight the importance of        fails to codify the implicit conditions driving vari-
+     condition in QA, which enables models to           ous interpretations. ASQA (Stelmakh et al., 2022)
+     achieve substantial improvements in the accu-      extend AmbigQA by generating long-form answers
+     racy of answer generation.                         to cover multiple answers, but its annotation pro-
+                                                        cess leads to logical inconsistencies when linking
+                                                    2270
+      Primarily Selected Disambiguity Questions                    Human-LLMs Multi-round Annotation                                                           Calibration datasets
+
+           ALCE-ASQA                           GPT4o                                                            GPT4o                                             Annotated dataset
+                                                                    Annotator
+
+                          selecting prompt
+                                                                                 QA prompt (RAG)
+
+
+
+                                                                                               d
+                | Input: Raw Dataset (D)           |                                       roun
+                                                                                       ary
+                | Process:                         |                            Prim
+                                                                                                                                     Calibrator A                  Calibrator B              Calibrator C
+                | - Ambiguity evaluation           |
+                | Output: Selected questions       |                                     Feedback with
+
+                                                                                  Ambiguity Analysis
+
+         Pre-setting Add retrieval fragments                                                    nd
+                                                                                          rou
+                                                                                   ond
+                                                                                Sec
+         Wikipedia               FAISS
+
+                                                                                                                                        Merge or   Calibrate          Merge or   Calibrate    Merge or   Calibrate
+                     Indexing                                                            Feedback with
+
+                                                                                 Evidence Evaluation
+
+                                Retrieving
+                                                                                            d
+                                                                                         oun
+                                                                                    dr
+                                                                                Thir
+
+                                                                                       Other judgement
+
+
+          Ambiguous queries                  Retrieval fragments                                 feedback
+
+
+             | Input: Raw Dataset Selected (DS)          |
+             | Process:                                  |
+             | - Retrieval Fragments from wiki           |                      Final Annotation
+             | vector database                           |                                                                                                          Alignments
+             | Output: Dataset with Fragments            |
+
+
+
+                            Figure 1: Annotation workflow adopted in CondAmbigQA dataset construction.
+
+
+different answer components. ALCE (Gao et al.,                                                       US currency leave the gold standard?” yields mul-
+2023a) enhance credibility through Wikipedia ci-                                                     tiple answers due to the progressive transition in
+tations, but fail to address the implicit ambigu-                                                    monetary policy. Some may cite the 1933 suspen-
+ity within queries. Recent approaches like APA                                                       sion during the Great Depression, others the 1968
+(Kim et al., 2024) adopt agent-based approaches                                                      repeal of gold reserve requirements, and still oth-
+to prompt users for clarification, but model’s inter-                                                ers the 1971 Nixon Shock. The conditions clarify
+nal biases may inadvertently guide users toward                                                      why multiple answers exist by explicitly identify-
+unintended choices. BeaverTails (Ji et al., 2024)                                                    ing the underlying constraints, allowing users to
+leverage human preference, but this approach can                                                     understand the holistic context rather than focusing
+amplify annotation biases. Shaier et al. (2024) pro-                                                 on a single date.
+pose Adaptive Question Answering and identify
+that ambiguity can be a result of both context am-                                                   3.2          Dataset Composition and Structure
+biguity and question ambiguity.                                                                      The CondAmbigQA dataset consists of 2,000 an-
+   Unlike prior works that either rewrites queries                                                   notated instances derived from the ALCE-ASQA2
+(AmbigQA, ASQA) or detects ambiguity post hoc                                                        (Gao et al., 2023a), which originates from Am-
+(APA), our method systematically identifies im-                                                      bigNQ3 (Min et al., 2020). Each instance con-
+plicit assumptions by structuring responses around                                                   tains a user query, retrieved document fragments
+explicit conditions. This approach ensures that re-                                                  from Wikipedia4 , and a structured set of condition-
+trieved contexts serve as an interpretative guide                                                    answer-citation triples. The components are for-
+in reasoning. Furthermore, our condition-aware                                                       mally organised as:
+evaluation provides a more precise evaluation for
+ambiguity resolution.                                                                                           Query|{RetrievalDocs} :
+                                                                                                                        {(Condition1 , Answer1 , {Citation11 , . . . }),
+3   Dataset Construction and Overview                                                                                    (Condition2 , Answer2 , {Citation12 , . . . }),
+                                                                                                                         . . . }.
+3.1 Definition of “Condition”
+                                                                                                     This structure represents a significant advancement
+We first formally define conditions as a set of con-                                                 over existing datasets by incorporating retrieved
+textual constraints that must be satisfied for an                                                    documents and explicit conditions, enabling a more
+answer to be considered correct within a partic-                                                     fine-grained evaluation of ambiguity resolution. An
+ular scope. Conditions naturally emerge in RAG                                                       example of annotated data sample is provided in
+systems when retrieved documents provide valid                                                       Appendix A.
+grounds for an answer. The need for conditions                                                              2
+                                                                                                                https://huggingface.co/datasets/princeton-nlp/ALCE-data
+arises when users pose questions that yield multiple                                                        3
+                                                                                                                https://huggingface.co/datasets/sewon/ambig_qa
+valid answers (Qian et al., 2024) and thus require                                                          4
+                                                                                                          https://huggingface.co/datasets/wikimedia/wikipediahttps:
+clarification. For example, the question “when did                                                   //huggingface.co/datasets/sewon/ambig_qa
+
+                                                                                      2271
+                                                           Retrieval    Complete   Advanced    Ambiguity
+            Dataset
+                                                           Included      Answer    Reasoning   Resolution
+            CondAmbigQA                                       ✓            ✓          ✓            ✓
+            ASQA (Stelmakh et al., 2022)                      ✗            ✓          ✓            ✓
+            AmbigNQ (Min et al., 2020)                        ✗            ✗          ✗            ✓
+            ALCE (Gao et al., 2023a)                          ✓            ✓          ✗            ✗
+            Multihop-RAG (Tang and Yang, 2024)                ✓            ✗          ✓            ✗
+            NaturalQuestions (Kwiatkowski et al., 2019)       ✓            ✗          ✗            ✗
+            TriviaQA (Joshi et al., 2017)                     ✗            ✗          ✗            ✗
+            ELI5 (Fan et al., 2019)                           ✓            ✓          ✓            ✗
+            TruthfulQA (Lin et al., 2022)                     ✗            ✓          ✓            ✗
+                           Table 1: Comparison of CondAmbigQA with other datasets.
+
+
+
+3.3 Annotation Process and Guidelines                         answer pairs to supporting citations from retrieved
+Figure 1 depicts our annotation workflow, which               passages. Human annotators independently review
+integrates human expertise with LLM capabilities              all the responses, focusing on reasoning coherence,
+to construct a robust dataset. Identifying conditions         logical soundness, and citation accuracy. If ad-
+from retrieval results and consistently summaris-             ditional information or clarification is needed for
+ing key contextual factors is a highly tedious task           more precise tuples, the annotators reject the cur-
+for human annotators, making the annotation in-               rent output and provide feedback for calibration. If
+herently complex and labour intensive. To address             no further refinement is required, the tuples are ac-
+this challenge, we leverage LLMs’ superior text               cepted as final. To ensure data quality, regular team
+comprehension abilities to streamline annotation              meetings are held to collectively discuss difficult
+while maintaining human oversight. LLMs can ef-               cases and maintain consistency across annotators.
+ficiently process retrieved contexts and generate                Through this triple-round process, GPT-4o gen-
+initial condition summaries in a consistent manner,           erates satisfactory condition-answer-citation tuples
+significantly reducing the cognitive load on human            for 40% of cases without modification. With two
+annotators and minimising subjectivity. However,              additional rounds of expert feedback and calibra-
+careful human validation is still needed, particu-            tion, this percentage increased to 85%, indicating
+larly when distinguishing subtle variations leading           that although LLMs can handle a substantial por-
+to different answers (Geva et al., 2019).                     tion of the task, human expertise remains essential
+   The annotation team comprises four full-time               for handling more complex cases. The finding also
+PhD candidates and two research assistants from               suggests that this is a meaningful and challenging
+local universities, all specialising in NLP. The first        research problem, suggesting the need for further
+phase involves an initial screening to identify gen-          studies in condition-guided ambiguity resolution.
+uinely ambiguous questions. By analysing both                    The dataset of 2,000 instances reflects a signifi-
+the questions and their corresponding long-form               cant scaling effort while maintaining quality. Our
+answers from ASQA (detailed in Appendix B), we                LLM-assisted approach drastically improved an-
+employ GPT-4o to filter out cases where ambiguity             notation efficiency, with a total labelling cost of
+does not lead to meaningfully different answers, so           approximately $1000 on API (around $0.3 to $0.5
+that human annotators can focus on cases where                per instance) and time of 150 hours for the entire
+ambiguity is truly impactful.                                 dataset. This represents substantial cost savings
+   We adopt a triple-round annotation process,                compared to fully manual annotation, which re-
+where GPT-4o and human annotators iteratively                 quires at least 30 minutes per query and would
+refine the annotations. In the first round, GPT-              have been prohibitively expensive at this scale.
+4o processes each query using predefined dataset-
+                                                              3.4      Dataset Features and Advantages
+construction prompts to draft initial condition-
+answer pairs. The complete sets of prompts pro-               CondAmbigQA provides a framework for assess-
+vided to annotators are listed in Appendix C. An-             ing ambiguous QA, incorporating key features that
+notators then leverage LLMs to analyse these pairs            enable systematic evaluation, as outlined in Table 1.
+and validate their ambiguity using given prompts.               First, retrieval-included annotations ensure that
+In the final round, the LLM maps these condition-             these different models are evaluated under consis-
+                                                          2272
+tent background information. The retrieved frag-           plemented in the DeepEval package5 . Four metrics
+ments provide evidence for answers and serve as            are defined, with detailed prompts provided in Ap-
+sources for extracting conditions, allowing for as-        pendix D, which describe the instructions used for
+sessing how well models utilise contextual infor-          LLMs to generate relevant outputs. Human eval-
+mation to ground their reasoning.                          uation on a small subset (detailed in Appendix E)
+   Second, CondAmbigQA is designed to ensure               indicates strong correlations between G-Eval and
+complete answers by providing explicit condition-          human judgement.
+answer-citation pairings. Unlike datasets that force          Condition Score quantifies the quality of con-
+a single answer, our structure enables the evalua-         dition identification by comparing the model’s ex-
+tion of multiple interpretations grounded in condi-        tracted conditions against the ground-truth condi-
+tions, ensuring that answers are both comprehen-           tions. It assesses both the completeness and clarity
+sive and contextually appropriate. Our approach            of the extracted conditions. The G-Eval framework
+also builds on recent advances in source attribution       evaluates whether the model has accurately identi-
+and citation generation (Shaier et al., 2024), further     fied and clearly articulated all relevant conditions.
+enhancing answer reliability.                                 Answer Score evaluates the factual accuracy
+   Third, the dataset requires advanced reason-            and contextual relevance of generated answers by
+ing by presenting scenarios that demand nuanced            comparing the model’s answers against the ground-
+condition identification and answer generation.            truth answers. The G-Eval framework assesses
+This challenges models to engage in deeper log-            whether the responses are factually correct and ap-
+ical reasoning, encouraging them to generate well-         propriately address the identified conditions.
+grounded responses.                                           Citation Score measures source attribution ac-
+   Finally, CondAmbigQA emphasises ambiguity               curacy, which is defined as follows:
+resolution, explicitly capturing possible clarifica-       Citation Score(M, G) = |{c∈M.citations}∩{c∈G.citations}| .
+                                                                                          |{c∈M.citations}|
+tions for ambiguous questions. This allows for a                                                             (1)
+structured evaluation of how effectively models            This recall-focused metric favours models for cita-
+recognise, interpret, and resolve ambiguity by in-         tion accuracy over exhaustiveness, i.e. how many
+terpreting distinct possible meanings. Compared            attributed citations are actually relevant.
+to other datasets like ASQA and AmbigNQ, Con-                 In addition, two metrics are adopted to evaluate
+dAmbigQA’s unique features makes it particularly           the ability to correctly identify multiple ambigui-
+well-suited for benchmarking models on ambigu-             ties. Answer Count captures the actual number
+ous QA.                                                    of generated answers. Count Difference measures
+                                                           how many more or fewer responses a model gen-
+Data Sources and Licensing
+                                                           erates compared to the expected number, with pos-
+CondAmbigQA is built upon AmbigNQ (Min et al.,             itive values (e.g., GLM4-plus: +1.01) indicating
+2020), distributed under the CC BY-SA 3.0 license.         overgeneration and negative values (e.g., GPT-4o:
+Context passages from Wikipedia are under the              −0.17) showing undergeneration of responses.
+same license, allowing for reproduction and dis-              Combined Score provides an overall evaluation
+tribution with appropriate attribution. To maintain        by aggregating the Condition Score, Answer Score,
+consistency with these data sources, we will release       and Citation Score into a single metric. It incorpo-
+our dataset under the CC BY-SA 3.0 license.                rates calibration mechanisms to address discrepan-
+                                                           cies in the number of condition-answer pairs gener-
+4   Experimental Design                                    ated versus the ground-truth. Penalties are applied
+                                                           for overgeneration, undergeneration, and especially
+4.1 Evaluation Metrics                                     for producing only a single answer pair, indicating
+To quantitatively assess model performance at each         failure to recognize ambiguity. The final score is
+stage, we employ a multi-metric evaluation frame-          computed as a weighted average of the three core
+work. Let M denote the model output and G the              metrics, adjusted by these penalties, ensuring a fair
+corresponding ground-truth. We define G-Eval               comparison across models with varying generation
+(Liu et al., 2023) to measure the quality of output        behaviours. This scoring mechanism encourages
+relative to the reference, following criteria similar      models to match GPT-4o’s ground-truth-consistent
+to those in Yao et al. (2024); Liu et al. (2023), as im-      5
+                                                                  https://github.com/confident-ai/deepeval
+
+                                                       2273
+                                 Condition        Answer                                      Citation                                                                 Diff. of
+            Model                                                                                                                  Combined
+                                  Score            Score                                       Score                                                                  Ans. Count
+            API Models
+            GPT-4o             0.552 ± 0.190   0.558 ± 0.157                             0.875 ± 0.207                                   0.662                          −0.17
+            GLM4-plus          0.302 ± 0.069   0.420 ± 0.097                             0.441 ± 0.261                                   0.388                          +1.01
+            API Average            0.427           0.489                                     0.658                                       0.525                          +0.42
+            Local Models
+            Qwen2.5 (7B)       0.235 ± 0.120   0.287 ± 0.161                             0.558 ± 0.359                                   0.360                          −0.45
+            DeepSeek-R1 (7B)   0.245 ± 0.112   0.293 ± 0.142                             0.501 ± 0.342                                   0.346                          +0.36
+            GLM4 (9B)          0.231 ± 0.071   0.290 ± 0.090                             0.320 ± 0.215                                   0.280                          +1.08
+            LLaMA3.1 (8B)      0.232 ± 0.076   0.252 ± 0.093                             0.306 ± 0.246                                   0.264                          +0.94
+            Mistral (7B)       0.196 ± 0.060   0.231 ± 0.079                             0.263 ± 0.214                                   0.230                          +1.09
+            Gemma2 (9B)        0.170 ± 0.091   0.203 ± 0.118                             0.217 ± 0.277                                   0.197                          +0.14
+            Local Average          0.218           0.259                                     0.361                                       0.280                          +0.53
+Table 2: Main experiment scores, with separate averages for API and local models, highlighting overall model
+rankings and performance gaps.
+
+
+
+behaviour and balances precision and completeness          5                             Experimental Results
+in conditional QA evaluation.
+                                                                                                                  Balanced Performance Scores on CondAmbigQA
+                                                                                   1.0                                                                                                                                     0.8
+
+4.2 Experimental Protocol
+                                                                                                                                                                                                        Condition Score
+                                                                                                                                                                                                        Answer Score
+                                                                                                  0.87
+                                                                                              0.66
+                                                                                                                                                                                                        Citation Score     0.7
+                                                                                                                                                                                                        Combined Score
+                                                                                   0.8
+                                                                                                                                                                                                                           0.6
+
+The experiment protocol comprises two settings.
+                                                           Individual Scores                                                                                                                                                     Combined Score
+                                                                                                                                                                                                                           0.5
+                                                                                   0.6
+                                                                                           0.550.56                               0.56
+
+
+In the primary setting, each model is provided with                                                           0.39
+
+                                                                                                              0.42
+                                                                                                                  0.44
+                                                                                                                            0.36
+                                                                                                                                             0.35
+                                                                                                                                                 0.50
+                                                                                                                                                                                                                           0.4
+
+                                                                                   0.4
+a query Q along with the retrieved passages P ,                                                            0.30
+                                                                                                                            0.29             0.29
+                                                                                                                                                           0.28
+
+                                                                                                                                                           0.29
+                                                                                                                                                               0.32
+                                                                                                                                                                           0.26
+                                                                                                                                                                               0.31
+                                                                                                                                                                            0.25
+                                                                                                                                                                                           0.23
+                                                                                                                                                                                               0.26      0.20
+                                                                                                                                                                                                                           0.3
+
+                                                                                                                                          0.25
+                                                                                                                                                                                                                           0.2
+and is required to (i) extract disambiguating condi-
+                                                                                                                         0.24                           0.23            0.23               0.23
+                                                                                                                                                                                                              0.22
+                                                                                                                                                                                                          0.20
+                                                                                   0.2                                                                                                 0.20
+                                                                                                                                                                                                      0.17
+
+                                                                                                                                                                                                                           0.1
+
+tions from P , and (ii) generate answers based on                                  0.0
+                                                                                           gpt-4o         glm4-plus      qwen2.5 deepseek-r1             glm4           llama3.1       mistral        gemma2
+                                                                                                                                                                                                                           0.0
+
+
+the extracted conditions, supported with citations.                                 4
+                                                                                                                          Answer Count Statistics by Model
+                                                                                                                                                                                                        Answer Count
+
+
+The outputs are then evaluated using the aforemen-
+                                                                                                                                                                                                        Count Difference
+                                                                                                           2.92                                         2.99                           3.00
+                                                                                    3                                                                                    2.85
+
+
+
+
+                                                              Count / Difference
+                                                                                                                                          2.28
+                                                                                                                                                                                                      2.06
+
+
+tioned metrics. This end-to-end evaluation assesses                                 2
+
+                                                                                    1
+                                                                                           1.74
+
+
+                                                                                                                  1.01
+                                                                                                                          1.46
+                                                                                                                                                               1.08
+                                                                                                                                                                                0.94
+                                                                                                                                                                                              1.09
+
+
+
+
+the model’s ability in both condition identification                                0
+                                                                                                                                                 0.36
+                                                                                                                                                                                                             0.14
+
+
+
+
+and conditional answer generation. Additionally,
+                                                                                                  -0.17
+                                                                                                                                 -0.45
+                                                                                   −1
+                                                                                           gpt-4o         glm4-plus      qwen2.5 deepseek-r1             glm4           llama3.1       mistral        gemma2
+models are provided with ground-truth conditions
+alongside Q and P in an alternative setting. By            Figure 2: Model performance on four metrics. In partic-
+comparing the performance of the model-generated           ular, it illustrates the relationship between performance
+and ground-truth conditions, we quantitatively as-         and answer count, revealing how different models bal-
+sess the impact of explicit condition guidance on          ance completeness and conciseness.
+answer generation quality and citation accuracy.
+                                                           5.1                            Condition Generation Performance
+4.3 Baseline Models and Deployment
+                                                           The results summarised in Table 2 show signifi-
+We evaluate seven LLMs of varying sizes and ca-            cant variability in condition generation capabili-
+pacities on CondAmbigQA benchmark. This in-                ties across models. GPT-4o clearly outperforms
+cludes two proprietary API-based models, i.e. GPT-         other models with a condition score of 0.552 (σ =
+4o and GLM4-plus, and five locally-deployed open-          0.190), more than double the average performance
+source models, i.e. LLaMA3.1 (8B) (Dubey et al.,           of locally-deployed models. Local models showed
+2024), Mistral (7B) (Jiang et al., 2023), Gemma            modest performance, with DeepSeek-R1 at 0.245,
+(9B) (Team et al., 2024), GLM4 (9B) (GLM et al.,           Qwen2.5 at 0.235, and LLaMA3.1 at 0.232. Weak
+2024), Deepseek-R1 (7B) (Guo et al., 2025) and             performance was observed in Gemma2 at 0.170
+Qwen2.5 (7B) (Yang et al., 2024). The open-source          and Mistral at 0.196. These substantial perfor-
+models are deployed via the ollama framework us-           mance gaps suggest that proprietary API models,
+ing default sampling parameters and an 8K context          particularly GPT-4o, possess enhanced capabili-
+window. The models are prompted according to               ties to identify potential conditions for ambiguous
+the instructions described in Appendix D.                  queries, with nearly three times the condition iden-
+                                                     2274
+tification capacity of the weakest local models.                                          ent is steep, with the weakest models (Gemma2
+    We observed that models often struggle to fully                                       and Mistral) scoring only 0.203 and 0.231, respec-
+capture the context in condition generation. For                                          tively. This stark performance gap suggests that
+the query “when did US currency leave the gold                                            proprietary API architectures possess substantially
+standard?” (example in Section 3.1), Gemma2                                               enhanced capabilities for generating accurate an-
+generated conditions focusing on “abandonment                                             swers to ambiguous queries. We further visualise
+of the gold standard in the early 20th century”                                           the model performance on four metrics in Figure 2,
+(score = 0.37), which captures only the initial                                           which complements Table 2 by visualising how
+phase of the transition without addressing critical                                       models vary in their precision vs. coverage trade-
+later developments. Meanwhile, LLaMA3.1’s re-                                             offs, especially via Answer Count Difference.
+sponse emphasised the Great Depression era sus-
+pension but failed to articulate the distinction be-                                      5.3   Citation Generation Performance
+tween temporary suspension and final abandon-                                             Citation generation showed the widest performance
+ment (score = 0.48). These examples demonstrate                                           gap, revealing GPT-4o’s exceptional performance
+that while local models can identify individual his-                                      at 0.875 (σ = 0.207), followed by Qwen2.5 at
+torical events, they share common limitations in                                          0.558 (σ = 0.359) and DeepSeek-R1 at 0.501
+capturing the bigger picture over time, as reflected                                      (σ = 0.342). While API models excel at source at-
+in their condition scores rarely exceeding 0.5.                                           tribution, most local models achieve relatively low
+                                                                                          Citation Scores, with Gemma2 reaching only 0.217
+                  Score Distributions by Metric (Balanced Scores)                         (σ = 0.277). This four-fold performance gap sug-
+           8
+                                   Condition Score                                        gests local models struggle significantly with ac-
+           7
+
+           6                                                                              curately attributing information to sources when
+           5
+                                                                                          processing long retrieved passages, while GPT-4o
+ Density   4
+
+           3                                                                              demonstrates a remarkable ability to ground its an-
+           2
+                                                                                          swers in appropriate citations.
+           1
+
+           0
+            0.0      0.2           0.4
+                                         Score
+                                                 0.6         0.8                 1.0
+                                                                                          5.4   Scaling Analysis
+           5
+                                    Answer Score
+                                                                                          Figure 3 shows the density distributions of the
+           4                                                                              scores, helping to compare the consistency and
+ Density
+           3
+                                                                                          robustness of the models between metrics. Our
+           2
+                                                                                          findings reveal a clear distinction between propri-
+           1
+                                                                                          etary and open-sourced models: API models like
+           0
+            0.0      0.2           0.4
+                                         Score
+                                                 0.6         0.8                 1.0      GPT-4o show bimodal score distributions, while lo-
+           6
+                                    Citation Score                 gpt-4o
+                                                                                          cal models show unimodal distributions with lower
+           5
+                                                                   glm4-plus              variance and lower peak scores. In particular, API
+                                                                   qwen2.5
+           4                                                       deepseek-r1            models exhibit significantly enhanced capabilities
+                                                                   glm4
+ Density   3                                                       llama3.1               in handling complex queries, with GPT-4o achiev-
+           2
+                                                                   mistral
+                                                                   gemma2                 ing a combined score of 0.662 and GLM4-plus
+           1
+                                                                                          scoring 0.388, substantially outperforming the best
+           0
+                                                                                          local model (Qwen2.5 at 0.360). For condition
+                                                                                          identification, GPT-4o’s scores peak around 0.552,
+            0.0      0.2           0.4           0.6         0.8                 1.0
+                                         Score
+
+                                                                                          more than double the average performance of all
+Figure 3: Comparison of score distributions across met-                                   local models. The score distribution patterns also
+rics for models of different scales.                                                      differ markedly. API models display distinctive bi-
+                                                                                          modal distributions in answer scores, with GPT-4o
+                                                                                          showing peaks between 0.5 to 0.7, whereas local
+5.2 Answer Generation Performance                                                         models cluster around 0.2 to 0.3. Most notably,
+Answer generation shows similar variability, with                                         GPT-4o shows an unusual spike near 1.0 in citation
+GPT-4o achieving the highest score of 0.558 (σ =                                          scores, indicating perfect citation in many cases, a
+0.157), significantly outperforming other models.                                         capability largely absent in local models.
+GLM4-plus follows at 0.420, and Qwen2.5 leads                                                Another interesting pattern emerges in the count
+local models with 0.287. The performance gradi-                                           differences in answers, shown in Figure 2. GPT-
+                                                                                       2275
+                                                                                                                                                                          0 R G H O  3 H U I R U P D Q F H  $ F U R V V  ' L I I H U H Q W  ( [ S H U L P H Q W D O  & R Q G L W L R Q V
+                                                                                                                               $ Q V Z H U L Q J  Z L W K  * U R X Q G  7 U X W K  & R Q G L W L R Q V                                       $ Q V Z H U L Q J  Z L W K  0 R G H O  J H Q H U D W H G  & R Q G L W L R Q V                                                               $ Q V Z H U L Q J  Z L W K R X W  & R Q G L W L R Q V
+
+
+                                                                    
+                                                                                                                                 $ Q V Z H U  6 F R U H  & R P S D U L V R Q                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                     & L W D W L R Q  6 F R U H  & R P S D U L V R Q
+                                                                                                                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                                                           
+                                                                    
+                                                                                                                                                                                                                                                                                                                                                                                                                                 
+                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
+
+
+
+                       $ Y H U D J H  $ Q V Z H U  6 F R U H                                                                                                                                                                                                            $ Y H U D J H  & L W D W L R Q  6 F R U H
+                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                      
+                                                                                                              
+                                                                                                                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                              
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+                                                                           J S W   R  J O P   S O X V  T Z H Q    G H H S V H H N  U   J O P                                         O O D P D     P L V W U D O  J H P P D                                                                                     J S W   R  J O P   S O X V  T Z H Q    G H H S V H H N  U   J O P                                        O O D P D     P L V W U D O  J H P P D 
+
+
+Figure 4: Model performance in Answer Score and Citation Score, comparing answering without conditions,
+answering based on identified conditions (Main Experiment), and answering based on ground-truth conditions.
+
+                1.0                                                       Condition Score vs Answer Score
+                                                                                                                                                                                                                                deepseek-r1
+                                                                                                                                                                                                                                gemma2                                                                                     In the results, answering with ground-truth con-
+                                                                                                                                                                                                                                glm4-plus
+                                                                                                                                                                                                                                glm4
+                                                                                                                                                                                                                                gpt-4o
+                                                                                                                                                                                                                                                                                                                        ditions consistently yields the highest performance
+                0.8
+                                                                                                                                                                                                                                llama3.1
+                                                                                                                                                                                                                                mistral                                                                                 across all models. For answer scores, GPT-4o
+                                                                                                                                                                                                                                qwen2.5
+                                                                                                                                                                                                                                                                                                                        achieves 0.57 with ground-truth conditions, com-
+                0.6
+                                                                                                                                                                                                                                                                                                                        pared to 0.56 with self-generated conditions and
+ Answer Score                                                                                                                                                                                                                                                                                                           0.26 without conditions. This pattern holds across
+                0.4
+                                                                                                                                                                                                                                                                                                                        all models, with ground-truth conditions providing
+                                                                                                                                                                                                                                                                                                                        an average improvement of 0.20 over the uncondi-
+                0.2                                                                                                                                                                                                                                                                                                     tioned baseline. Citation scores show even more
+                                                                                                                                                                                                                                                                                                                        drastic improvements, with ground-truth conditions
+                0.0
+                   0.0                                                    0.2                            0.4                           0.6                               0.8                        1.0                                                                                                                 enabling GPT-4o to achieve 0.96, compared to 0.87
+                                                                                                        Condition Score
+                                                                                                                                                                                                                                                                                                                        with self-generated conditions and 0.38 without
+Figure 5: Relationship between condition and answer                                                                                                                                                                                                                                                                     conditions, a more than 100% improvement from
+scores across all models.                                                                                                                                                                                                                                                                                               baseline to optimal conditions.
+                                                                                                                                                                                                                                                                                                                           These results strongly validate our central hy-
+4o tends to produce fewer answers than expected                                                                                                                                                                                                                                                                         pothesis, supported by correlation analysis between
+(−0.17), suggesting a more selective approach,                                                                                                                                                                                                                                                                          condition quality and answer performance (Pear-
+while models like GLM4-plus, GLM4, and Mis-                                                                                                                                                                                                                                                                             son: 0.598, Spearman: 0.637, p < 0.001). As
+tral generate significantly more answers (+1.01,                                                                                                                                                                                                                                                                        illustrated in Figure 5, models that achieve higher
++1.08, and +1.09, respectively). This observation                                                                                                                                                                                                                                                                       condition scores consistently demonstrate stronger
+may provide clues on models adopting different                                                                                                                                                                                                                                                                          answer performance, confirming that effective dis-
+strategies in handling ambiguity: GPT-4o appears                                                                                                                                                                                                                                                                        ambiguation through condition identification di-
+to prioritise precision with fewer, higher-quality                                                                                                                                                                                                                                                                      rectly enhances response quality. The inclusion of
+answers, while most other models offer broader                                                                                                                                                                                                                                                                          condition discovery in ambiguous QA, especially
+coverage at the expense of precision.                                                                                                                                                                                                                                                                                   with accurate ground-truth conditions, effectively
+                                                                                                                                                                                                                                                                                                                        improves both answer quality and citation accu-
+5.5 Study on the Significance of Conditions                                                                                                                                                                                                                                                                             racy. The consistent performance gaps across both
+                                                                                                                                                                                                                                                                                                                        metrics underscore the fundamental importance of
+To validate the importance of conditions in RAG
+                                                                                                                                                                                                                                                                                                                        conditional information in enhancing RAG system
+and QA systems, we conducted comparative ex-
+                                                                                                                                                                                                                                                                                                                        performance, with the benefits extending across
+periments across three approaches: RAG with self-
+                                                                                                                                                                                                                                                                                                                        models of various scales and architectures.
+generated conditions (the same as the main exper-
+iment), RAG with annotated ground-truth condi-
+                                                                                                                                                                                                                                                                                                                        5.6             Closed-book Ablation without Retrieval
+tions, and traditional RAG without considering con-
+ditions. As shown in Figure 4, both Answer Score                                                                                                                                                                                                                                                                        To isolate the effect of condition-based reasoning,
+and Citation Score demonstrate consistent hierar-                                                                                                                                                                                                                                                                       we evaluate a closed-book setting, where no pas-
+chical patterns across all tested models.                                                                                                                                                                                                                                                                               sages are retrieved or provided as reference; zero-
+                                                                                                                                                                                                                                                                        2276
+                                              + Model-generated      + Ground-truth
+            Model              Closed-book                                            Improvement
+                                                 Conditions            Conditions
+            API Models
+            GPT-4o                 0.25                 0.56              0.57           +128%
+            GLM4-Plus              0.24                 0.42              0.53           +121%
+            Local Models
+            Qwen2.5 (7B)           0.15                 0.29              0.40           +167%
+            Mistral (7B)           0.17                 0.23              0.29           +161%
+            Gemma2 (9B)            0.15                 0.20              0.29           +93%
+            LLaMA3.1 (8B)          0.14                 0.25              0.29           +107%
+            GLM4 (9B)              0.14                 0.29              0.38           +171%
+            DeepSeek-R1 (7B)       0.07                 0.29              0.34           +400%
+            Avg.                   0.164            0.316                0.386           +135%
+Table 3: Answer scores on CondAmbigQA of models’ losed-book performance vs. condition-grounded reasoning,
+where no retrieved passages are provided.
+
+
+
+shot direct answering and reasoning with model-            provement, combined with the strong correlation
+hypothesised conditions are tested. The results are        between condition quality and answer performance
+reported in Table 3. It reveals a consistent and sub-      (Pearson: 0.598, Spearman: 0.637, p < 0.001),
+stantial drop in answer quality across all models          confirms that condition-based disambiguation gen-
+when external context is removed. Models with              eralises effectively across different ambiguous QA
+self-generated conditions (without referencing re-         datasets.
+trieval) show a 93% increase in the answer score
+relative to the closed-book baseline, demonstrat-          6   Conclusion and Future Work
+ing that condition reasoning can enhance a model’s
+ability to generate relevant and accurate responses.       This work introduces CondAmbigQA, a novel
+Compared with results in which ground-truth condi-         framework and benchmark designed to address am-
+tions were provided, we observe even greater gains,        biguity in QA by explicitly identifying conditions.
+with an average improvement of 135% from the               Our experiments demonstrate that incorporating
+closed-book baseline. These results reinforce our          explicit condition identification improves both an-
+hypothesis that many failures in ambiguous QA              swer quality and interpretability by clarifying the
+stem from a lack of contextual grounding rather            decision-making process. The analysis reveals that
+than inherent deficiencies in the model’s capabili-        while larger models excel in condition processing,
+ties.                                                      even moderate-sized models gain substantial bene-
+                                                           fits from this guidance. Furthermore, our human-
+5.7 Case Study Analysis                                    LLM collaborative annotation process has helped
+                                                           ensure a high-quality dataset with reduced subjec-
+We present a case study section in the Appendix F,
+                                                           tivity and bias. In general, CondAmbigQA estab-
+which inludes a comprehensive discussion over
+                                                           lishes a new paradigm to improve performance and
+models’ performance patterns and failure cases.
+                                                           reliability in ambiguous QA scenarios.
+Detailed analyses on two ambiguous queries are
+                                                              Our findings suggest that condition identification
+also provided.
+                                                           could serve as a foundation for enhancing LLM rea-
+5.8 Generalisation to External Datasets                    soning capabilities. Future research could integrate
+                                                           condition-based frameworks into the architecture
+To validate generalisability, we applied our               of LLMs to improve their logical reasoning abil-
+condition-based disambiguation framework using             ities. This could involve developing specialised
+GPT-4o to the ALCE-ASQA dataset (948 questions             reasoning mechanisms that focus on condition rep-
+with Dense Passage Retrieval (DPR)-retrieved pas-          resentations and their logical dependencies.
+sages provided). Despite ALCE-ASQA lacking
+ground-truth conditions, our method required only          Acknowledgement
+minor adaptations. The results demonstrate a clear
+improvement: direct responses without conditions           The authors sincerely thank the reviewers and Area
+scored 0.374, while our condition-based approach           Chairs for their valuable input, which has greatly
+achieved 0.471, a substantial gain of 10%. This im-        improved our work.
+                                                    2277
+   This work has been supported by Lingnan Uni-             generating answers introduces additional com-
+versity, Hong Kong, through the Faculty Research            putational overhead that could impact latency
+Grant (No. SDS24A2, SDS24A8, SDS24A12,                      in time-sensitive applications. While this ap-
+and SDS24A19), Direct Grant (DR25E8), Lam                   proach significantly improves quality, optimis-
+Woo Research Fund (LWP20040), and Shenzhen                  ing for real-time response in production envi-
+University-Lingnan University Joint Research Pro-           ronments remains challenging.
+gramme 2025/2026 (SZU-LU009/2526), as well
+as by the Hong Kong Research Grants Council               • Relatively Heuristic Evaluation Metrics:
+through the Faculty Development Scheme (Project             Open-domain retrieval may surface conflict-
+No. UGC/FDS16/E10/23).                                      ing or adversarial passages. Our evaluation
+                                                            penalises unsupported/incoherent generations
+Limitations                                                 and rewards condition-separated answers, but
+                                                            explicit adversarial-evidence detection is out
+Despite the promising results, several limitations          of scope. Future work will integrate con-
+remain:                                                     flict detection and robustness checks into the
+                                                            pipeline.
+   • Dataset Representativeness: While we have
+     expanded our dataset to 2,000 annotated in-          These limitations highlight the need for future
+     stances through our human-LLM collabora-          refinement of both the framework and the asso-
+     tive process, certain types of ambiguity may      ciated methodologies, ensuring that the benefits
+     still be underrepresented. Complex interde-       of condition-based disambiguation can be main-
+     pendent ambiguities or domain-specific inter-     tained across a broader spectrum of applications
+     pretations in specialised fields may require      and model architectures.
+     further targeted expansion to ensure compre-
+     hensive coverage. Moreover, current annota-
+                                                       References
+     tion process remains resource-intensive and
+     intellectually demanding due to the need for      Arash Ahmadian, Chris Cremer, Matthias Gallé,
+                                                         Marzieh Fadaee, Julia Kreutzer, Ahmet Üstün, and
+     extensive review and cross-checking by ex-
+                                                         Sara Hooker. 2024. Back to basics: Revisiting re-
+     perts.                                              inforce style optimization for learning from human
+                                                         feedback in llms. arXiv preprint arXiv:2402.14740.
+   • Performance Gap: The significant difference
+                                                       Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+     between API models (GPT-4o: 0.701 com-
+                                                         Hannaneh Hajishirzi. 2024. Self-RAG: Learning to
+     bined score) and local models (best: Qwen2.5        retrieve, generate, and critique through self-reflection.
+     at 0.469) indicates that high-quality condi-        In The Twelfth International Conference on Learning
+     tion identification may remain challenging for      Representations.
+     resource-constrained applications. This gap       Sourav Banerjee, Ayushi Agarwal, and Saloni Singla.
+     suggests that condition-based disambiguation        2024. Llms will always hallucinate, and we need to
+     currently benefits most from advanced model         live with this. arXiv preprint arXiv:2409.05746.
+     capabilities that may not be widely accessible.   Yiran Ding, Li Lyna Zhang, Chengruidong Zhang,
+                                                         Yuanyuan Xu, Ning Shang, Jiahang Xu, Fan Yang,
+   • Generalisation Boundaries: Although our             and Mao Yang. 2024. Longrope: Extending llm con-
+     approach demonstrates effective generali-           text window beyond 2 million tokens. arXiv preprint
+     sation to ALCE-ASQA with a 10% im-                  arXiv:2402.13753.
+     provement, we encountered limitations with        Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey,
+     datasets lacking passage level references for       Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman,
+     citation evaluation. The framework may              Akhil Mathur, Alan Schelten, Amy Yang, Angela
+                                                         Fan, et al. 2024. The llama 3 herd of models. arXiv
+     be less effective for inherently subjective or      preprint arXiv:2407.21783.
+     opinion-based queries where multiple inter-
+     pretations remain equally valid regardless of     Angela Fan, Yacine Jernite, Ethan Perez, David Grang-
+                                                         ier, Jason Weston, and Michael Auli. 2019. ELI5:
+     conditions.
+                                                         Long form question answering. In Proceedings of
+                                                         the 57th Annual Meeting of the Association for Com-
+   • Real-time Deployment: The two-stage pro-            putational Linguistics, pages 3558–3567, Florence,
+     cess of first identifying conditions and then       Italy. Association for Computational Linguistics.
+                                                   2278
+Tianyu Gao, Howard Yen, Jiatong Yu, and Danqi Chen.         Hyuhng Joon Kim, Youna Kim, Cheonbok Park, Jun-
+   2023a. Enabling large language models to generate          yeob Kim, Choonghyun Park, Kang Min Yoo, Sang-
+   text with citations. In Proceedings of the 2023 Con-       goo Lee, and Taeuk Kim. 2024. Aligning language
+   ference on Empirical Methods in Natural Language           models to explicitly handle ambiguity. arXiv preprint
+  Processing, pages 6465–6488, Singapore. Associa-            arXiv:2404.11972.
+   tion for Computational Linguistics.
+                                                            Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,              field, Michael Collins, Ankur Parikh, Chris Alberti,
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and Haofen         Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+  Wang. 2023b. Retrieval-augmented generation for             ton Lee, Kristina Toutanova, Llion Jones, Matthew
+  large language models: A survey. arXiv preprint             Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  arXiv:2312.10997.                                           Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu-
+Mor Geva, Yoav Goldberg, and Jonathan Berant. 2019.           ral questions: A benchmark for question answering
+ Are we modeling the task or the annotator? an inves-         research. Transactions of the Association for Compu-
+ tigation of annotator bias in natural language under-        tational Linguistics, 7:452–466.
+ standing datasets. In Proceedings of the 2019 Confer-
+ ence on Empirical Methods in Natural Language Pro-         Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+ cessing and the 9th International Joint Conference           Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+ on Natural Language Processing (EMNLP-IJCNLP),               rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+ pages 1161–1166, Hong Kong, China. Association               täschel, et al. 2020. Retrieval-augmented generation
+ for Computational Linguistics.                               for knowledge-intensive nlp tasks. Advances in Neu-
+                                                              ral Information Processing Systems, 33:9459–9474.
+Team GLM, Aohan Zeng, Bin Xu, Bowen Wang, Chen-
+  hui Zhang, Da Yin, Diego Rojas, Guanyu Feng, Han-         Jiawei Li, Xinyue Liang, Yizhe Yang, Chong Feng,
+  lin Zhao, Hanyu Lai, et al. 2024. Chatglm: A family          and Yang Gao. 2024. Pspo*: An effective process-
+  of large language models from glm-130b to glm-4 all          supervised policy optimization for reasoning align-
+  tools. arXiv preprint arXiv:2406.12793.                      ment. arXiv preprint arXiv:2411.11681.
+Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song,          Xianming Li, Zongxi Li, Jing Li, Haoran Xie, and Qing
+  Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma,              Li. 2025. ESE: espresso sentence embeddings. In
+  Peiyi Wang, Xiao Bi, et al. 2025. Deepseek-r1: In-          The Thirteenth International Conference on Learning
+  centivizing reasoning capability in llms via reinforce-     Representations, ICLR 2025, Singapore, April 24-28,
+  ment learning. arXiv preprint arXiv:2501.12948.             2025. OpenReview.net.
+John Hewitt, Nelson F Liu, Percy Liang, and Christo-
+  pher D Manning. 2024. Instruction following without       Stephanie Lin, Jacob Hilton, and Owain Evans. 2022.
+  instruction tuning. arXiv preprint arXiv:2409.14254.        TruthfulQA: Measuring how models mimic human
+                                                               falsehoods. In Proceedings of the 60th Annual Meet-
+Jiaming Ji, Mickel Liu, Josef Dai, Xuehai Pan, Chi             ing of the Association for Computational Linguistics
+   Zhang, Ce Bian, Boyuan Chen, Ruiyang Sun, Yizhou           (Volume 1: Long Papers), pages 3214–3252, Dublin,
+   Wang, and Yaodong Yang. 2024. Beavertails: To-              Ireland. Association for Computational Linguistics.
+   wards improved safety alignment of llm via a human-
+   preference dataset. Advances in Neural Information       Siyi Liu, Qiang Ning, Kishaloy Halder, Zheng Qi, Wei
+   Processing Systems, 36.                                    Xiao, Phu Mon Htut, Yi Zhang, Neha Anna John,
+                                                               Bonan Min, Yassine Benajiba, and Dan Roth. 2025.
+Ziwei Ji, Tiezheng Yu, Yan Xu, Nayeon Lee, Etsuko              Open domain question answering with conflicting
+  Ishii, and Pascale Fung. 2023. Towards mitigating            contexts. In Findings of the Association for Compu-
+  LLM hallucination via self reflection. In Findings           tational Linguistics: NAACL 2025, pages 1838–1854,
+  of the Association for Computational Linguistics:           Albuquerque, New Mexico. Association for Compu-
+  EMNLP 2023, pages 1827–1843, Singapore. Associ-              tational Linguistics.
+  ation for Computational Linguistics.
+Albert Q Jiang, Alexandre Sablayrolles, Arthur Men-         Yang Liu, Dan Iter, Yichong Xu, Shuohang Wang,
+  sch, Chris Bamford, Devendra Singh Chaplot, Diego           Ruochen Xu, and Chenguang Zhu. 2023. G-eval:
+  de las Casas, Florian Bressand, Gianna Lengyel, Guil-       NLG evaluation using gpt-4 with better human align-
+  laume Lample, Lucile Saulnier, et al. 2023. Mistral         ment. In Proceedings of the 2023 Conference on
+  7b. arXiv preprint arXiv:2310.06825.                        Empirical Methods in Natural Language Processing,
+                                                              pages 2511–2522, Singapore. Association for Com-
+Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke              putational Linguistics.
+ Zettlemoyer. 2017. TriviaQA: A large scale distantly
+ supervised challenge dataset for reading comprehen-        Varun Magesh, Faiz Surani, Matthew Dahl, Mirac Suz-
+ sion. In Proceedings of the 55th Annual Meeting of           gun, Christopher D Manning, and Daniel E Ho.
+ the Association for Computational Linguistics (Vol-          2024. Hallucination-free? assessing the reliability
+ ume 1: Long Papers), pages 1601–1611, Vancouver,             of leading ai legal research tools. arXiv preprint
+ Canada. Association for Computational Linguistics.           arXiv:2405.20362.
+                                                        2279
+Sewon Min, Julian Michael, Hannaneh Hajishirzi, and          multi-hop queries. In First Conference on Language
+  Luke Zettlemoyer. 2020. AmbigQA: Answering am-             Modeling.
+  biguous open-domain questions. In Proceedings of
+  the 2020 Conference on Empirical Methods in Nat-        Gemma Team, Morgane Riviere, Shreya Pathak,
+  ural Language Processing (EMNLP), pages 5783–             Pier Giuseppe Sessa, Cassidy Hardin, Surya Bhupati-
+  5797, Online. Association for Computational Lin-          raju, Léonard Hussenot, Thomas Mesnard, Bobak
+  guistics.                                                 Shahriari, Alexandre Ramé, et al. 2024. Gemma 2:
+                                                            Improving open language models at a practical size.
+Bhuvanashree Murugadoss, Christian Poelitz, Ian             arXiv preprint arXiv:2408.00118.
+  Drosos, Vu Le, Nick McKenna, Carina Suzana Ne-
+  greanu, Chris Parnin, and Advait Sarkar. 2025. Eval-    Siyuan Wang, Zhuohan Long, Zhihao Fan, Zhongyu
+  uating the evaluator: Measuring llms’ adherence           Wei, and Xuanjing Huang. 2024. Benchmark self-
+  to task evaluation instructions. In Proceedings of        evolving: A multi-agent framework for dynamic llm
+  the AAAI Conference on Artificial Intelligence, vol-      evaluation. arXiv preprint arXiv:2402.11443.
+  ume 39, pages 19589–19597.
+                                                          Thomas Wasow, Amy Perfors, and David Beaver. 2005.
+Jinjie Ni, Fuzhao Xue, Xiang Yue, Yuntian Deng,             The puzzle of ambiguity. Morphology and the web of
+   Mahir Shah, Kabir Jain, Graham Neubig, and Yang          grammar: Essays in memory of Steven G. Lapointe,
+   You. 2024. Mixeval: Deriving wisdom of the               pages 265–282.
+   crowd from llm benchmark mixtures. arXiv preprint
+   arXiv:2406.06565.                                      Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+                                                             Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,
+Cheng Qian, Bingxiang He, Zhong Zhuang, Jia Deng,            et al. 2022. Chain-of-thought prompting elicits rea-
+  Yujia Qin, Xin Cong, Yankai Lin, Zhong Zhang,              soning in large language models. Advances in neural
+  Zhiyuan Liu, and Maosong Sun. 2024. Tell me                information processing systems, 35:24824–24837.
+  more! towards implicit user intention understand-
+  ing of language model driven agents. arXiv preprint     Colin White, Samuel Dooley, Manley Roberts, Arka Pal,
+  arXiv:2402.09205.                                         Ben Feuer, Siddhartha Jain, Ravid Shwartz-Ziv, Neel
+                                                            Jain, Khalid Saifullah, Siddartha Naidu, et al. 2024.
+Sagi Shaier, Lawrence Hunter, and Katharina Kann.           Livebench: A challenging, contamination-free llm
+  2023. Who are all the stochastic parrots imitating?       benchmark. arxiv. arXiv preprint arXiv:2406.19314.
+  they should tell us! In Proceedings of the 13th In-
+  ternational Joint Conference on Natural Language        Silei Xu, Wenhao Xie, Lingxiao Zhao, and Pengcheng
+  Processing and the 3rd Conference of the Asia-Pacific      He. 2025. Chain of draft: Thinking faster by writing
+  Chapter of the Association for Computational Lin-          less. arXiv preprint arXiv:2502.18600.
+  guistics (Volume 2: Short Papers), pages 113–120,
+  Nusa Dua, Bali. Association for Computational Lin-      Shi-Qi Yan, Jia-Chen Gu, Yun Zhu, and Zhen-Hua Ling.
+  guistics.                                                 2024. Corrective retrieval augmented generation.
+                                                            arXiv preprint arXiv:2401.15884.
+Sagi Shaier, Ari Kobren, and Philip V. Ogren. 2024.
+  Adaptive question answering: Enhancing language         An Yang, Baosong Yang, Binyuan Hui, Bo Zheng,
+  model proficiency for addressing knowledge con-           Bowen Yu, Chang Zhou, Chengpeng Li, Chengyuan
+  flicts with source citations. In Proceedings of the       Li, Dayiheng Liu, Fei Huang, et al. 2024. Qwen2
+  2024 Conference on Empirical Methods in Natural           technical report. arXiv preprint arXiv:2407.10671.
+  Language Processing, pages 17226–17239, Miami,
+  Florida, USA. Association for Computational Lin-        Jing Yao, Xiaoyuan Yi, and Xing Xie. 2024. Clave: An
+  guistics.                                                  adaptive framework for evaluating values of llm gen-
+                                                             erated responses. arXiv preprint arXiv:2407.10725.
+Ivan Stelmakh, Yi Luan, Bhuwan Dhingra, and Ming-
+  Wei Chang. 2022. ASQA: Factoid questions meet           Yujia Zhou, Zheng Liu, and Zhicheng Dou. 2025.
+   long-form answers. In Proceedings of the 2022 Con-       How credible is an answer from retrieval-augmented
+   ference on Empirical Methods in Natural Language         LLMs? investigation and evaluation with multi-hop
+   Processing, pages 8273–8288, Abu Dhabi, United           QA. In Proceedings of the 31st International Con-
+   Arab Emirates. Association for Computational Lin-        ference on Computational Linguistics, pages 4232–
+   guistics.                                                4242, Abu Dhabi, UAE. Association for Computa-
+                                                            tional Linguistics.
+Hongda Sun, Weikai Xu, Wei Liu, Jian Luan, Bin
+  Wang, Shuo Shang, Ji-Rong Wen, and Rui Yan. 2024.
+  Determlr: Augmenting llm-based logical reasoning
+  from indeterminacy to determinacy. In Proceedings
+  of the 62nd Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers),
+  pages 9828–9862.
+Yixuan Tang and Yi Yang. 2024. Multihop-RAG:
+  Benchmarking retrieval-augmented generation for
+                                                      2280
+Appendix
+A    Dataset Examples
+ Question: When did the show Last Man Standing start?
+ (1) Condition: “Last Man Standing” is an American sitcom that aired on ABC and Fox. The show originally premiered
+ on ABC in 2011 and was later picked up by Fox in 2018.
+ (1) Ground-truth: The show first premiered on ABC on October 11, 2011, marking its initial broadcast with a special
+ one-hour episode.
+ (1) Citations:
+ Fragment a: “The show premiered on ABC on October 11, 2011, with a one-hour special episode.”
+ Fragment b: “The show originally aired on ABC, then switched to Fox, where it continued in 2018.”
+ Fragment c: “Last Man Standing debuted on ABC on October 11, 2011, airing two episodes in the first hour.”
+
+ (2) Condition: “Last Man Standing” was canceled by ABC and later re-aired by Fox. The show continued to air after
+ transitioning from ABC to Fox.
+ (2) Ground-truth: On Fox, the show “started” again on September 28, 2018, marking its re-premiere.
+ (2) Citations:
+ Fragment x: “The show’s re-premiere occurred on Fox on September 28, 2018.”
+ Fragment y: “After being canceled by ABC, Fox picked up the show, with the first new episode airing on September 28,
+ 2018.”
+ Fragment z: “Fox aired the first season on September 28, 2018, marking the show’s new chapter.”
+
+ Retrieval Fragments:
+ Fragment 1: “Fox began airing the seventh season on September 28, 2018, after the show’s cancellation on ABC.”
+ Fragment 2: “The show’s first season on Fox premiered on September 28, 2018, following its ABC cancellation.”
+ Fragment 3: “Last Man Standing, which had been canceled by ABC, returned for its seventh season on Fox on September
+ 28, 2018.”
+ Fragment 4: “Last Man Standing debuted on ABC on October 11, 2011, marking its official start.”
+ Fragment 5: “The show’s premiere on ABC occurred on October 11, 2011, as a one-hour special.”
+ Fragment 6: “The show, starring Tim Allen, first aired on ABC in 2011 before transitioning to Fox in 2018.”
+
+                                 Table 4: An example from our CondAmbigQA dataset.
+
+
+
+B   Query Prompts Template
+ Query Analysis Instructions Template
+ You are a professional question analysis assistant. Your task is to analyse questions and their previous incomplete
+ annotations, determining whether these questions contain ambiguities or have multiple possible answers. Please carefully
+ read the following instructions and complete the analysis as required. First, you will receive two inputs:
+ <questions> {{QUESTIONS}} </questions>
+ <previous_annotations> {{PREVIOUS_ANNOTATIONS}} </previous_annotations>
+ Please follow these steps:
+ 1) Read each question and annotation carefully.
+ 2) Analyse each question for:
+    a) ambiguity - explain different interpretations
+    b) multiple possible answers - provide examples
+ 3) Consider: question clarity, vague terms, context sufficiency, subjective elements
+ 4) Use format:
+    <analysis>
+    <question_number>Number</question_number>
+    <question_text>Text</question_text>
+    <ambiguity_analysis>Results</ambiguity_analysis>
+    <multiple_answers>Results</multiple_answers>
+    </analysis>
+ 5) Compare with previous annotations
+
+Table 5: Instruction template used to analyse queries from ASQA. We use GPT-4o to identify data samples where
+ambiguity is truly impactful.
+
+
+
+                                                            2281
+C     Dataset Prompts
+    Dataset Prompts (Part 1)
+    Question Answering:
+    You are tasked with providing a structured answer to a question based on the given text fragments. Your goal is to present
+    possible interpretations supported by the fragments, clearly distinguishing between preconditions and detailed answers.
+    Question: <question> [INSERT QUESTION HERE] </question>
+    Text fragments:
+    <fragments>
+    [INSERT FRAGMENTS HERE]
+    </fragments>
+    Answer format:
+    <answer>
+    Interpretation [X]:
+    Preconditions:
+    * [Necessary background information or assumptions, not directly answering the question] [Fragment X]
+    * [Necessary background information or assumptions, not directly answering the question] [Fragment Y]
+    Detailed answer:
+    * [Specific information directly answering the question] [Fragment Z]
+    * [Specific information directly answering the question] [Fragment A, Fragment B]
+    [Repeat the Interpretation structure for as many interpretations as necessary]
+    </answer>
+    Ensure all interpretations are distinct, citing relevant fragments for support. If conflicting information is found, present all
+    viewpoints with sources.
+    Ambiguity Analysis:
+    Analyse potential ambiguities in the question “[INSERT QUESTION HERE]” based on the provided interpretations.
+    Consider different contexts and how they influence interpretations.
+    <analysis>
+    Ambiguity point [X]: [Describe ambiguity that could lead to different interpretations]
+    Impact:
+    1. [Impact on Interpretation 1] [Based on Fragment X, Y]
+    2. [Impact on Interpretation 2] [Based on Fragment Z, A]
+    Contextual considerations: [How different backgrounds might affect understanding]
+    [Repeat the Ambiguity point structure for as many ambiguities as necessary]
+    </analysis>
+    Explain how each ambiguity leads to different valid answers, citing relevant fragments.
+    Evidence Evaluation:
+    For each interpretation of the question “[INSERT QUESTION HERE]”, evaluate the supporting evidence. Consider source
+    reliability, consistency across fragments, and potential biases.
+    <evaluation>
+    Interpretation [X]: [Brief summary of Interpretation X]
+    Evidence assessment:
+    * Strengths: [List strong evidence supporting this interpretation] [Fragment X, Y]
+    * Weaknesses: [Point out potential issues or shortcomings] [Fragment Z]
+    * Consistency: [Evaluate the consistency of information across fragments]
+    Overall credibility: [Provide an overall assessment, e.g., “High”, “Medium”, or “Low”]
+    [Repeat the Interpretation structure for as many interpretations as necessary]
+    </evaluation>
+    Provide a balanced assessment, citing specific fragments to support your evaluation.
+Table 6: The complete sets of dataset-construction prompts provided to annotators (Part 1). GPT-4o is instructed to
+process each query in the first round of annotation.
+
+
+
+
+                                                                 2282
+ Dataset Prompts (Part 2)
+ Structured Answer:
+ Please provide your answer using the following format:
+ <answer>
+ Interpretation [X]:
+ Preconditions:
+ * [Necessary background information or assumptions, not directly answering the question] [Fragment X]
+ * [Necessary background information or assumptions, not directly answering the question] [Fragment Y]
+ Detailed answer:
+ * [Specific information directly answering the question] [Fragment Z]
+ * [Specific information directly answering the question] [Fragment A, Fragment B]
+ [Repeat the Interpretation structure for as many interpretations as necessary]
+ </answer>
+ Provide all possible interpretations, ensuring that preconditions and detailed answers are clearly distinct. Every statement
+ must be supported by at least one fragment citation. If you find conflicting information, present all viewpoints and clearly
+ indicate the source of each.
+ Calibration:
+ You are tasked with generating a response based strictly on the provided retrieved fragments. Do not introduce any external
+ knowledge or assumptions. Your job is to fill out the following fields using only the information present in the fragments.
+ If any information is missing, leave that field blank.
+ 1. Condition: Summarise the context of the question strictly using the provided fragments. Do not speculate beyond the
+ given information.
+ 2. Ground-truth: Provide the exact answer to the question based on the retrieved fragments. Use only what is explicitly
+ stated.
+ 3. Citations: List the relevant fragments that support your answer. Include the title and text of the fragments that were
+ used.
+ 4. Reason: Explain how the answer was derived solely from the fragments, and mention why any gaps in information
+ were left unfilled.
+ Fragments: retrieved fragments
+ Output format:
+ “condition”: “<summary based on fragments>”, “ground truth”: [“<answer derived from fragments>”], “citations”: [
+ “title”: “<fragment title>”, “text”: “<fragment text>” ], “reason”: “<explanation>”
+ Merging:
+ You are provided with a question and several annotated dictionaries. Your task is to merge all the dictionaries without
+ changing the structure or key names. Consolidate similar information, eliminate redundancy, and ensure that the final
+ output accurately reflects the content of all dictionaries. Do not introduce external knowledge or assumptions.
+ Question: question
+ Dictionaries: dictionaries
+ Instructions:
+ - Merge the “condition” fields from all dictionaries into one, keeping only unique and relevant information.
+ - Merge the “ground truth” fields into a single list, ensuring no redundant entries.
+ - Combine the “citations” fields from all dictionaries, ensuring all relevant citations are included without duplication.
+ - Leave the “reason” field as an empty string.
+ Output format:
+ “condition”: “<merged condition from all dictionaries>”, “ground truth”: [“<merged ground truth from all dictionaries>”],
+ “citations”: [ “title”: “<citation title from any dictionary>”, “text”: “<citation text from any dictionary>” ], “reason”:
+Table 7: The complete sets of dataset-construction prompts provided to annotators (Part 2). GPT-4o is instructed to
+process each query in the first round of annotation.
+
+
+
+
+                                                             2283
+D    Evaluation Prompts
+ Evaluation Prompts
+ RAG with Conditions Prompt:
+ Question: {question}
+ Retrieved fragments:
+ {Fragment 1 - {title}: {text}}
+ ...
+ Please complete the following tasks:
+ 1. Identify up to FIVE key conditions related to the question based solely on the provided fragments.
+ 2. For each condition, provide a corresponding detailed answer.
+ 3. Cite the sources (fragment numbers) that support each condition and answer.
+ 4. Output the results in JSON format with the following structure.
+ Modified Condition-based Prompt:
+ Question: {question}
+ Context fragments:
+ {Fragment 1 - {title}: {text}}
+ ...
+ Conditions to address:
+ Condition 1: {condition}
+ ...
+ IMPORTANT: Respond with ONLY the following JSON format, no other text.
+ Standard RAG Prompt:
+ Question: {question}
+ Retrieved fragments:
+ {Fragment 1 - {title}: {text}}
+ ...
+ Please complete the following tasks:
+ 1. Answer the question based solely on the provided fragments.
+ 2. Cite up to FIVE sources (fragment numbers) that support your answer.
+ Evaluation Metrics - Condition Correctness:
+ - Name: “Condition Correctness”
+ - Criteria: “Determine whether the actual condition is factually correct based on the expected condition.”
+ - Evaluation steps:
+ 1. Check whether the facts in ’actual condition’ contradicts any facts in ’expected condition’.
+ 2. Heavily penalise omission of critical details in the condition.
+ 3. Ensure that the condition is clear and unambiguous.
+ Evaluation Metrics - Answer Correctness:
+ - Name: “Answer Correctness”
+ - Criteria: “Determine whether the actual answer is factually correct based on the expected answers.”
+ - Evaluation steps:
+ 1. Check whether the facts in ’actual answer’ contradicts any facts in ’expected answers’.
+ 2. Heavily penalise omission of critical details in the answer.
+ 3. Ensure that the answer directly addresses the question without irrelevant information.
+Table 8: Evaluation prompts. The models are prompted according to these instructions and their outputs are
+evaluated using the G-Eval function as implemented in the DeepEval package.
+
+
+
+
+                                                            2284
+ Metric              Pearson ρ   Spearman ρ   p-value        For the city comparison query, we identified two
+ Condition Quality     0.88         0.89      < 0.001      key valid interpretations:
+ Answer Quality        0.83         0.68      < 0.01
+Table 9: Correlation between G-Eval and human anno-            1. Metropolitan area comparison: Greater St.
+tations on 20 examples.                                           Louis (2.8 million) is larger than the Kansas
+                                                                  City metropolitan area (2.2 million).
+
+                                                               2. City proper comparison: Kansas City has
+E    G-Eval Reliability Analysis
+                                                                  a larger city proper population (approx.
+To assess the reliability of G-Eval on our Con-                   480,000 by 2017) than St. Louis.
+dAmbigQA benchmark, we conducted a small-
+scale correlation analysis comparing G-Eval scores           For the colour TV question, multiple valid per-
+against human annotations on 20 randomly sam-              spectives include:
+pled examples. Human ratings used the following                1. Technological introduction: Color TV was
+10-point rubrics:                                                 officially introduced in December 1953 with
+    • Condition Quality (1–10): how accurately                    the approval of the NTSC standard, with the
+      the condition captures ambiguity, covers dis-               first national broadcast on January 1, 1954.
+      tinct valid interpretations, and maintains logi-
+                                                               2. Widespread adoption: Color TV became
+      cal coherence.
+                                                                  widely adopted in the mid-1960s, with
+    • Answer Quality (1–10): how accurate, com-                   NBC’s 1965 transition to colour programming
+      plete under the stated condition, and factually             catalysing industry-wide changes.
+      sound (no hallucinations) the answer is.
+                                                           F.2    Performance Patterns and Failure Modes
+   We then calculated Pearson and Spearman cor-
+                                                           Our analysis reveals distinct patterns of perfor-
+relation coefficients between G-Eval and human
+                                                           mance as summarised in Table 10. We also iden-
+scores. The results are presented in Table 9.
+                                                           tified three key failure patterns across multiple ex-
+   These high correlation coefficients demonstrate
+                                                           amples.
+that G-Eval closely tracks human judgments in
+both condition identification and conditional an-              1. Condition Misidentification: Smaller mod-
+swer quality, validating its use as an automatic eval-            els frequently generate conditions that miss
+uator for large-scale ambiguous QA benchmarking.                  the core ambiguity. For example, Gemma2’s
+                                                                  response to the city comparison query in-
+F    Case Study Analysis                                          cluded “Influence of both cities in their respec-
+Our case studies reveal how different models han-                 tive metropolitan areas” rather than explicitly
+dle ambiguous queries, with notable variations                    addressing which city is larger.
+in performance between API-based models (GPT-
+                                                               2. Factual Inaccuracy: Models sometimes pro-
+4o, GLM4-plus) and local models (LLaMA3.1,
+                                                                  vide incorrect information. DeepSeek incor-
+Gemma2, GLM4, Qwen2.5). We present de-
+                                                                  rectly stated, “the Kansas City metropolitan
+tailed analyses of responses to ambiguous ques-
+                                                                  area is larger than Greater St. Louis,” contra-
+tions where multiple valid interpretations exist, fo-
+                                                                  dicting available data.
+cusing on condition identification, answer genera-
+tion, and citation accuracy.                                   3. Citation Failures: Most models, particularly
+F.1 Model Performance on Ambiguous                                local ones, struggle with citation accuracy.
+    Queries                                                       Even when answers contain correct informa-
+                                                                  tion, they often cite wrong fragments, reduc-
+We examine model responses to two representative                  ing their reliability and trustworthiness.
+ambiguous queries: “Which is bigger Kansas City
+or St. Louis?” and “When did colour TV come out              Using balanced scoring metrics, we established
+in US?” These questions are ambiguous because              performance thresholds: scores below 0.30 indi-
+they can be interpreted in multiple valid ways, re-        cate inadequate responses, 0.30 to 0.45 represent
+quiring models to identify distinct conditions and         partially adequate answers, and above 0.50 indicate
+provide corresponding answers.                             high-quality responses.
+                                                        2285
+ Model Category                     Performance Characteristics
+ API Models (GPT-4o, GLM4-plus)     Higher condition quality, better answer accuracy, stronger ability to identify valid
+                                    interpretations, more precise citations
+ Local Models (LLaMA3.1, Gemma2,    Often generate irrelevant conditions, lower answer accuracy, struggle with condition-
+ etc.)                              answer pairs
+                      Table 10: Key performance differences between model categories.
+
+
+
+F.3 Detailed Analysis: City Comparison                       3. Answer depth: While DeepSeek provided
+    Query                                                       some accurate information (e.g., the date of
+Table 11 presents the ground-truth conditions for               the first colour broadcast), its answers lacked
+the city comparison query. Table 12 shows various               the contextual depth and nuance found in API
+model responses to the city comparison query.                   model responses.
+                                                             These findings suggest that while specialized
+F.4 Detailed Analysis: Color TV Query
+                                                           reasoning training provides some benefits, it does
+Table 13 presents the ground-truth conditions for          not close the substantial capability gap between
+the colour TV introduction query. Table 14 shows           local models and larger API models for condition-
+various model responses to the colour TV query.            based RAG tasks.
+
+F.5 Comparing DeepSeek Reasoning with                      F.6    Key Findings
+    Base Models                                            Our case studies demonstrate significant perfor-
+An important dimension of our analysis is the com-         mance gaps between model categories in condition-
+parison between DeepSeek’s reasoning-enhanced              based RAG:
+model and other base models. DeepSeek repre-
+                                                              • API models (GPT-4o, GLM4-plus) consis-
+sents an attempt to improve reasoning capabilities
+                                                                tently identify the core ambiguities in ques-
+in LLMs through specialized training and architec-
+                                                                tions and generate conditions that address
+tural modifications. Our case studies reveal sig-
+                                                                multiple valid interpretations. Their answer
+nificant differences in performance, as shown in
+                                                                quality is substantially higher, with scores fre-
+Table 15.
+                                                                quently above 0.60.
+   The DeepSeek reasoning model demonstrates
+some improvements over other local models, par-               • DeepSeek Reasoning model shows some
+ticularly in its attempt to structure responses more            structural improvements over other local mod-
+systematically. When addressing the colour TV                   els but still struggles with factual accuracy
+question, DeepSeek formulated conditions as di-                 and comprehensive condition identification.
+rect questions: “When were colour TVs first made                Its performance scores (typically 0.29-0.44)
+available to the public in the U.S.?” and “When                 position it marginally better than other local
+did the first national colour broadcast occur in the            models but far below API models.
+U.S.?” This approach shows a clearer understand-
+                                                              • Other local models often miss key ambigu-
+ing of the task structure.
+                                                                ities, providing either irrelevant conditions
+   However, DeepSeek still falls significantly short
+                                                                or incorrect answers. Their condition and
+of API models in three critical areas:
+                                                                answer quality scores typically fall between
+  1. Factual accuracy: DeepSeek incorrectly                     0.21-0.45, indicating partial adequacy at best.
+     claimed that “the Kansas City metropolitan               • Citation accuracy varies dramatically, with
+     area is larger than Greater St. Louis,” contra-            API models more likely to correctly cite sup-
+     dicting established facts.                                 porting evidence (50-100% accuracy), while
+                                                                local models including DeepSeek frequently
+  2. Condition comprehensiveness: DeepSeek
+                                                                cite inappropriate or irrelevant fragments (0-
+     failed to adequately address both interpre-
+                                                                50% accuracy).
+     tations of the city comparison question, fo-
+     cusing on superficial aspects like “Historical           These findings highlight the critical importance
+     Growth” rather than comprehensive size com-           of model capability in condition-based RAG sys-
+     parisons.                                             tems. When dealing with ambiguous queries, larger
+                                                     2286
+ Condition                   Description
+ Metropolitan Comparison     When comparing the metropolitan areas, Greater St. Louis is larger than the Kansas City
+                             metropolitan area. Greater St. Louis is the largest metropolitan area in Missouri, with a
+                             population of over 2.8 million people. The Kansas City metropolitan area is the second-largest,
+                             with a population of more than 2.2 million people.
+ City Proper Comparison      When comparing the city proper populations, Kansas City, Missouri, is larger than St. Louis,
+                             Missouri. Kansas City has a city proper population that has grown to almost 480,000 people by
+                             2017, reflecting steady growth over the years. In contrast, St. Louis has a smaller city proper
+                             population.
+                           Table 11: Ground-truth conditions for the city comparison query
+
+
+  Model         Generated Condition           Answer Excerpt                                     Score   Analysis
+  GPT-4o        Comparison of Metropoli-      “When comparing the size of Kansas City            0.69    Correctly identifies
+                tan Areas                     and St. Louis, it is important to consider the             metropolitan com-
+                                              metropolitan areas... The Greater St. Louis                parison
+                                              area is generally considered larger...”
+  GPT-4o        Comparison of City            “Kansas City has a larger population...”           0.64    Accurately distin-
+                Proper Populations                                                                       guishes city proper
+  GLM4-plus     Comparison of Metropoli-      “The Greater St. Louis metropolitan area is a      0.70    Thorough compari-
+                tan Areas                     bi-state region... St. Louis is the focus of the           son with citations
+                                              largest metro area in Missouri...”
+  GLM4-plus     Comparison of City            “Kansas City’s city proper population had          0.59    Correctly        ad-
+                Proper Populations            reached almost 480,000 residents...”                       dresses         city
+                                                                                                         populations
+  Gemma2        Population size compari-      “St. Louis is indicated to be larger than          0.42    Confuses historical
+                son                           Kansas City, Missouri...”                                  and current size
+  Gemma2        Influence of cities           “Both Kansas City and St. Louis are anchors        0.30    Doesn’t address
+                                              for large metropolitan areas...”                           size comparison
+  LLaMA3.1      Kansas City metropolitan      “The Kansas City metropolitan area’s popu-         0.33    Incorrect
+                area population               lation is expected to grow from 2.1 Million                metropolitan
+                                              to over 2.7 Million by 2040...”                            size conclusion
+  LLaMA3.1      Greater St. Louis location    “According to Fragment 1, Greater St. Louis        0.21    Fails to address
+                                              is a bi-state metropolitan statistical area...”            size comparison
+  DeepSeek      Population Comparison         “Based on historical data, the Kansas City         0.31    Incorrect
+                                              metropolitan area is larger than Greater St.               metropolitan
+                                              Louis...”                                                  comparison
+  DeepSeek      Historical Growth             “St. Louis experienced significant population      0.29    Discusses      irrel-
+                                              growth in the mid-19th century...”                         evant     historical
+                                                                                                         context
+                Table 12: Model-generated conditions and evaluation for city comparison query
+
+
+
+API models demonstrate significantly greater abil-
+ity to identify valid interpretations, generate appro-
+priate conditions, provide accurate answers, and
+cite relevant evidence. While reasoning-enhanced
+models like DeepSeek show incremental improve-
+ments, the capability gap remains substantial, sug-
+gesting that deploying high-capability models is es-
+sential for effective condition-based RAG systems,
+particularly for domains where query ambiguity is
+common.
+
+
+
+
+                                                           2287
+Condition              Description
+Technological In-      Colour television was officially introduced in the US with the approval of the NTSC standard in
+troduction             December 1953. This allowed for the first national colour broadcast on January 1, 1954, featuring
+                       NBC’s coverage of the Tournament of Roses Parade. Despite this technological milestone, the high
+                       cost of colour television sets and limited programming meant that consumer adoption was slow.
+Widespread Adop-       Color television became widely adopted in the US during the mid-1960s. The transition to colour
+tion                   programming gained momentum in 1965 when NBC announced that its prime-time schedule would be
+                       almost entirely in colour. This prompted other networks to follow suit, leading to a significant increase
+                       in colour broadcasts. By 1972, more than half of all U.S. households owned a colour television.
+                             Table 13: Ground-truth conditions for the colour TV query
+
+
+
+ Model           Generated Condi-       Answer Excerpt                                            Score    Analysis
+                 tion
+ GPT-4o          Introduction     of    “Color television was introduced in the US follow-         0.55    Provides accurate
+                 Color Television       ing significant regulatory and technological devel-                timeline and key
+                                        opments... The NTSC colour standard, approved                      events
+                                        in 1953... The first broadcast was on January 1,
+                                        1954...”
+ GPT-4o          Consumer Adop-         “While the technology was introduced in 1953, its          0.45    Correctly     ad-
+                 tion and Market        widespread adoption was slow... It wasn’t until                    dresses adoption
+                 Penetration            the mid-1960s that colour television saw significant               timeline
+                                        consumer adoption...”
+ GLM4-plus       Introduction      of   “Color television was officially introduced in the         0.65    Clear, accurate in-
+                 colour television      United States in 1953 when the FCC approved the                    troduction account
+                                        NTSC colour standard. The first national colour
+                                        broadcast occurred on January 1, 1954...”
+ GLM4-plus       Widespread adop-       “Widespread adoption took longer despite its intro-        0.63    Thorough explana-
+                 tion of colour TV      duction in 1953. It was not until the mid-1960s that               tion of adoption
+                                        colour sets started selling in large numbers...”                   timeline
+ Gemma2          When were colour       “The first national colour broadcast in the US oc-         0.44    Contains accurate
+                 television broad-      curred on January 1, 1954. While limited program-                  facts but lacks reg-
+                 casts introduced       ming was available soon after, it wasn’t until the                 ulatory context
+                                        early 1970s that colour television widely outsold
+                                        black-and-white sets.”
+ Gemma2          Initial factors hin-   “High prices for colour television sets and a scarcity     0.34    Addresses adop-
+                 dering adoption        of colour programming significantly slowed the ac-                 tion barriers but
+                                        ceptance of colour television...”                                  not the timeline
+ LLaMA3.1        Color television       “The high prices of colour television sets, combined       0.43    Addresses barriers
+                 sets were initially    with the scarcity of colour programming, greatly                   to adoption
+                 expensive              slowed their acceptance in the marketplace...”
+ LLaMA3.1        First     national     “The first national colour broadcast was the 1954          0.38    Provides broadcast
+                 colour broadcast       Tournament of Roses Parade, which took place on                    date but limited
+                                        January 1, 1954...”                                                context
+ DeepSeek        When were colour       “Color television sets became available for sale           0.29    Imprecise timeline
+                 TVs first made         starting in mid-1950s, with the first all-colour prime-            and limited details
+                 available              time season beginning in 1966.”
+ DeepSeek        When did the first     “The first national colour broadcast occurred on           0.44    Accurate broadcast
+                 national    colour     January 1, 1954, with NBC transmitting the Tour-                   date but lacks con-
+                 broadcast occur        nament of Roses Parade.”                                           text
+                     Table 14: Model-generated conditions and evaluation for colour TV query
+
+
+
+Aspect                       DeepSeek Reasoning                   Other Local Models              API Models
+Condition Identification     Attempts to identify meaningful      Generate overly generic         Successfully identify critical
+                             conditions but often misses key      or tangential conditions        ambiguities (score: 0.55-0.82)
+                             ambiguities (score: 0.29-0.32)       (score: 0.21-0.33)
+Answer Accuracy              Provides accurate details in         Frequently mixes correct        Consistently provides accurate
+                             some cases but often draws           and incorrect information       answers (score: 0.44-0.78)
+                             incorrect conclusions (score:        (score: 0.24-0.45)
+                             0.22-0.44)
+Citation Precision           Low to moderate (25-50%)             Very low (0-30%)                Moderate to high (25-100%)
+                     Table 15: Comparison of DeepSeek Reasoning with other model categories
+
+
+
+                                                            2288
+

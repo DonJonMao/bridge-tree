@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:4442\", \"source_id\": \"hotpotqa:4442\"}]\nChristian Bale filmography\nBritish actor Christian Bale has starred in various films, as well as advertisements and a video game. He made his acting debut in 1986, on the television film \"\". The following year, he made his film debut starring alongside John Malkovich and Miranda Richardson in the war film \"Empire of the Sun\". Bale's role of a young boy, interned in China by the Japanese, received praise from most film critics. Two years later, Bale had a minor role in \"Henry V\", a drama film based on William Shakespeare's play \"The Life of Henry the Fifth\". It has been considered one of the best Shakespeare film adaptations ever made. In 1992, Bale starred as Jack Kelly in the Walt Disney musical drama \"Newsies\", which was a critical and commercial failure; however, it gained a cult following. He received a role in the 1994 drama \"Little Women\", which garnered positive reviews. Bale lent his voice for the Disney animated film \"Pocahontas\" in 1995, although it received a mixed reception and attained box office success. He starred as British journalist Arthur Stuart in the Todd Haynes-directed drama \"Velvet Goldmine\" (1998). Although critics were divided on the film, Bale's role was \"eagerly anticipated\". Bale portrayed Demetrius in the critically praised 1999 film \"A Midsummer Night's Dream\", an adaptation of Shakespeare's play of the same name, directed by Michael Hoffman. The same year, he portrayed Jesus of Nazareth in the television movie \"Mary, Mother of Jesus\".\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "190",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599241.900896,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599242.809886
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00013277015690073046
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1124,
+      "completion_tokens": 2,
+      "total_tokens": 1126
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

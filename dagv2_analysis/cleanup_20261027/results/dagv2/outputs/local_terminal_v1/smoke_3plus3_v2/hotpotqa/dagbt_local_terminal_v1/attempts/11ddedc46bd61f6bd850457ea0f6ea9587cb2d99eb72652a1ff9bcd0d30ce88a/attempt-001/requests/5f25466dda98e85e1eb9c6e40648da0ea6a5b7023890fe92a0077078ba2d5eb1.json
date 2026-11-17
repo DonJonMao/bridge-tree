@@ -1,0 +1,53 @@
+{
+  "unit_id": "5ab69f9a554299710c8d1ef8",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "What is the name of the fictional private detective that appears in \"The Adventure of the Seven Clocks\"?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:16\", \"source_id\": \"hotpotqa:16\"}]\nDan Turner, Hollywood Detective\nDan Turner, also known as the Hollywood Detective, was a fictional private detective created by Robert Leslie Bellem. His first appearance was in the second issue of the pulp magazine \"Spicy Detective\", dated June 1934, and he continued to appear regularly in that magazine (which was retitled \"Speed Detective\" in 1943) until its demise in February 1947. He also appeared in his \"own\" magazine, \"Hollywood Detective\", which was published by Culture Publications (later Trojan Publishing) and ran from January 1942 to October 1950.\n\n[Passage {\"doc_id\": \"hotpotqa:6159\", \"source_id\": \"hotpotqa:6159\"}]\nSeven Footprints to Satan\nSeven Footprints to Satan is a 1929 American horror film directed by Danish filmmaker Benjamin Christensen. Based on the book of the same name by Abraham Merritt, it stars Thelma Todd, Creighton Hale, William V. Mong and Sheldon Lewis, and contains appearances by Sōjin Kamiyama and Angelo Rossitto among others. It was produced as both a silent film and as a part-talkie, making it one of the last – if not \"the\" last – silent horror films."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f751db736af6df29a9c2a41798f3222ccfdcff972b6cee8bb575a0bb488e2867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "38",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599867.776835,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599868.672354
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.13846179056896438
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 804,
+      "completion_tokens": 2,
+      "total_tokens": 806
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

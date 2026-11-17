@@ -1,0 +1,369 @@
+{
+  "package_kind": "research_experiment",
+  "created_utc": "2026-10-15T13:49:51.327291+00:00",
+  "source_commit": "bbf03c94894e56ed007bbde9c4b02f9211f24d57",
+  "source_branch": "feat/webwalker-v4-e667708",
+  "protocol": "webwalkerqa_root_traversal_v4_access_v3",
+  "reading_protocol": "required_typed_web_reading_v2",
+  "capacity_policy": "scoped_repair_envelope_plus_one_unknown_draft_allowance_v2",
+  "access_policy": "paired_root_unavailable_exclusion_v1",
+  "baseline_commit": "e6677081cdfb33c01db3aaa274a497168f314f78",
+  "common_core_files_verified": 107,
+  "common_core_files_changed": 0,
+  "payload_files": 132,
+  "dataset": {
+    "schema": "webwalkerqa_main_root_traversal_v1",
+    "source": "https://huggingface.co/datasets/callanwu/WebWalkerQA/resolve/c7ab3329a2a4a35ca569fdca369b61a3d1787e5b/data/main-00000-of-00001.jsonl",
+    "revision": "c7ab3329a2a4a35ca569fdca369b61a3d1787e5b",
+    "raw_sha256": "cbe95d9de714ef52fe4a9ddf160dfab462407cb1ba526f1c31b4305ca32c34cb",
+    "questions": 680,
+    "questions_sha256": "27df0fd12be23f74a98a5f70303d9aff51843a069c91d37ae782cdb3dce7fadd",
+    "evaluation_sha256": "9dbb33c9fa5d24698ed1df3ab760fe7fa0f1c37920dff99bdf776335c3080c1e",
+    "generation_fields": [
+      "id",
+      "question",
+      "root_url"
+    ],
+    "oracle_fields_for_evaluation_only": [
+      "answer",
+      "info"
+    ]
+  },
+  "algorithms": [
+    "dagbt_joint_memory_v1",
+    "dagbt_residual_memory_v2"
+  ],
+  "budgets": {
+    "llm_calls": 24,
+    "json_repairs": 6,
+    "context_tokens": 16384,
+    "web_actions": 36,
+    "max_repairs_per_request": 2
+  },
+  "changes": [
+    "Remove failed_batch_reviews exemption from Web repair-workspace forecasting, preserving full old originals/drafts/obligations while selecting a smaller untouched new source prefix.",
+    "Count known coverage-feedback source lists and frozen-review metadata shells before source exposure, in addition to one existing output allowance for unknown draft workspace.",
+    "Account for the initial durable recovery JSON-repair charge before forecasting whether another local repair can be paid. Full output reserve remains4096; actual requests still pass exact16K admission.",
+    "Clarify that an empty no_relevant_evidence slot adds no new observation and leaves prior issues unchanged; frozenunknown/partial are not restated or treated as settled references.",
+    "Schema mirrors core settled-only evidence-obligation resolution without preventing corrected failed drafts from retaining genuine unknown/partial issues.",
+    "New protocol/installation/output identity preserves old results; paired root access exclusion and per-question continuation retained."
+  ],
+  "full_regression": {
+    "passed": 2511,
+    "warnings": 69,
+    "seconds": 87.72,
+    "log_sha256": "a87e663d92e4916168c4df88ebd6bfcb5d916b5a744580ef7d6928bceea0eb25"
+  },
+  "extracted_archive_tests": {
+    "passed": 130,
+    "seconds": 19.12,
+    "payload_files": 132,
+    "clean_install": true,
+    "log_sha256": "f6d3c70101fc120f9dea415c7ff6f4d6a84b2d3da8dddbf6656fd1889a035d01"
+  },
+  "offline_http_smoke": {
+    "both_arms_passed": true,
+    "external_network_used": false,
+    "log_sha256": "1a0341e2e8500322d1897b936844dab41fb8d533338081de7b5ee3f47637951e"
+  },
+  "independent_review": {
+    "source_and_budget_preservation": true,
+    "durable_recovery_forecast_coverage": true,
+    "existing_mandatory_state_preserved": true,
+    "settled_only_obligation_guard_does_not_block_failed_draft_correction": true
+  },
+  "prior_access_v2_remote_failure": {
+    "kind": "user_provided_remote_diagnostic_summary",
+    "source_commit": "90b3ebb183e7a016fecb6369033c6a985be0cce3",
+    "remote_generation_executed_by_this_agent": false,
+    "question": "wwqa-0001",
+    "joint": {
+      "status": "budget_exhausted",
+      "used": {
+        "llm": 23,
+        "json_repairs": 2,
+        "web_actions": 7
+      },
+      "errors": [],
+      "last_batch": {
+        "input_tokens": 8264,
+        "new_source_count": 36,
+        "visible_source_count": 37,
+        "failure": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them"
+      }
+    },
+    "residual": {
+      "status": "unresolved_or_exhausted",
+      "used": {
+        "llm": 13,
+        "json_repairs": 3,
+        "web_actions": 5
+      },
+      "remaining": {
+        "llm": 11,
+        "json_repairs": 3,
+        "web_actions": 31
+      },
+      "error": "InputOverflow: Local sources/parents/counters exceed real wire capacity",
+      "previous_batches": [
+        {
+          "input_tokens": 8272,
+          "new_source_count": 25,
+          "visible_source_count": 28,
+          "failure": "Malformed slot"
+        },
+        {
+          "input_tokens": 11891,
+          "new_source_count": 22,
+          "visible_source_count": 49,
+          "failure": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue"
+        }
+      ],
+      "repair_input_tokens": 12399,
+      "output_reserve": 4096,
+      "input_margin": 256,
+      "safety_margin": 8,
+      "total": 16759,
+      "context_limit": 16384
+    }
+  },
+  "prior_access_v2_local_smoke": {
+    "source_commit": "4b6d64f922921b136603e38ea8c51e9206e08986",
+    "completed_tasks": 4,
+    "correct_per_arm": 0,
+    "questions_per_arm": 2,
+    "original_capacity_failure_not_observed_locally": true,
+    "subsequent_remote_reproduction_disproved_sufficient_coverage": true
+  },
+  "validated_platform": "Darwin arm64",
+  "remote_linux_generation_executed_here": false,
+  "full_680_evaluation_executed": false,
+  "accuracy_advantage_established": false,
+  "installation": {
+    "default_target": "~/dagbt_runs/20261015_webwalker_v4_access_v3_experiment/dagv2",
+    "default_output_prefix": "outputs/webwalkerqa_v4_access_v3",
+    "overwrites_old_results": false,
+    "credentials_in_bundle": false,
+    "browser_or_model_binaries_in_bundle": false
+  },
+  "known_limits": [
+    "Unknown generated drafts can appear multiple times in future repair metadata; the reserved allowance is a forecast, not a strict guarantee that arbitrary invalid outputs will fit.",
+    "All actual repairs are exactly checked; genuine mandatory source/draft closures may still exceed16K and must fail without evidence truncation.",
+    "Typed structural validation and certificates cannot establish complete semantic coverage of the original question or source entailment.",
+    "Repeated invalid responses or poor navigation may exhaust ordinary model/repair budgets; these remain failures, not environment exclusions.",
+    "Website availability differs across IP/platform and time; ordinary browser fallback cannot guarantee access.",
+    "Paired root exclusions yield a common accessible subset, not official full680 accuracy; offline/tests/smallsmoke do not establish benchmark advantage.",
+    "The conservative unknown-draft reserve can refuse a mixed recovery although its first request would fit the basic wire budget; this live JOINT case remains blocked. No retry, source-removal or output-cap exception is introduced to bypass it."
+  ],
+  "real_model_smoke": {
+    "state": "complete",
+    "ran_from_extracted_installed_candidate": true,
+    "model": "deepseek-v4-flash",
+    "config_matches_public_except_credentials_file_location": true,
+    "source_hashes_verified": 116,
+    "question_ids": [
+      "wwqa-0000",
+      "wwqa-0001"
+    ],
+    "progress": {
+      "state": "complete",
+      "completed": 4,
+      "total": 4,
+      "failed_tasks": 3,
+      "environment_skipped_tasks": 0,
+      "environment_excluded_questions": 0,
+      "updated_unix": 1792071923.2325592
+    },
+    "tasks": [
+      {
+        "question": "wwqa-0000",
+        "arm": "dagbt_joint_memory_v1",
+        "answer_status": "budget_exhausted",
+        "prediction": null,
+        "completion_kind": "incomplete",
+        "failure": null,
+        "errors": [
+          {
+            "node_id": "funding_program",
+            "type": "BudgetExceeded",
+            "error": "llm budget at joint_read: requested=1, remaining=0"
+          }
+        ],
+        "used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 12
+        },
+        "accepted_empty_evidence_reads": 11,
+        "evidence_obligation_source_counts": [],
+        "failed_review_source_counts": [
+          12
+        ],
+        "failed_reading_batches": 1,
+        "capacity_unavailable_batches": 0,
+        "actual_repair_overflow_events": 0,
+        "durable_recovery_admissions": 0,
+        "result_sha256": "58a8038c1a25248c861726b1262a3722a3891df1673d4fa26202af9fa79ff29e"
+      },
+      {
+        "question": "wwqa-0000",
+        "arm": "dagbt_residual_memory_v2",
+        "answer_status": "budget_exhausted",
+        "prediction": null,
+        "completion_kind": "incomplete",
+        "failure": null,
+        "errors": [],
+        "used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 12
+        },
+        "accepted_empty_evidence_reads": 11,
+        "evidence_obligation_source_counts": [],
+        "failed_review_source_counts": [],
+        "failed_reading_batches": 0,
+        "capacity_unavailable_batches": 0,
+        "actual_repair_overflow_events": 0,
+        "durable_recovery_admissions": 0,
+        "result_sha256": "26fdb7e037ced94cee2e2e4fabdb5cbb29fc3a41ddd39d2a259b82287841bd68"
+      },
+      {
+        "question": "wwqa-0001",
+        "arm": "dagbt_joint_memory_v1",
+        "answer_status": "unresolved_or_exhausted",
+        "prediction": null,
+        "completion_kind": "incomplete",
+        "failure": null,
+        "errors": [
+          {
+            "node_id": "event",
+            "type": "InputOverflow",
+            "error": "Local sources/parents/counters exceed real wire capacity"
+          }
+        ],
+        "used": {
+          "llm": 9,
+          "http_attempts": 9,
+          "web_actions": 3,
+          "json_repairs": 2
+        },
+        "accepted_empty_evidence_reads": 2,
+        "evidence_obligation_source_counts": [
+          1
+        ],
+        "failed_review_source_counts": [
+          24
+        ],
+        "failed_reading_batches": 1,
+        "capacity_unavailable_batches": 1,
+        "actual_repair_overflow_events": 0,
+        "durable_recovery_admissions": 0,
+        "result_sha256": "de1727b7b84dfcc9e92283e3df9607ac8379323ac4e9a548524b65ed86d7d10f"
+      },
+      {
+        "question": "wwqa-0001",
+        "arm": "dagbt_residual_memory_v2",
+        "answer_status": "ok",
+        "prediction": "ICSE 2018, ICSE Steering Committee",
+        "completion_kind": "certified_symbolic",
+        "failure": null,
+        "errors": [],
+        "used": {
+          "llm": 12,
+          "http_attempts": 12,
+          "json_repairs": 1,
+          "web_actions": 3
+        },
+        "accepted_empty_evidence_reads": 4,
+        "evidence_obligation_source_counts": [],
+        "failed_review_source_counts": [],
+        "failed_reading_batches": 0,
+        "capacity_unavailable_batches": 0,
+        "actual_repair_overflow_events": 0,
+        "durable_recovery_admissions": 0,
+        "result_sha256": "7eb92dd1af7e9559e9d9a93c9317410c83fcfb8c368d50af6b310598d09cee84"
+      }
+    ],
+    "evaluation": {
+      "judge_model": "deepseek-v4-flash",
+      "judge_config_identity": "c430195fba77c5d67b3e5a38f562b1ed1079e695942554efdc00d345a4057bb0",
+      "protocol": "reference_complete_nonconflicting_llm_judge_v1",
+      "access_policy": "paired_root_unavailable_exclusion_v1",
+      "environment_exclusions": {},
+      "accuracy_scope": "Common subset after paired root-page access exclusions; not official full-set accuracy.",
+      "note": "Paper used GPT-4; this report explicitly records the configured judge. No EM substitution.",
+      "arms": {
+        "dagbt_joint_memory_v1": {
+          "questions": 2,
+          "planned_questions": 2,
+          "environment_excluded": 0,
+          "coverage": 1.0,
+          "correct": 0,
+          "judge_failures": 0,
+          "accuracy": 0.0,
+          "accuracy_lower_bound": 0.0,
+          "accuracy_upper_bound": 0.0,
+          "all_planned_accuracy_lower_bound": 0.0,
+          "all_planned_accuracy_upper_bound": 0.0
+        },
+        "dagbt_residual_memory_v2": {
+          "questions": 2,
+          "planned_questions": 2,
+          "environment_excluded": 0,
+          "coverage": 1.0,
+          "correct": 0,
+          "judge_failures": 0,
+          "accuracy": 0.0,
+          "accuracy_lower_bound": 0.0,
+          "accuracy_upper_bound": 0.0,
+          "all_planned_accuracy_lower_bound": 0.0,
+          "all_planned_accuracy_upper_bound": 0.0
+        }
+      },
+      "rows": [
+        {
+          "question_id": "wwqa-0000",
+          "arm": "dagbt_joint_memory_v1",
+          "generation_status": "budget_exhausted",
+          "correct": false,
+          "judge_status": "not_answered"
+        },
+        {
+          "question_id": "wwqa-0000",
+          "arm": "dagbt_residual_memory_v2",
+          "generation_status": "budget_exhausted",
+          "correct": false,
+          "judge_status": "not_answered"
+        },
+        {
+          "question_id": "wwqa-0001",
+          "arm": "dagbt_joint_memory_v1",
+          "generation_status": "unresolved_or_exhausted",
+          "correct": false,
+          "judge_status": "not_answered"
+        },
+        {
+          "question_id": "wwqa-0001",
+          "arm": "dagbt_residual_memory_v2",
+          "generation_status": "ok",
+          "correct": false,
+          "reason": "The prediction states 'ICSE 2018, ICSE Steering Committee', which does not match the reference facts: 'November 2002, Charleston, South Carolina.' The prediction provides a different year (2018 vs 2002) and location (ICSE Steering Committee vs Charleston, South Carolina), and omits the month and city entirely.",
+          "judge_status": "ok"
+        }
+      ]
+    },
+    "log_sha256": "4decce8529e0668c9485f7118d754edd99adb9f0ef2d051bf4a027dc5e31a928",
+    "score_log_sha256": "8654a927df19165eec2ccdc5536347730541a4e237ba36842e2dfd8508ea66ce",
+    "manifest_sha256": "4c0a25db607b01d5801b68a7d85fc3721a9adae096656abe1a3ff6c450f896fa",
+    "evaluation_sha256": "08a5f0b2be8ad32abe35cf3dfcf4574b67c9512044aebacf9c34e40048b594ba",
+    "interpretation": "Guard coverage improved but task-level context blockage remains. q1JOINT stops upfront after repeated invalid partial+resolution responses; no actual oversized repair request was sent. q1RESIDUAL returned a wrong answer. Both arms score0/2. Live run did not admit a durable recovery; that branch is verified by regression fixtures, not successful live recovery."
+  },
+  "algorithm_source_commit": "a3406e8d3113d4b359bdf7f1374c3ef16359ea1d",
+  "release_commit_delta": "Only README records observed remaining smoke failures and defers full run; all116 generation-source hashes and all132 tested payload files remain identical.",
+  "capacity_admission_hole_regression_verified": true,
+  "all_capacity_failures_eliminated": false,
+  "engineering_smoke_acceptance": false,
+  "benchmark_acceptance": false,
+  "full_run_recommended": false,
+  "release_status": "diagnostic_revision_with_remaining_failures"
+}

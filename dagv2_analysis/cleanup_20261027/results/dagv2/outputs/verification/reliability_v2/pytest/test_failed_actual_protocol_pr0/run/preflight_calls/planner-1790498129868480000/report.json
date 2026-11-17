@@ -1,0 +1,202 @@
+{
+  "check": "fusion_planner_protocol",
+  "version": "dagbt_fusion_reliability_v2",
+  "status": "failed",
+  "trace_directory": "/Users/mao/projects/dagv2/outputs/verification/reliability_v2/pytest/test_failed_actual_protocol_pr0/run/preflight_calls/planner-1790498129868480000",
+  "configured_protocol": "plain",
+  "schema_sha256": "21ade5b99f9a5e2fbf598d81d7bf80cf8bae174e79a71062d51596644b59b086",
+  "synthetic_query": "Which city hosts the science museum visited by the fictional traveler Mira?",
+  "logical_call_limit": 1,
+  "repair_calls": 0,
+  "protocol_fallback": false,
+  "experiment_task": false,
+  "scope": "one synthetic planner request using the actual fusion schema/validator; no labels or question budget; does not establish map/select/reader compatibility or answer quality",
+  "error_type": "ProtocolError",
+  "error": "plan_size",
+  "elapsed_seconds": 0.0011781249777413905,
+  "ledger": {
+    "limits": {},
+    "used": {
+      "llm": 1,
+      "http_attempts": 1
+    },
+    "remaining": {},
+    "events": [
+      {
+        "event": "model_context_budget",
+        "stage": "planner/1",
+        "input_tokens_local": 475,
+        "output_token_reserve": 4096,
+        "safety_margin": 8,
+        "input_margin": 256,
+        "context_tokens": 16384,
+        "total_tokens_local": 4835,
+        "within_estimated_budget": true,
+        "token_count_is_estimate": true,
+        "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+        "tokenizer_id": null,
+        "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "http_response",
+        "stage": "planner/1",
+        "response_ref": "b468f03aec6353aa0605e899a40c69b79a29f38d0551842f5d1367891af26c7b",
+        "kind": "llm",
+        "usage": {
+          "prompt_tokens": 10,
+          "completion_tokens": 20,
+          "total_tokens": 30
+        },
+        "seconds": 0.00022912025451660156
+      }
+    ]
+  },
+  "cost": {
+    "logical_calls": 1,
+    "cache_hits": 0,
+    "unique_requests": 1,
+    "http_attempts": 1,
+    "http_retries": 0,
+    "successful_http_requests": 1,
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30,
+    "requests_by_stage": {
+      "[\"planner\", \"1\"]": 1
+    },
+    "incomplete_or_failed_http_attempts": 0,
+    "missing_usage_responses": 0,
+    "incomplete_event_lines": 0,
+    "malformed_request_records": 0,
+    "token_scope": "observed successful nonseeded API responses; failed/lost server work may be unreported",
+    "token_usage_complete": true
+  },
+  "logical_calls": 1,
+  "reasoning_requests": [
+    {
+      "operation": "planner",
+      "call_index": 1,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+        },
+        {
+          "role": "user",
+          "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+        }
+      ],
+      "logical_call_index": 1,
+      "response_format": "plain",
+      "input_tokens_local": 475,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "raw_output": "{\"steps\": []}",
+      "response_metadata": {
+        "finish_reason": "stop",
+        "refusal": null,
+        "usage": {
+          "prompt_tokens": 10,
+          "completion_tokens": 20,
+          "total_tokens": 30
+        },
+        "response_id": "synthetic-probe-response",
+        "protocol": "plain"
+      },
+      "response_ref": "b468f03aec6353aa0605e899a40c69b79a29f38d0551842f5d1367891af26c7b",
+      "output_tokens_estimate": 8,
+      "validation_status": "invalid",
+      "validation_error": "plan_size",
+      "failure_category": "schema"
+    }
+  ],
+  "response_events": [
+    {
+      "event": "reasoning_request_started",
+      "operation": "planner",
+      "logical_call_index": 1,
+      "accounting_note": "One logical model request; Transport meters each physical retry against llm budget"
+    },
+    {
+      "event": "reasoning_response",
+      "operation": "planner",
+      "call_index": 1,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+        },
+        {
+          "role": "user",
+          "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+        }
+      ],
+      "logical_call_index": 1,
+      "response_format": "plain",
+      "input_tokens_local": 475,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "raw_output": "{\"steps\": []}",
+      "response_metadata": {
+        "finish_reason": "stop",
+        "refusal": null,
+        "usage": {
+          "prompt_tokens": 10,
+          "completion_tokens": 20,
+          "total_tokens": 30
+        },
+        "response_id": "synthetic-probe-response",
+        "protocol": "plain"
+      },
+      "response_ref": "b468f03aec6353aa0605e899a40c69b79a29f38d0551842f5d1367891af26c7b",
+      "output_tokens_estimate": 8,
+      "finish_reason": "stop",
+      "refusal": null,
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 20,
+        "total_tokens": 30
+      },
+      "response_id": "synthetic-probe-response",
+      "protocol": "plain"
+    },
+    {
+      "event": "protocol_error",
+      "operation": "planner",
+      "error": "plan_size",
+      "failure_category": "schema",
+      "response_ref": "b468f03aec6353aa0605e899a40c69b79a29f38d0551842f5d1367891af26c7b",
+      "finish_reason": "stop",
+      "refusal": null,
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 20,
+        "total_tokens": 30
+      },
+      "response_id": "synthetic-probe-response",
+      "protocol": "plain"
+    }
+  ]
+}

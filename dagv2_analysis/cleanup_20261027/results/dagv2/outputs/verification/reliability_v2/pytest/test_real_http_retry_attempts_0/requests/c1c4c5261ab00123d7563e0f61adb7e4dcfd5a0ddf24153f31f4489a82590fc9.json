@@ -1,0 +1,50 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:52332/v1/embeddings",
+  "payload": {
+    "model": "fixture-embedding",
+    "input": [
+      "Instruct: Retrieve passages that answer the factual question.\nQuery: Original overall question:\nWhich country is the author from?\n\nCurrent retrieval task:\nFind author"
+    ]
+  },
+  "stage": [
+    "dagbt",
+    "author",
+    "bridge",
+    "1",
+    "embedding"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498099.3704178,
+      "retry_index": 1,
+      "kind": "embedding_http",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    },
+    {
+      "started_unix": 1790498099.373481,
+      "retry_index": 2,
+      "kind": "embedding_http",
+      "http_status": 200,
+      "finished_unix": 1790498099.374898
+    }
+  ],
+  "response": {
+    "data": [
+      {
+        "index": 0,
+        "embedding": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 23
+    }
+  }
+}

@@ -1,0 +1,137 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_successful_numeric_batch_returns_before_unoffered_candidate_without_claiming_it_read _
+
+    def test_successful_numeric_batch_returns_before_unoffered_candidate_without_claiming_it_read():
+        e, _, control, step, query, identity = numeric_discovery()
+        reader = control.reader
+        reader._fits = lambda operation, data: operation != 'joint_read' or sum(
+            (identity, source['id']) not in reader.read_states for source in data['source_spans']) <= 1
+        assert reader.read(step, query, ['x'], e.ids, identity)
+        assert control.state.valid()[0]['x'] == 7
+>       assert len(reader.batches) == 1, 'Return after one atomic discovery batch to re-evaluate the actual task'
+E       AssertionError: Return after one atomic discovery batch to re-evaluate the actual task
+E       assert 2 == 1
+E        +  where 2 = len([{'operation': 'joint_read', 'identity': '14b62d066cdf69ab3530b48043f2ac23cebe07070eccf776b9b3f98b8312dc0c', 'source_a...0b48043f2ac23cebe07070eccf776b9b3f98b8312dc0c', 'source_aliases': ['s2'], 'visible_source_aliases': ['s1', 's2'], ...}])
+E        +    where [{'operation': 'joint_read', 'identity': '14b62d066cdf69ab3530b48043f2ac23cebe07070eccf776b9b3f98b8312dc0c', 'source_a...0b48043f2ac23cebe07070eccf776b9b3f98b8312dc0c', 'source_aliases': ['s2'], 'visible_source_aliases': ['s1', 's2'], ...}] = <dagbt.joint_reading.JointReader object at 0x109194b50>.batches
+
+tests/test_v4_discovery_frontier_review.py:35: AssertionError
+----------------------------- Captured stderr call -----------------------------
+None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+_ test_unoffered_suffix_capacity_does_not_retroactively_block_a_sufficient_numeric_binding _
+
+    def test_unoffered_suffix_capacity_does_not_retroactively_block_a_sufficient_numeric_binding():
+        e, _, control, step, query, identity = numeric_discovery()
+        reader = control.reader
+        originals = deepcopy(e.mapper.sources)
+        reader._fits = lambda operation, data: operation != 'joint_read' or (
+            not reader.batches and len(data['source_spans']) <= 1)
+>       assert reader.read(step, query, ['x'], e.ids, identity)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_v4_discovery_frontier_review.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dagbt.joint_reading.JointReader object at 0x1091aa690>
+step = {'output_slot': 'x', 'question': 'Find x quantity', 'inputs': [], 'answer_type': 'fact', ...}
+query = 'Find x quantity', variables = ['x'], doc_ids = ['x', 'unused']
+identity = '14b62d066cdf69ab3530b48043f2ac23cebe07070eccf776b9b3f98b8312dc0c'
+semantic = False, audit = False, terminal_output = False
+review_existing_obligations = True, source_scope = 'document_windows'
+
+    def read(self, step, query, variables, doc_ids, identity, *, semantic=False, audit=False,
+             terminal_output=False, review_existing_obligations=True, source_scope='document_windows'):
+        if source_scope not in ('document_windows','mandatory_closure'):
+            raise ProtocolError('Unknown reading source_scope')
+        before=self.material_signature()
+        operation = 'audit_joint' if audit else 'semantic_compose' if semantic else 'joint_read'
+        # Parent review slots do not turn a failed task output into new work.
+        task_variables={v for v in variables
+                        if self.state.program['variables'][v]['demand']==step['output_slot']}
+        if not audit:
+            values,_,ids=self.state.valid()
+            related={v for v,d in self.state.program['variables'].items() if v in values and d['demand'] in step['inputs']}
+            frontier=list(related)
+            while frontier:
+                v=frontier.pop()
+                for rid in ids.get(v,[]):
+                    for p in self.state.routes[rid]['parent_versions']:
+                        if p not in related:
+                            related.add(p);frontier.append(p)
+            related-=set(self.state.program.get('task_expressions',{}))
+            # New local text can withdraw an actual grounding parent. Never
+            # silently discard such a counter because it is outside local outputs.
+            variables=list(dict.fromkeys([*variables,*sorted(related)]))
+        if source_scope=='mandatory_closure':
+            scope=self._mandatory_scope_payload(step,query,variables,doc_ids,identity,
+                semantic=semantic,audit=audit,terminal_output=terminal_output)
+            aliases=[source['id'] for source in scope['source_spans']]
+            local_failed={record['variable'] for record in scope.get('failed_batch_reviews',[])
+                          if record['task_id']==step['output_slot']} & task_variables
+            authorized={record['variable'] for record in scope.get('failed_batch_reviews',[])
+                        if record['review_allowed']}
+            # A successful sibling output cannot buy another attempt on a
+            # failed output. Each requested failed output needs its own current
+            # same-task/phase paid recovery offer; keep the full requested scope
+            # or refuse it, rather than silently dropping unfinished variables.
+            if local_failed-authorized:
+                return False
+            recovery_ready=bool(authorized)
+        else:
+            aliases=[a for a,s in self.e.mapper.sources.items() if s['doc_id'] in doc_ids
+                     and (audit or (identity,a) not in self.read_states)]
+            recovery_ready=(not semantic and not audit and not terminal_output
+                            and self.failed_review_ready(step,variables,doc_ids))
+        self.current_identity = identity
+        self.current_terminal_output=terminal_output
+        relevant_obligations=any(item['variable'] in variables for item in self.evidence_obligations.values())
+        failed_variables={record['variable'] for record in self.failed_batch_reviews.values()
+                          if record['variable'] in variables and record['task_id']==step['output_slot']}
+        if failed_variables and task_variables and task_variables<=failed_variables and not recovery_ready:
+            # A renamed query/checkpoint cannot buy fresh attempts for the same
+            # failed text. New original evidence and budget are both necessary.
+            return False
+        if (source_scope=='document_windows' and not aliases and not semantic and not audit
+                and not recovery_ready and not (relevant_obligations and review_existing_obligations)):
+            return False
+        external_pending=set(self.state.pending)-self.pending_variables()
+        for alias in aliases:
+            if source_scope=='mandatory_closure':
+                # Preflight established full requested coverage; preserve the
+                # exact ownership of existing work, including on overflow.
+                self.unread_obligations.setdefault((identity,alias),set(variables))
+            else:
+                self.unread_obligations[identity,alias]=set(variables)
+        # Retrieval partitions document windows with neighbours. Compose/audit
+        # consumes its exact mandatory original-source closure in one batch.
+        groups = []
+        if source_scope=='mandatory_closure':
+            groups=[list(aliases)]
+        else:
+            for alias in aliases:
+                source = self.e.mapper.sources[alias]
+                adjacent = [self.e.mapper.source_aliases.get(source.get(k)) for k in ('previous_span_id','next_span_id')]
+                groups.append(list(dict.fromkeys([alias]+[a for a in adjacent if a])))
+        if not groups:
+            groups=[[]]
+        pending = list(groups)
+        while pending:
+            if source_scope=='mandatory_closure':
+                batch=list(pending[0])
+                self._fresh_initial_selection=None
+                trial=self._payload(step,query,variables,batch,semantic,audit=audit,proof_projection=True)
+                consumed=1 if self._fits(operation,trial) else 0
+            else:
+                batch,consumed=self._fitting_prefix(operation,step,query,variables,pending,semantic,audit)
+            if not consumed:
+                self.batches.append({'operation':operation,'identity':identity,'status':'capacity_unavailable',
+                                     'unread_source_aliases':pending})
+                self.state.integrate([],external_pending|self.pending_variables())
+>               raise InputOverflow('Local sources/parents/counters exceed real wire capacity')
+E               dagbt.reasoning.InputOverflow: Local sources/parents/counters exceed real wire capacity
+
+dagbt/joint_reading.py:2017: InputOverflow
+=========================== short test summary info ============================
+FAILED tests/test_v4_discovery_frontier_review.py::test_successful_numeric_batch_returns_before_unoffered_candidate_without_claiming_it_read
+FAILED tests/test_v4_discovery_frontier_review.py::test_unoffered_suffix_capacity_does_not_retroactively_block_a_sufficient_numeric_binding
+2 failed in 1.26s

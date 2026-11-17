@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9512\", \"source_id\": \"hotpotqa:9512\"}]\nVaniusha and The Space Pirate\nVaniusha and The Space Pirate (Russian: Ванюша и космический пират ) is a 1991 Soviet Russian stop-motion animation film by Vladimir Danilevich. This film was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> The film is The Third Film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. Other three films called \"The Newcomer in The Cabbage\", \"Vaniusha The Newcomer\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9515\", \"source_id\": \"hotpotqa:9515\"}]\nVaniusha The Newcomer\nVaniusha The Newcomer (Russian: Пришелец Ванюша ) is a 1990 Soviet Russian stop-motion animation film by Vladimir Danilevich and Olga Panokina. It was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> It is the second film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The other three films are \"The Newcomer in The Cabbage\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9588\", \"source_id\": \"hotpotqa:9588\"}]\nThe Steamroller and the Violin\nThe Steamroller and the Violin (Russian: Каток и скрипка , translit. \"Katok i skripka\"), is a 1961 featurette directed by Andrei Tarkovsky and from a screenplay written by Andrei Konchalovsky and Andrei Tarkovsky. The film tells the story of the unlikely friendship of Sasha (Igor Fomchenko), a little boy, and Sergey (Vladimir Zamansky), the operator of a steamroller. The film was Tarkovsky's diploma film at the State Institute of Cinematography (VGIK), but was made at the Mosfilm studio.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9512\", \"source_id\": \"hotpotqa:9512\"}]\nVaniusha and The Space Pirate\nVaniusha and The Space Pirate (Russian: Ванюша и космический пират ) is a 1991 Soviet Russian stop-motion animation film by Vladimir Danilevich. This film was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> The film is The Third Film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. Other three films called \"The Newcomer in The Cabbage\", \"Vaniusha The Newcomer\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9514\", \"source_id\": \"hotpotqa:9514\"}]\nThe Newcomer in The Cabbage\nThe Newcomer in The Cabbage (Russian: Пришелец в капусте ) is a 1989 short Soviet Russian stop-motion animation film by Vladimir Danilevich. It is the first film of a tetralogy about the adventures of The Newcomer Vaniusha and his friends. It was followed by \"Vaniusha The Newcomer\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9515\", \"source_id\": \"hotpotqa:9515\"}]\nVaniusha The Newcomer\nVaniusha The Newcomer (Russian: Пришелец Ванюша ) is a 1990 Soviet Russian stop-motion animation film by Vladimir Danilevich and Olga Panokina. It was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> It is the second film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The other three films are \"The Newcomer in The Cabbage\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9588\", \"source_id\": \"hotpotqa:9588\"}]\nThe Steamroller and the Violin\nThe Steamroller and the Violin (Russian: Каток и скрипка , translit. \"Katok i skripka\"), is a 1961 featurette directed by Andrei Tarkovsky and from a screenplay written by Andrei Konchalovsky and Andrei Tarkovsky. The film tells the story of the unlikely friendship of Sasha (Igor Fomchenko), a little boy, and Sergey (Vladimir Zamansky), the operator of a steamroller. The film was Tarkovsky's diploma film at the State Institute of Cinematography (VGIK), but was made at the Mosfilm studio."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "105",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599095.666511,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599097.9073899
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.022802638624308227
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.0074606416984550235
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2760,
+      "completion_tokens": 4,
+      "total_tokens": 2764
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

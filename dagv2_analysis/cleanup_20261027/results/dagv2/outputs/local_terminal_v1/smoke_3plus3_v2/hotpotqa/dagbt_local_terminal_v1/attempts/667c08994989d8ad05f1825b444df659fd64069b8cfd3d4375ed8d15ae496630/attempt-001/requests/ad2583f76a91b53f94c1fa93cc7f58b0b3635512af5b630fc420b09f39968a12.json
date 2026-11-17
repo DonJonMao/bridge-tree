@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:5998\", \"source_id\": \"hotpotqa:5998\"}]\nDiane Ladd\nDiane Ladd (born November 29, 1932) is an American actress, film director, producer and author. She has appeared in over 120 film and television roles. For the 1974 film \"Alice Doesn't Live Here Anymore\", she won the BAFTA Award for Best Actress in a Supporting Role and was nominated for the Academy Award for Best Supporting Actress. She went on to win the Golden Globe Award for Best Supporting Actress on Television for \"Alice\" (1980–81), and to receive Academy Award nominations for \"Wild at Heart\" (1990) and \"Rambling Rose\" (1991). Her other film appearances include \"Chinatown\" (1974), \"Ghosts of Mississippi\" (1996), \"Primary Colors\" (1998), \"28 Days\" (2000), and \"American Cowslip\" (2008). Ladd is the mother of actress Laura Dern, with her ex-husband, actor Bruce Dern.\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "172",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599217.796729,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599218.673514
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00035784289785400846
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 920,
+      "completion_tokens": 2,
+      "total_tokens": 922
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

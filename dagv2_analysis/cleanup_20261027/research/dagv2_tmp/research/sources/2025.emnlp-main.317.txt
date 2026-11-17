@@ -1,0 +1,965 @@
+    PropRAG: Guiding Retrieval with Beam Search over Proposition Paths
+
+
+                              Jingjin Wang        Jiawei Han
+    Siebel School of Computing and Data Science, University of Illinois Urbana-Champaign
+                            {jingjin9, hanj} @illinois.edu
+
+
+
+
+                       Abstract                             et al., 2006) and associativity (Suzuki, 2007).
+                                                               To improve multi-hop retrieval, structured RAG
+     Retrieval Augmented Generation (RAG) has
+                                                            methods have emerged. Approaches like Hip-
+     become the standard approach for equipping
+     Large Language Models (LLMs) with up-to-               poRAG 2 (Gutiérrez et al., 2025) utilize knowl-
+     date knowledge. However, standard RAG, rely-           edge graphs (KGs) built from (Subject, Predicate,
+     ing on independent passage retrieval, often fails      Object) triples and use graph algorithms (e.g., Per-
+     to capture the interconnected nature of informa-       sonalized PageRank) to rank relevant nodes. While
+     tion required for complex, multi-hop reasoning.        effective, we argue these methods suffer from "con-
+     While structured RAG methods attempt to ad-            text collapse." Triples are a lossy compression of
+     dress this using knowledge graphs built from
+                                                            natural language, discarding crucial nuances like
+     triples, we argue that the inherent context loss
+     of triples (context collapse) limits the fidelity
+                                                            conditionality, provenance, and n-ary relationships
+     of the knowledge representation. We introduce          (Section 3). This loss of fidelity limits the system’s
+     PropRAG, a novel RAG framework that shifts             ability to reconstruct complex reasoning chains.
+     from triples to context-rich propositions and          Other advanced RAG strategies rely on online LLM
+     introduces an efficient, LLM-free online beam          calls during the retrieval process (e.g., generating
+     search over proposition paths to discover multi-       subsequent queries) (Trivedi et al., 2022a; Jiang
+     step reasoning chains. By coupling a higher-           et al., 2024), which introduces significant latency,
+     fidelity knowledge representation with explicit
+                                                            cost, and potential consistency issues.
+     path discovery, PropRAG achieves state-of-
+     the-art zero-shot Recall@5 and F1 scores on               Our main insight is that effective multi-hop RAG
+     2Wiki, HotpotQA, and MuSiQue, advancing                requires two key shifts: (1) moving from lossy
+     non-parametric knowledge integration by im-            triples to a higher-fidelity knowledge representa-
+     proving evidence retrieval through richer rep-         tion that preserves context, and (2) moving from
+     resentation and efficient reasoning path discov-       simple node ranking to explicit, efficient discovery
+     ery.                                                   of reasoning paths.
+                                                               We introduce PropRAG, a novel RAG frame-
+1    Introduction
+                                                            work designed for dynamic, interconnected mem-
+Large Language Models (LLMs) often struggle                 ory retrieval without requiring online LLM infer-
+with knowledge-intensive tasks, particularly when           ence during the search process. PropRAG features
+information is newly emergent or requires com-              two core innovations:
+plex reasoning over multiple facts. Retrieval Aug-
+mented Generation (RAG) (Lewis et al., 2020) ad-            1. Propositions as High-Fidelity Knowledge
+dresses this by retrieving external knowledge, of-             Units: Extracted offline by an LLM, proposi-
+fering a non-parametric solution that mitigates is-            tions are atomic, self-contained statements that
+sues like catastrophic forgetting in continual learn-          preserve contextual richness (e.g., conditional
+ing (Cohen et al., 2024; Gu et al., 2024). How-                clauses, multi-entity events) beyond triples (Sec-
+ever, conventional RAG systems (Karpukhin et al.,              tion 3).
+2020; Lee et al., 2025) typically retrieve evidence         2. LLM-Free Online Beam Search for Path Dis-
+passages independently based on query similarity.              covery: A novel two-stage retrieval process cul-
+This approach struggles with multi-step queries                minating in an algorithmic beam search discov-
+that require synthesizing interconnected informa-              ers and scores paths of interconnected proposi-
+tion—a process crucial for sense-making (Klein                 tions. This search operates on a pre-built graph
+                                                         6212
+       Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 6212–6227
+                           November 4-9, 2025 ©2025 Association for Computational Linguistics
+    using embeddings and graph structure, avoiding     retrieval phase. PropRAG thus decouples complex
+    the costs and latency of LLM inference during      reasoning path discovery from end-to-end training
+    evidence discovery (Section 5).                    dependencies, focusing on leveraging richer knowl-
+                                                       edge units (propositions) and algorithmic path ex-
+   By coupling context-rich propositions with an       ploration.
+efficient, algorithmic path-finding mechanism, Pro-       Propositions as Retrieval Units. Chen et al.
+pRAG enhances the system’s ability to perform          (2024) demonstrated that retrieving propositions
+associative reasoning. Experiments demonstrate         (atomic factoids) can outperform passage or sen-
+substantial improvements, particularly on multi-       tence retrieval in standard RAG. PropRAG builds
+hop QA tasks. PropRAG sets new state-of-the-           upon this insight by integrating propositions into a
+art zero-shot RAG scores on several challenging        graph structure and utilizing beam search to chain
+benchmarks, advancing the capabilities of non-         them together for multi-hop reasoning.
+parametric knowledge integration in LLMs.
+                                                       3   Propositions: Escaping the Tyranny of
+2    Related Work                                          the Triple
+Retrieval Augmented Generation (RAG) frame-            The efficacy of multi-hop reasoning is constrained
+works (Lewis et al., 2020) augment LLMs by             by the fidelity of the underlying knowledge repre-
+retrieving documents. Early methods like DPR           sentation. Traditional KG-based RAG systems rely
+(Karpukhin et al., 2020) used embedding similarity.    on ⟨Subject, Predicate, Object⟩ triples. We con-
+Despite better embeddings (Izacard et al., 2022; Ni    tend this is a lossy compression that discards cru-
+et al., 2022; Lee et al., 2025), standard RAG strug-   cial nuances, leading to "context collapse." Propo-
+gles with multi-document synthesis (Asai et al.,       sitions—atomic, self-contained statements that pre-
+2020).                                                 serve context—offer a higher-fidelity alternative.
+   Multi-Hop RAG aims to address this. Iter-           Figure 1 illustrates how a proposition graph retains
+ative methods (Asai et al., 2020; Trivedi et al.,      context lost in a standard KG.
+2022a) retrieve sequentially, often using LLMs on-        Key limitations of triples addressed by proposi-
+line. Graph-based RAG (Edge et al., 2024; Sarthi       tions include:
+et al., 2024) structures knowledge, often using KGs.
+HippoRAG 2 (Gutiérrez et al., 2025) used Personal-     1. Omission of Conditional Context: Facts are
+ized PageRank over triple-based KGs, focusing on          often contingent upon specific conditions (tem-
+node ranking. PropRAG differs fundamentally by            poral, spatial, etc.), which triples frequently dis-
+using context-rich propositions and employing an          card.
+explicit, LLM-free online beam search focused on             • Example Passage: The experimental drug
+discovering complete reasoning paths, rather than              showed promise in Phase 2 trials, reducing
+just ranking nodes.                                            tumor size significantly, but only in patients
+   Beam Search in Retrieval. Recent work has                   under 50 with the specific KRAS mutation.
+explored leveraging beam search to improve multi-            • Triples might yield: (drug, showed,
+hop retrieval. For instance, (Zhang et al., 2023)              promise), (drug, reduced, tumor
+proposed Beam Retrieval, an end-to-end trainable               size). The critical conditions are lost.
+framework where beam search is used during both              • Propositions preserve conditions: E.g.,
+training and inference to find optimal passage se-             "The     significant         tumor      size
+quences. Their approach learns a scoring function              reduction by the experimental drug
+optimized across hops using ground-truth passage               was observed only in patients
+chains.                                                        under 50."
+   In contrast, PropRAG adopts a zero-shot on-
+line retrieval strategy. While also employing beam     2. Limitations in Representing Higher-Order
+search, PropRAG operates over a graph of contextu-        Relations: Representing complex constructs
+ally rich propositions, extracted offline. Our beam       like provenance, causality, or nested clauses is
+search algorithmically discovers proposition paths        unnatural in S-P-O format.
+based on pre-computed embedding similarity and               • Triple Limitation: As shown in Figure 1
+graph connectivity, crucially avoiding online LLM              (Left), the triple representation fails to cap-
+inference costs or task-specific training during the           ture the provenance ("Archival records in-
+                                                   6213
+    Passage: The archival records indicate President Lincoln                                        Proposition Graph
+    signed the preliminary Emancipation Proclamation in
+    September 1862, but it only took legal effect on January 1,                Nodes within the same proposition hyper-edge are fully connected.
+    1863, provided the Confederate states did not rejoin the
+    Union by that date.
+                                                                                                                Emancipation              January 1,
+                                                                                                                Proclamation                 1863
+
+                                                                    Emancipation         archival             The Emancipation Proclamation
+      Knowledge Graph (Triple Representation)
+                                                                    Proclamation         records              was set to take legal effect
+                                                                                                              on January 1, 1863.
+                                             Emancipation
+      Lincoln            signed              Proclamation                                                              Emancipation
+                                                                                                                      Proclamation
+                                                                    Lincoln             September                                  Confederate
+                                                                                           1862                  Union                states
+    Emancipation                               January 1,
+    Proclamation         took effect on            1863           President Lincoln signed
+                                                                  the preliminary
+                                                                                                               The legal effect of the
+                                                                  Emancipation Proclamation
+                                                                                                               Emancipation Proclamation was
+    Emancipation                                                  in September 1862 according
+                                               September                                                       conditional on the
+                                                                  to archival records.
+    Proclamation         signed in                1862                                                         Confederate states not
+                                                                                                               rejoining the Union by that
+                                                                                                               date.
+
+
+
+                              Emancipation                                           Emancipation
+                                                                                                              September              archival
+     Lincoln      signed      Proclamation                           Lincoln         Proclamation                1862                records
+
+
+
+                   signed in                 took effect on                                                   Union
+                                                                                      January 1,
+                                                                                                                     Confederate
+                                                                                         1863
+                         September         January 1,                                                                   states
+                         1862              1863
+
+
+
+Figure 1: Comparison of a traditional Knowledge Graph (KG) versus a Proposition Graph for a complex passage.
+Left: The triple-based KG struggles to natively represent provenance ("archival records") and conditional clauses. It
+results in disconnected facts where the crucial context (the conditionality of the Emancipation Proclamation taking
+effect) is omitted, leading to context loss. Right: The PropRAG proposition graph utilizes implicit hyper-edges
+(fully connected cliques within shaded ovals) to link all entities co-occurring within a single, context-rich proposition.
+This structure directly preserves nuances like conditionality and provenance.
+
+
+         dicate...") and completely omits the crit-                                       dle attributes natively: "The ancient
+         ical condition ("provided the Confeder-                                          manuscript was fragile."
+         ate states...") regarding the Emancipation                           4. Fragmentation of N-ary Relationships
+         Proclamation. While KGs can use reifica-                                (Events): Real-world events often involve mul-
+         tion, this increases complexity and sacri-                              tiple participants. The S-P-O structure forces
+         fices clarity.                                                          decomposition into multiple binary triples,
+       • Proposition Advantage: Propositions nat-                                fragmenting the event’s holistic semantics.
+         urally encapsulate these relations. Figure
+                                                                                    • Example Passage (Collaboration): "The
+         1 (Right) shows these preserved in distinct
+                                                                                       groundbreaking research paper on quan-
+         propositions, modeled using implicit hyper-
+                                                                                       tum entanglement was co-authored by Al-
+         edges that maintain the full context.
+                                                                                       ice, Bob, and Charlie in 2023."
+3. Forced Binarization of Unary Predicates (At-                                     • Triples fragment this:             (Alice,
+   tributes): The S-P-O model is fundamentally re-                                     co-authored,            paper),     (Bob,
+   lational and struggles to represent intrinsic prop-                                 co-authored,        paper), etc., losing
+   erties (e.g., "The manuscript is fragile").                                         that they collaborated *jointly*.
+       • Triple Limitation: Forcing this into                                       • Proposition Advantage: A single proposi-
+         (manuscript, is, fragile) artificially                                        tion captures the N-ary relation: "Alice,
+         treats the attribute ("fragile") as an indepen-                               Bob, and Charlie co-authored the
+         dent object, relying on weak predicates.                                      groundbreaking research paper..."
+       • Proposition Advantage: Propositions han-                                     This is represented as an implicit hyper-
+                                                                       6214
+        edge in the proposition graph.                    1. Knowledge Extraction: An LLM (e.g., Llama-
+                                                             3.3-70B-Instruct) is employed to extract propo-
+   To operationalize this, PropRAG leverages
+                                                             sitions and their constituent entities from the
+the NLU capabilities of LLMs (Llama-3.3-70B-
+                                                             corpus D (Prompts detailed in Appendix A.3).
+Instruct) during the offline indexing phase to ex-
+tract these high-fidelity propositions. This ensures      2. Graph Construction: A proposition graph
+the subsequent online retrieval operates on a con-           G = (V, E) is constructed. Nodes V repre-
+textually rich foundation without further LLM in-            sent entities and passages. Edges E link entities
+ference for knowledge representation.                        if they co-occur within the same proposition
+                                                             (forming implicit hyper-edges) or if they are
+4   Problem Formulation: Finding the                         determined to be synonymous via embedding
+    Reasoning Path                                           similarity (Details in Appendix A.1).
+Traditional RAG aims to retrieve docu-                    3. Embedding Generation: Embeddings (e.g., us-
+ments Dret maximizing individual relevance                   ing NV-Embed-v2) are computed and stored for
+sim(emb(d), emb(q)).             Multi-hop KG-RAG            all nodes and propositions.
+methods like HippoRAG 2 (Gutiérrez et al., 2025)
+                                                          5.2     Online Retrieval (LLM-free)
+typically rank nodes (entities/passages) based
+on proximity to query seeds or graph centrality           The online retrieval component implements a two-
+(e.g., via PPR), but do not explicitly construct or       stage, LLM-free architecture designed to identify
+evaluate multi-step reasoning paths. Furthermore,         salient reasoning paths. This coarse-to-fine opti-
+when KGs use context-poor triples, the semantic           mization strategy balances the need for broad ex-
+richness available for ranking is limited.                ploration of the graph with focused refinement of
+   We reformulate multi-hop retrieval as finding          candidate paths.
+an optimal path of interconnected propositions            5.2.1  Stage 1: Coarse-grained Subgraph
+P = (p1 , p2 , ..., pk ) that collectively answer query          Induction
+q. Propositions pi , pi+1 are linked if they share
+                                                          The objective of Stage 1 is to efficiently prune the
+common or synonymous entities. This connection
+                                                          search space by inducing a highly relevant, local-
+occurs naturally in the proposition graph (Figure 1,
+                                                          ized subgraph Gsub from the global graph G.
+right), where entities shared between proposition
+hyper-edges act as bridges.                               1. Initial Candidate Retrieval: The top-Nprop
+   The objective is to find                                  propositions most semantically similar to the
+                                                             query q are retrieved. (Running Example, Fig.
+       P∗ =        argmax            Score(P, q),   (1)
+              P ∈ConnectedPaths(P)                           3): Propositions P1 (Mantua Cathedral) and P3
+                                                             (Governor’s death) are retrieved due to high ini-
+where Score(P, q) measures the relevance of the              tial similarity, while the necessary intermediate
+entire path, potentially via aggregated or concate-          P2 is not highly ranked.
+nated embeddings. As finding the global optimum
+over all possible paths is intractable, we employ         2. Seed Set Initialization (Sinitial ): Entities E(p)
+beam search as an efficient heuristic.                       contained within these top propositions are ex-
+                                                             tracted. The top-Nentity unique entities form
+5   Methodology: PropRAG                                     the initial seed set Sinitial . Uniform weights are
+The PropRAG framework operationalizes the path-              assigned to promote diverse graph exploration.
+finding objective (Section 4) through a structured        3. Exploratory Graph Traversal (PPR): Person-
+offline indexing phase followed by an efficient, two-        alized PageRank (PPR) is executed on the global
+stage online retrieval process (Figure 2). We utilize        graph G, with the reset probability distribution
+the complex multi-hop query presented in Figure 3            concentrated on Sinitial . A high damping fac-
+as a running example to illustrate the methodology.          tor (e.g., 0.75) is utilized to facilitate broader
+5.1 Offline Indexing (LLM-assisted)                          traversal originating from these seeds.
+
+The objective of the offline indexing phase is to         4. Subgraph Induction (Gsub ): The top-K pas-
+construct the high-fidelity proposition graph, a pre-        sages identified by the PPR scores, along with
+requisite for efficient online path discovery.               their associated entities and propositions in G,
+                                                      6215
+                                                                                                               Query
+
+
+
+    Stage 1: Curde Filtering
+                                                                                                       Initial Relevance Signal   Stage 2: Fine Reasoning
+
+
+                                                                                                                                                                                                         Lmax = 3
+      1                                                2                                                                           4                                                      5
+                                                                                                                                                            P2
+                                                                                                                                                                                                       P1 → P2 → P3
+                                                                                                          Explorative PPR
+                                                                                                                                                                                                       P1 → P2 → P4
+                                                                                                                                                                      P3
+                                                                                                                                                                                                       P2 → P3 → P4
+
+                                                                                                                                            P4
+                                                                                                         Select top passages
+                                                                                                                                                                 P1
+
+
+
+
+                                                                                                                                                      6
+                                                                                                          Induce subgraph
+
+
+
+
+                                               ...                                   ...
+
+          Passage 1    Passage 2   Passage 3         Passage k       Passage (k+1)         Passage n
+
+                                                                                                       Perform Beam Search on
+                                                                                                              subgraph             7                                                                     Containment Edge
+                                   Select Top k Passages
+                                                                                                                                                                                                         Synonym Edge
+
+                                                                                                       Final Relevance Signal
+                                                                                                                                                                                                         Passage Node
+      2                                                3
+                                                                                                                                                                                                         Entity Node
+
+                                                                                                          Exploitative PPR
+                                                                                                                                                                                                         Proposition Hyper-Edge
+
+
+
+                                                                                                         Select kout Passages
+
+                                                           We select Top 4 passages                                                                                               ...                                   ...
+                                                            for illustration purpose
+                                                                                                                                       Passage 1    Passage 2         Passage 3         Passage kout        Passage           Passage k
+                                                                                                                                                                                                            (kout+1)
+
+
+                                                                                                                                                                      Select Top kout Passages
+                                                                                                          Top kout Passages
+
+
+
+
+Figure 2: The two-stage online retrieval architecture of PropRAG. Stage 1 (Coarse Filtering): Employs exploratory
+PPR (high damping factor) on the full proposition graph G to induce a focused, relevant subgraph (Gsub ). Stage 2
+(Fine Reasoning): Executes a graph-guided beam search on Gsub to discover explicit reasoning paths (illustrated in
+Figure 3), generates refined relevance signals based on these paths, applies exploitative PPR (low damping factor)
+on Gsub using the refined signals, and selects the final top-kout evidence passages.
+
+
+   constitute the focused subgraph Gsub . This lo-                                                                   2. Refined Seed Set Construction (Sf inal ): A re-
+   calized graph serves as the operational search                                                                       fined seed set is generated by integrating rel-
+   space for Stage 2.                                                                                                   evance signals from two sources: Exploration
+                                                                                                                        Seeds (derived from initial query similarity) and
+5.2.2 Stage 2: Fine-grained Path Discovery                                                                              Exploitation Seeds (entities central to the top-
+      and Ranking                                                                                                       scoring paths identified by the beam search).
+The objective of Stage 2 is to explicitly discover
+multi-proposition reasoning paths within Gsub and
+leverage these paths to determine the final ranking                                                                  3. Exploitative Path-informed Ranking (PPR):
+of evidence passages.                                                                                                   A second iteration of PPR is executed, con-
+                                                                                                                        strained to Gsub . The reset probability vector
+1. Beam Search Path Exploration: The beam
+                                                                                                                        incorporates normalized scores from both explo-
+   search algorithm (detailed in Section 5.3) sys-
+                                                                                                                        ration and exploitation seeds (Appendix A.6). A
+   tematically explores Gsub to identify connected
+                                                                                                                        lower damping factor (e.g., 0.45) is employed
+   proposition paths up to a maximum length Lmax .
+                                                                                                                        to intensify the focus on these refined relevance
+   It maintains a beam of the top-B paths ranked by
+                                                                                                                        signals.
+   relevance to the query q. (Running Example, Fig.
+   3): Initiating from P1, the beam search traverses
+   the graph via the "Saint Peter" entity link, dis-
+   covering P2 ("St. Peter’s Basilica is located in                                                                  4. Final Evidence Ranking: Passages are ranked
+   Vatican City"). Subsequently, it connects P2 to                                                                      according to their final PPR scores, prioritizing
+   P3 via "Vatican City", constructing the complete                                                                     those strongly connected to the salient reasoning
+   path P1 → P2 → P3.                                                                                                   paths discovered during the beam search.
+                                                                                                            6216
+ Query (Q): What year did the Governor of the city where the         primarily selected from propositions connected
+ basilica named after the same saint as the one that Mantua
+ Cathedral is dedicated to die?
+                                                                     to the current path’s terminal proposition pk via
+ Gold Answer: 1952                                                   shared or synonymous entity links within Gsub .
+ Initial Propositions (Stage 1 Retrieval):                           (Running Example, Fig. 3): P1 is expanded to
+  • (P1) 0.4275 - Mantua Cathedral is a Roman Catholic               P2 due to the shared entity "Saint Peter". To
+    cathedral dedicated to Saint Peter.                              mitigate the risk of local optima, the top-3 initial
+  • 0.3851 - Mantua Cathedral is the seat of the Bishop of           query-relevant propositions are also included as
+    Mantua.
+  • ...                                                              candidates ("jump points"), regardless of direct
+  • (P3) 0.3135 - No successor was appointed to the post             connectivity to pk .
+    of Governor of Vatican City after Marchese Camillo
+    Serafini’s death in 1952.
+                                                                 • Path Scoring (Online Embedding Com-
+ Beam Search (Stage 2, Depth 2/3): Path expansion from             putation): The relevance of an expanded
+ P1 .                                                              path Pnew = (P, pnext ) is estimated as
+  • 0.4792 - (P1) Mantua Cathedral... dedicated to Saint           Score(Pnew , q) ≈ sim(emb(Pnew ), emb(q)). A
+    Peter. → (P2) St. Peter’s Basilica is located in Vatican       computationally efficient average embedding is
+    City. (via entity link: "Saint Peter" → "St. Peter")
+  • 0.4756 - (P1) → Alfredo Ormando died on 23 January
+                                                                   used for preliminary scoring. The top-M candi-
+    1998 in Rome. (via entity link: "Roman" → "Rome")              dates are subsequently re-ranked using a more
+  • ...                                                            precise score derived from an embedding of the
+ Beam Search (Stage 2, Depth 3/3): Path expansion from             concatenated text of all propositions in Pnew .
+ P2.                                                               This step involves efficient online computation
+  • 0.5989 - (P1) Mantua Cathedral... → (P2) St. Pe-
+                                                                   using the embedding model, distinct from LLM
+    ter’s Basilica is located in Vatican City. → (P3) No           inference.
+    successor was appointed... after Marchese Camillo
+    Serafini’s death in 1952. (via entity link: "Vatican         • Selection and Pruning: From all expanded can-
+    City")
+  • 0.5674 - (P1) → (P2) → Marchese Camillo Serafini held          didates, the top-B (beam width) paths with the
+    the post of Governor... until his death in 1952.               highest scores are retained for the next iteration;
+  • ...                                                            others are pruned.
+ Observation: The crucial intermediate proposition P2 ex-
+ hibited low initial relevance to Q but was discovered via the   • Termination: The search concludes when paths
+ graph-guided beam search, enabling the construction of the        reach the maximum length Lmax or no further
+ complete reasoning path P1 → P2 → P3.
+                                                                   valid expansions are possible.
+Figure 3: Running Example: Beam search execution
+(Lmax = 3) for a MuSiQue query, illustrating the                 This online beam search operates exclusively on the
+discovery of a multi-hop reasoning path in PropRAG.              pre-computed graph structure and efficient online
+Proposition text is abridged for clarity.                        embedding computations. Crucially, it ensures low-
+                                                                 latency inference by avoiding any costly online
+                                                                 LLM calls for path generation or scoring.
+5.3 Beam Search Algorithm for Path
+    Discovery                                                    6     Experiments
+The core of Stage 2 is a specialized beam search
+algorithm designed to efficiently explore the propo-             6.1    Setup
+sition graph and identify high-relevance reasoning               Datasets: We evaluate on five diverse QA datasets:
+chains without requiring online LLM inference.                   NaturalQuestions (NQ) (Wang et al., 2024) and
+It heuristically seeks paths P = (p1 , ..., pL ) that            PopQA (Mallen et al., 2023) for single-hop
+maximize the relevance score Score(P, q).                        reasoning, and 2WikiMultihopQA (2Wiki) (Ho
+   Algorithmic Procedure:                                        et al., 2020), HotpotQA (Yang et al., 2018), and
+                                                                 MuSiQue-Ans (Trivedi et al., 2022b) for multi-hop
+• Initialization: The beam is initialized with
+                                                                 reasoning. We use the 1000-query samples and as-
+  paths of length 1, comprising the propositions
+                                                                 sociated corpora provided by Gutiérrez et al. (2025)
+  most semantically similar to the query q.
+                                                                 for direct comparability and to manage experimen-
+• Path Expansion (Graph-Guided): At each                         tal costs.
+  step, paths are extended by identifying candi-                    Baselines: We compare against a comprehensive
+  date next propositions pnext . Candidates are                  set of baselines, including classic retrievers (BM25,
+                                                             6217
+Table 1: Passage Retrieval Performance (Recall@5). Baselines from Gutiérrez et al. (2025). Best overall result in
+bold.
+
+           Method                                       NQ      PopQA         MuSiQue      2Wiki     HotpotQA
+           Simple Baselines
+           BM25                                       56.1%         35.7%      43.5%       65.3%      74.8%
+           Contriever                                 54.6%         43.2%      46.6%       57.5%      75.3%
+           GTR (T5-base)                              63.4%         49.4%      49.1%       67.9%      73.9%
+           Large Embedding Models (Base Retriever)
+           GTE-Qwen2-7B                               74.3%         50.6%      63.6%       74.8%      89.1%
+           GritLM-7B                                  76.6%         50.1%      65.9%       76.0%      92.4%
+           NV-Embed-v2 (7B)                           75.4%         51.0%      69.7%       76.5%      94.5%
+           Structure-Augmented RAG
+           RAPTOR                                     68.3%         48.7%      57.8%       66.2%      86.9%
+           HippoRAG                                   44.4%         53.8%      53.2%       90.4%      77.3%
+           HippoRAG 2                                 78.0%         51.7%      74.7%       90.4%      96.3%
+           PropRAG (Ours)
+             Lmax = 1 (No beam search)               78.4%          56.3%      75.6%      92.0%       95.7%
+             Lmax = 2                                78.1%          56.1%      77.6%      93.4%       97.2%
+             Lmax = 3 (Default)                      77.9%          56.2%      78.3%      94.1%       97.4%
+             Lmax = 4                                77.8%          56.0%      77.6%      93.7%       97.0%
+
+Table 2: End-to-End QA Performance (F1 Score) with Llama-3.3-70B-Instruct Reader. Baselines from Gutiérrez
+et al. (2025). Best overall result in bold.
+
+      Method                                     NQ       PopQA         MuSiQue        2Wiki   HotpotQA        Avg
+      No Retrieval (Parametric)
+      Llama-3.3-70B-Instruct                    54.9%        32.5%          26.1%      42.8%       47.3%      40.7%
+      Simple Baselines
+      Contriever                                58.9%        53.1%          31.3%      41.9%       62.3%      49.5%
+      GTR (T5-base)                             59.9%        56.2%          34.6%      52.8%       62.8%      53.3%
+      Large Embedding Models (Base Retriever)
+      GTE-Qwen2-7B                              62.0%        56.3%          40.9%      60.0%       71.0%      58.0%
+      GritLM-7B                                 61.3%        55.8%          44.8%      60.6%       73.3%      59.2%
+      NV-Embed-v2 (7B)                          61.9%        55.7%          45.7%      61.5%       75.3%      58.0%
+      Structure-Augmented RAG
+      RAPTOR                                    50.7%        56.2%          28.9%      52.1%       69.5%      51.5%
+      GraphRAG                                  46.9%        48.1%          38.5%      58.6%       68.6%      52.1%
+      LightRAG                                  16.6%         2.4%           1.6%      11.6%        2.4%       6.9%
+      HippoRAG                                  55.3%        55.9%          35.1%      71.8%       63.5%      56.3%
+      HippoRAG 2                                63.3%        56.2%          48.6%      71.0%       75.5%      62.9%
+      PropRAG (Ours)
+        Lmax = 1 (No beam search)               62.2%        56.1%          52.6%   73.5%          75.7%      64.0%
+        Lmax = 2                                61.9%        56.1%          53.4%   74.9%          76.0%      64.4%
+        Lmax = 3 (Default)                      62.5%        56.4%          53.9%   75.3%          76.1%      64.9%
+        Lmax = 4                                62.8%        56.0%          53.0%   75.3%          76.1%      64.7%
+
+
+
+Contriever, GTR), large embedding models serv-               beam width B = 4 and max path length Lmax = 3.
+ing as base retrievers (GTE-Qwen2, GritLM, NV-               A full list of hyperparameters is provided in Ap-
+Embed-v2), and leading structure-augmented RAG               pendix A.2.
+methods (RAPTOR, GraphRAG, LightRAG, Hip-                      Metrics: We report standard metrics: Passage
+poRAG, HippoRAG 2). Baseline results are pri-                Recall@5 for retrieval quality, and QA F1 score
+marily adopted from Gutiérrez et al. (2025).                 for end-to-end performance, following MuSiQue
+  Implementation and Reproducibility: Pro-                   evaluation scripts (Trivedi et al., 2022b).
+pRAG uses Llama-3.3-70B-Instruct (AI@Meta,
+2024) for offline proposition extraction and as the           6.2     Results and Discussion
+QA reader, and NV-Embed-v2 (7B) (Lee et al.,                 We present the main retrieval (Recall@5) and end-
+2025) for all embeddings. Key parameters include             to-end QA (F1 Score) results in Table 1 and Table
+                                                        6218
+Table 3: Ablation Study on Beam Width (B) using Lmax = 3. Default B = 4. Performance shown as Recall@5 /
+F1 Score.
+
+     Beam Width (B)      MuSiQue (R@5 / F1)       2Wiki (R@5 / F1)     HotpotQA (R@5 / F1)    Average (R@5 / F1)
+     1 (Greedy Search)      76.6% / 52.9%          92.1% / 74.5%           97.0% / 76.2%        88.5% / 67.9%
+     2                      77.4% / 52.9%          94.4% / 75.8%           97.4% / 75.7%        89.7% / 68.1%
+     3                      78.0% / 53.1%          94.2% / 75.7%           97.5% / 76.2%        89.9% / 68.3%
+     4 (Default)            78.3% / 53.9%          94.1% / 75.3%           97.4% / 76.1%        89.9% / 68.5%
+     5                      77.8% / 54.4%          93.7% / 75.4%           97.4% / 76.1%        89.6% / 68.6%
+     6                      77.8% / 53.9%          93.2% / 74.6%           97.2% / 75.7%        89.4% / 68.1%
+
+Table 4: Full Ablation Study Results (Recall@5). PropRAG uses Lmax = 3, B = 4 unless noted. HippoRAG 2 (no
+filter) results from Gutiérrez et al. (2025) Table 4.
+
+   Configuration                                                           MuSiQue    2Wiki   HotpotQA      Avg
+   Full PropRAG                                                             78.3%     94.1%     97.4%      89.9%
+   Comparison Baselines (Impact of Propositions)
+     PropRAG (Propositions only, no two-stage PPR, no beam search)          75.4%     90.4%     95.9%      87.2%
+     HippoRAG 2 (Triples, no LLM rerank, comparable setting)                73.0%     90.7%     95.4%      86.4%
+   Retrieval Strategy Ablations (Impact of Special Beam Search Settings)
+     Exploration Seeds Only                                                 75.6%     92.0%     95.6%      87.7%
+     Exploitation Seeds Only                                                77.9%     91.4%     97.6%      89.0%
+     No Graph Guidance (Similarity only)                                    77.4%     92.9%     96.6%      89.0%
+
+
+
+2, respectively.                                               ods focused only on initial similarity. We find
+   Overall Performance: PropRAG (Default:                      Lmax = 3 provides the optimal balance.
+Lmax = 3, B = 4) achieves a state-of-the-art av-                  Performance on Simpler Tasks: On single-hop
+erage F1 score of 64.9%. This outperforms the                  datasets NQ and PopQA, PropRAG remains ro-
+previous best structured RAG, HippoRAG 2, by                   bust (e.g., 62.5% NQ F1, 56.4% PopQA F1 with
+2.0 points, and the base retriever, NV-Embed-v2,               Lmax = 3), demonstrating that the added complex-
+by a substantial 6.9 points. This highlights the               ity does not degrade performance on tasks with less
+synergy of context-rich propositions and explicit,             multi-hop dependency.
+LLM-free online path discovery.
+   The Benefit of Propositions (Lmax = 1): Even                6.3   Ablation Studies
+without multi-step path expansion (Lmax = 1, ef-              We conduct ablation studies on the multi-hop
+fectively disabling the beam search but retaining             datasets (MuSiQue, 2Wiki, HotpotQA) to validate
+the two-stage PPR on the proposition graph), Pro-             key design choices. Tables 3 and 4 show our find-
+pRAG significantly outperforms baselines. For in-             ings.
+stance, on MuSiQue, Lmax = 1 achieves 52.6%                      Propositions vs. Triples: To isolate the im-
+F1, a +4.0% improvement over HippoRAG 2                       pact of the knowledge representation, we compare
+(48.6%). This demonstrates the inherent bene-                 PropRAG using only its first stage PPR (PPR on
+fit of using the higher-fidelity proposition graph            the proposition graph) against HippoRAG 2 in
+structure, even before extensive beam search explo-           a comparable setting (no filter, using triples and
+ration.                                                       PPR; results from Gutiérrez et al. (2025) Table
+   The Benefit of Beam Search (Lmax > 1): Ex-                 4). PropRAG (Stage 1 PPR only) achieves an av-
+plicit path discovery via beam search further boosts          erage Recall@5 of 87.2%, compared to 86.4%
+performance, particularly on multi-hop datasets.              for HippoRAG 2 (+0.8%). The difference is
+Comparing the default configuration (Lmax = 3)                most notable on MuSiQue (75.4% vs. 73.0%,
+to the Lmax = 1 ablation, we observe gains in                 +2.4%). This confirms that the richer context cap-
+average F1 by +0.9% (to 64.9%). The impact on                 tured in propositions provides a stronger founda-
+retrieval is even more pronounced, with MuSiQue               tion for graph-based retrieval, even without multi-
+Recall@5 increasing by +2.7% (from 75.6% to                   step beam search.
+78.3%). This confirms that exploring 2-3 hop paths               Impact of Beam Width (B): We vary the beam
+uncovers crucial evidence often missed by meth-               width B while keeping Lmax = 3. Increasing
+                                                          6219
+B from 1 (greedy search) to 4 (default) improves        A standard dense retriever (NV-Embed-v2) takes
+average R@5 by +1.4% (from 88.5% to 89.9%)              approximately 50ms per query. PropRAG takes ap-
+and average F1 by +0.6%. B = 4 offers a strong          proximately 500-1000ms per query. In contrast, an
+balance between exploration and computational           LLM-dependent retrieval step (e.g., using Llama-3-
+cost.                                                   70B to generate a next-hop query) typically takes
+   Importance of Graph Guidance: We test the            2-5 seconds or more per hop. Therefore, PropRAG
+importance of the graph structure guiding the beam      is significantly faster (2-10x) online than LLM-
+search by allowing path expansion based purely on       in-the-loop retrieval alternatives while providing
+embedding similarity, without requiring graph con-      superior retrieval quality.
+nectivity (beyond the initial "jump points"). This
+configuration ("No Graph Guidance") achieves an         7   Conclusion
+average R@5 of 89.0%, which is 0.9% lower than          PropRAG represents a significant advancement in
+the full PropRAG (89.9%). The drop is signifi-          RAG by addressing the limitations of both stan-
+cant on 2Wiki (92.9% vs. 94.1%). This demon-            dard retrieval and traditional structured RAG. By
+strates that leveraging the explicit connections in     shifting from context-poor triples to richer proposi-
+the proposition graph effectively guides the search     tions, PropRAG creates a high-fidelity knowledge
+towards more coherent reasoning paths, rather than      representation. Coupled with a novel, LLM-free
+relying solely on semantic similarity which can be      online beam search mechanism, it enables the ex-
+noisy.                                                  plicit discovery of multi-step reasoning paths. This
+   These ablations collectively confirm the contri-     dual approach demonstrably improves the qual-
+butions of the higher-fidelity proposition represen-    ity of retrieved evidence, particularly for complex
+tation, the effectiveness of the graph-guided beam      multi-hop queries. Our experiments show that Pro-
+search, and the robustness of the two-stage retrieval   pRAG sets new state-of-the-art results for zero-
+architecture.                                           shot RAG systems on several challenging bench-
+6.4 Efficiency Analysis                                 marks. PropRAG underscores the value of explicit,
+                                                        algorithmic modeling of reasoning processes over
+A key design goal of PropRAG is to enable sophis-       high-fidelity, pre-structured knowledge, offering
+ticated multi-hop reasoning efficiently by strategi-    a promising direction for developing LLMs with
+cally investing in offline knowledge structuring to     more robust and associative non-parametric mem-
+avoid costly online LLM calls.                          ory.
+    Offline Cost-Benefit Trade-off: The offline in-
+dexing phase requires LLM calls for proposition         Acknowledgments
+extraction. As detailed in Appendix A.5 (Table 6),
+PropRAG required 21.1M total LLM tokens (In-            Research was supported in part by the National Sci-
+put+Output) to index the MuSiQue dataset. While         ence Foundation IIS-19-56151, NSF IIS 25-37827,
+this is higher than HippoRAG 2 (12.2M tokens),          the Molecule Maker Lab Institute: An AI Research
+it is significantly lower than other structured RAG     Institutes program supported by NSF under Award
+methods like GraphRAG (151.6M tokens) and               No. 2019897, and the Institute for Geospatial Un-
+LightRAG (86.8M tokens). Crucially, PropRAG             derstanding through an Integrative Discovery Envi-
+achieves vastly superior performance (53.9% F1 on       ronment (I-GUIDE) by NSF under BRIES Program
+MuSiQue) compared to GraphRAG (38.5%) and               No. HR0011-24-3-0325. The views and conclu-
+LightRAG (1.6%). PropRAG thus achieves a su-            sions contained in this paper are those of the au-
+perior cost-benefit balance, creating higher-quality    thors and should not be interpreted as representing
+knowledge units with less computational overhead        any funding agencies. We also wish to thank Mant-
+than comparable methods.                                ing Liao for creating the figures.
+    Online Latency: While PropRAG avoids online
+                                                        Limitations
+LLM calls, the two-stage PPR and beam search
+(which includes online embedding computations           PropRAG’s primary limitations include the com-
+for path scoring) add latency compared to a stan-       putational overhead of beam search, which, while
+dard dense retriever. We quantify this trade-off        LLM-free online, is more intensive than simpler
+through a runtime comparison on the MuSiQue             retrieval methods. The system’s performance is sen-
+dataset using our hardware (NVIDIA RTX 4090).           sitive to the quality of the offline proposition extrac-
+                                                    6220
+tion phase; errors or omissions here can propagate.      Gautier Izacard, Mathilde Caron, Lucas Hosseini, Se-
+Although online LLM calls are avoided during re-           bastian Riedel, Piotr Bojanowski, Armand Joulin,
+                                                           and Edouard Grave. 2022. Unsupervised dense infor-
+trieval, the initial proposition generation relies on
+                                                           mation retrieval with contrastive learning. Transac-
+an LLM, and its quality can influence downstream           tions of the Association for Computational Linguis-
+results. Furthermore, the graph construction pro-          tics (TACL), 10:641–655.
+cess, particularly the accuracy of entity linking and
+                                                         Zhouyu Jiang, Mengshu Sun, Lei Liang, and Zhiqiang
+synonymy detection, plays a crucial role and can           Zhang. 2024. Retrieve, summarize, plan: Advanc-
+be a source of error. The current path scoring relies      ing multi-hop question answering with an iterative
+on embedding similarity, which might not capture           approach. http://arxiv.org/abs/2407.13101.
+all semantic nuances required for perfect path eval-       ArXiv:2407.13101.
+uation.                                                  Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick
+                                                           Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and
+                                                           Wen-tau Yih. 2020. Dense passage retrieval for open-
+References                                                 domain question answering. In Proceedings of the
+                                                           2020 Conference on Empirical Methods in Natural
+AI@Meta. 2024. Llama 3 model card.                         Language Processing (EMNLP), pages 6769–6781.
+Akari Asai, Kazuma Hashimoto, Hannaneh Hajishirzi,       Gary Klein, Brian Moon, and Robert R. Hoffman. 2006.
+  Richard Socher, and Caiming Xiong. 2020. Learning        Making sense of sensemaking 1: Alternative perspec-
+  to retrieve reasoning paths over wikipedia graph for     tives. IEEE Intelligent Systems, 21(4):70–73.
+  question answering. In International Conference on
+  Learning Representations (ICLR).                       Chang-Bin Lee, Rishav Roy, Mengjiao Xu, Jonathan
+                                                           Raiman, Mohammad Shoeybi, Bryan Catanzaro,
+Tong Chen, Hongwei Wang, Sihao Chen, Wenhao Yu,            and Wei Ping. 2025. Nv-embed-v2: Improved
+  Kaixin Ma, Xinran Zhao, Hongming Zhang, and              techniques for training llms as generalist em-
+  Dong Yu. 2024. Dense x retrieval: What retrieval         bedding models. http://arxiv.org/abs/2405.
+  granularity should we use? In Proceedings of the         17428. ArXiv:2405.17428.
+  2024 Conference on Empirical Methods in Natural
+  Language Processing, pages 15159–15177.                Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+                                                           Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+Roni Cohen, Eran Biran, Ori Yoran, Amir Globerson,         rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  and Mor Geva. 2024. Evaluating the ripple effects        täschel, Sebastian Riedel, and Douwe Kiela. 2020.
+  of knowledge editing in language models. Transac-        Retrieval-augmented generation for knowledge-
+  tions of the Association for Computational Linguis-      intensive nlp tasks. In Advances in Neural Infor-
+  tics (TACL), 12:283–298.                                 mation Processing Systems (NeurIPS), volume 33,
+                                                           pages 9459–9474.
+Derek Edge, Hoang Trinh, Nicholas Cheng, Joshua
+  Bradley, Allen Chao, Ajay Mody, Shayne Tru-            Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,
+  itt, and Jason Larson. 2024.       From local to         Daniel Khashabi, and Hannaneh Hajishirzi. 2023.
+  global: A graph rag approach to query-focused sum-       When not to trust language models: Investigating
+  marization. http://arxiv.org/abs/2404.16130.             effectiveness of parametric and non-parametric mem-
+  ArXiv:2404.16130.                                        ories. In Proceedings of the 61st Annual Meeting of
+                                                           the Association for Computational Linguistics (ACL),
+Jia-Chen Gu, Hao-Xiang Xu, Jia-Yu Ma, Pu Lu, Zheng-        pages 9802–9822.
+   Hua Ling, Kai-Wei Chang, and Nanyun Peng. 2024.
+   Model editing harms general abilities of large lan-   Jianmo Ni, Chen Qu, Jing Lu, Zhuyun Dai, Gustavo Her-
+   guage models: Regularization to the rescue. In           nandez Abrego, Ji Ma, Vincent Zhao, Yi Luan,
+   Proceedings of the 2024 Conference on Empirical          Keith Hall, Ming-Wei Chang, and Yinfei Yang. 2022.
+   Methods in Natural Language Processing (EMNLP),          Large dual encoders are generalizable retrievers. In
+   pages 16801–16819.                                       Proceedings of the 2022 Conference on Empirical
+                                                            Methods in Natural Language Processing (EMNLP),
+Bernal Jiménez Gutiérrez, Yiheng Shu, Weijian Qi,           pages 9844–9855.
+  Sizhe Zhou, and Yu Su. 2025. From rag to mem-
+  ory: Non-parametric continual learning for large       Priyanka Sarthi, Sameer Abdullah, Abhilash Tuli, Sak-
+  language models. http://arxiv.org/abs/2502.               shi Khanna, Abhijit Goldie, and Christopher D. Man-
+  14802. ArXiv:2502.14802.                                  ning. 2024. Raptor: Recursive abstractive processing
+                                                            for tree-organized retrieval. In International Confer-
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,              ence on Learning Representations (ICLR).
+  and Akiko Aizawa. 2020. Constructing a multi-hop
+  qa dataset for comprehensive evaluation of reason-     Wendy A. Suzuki. 2007. Making new memories: the
+  ing steps. In Proceedings of the 28th International     role of the hippocampus in new associative learning.
+  Conference on Computational Linguistics (COLING),       Annals of the New York Academy of Sciences, 1097:1–
+  pages 6609–6625.                                        11.
+                                                     6221
+Harsh Trivedi, Niranjan Balasubramanian, Tushar
+  Khot, and Ashish Sabharwal. 2022a. Interleav-
+  ing retrieval with chain-of-thought reasoning for
+  knowledge-intensive multi-step questions. arXiv
+  preprint arXiv:2212.10509.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+  and Ashish Sabharwal. 2022b. Musique: Multi-
+  hop questions via single-hop question composition.
+  Transactions of the Association for Computational
+  Linguistics (TACL), 10:539–554.
+Yuhao Wang, Ruiyang Ren, Junyi Li, Wayne Xin
+  Zhao, Jing Liu, and Ji-Rong Wen. 2024. Rear: A
+  relevance-aware retrieval-augmented framework for
+  open-domain question answering. arXiv preprint
+  arXiv:2402.17497.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+  William Cohen, Ruslan Salakhutdinov, and Christo-
+  pher D. Manning. 2018. Hotpotqa: A dataset for
+  diverse, explainable multi-hop question answering.
+  In Proceedings of the 2018 Conference on Empirical
+  Methods in Natural Language Processing (EMNLP),
+  pages 2369–2380.
+
+Jiahao Zhang, Haiyang Zhang, Dongmei Zhang, Yong
+   Liu, and Shen Huang. 2023. End-to-end beam re-
+   trieval for multi-hop question answering. arXiv
+   preprint arXiv:2308.08973.
+
+
+
+
+                                                    6222
+A   Appendix                                             back to their original passages, facilitating compre-
+                                                         hensive evidence aggregation.
+A.1 Proposition Graph Construction Details
+The PropRAG Proposition graph G = (V, E) is              A.2   Implementation Details
+constructed to facilitate reasoning over intercon-       PropRAG leverages Llama-3.3-70B-Instruct for of-
+nected propositions. The vertex set V comprises          fline proposition extraction (and as the final QA
+two main types of nodes:                                 reader for experiments) and NV-Embed-v2 (7B) as
+• Ventity : Nodes representing entities extracted        the base embedding model for passages, entities,
+  from the text corpus.                                  and propositions, ensuring consistency with the
+                                                         HippoRAG 2 baseline setup. Default parameters
+• Vpassage : Nodes representing the original text        used in PropRAG experiments are as follows:
+  passages from which propositions and entities
+  were derived.                                          • Beam width for path discovery (B): 4
+
+The edge set E includes the following key types,         • Maximum path length for beam search (Lmax ):
+designed to capture relationships within and be-           3
+tween propositions, and to link entities back to         • Initial PPR damping factor (Stage 1, explo-
+their source contexts:                                     ration): 0.75
+• Entity Clique Edges (Implicit Proposition              • Final PPR damping factor (Stage 2, exploita-
+  Hyper-edge): For each proposition p extracted            tion): 0.45
+  from the corpus, which contains a set of enti-
+  ties E(p), we add undirected edges connecting          • Number of passages in subgraph (K): 50
+  all pairs of distinct entities {ei , ej } such that    • Number of top paths for exact scoring (beam
+  ei , ej ∈ E(p) and ei ̸= ej . This forms a clique        search internal re-ranking) (M ): 40
+  (a fully connected subgraph) among all entities
+  co-occurring within that single proposition. This      • Number of top initial seeds for final PPR
+  clique structure implicitly represents the propo-        (Binitial ): 5
+  sition p as a hyper-edge, contextually linking all     • Number of top propositions to select seeds from
+  its constituent entities together, rather than rely-     for final PPR (Pinitial ): B (Beam width)
+  ing on potentially ambiguous predicate-labeled
+  edges between only two entities as in traditional      • Number of top beam-derived seeds for final PPR
+  triple stores.                                           (Bbeam ): 5
+                                                         • Number of top beam-derived paths to select
+• Passage Containment Edges: An undirected
+                                                           seeds from for final PPR (Pbeam ): 5
+  edge connects each entity node e ∈ Ventity to
+  the passage node d ∈ Vpassage corresponding to         • Synonymy embedding similarity threshold
+  the text passage from which entity e (and its as-        (τsyn ): 0.8
+  sociated propositions) were originally extracted.
+                                                         • Number of initial propositions for seeding Stage
+  These edges ground entities and propositions in
+                                                           1 PPR (Nprop ): 20
+  their source documents.
+                                                         • Number of initial entities from the top-Nprop
+• Synonymy Edges: An undirected edge con-                  propositions for seeding Stage 1 PPR (Nentity ):
+  nects two distinct entity nodes ei , ej ∈ Ventity if     40
+  their pre-computed embeddings are highly sim-
+  ilar, i.e., sim(emb(ei ), emb(ej )) ≥ τsyn , where     • Weight for passage direct retrieval score in final
+  τsyn is a predefined similarity threshold. These         PPR (λpassage ): 0.05
+  edges help bridge different textual mentions of
+                                                         These parameters were determined based on empir-
+  the same underlying concept.
+                                                         ical performance on development sets or adopted
+This graph structure allows for traversal algorithms     from common practices in related research where
+(like PPR and beam search) to navigate through           applicable. The choice of Lmax = 3 was based on
+the rich context embedded in propositions (via the       achieving the best average F1 score across devel-
+entity cliques/hyper-edges) and to connect entities      opment datasets.
+                                                     6223
+A.3 LLM Prompts                                          entity extraction takes approximately 2 seconds
+This section details the prompts used for entity         with this setup. As a concrete example, indexing
+and proposition extraction with Llama-3.3-70B-           the 11,656 passages from the MuSiQue dataset
+Instruct, crucial for the offline indexing phase of      completed within approximately 40 minutes, at a
+PropRAG.                                                 monetary cost of around $4 USD using the API.
+                                                            The token cost for the offline LLM-based propo-
+A.3.1   Entity Extraction Prompt                         sition extraction is an important consideration. Ta-
+This prompt is designed for inclusive entity identi-     ble 6 compares the input and output token counts
+fication. Unlike strict Named Entity Recognition         for PropRAG on the MuSiQue dataset against those
+(NER) often used for triple extraction, this step        reported for other structure-augmented RAG meth-
+aims to capture a broader set of concepts relevant       ods by Gutiérrez et al. (2025) for their respective
+for constructing rich propositions. It explicitly asks   offline knowledge structuring phases.
+the LLM to identify named entities, dates, impor-           PropRAG’s token cost for proposition extraction
+tant generic entities, and entities involved in predi-   is higher than methods like HippoRAG 2 (which
+cate relations. This provides a comprehensive list       uses OpenIE for triple extraction, often less LLM-
+for the subsequent proposition generation phase,         intensive) or RAPTOR (which focuses on sum-
+which only uses entities from this pre-identified set.   marization). This is attributable to the detailed
+(The prompt is shown in Figure 4)                        instructions and the generation of full-sentence
+                                                         propositions, which are richer but require more to-
+A.3.2   Proposition Extraction Prompt                    kens. However, PropRAG’s costs are considerably
+This prompt guides the LLM to decompose a pas-           lower than methods like LightRAG and GraphRAG,
+sage into atomic, yet contextually complete, propo-      which may involve more extensive LLM-based pro-
+sitions. It strictly uses the entities identified in     cessing for their graph construction or summariza-
+the previous step (Figure 4). The core focus is          tion steps. The trade-off is between the upfront
+on maintaining high fidelity by preserving com-          offline cost of generating high-fidelity propositions
+plex relationships, conditions, and the full context,    and the downstream benefits in retrieval accuracy
+which are often lost or oversimplified in traditional    and the avoidance of online LLM calls during re-
+triple extraction processes. (The prompt is shown        trieval. The online retrieval phase of PropRAG,
+in Figure 5)                                             involving PPR and beam search, is entirely LLM-
+                                                         free and computationally efficient, relying on pre-
+A.4 Proposition Graph Statistics
+                                                         computed embeddings and graph operations.
+The proposition graphs constructed for each dataset
+vary in size and complexity, reflecting the nature       A.6   Entity Score Calculation from Paths
+of the underlying corpora. Table 5 provides key          After the beam search identifies a set of high-
+statistics for the graphs used in our experiments.       scoring proposition paths (as detailed in Section
+These include the number of extracted propositions,      5.3), PropRAG determines the importance of indi-
+the number of passage nodes (corresponding to            vidual entities based on their participation in these
+unique passages in the corpus subset), the num-          paths. This entity scoring is crucial for generating
+ber of unique entity nodes identified, and the total     the final set of seed nodes (Sf inal ) used in the Stage
+number of edges in the constructed graph (encom-         2 PPR (Section 5). The scoring process adheres to
+passing entity clique edges, passage containment         the following principles:
+edges, and synonymy edges).
+                                                         1. Path Score Inheritance: Each proposition
+A.5 Cost and Efficiency
+                                                            within an identified path is considered to have
+The offline indexing phase of PropRAG involves              the same relevance score as the overall path it
+LLM-based proposition and entity extraction, as             belongs to.
+well as embedding computation. For embedding,
+we run a float16 version of NV-Embed-v2 on an            2. Entity Score Aggregation: An entity’s total
+NVIDIA RTX 4090 GPU. For proposition and                    score is determined by summing the scores of
+entity extraction, we utilize the Llama-3.3-70B-            all propositions (and thus, all paths) in which
+Instruct model via Nebius AI Studio’s API end-              it appears. If an entity is part of multiple high-
+point. Processing each passage for proposition and          scoring paths or multiple propositions within a
+                                                     6224
+  Entity Extraction Prompt
+  Instruction: Your task is to extract entities from the given paragraph. Respond with a JSON dictionary
+  only, with a "entities" key that maps to an non-empty list of entities. All named entities and dates must
+  be included in the list. All generic entities important to the theme of the passage must be included in
+  the list. All entities that is involved in a predicate relation to the above entities must be included in the
+  list. All dates must be included in the list.
+
+
+  Demonstration:
+  Example Paragraph: Radio City Radio City is India’s first private FM radio station and was started
+  on 3 July 2001. It plays Hindi, English and regional songs. Radio City recently forayed into New
+  Media in May 2008 with the launch of a music portal - PlanetRadiocity.com that offers music related
+  news, videos, songs, and other music-related features.
+  Example Output:
+  {" entities ":
+       [" Radio City " , " India " , " private FM radio station ", "3 July 2001" , " Hindi " ,
+        " English " , " New Media " , " May 2008" , " PlanetRadiocity . com " , " music portal " ,
+        " news " , " videos " , " songs "]
+  }
+
+
+
+  Input Format:
+  Passage : $ { passage }
+
+
+
+Figure 4: LLM prompt for Entity Extraction. This prompt aims for comprehensive entity identification beyond
+standard NER.
+
+
+
+
+                                                      6225
+  Proposition Extraction Prompt
+  Instruction:
+  Your task is to analyze text passages and break them down into precise, atomic propositions using a specified list of named
+  entities. A proposition is a fully contextualized statement that expresses a single unit of meaning with complete specificity
+  about the relationships described.
+  For each proposition:
+
+  1. Extract a complete, standalone statement that preserves the full context
+  2. Use ONLY the entities provided in the named_entities list - do not introduce new entities
+  3. Ensure each proposition contains only ONE claim or relationship
+  4. Be extremely specific about which entities are involved in each relationship
+  5. Maintain clear causal connections between related statements
+
+ Respond with a JSON object containing a list of propositions, where each proposition is an object with:
+ - "text": The full proposition text as a complete, contextualized statement
+ - "entities": An array of entities from the named_entities list that appear in that proposition
+ Critical Guidelines:
+
+   • ONLY use entities from the provided named_entities list
+   • Make relationships explicit and specific - clarify exactly which entities relate to which other entities
+   • Clarify precisely which entity a modifier applies to (e.g., specify which product had "80% improvement")
+   • Establish clear connections between related facts (e.g., "Adobe optimized their applications FOR THE M1 CHIP")
+   • Connect comparative statements to their specific reference points (e.g., "Adobe’s applications on the M1 chip improved
+     by 80% compared to Intel-based Macs")
+   • Preserve temporal information and causal relationships between events
+   • Make each proposition stand alone with all necessary context
+   • Include ALL relevant entities from the named_entities list in both the proposition text and entities array
+   • Ensure the collection of propositions captures ALL meaningful information in the passage
+
+
+  Demonstration:
+  Passage: In 2020, after Apple launched the M1 chip, major software companies like Adobe optimized their applications,
+  improving performance by up to 80% compared to Intel-based Macs.
+  Named entities:
+        [" Apple " , " M1 chip " , "2020" , " Adobe " , " Adobe ' s applications " , " Intel - based
+             ,→ Macs " , "80% performance improvement "]
+
+  {
+      " propositions ": [
+         {
+            " text ": " Apple launched the M1 chip in 2020." ,
+            " entities ": [" Apple " , " M1 chip " , "2020"]
+         },
+         {
+            " text ": " Adobe optimized their applications specifically for the M1 chip
+                 ,→ after its launch ." ,
+            " entities ": [" Adobe " , " Adobe ' s applications " , " M1 chip "]
+         },
+         {
+            " text ": " Adobe ' s applications running on the M1 chip improved performance
+                 ,→ by up to 80% compared to the same applications running on Intel -
+                 ,→ based Macs ." ,
+            " entities ": [" Adobe " , " Adobe ' s applications " , " M1 chip " , "80% performance
+                 ,→ improvement " , " Intel - based Macs "]
+         }
+      ]
+  }
+
+  Input Format:
+  Passage : $ { passage }
+  Named entities : $ { entities_json_list }
+
+
+
+Figure 5: LLM prompt for Proposition Extraction. This prompt emphasizes contextual completeness and adherence
+to pre-identified entities.
+
+                                                             6226
+                        Table 5: Statistics of Constructed Proposition Graphs per Dataset.
+
+                       Statistic            NQ      PopQA     MuSiQue     2Wiki   HotpotQA
+                       # Propositions    55536      57624        59028   30099       53566
+                       # Passage Nodes     9633       8676       11656     6119        9811
+                       # Entity Nodes    62368      73577        76928   43444       75608
+                       # Total Edges     1.27M      1.17M        1.34M   0.86M       1.31M
+
+
+Table 6: Offline LLM Token Costs (Input/Output) for                  sitions they are part of.
+Knowledge Structuring on MuSiQue Dataset (Millions
+of Tokens). Baseline data from Gutiérrez et al. (2025).      4. Initial Proposition Entities: For entities appear-
+                                                                ing in the very first proposition of a path (which
+Method             Input Tokens (M)   Output Tokens (M)         do not have a preceding "connection" within
+RAPTOR                     1.7                0.2               that path), their initial relevance is captured
+HippoRAG 2                 9.2                3.0
+PropRAG (Ours)            16.5                4.6
+                                                                through the "exploration seeds" (Sinitial ). Many
+LightRAG                  68.5               18.3               entities from these initial top query-relevant
+GraphRAG                 115.5               36.1               propositions are directly considered as explo-
+                                                                ration seeds. This ensures their potential im-
+                                                                portance is factored into the final seed set, even
+   single path, its score accumulates, reflecting its
+                                                                if they don’t benefit from the connection-based
+   centrality and repeated relevance.
+                                                                score enhancements that apply to entities deeper
+3. Emphasis on Connecting Entities: The scoring                 within a path.
+   mechanism gives additional weight to entities
+   that form crucial links within a reasoning path,             Following the aggregation of scores for all enti-
+   particularly for synonymous connections.                  ties involved in the discovered paths, the entities
+                                                             are ranked by their total accumulated scores. This
+      • Synonymous Connections Boost: When                   ranked list is then used to select the top-Bbeam "ex-
+        a proposition PA (containing entity EA )             ploitation seeds." These exploitation seeds, rich
+        connects to proposition PB (containing en-           in path-derived relevance, are combined with the
+        tity EB ) via a synonymous link where                "exploration seeds" (Sinitial ) to form the final seed
+        EA ≈ EB , the connected entity (EB in                set Sf inal for the concluding PPR stage, ensuring a
+        PB ) receives an additional score increment          comprehensive and robust final ranking of evidence
+        equivalent to the path’s score. This effec-          passages.
+        tively elevates the importance of EB , treat-
+        ing it as a strong continuation of a cen-
+        tral concept from PA . The rationale is that
+        EB is vital for identifying the passage as-
+        sociated with PB . The original connect-
+        ing entity (EA in PA ) contributes its score
+        through its presence in PA but does not re-
+        ceive this specific connection-based score
+        enhancement itself. If PA was connected
+        from a preceding proposition, its own cen-
+        tral entities would have been accounted for
+        similarly.
+      • Exact Connections: Entities that are
+        shared exactly between two consecutive
+        propositions in a path (forming an ex-
+        act connection) naturally contribute to the
+        score aggregation through their appearance
+        in both propositions. Their role as direct
+        bridges is thus inherently emphasized by
+        the summation of scores from both propo-
+                                                       6227
+

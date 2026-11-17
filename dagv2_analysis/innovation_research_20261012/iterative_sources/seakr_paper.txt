@@ -1,0 +1,1308 @@
+                                 S EA KR: Self-aware Knowledge Retrieval
+                              for Adaptive Retrieval Augmented Generation
+                       Zijun Yao♠† Weijian Qi♠†‡ Liangming Pan♡ Shulin Cao♠
+                      Linmei Hu♢         Weichuan Liu♣       Lei Hou♠§         Juanzi Li♠
+            ♠
+              DCST, BNRist; KIRC, Institute for Artificial Intelligence, Tsinghua University, China
+            ♡
+              University of California, Santa Barbara, USA; ♢ Beijing Institute of Technology, China
+                                         ♣
+                                           Siemens AG, Beijing, China
+               yaozj20@mails.tsinghua.edu.cn {houlei,lijuanzi}@tsinghua.edu.cn
+
+                              Abstract                                   Posed Question
+                                                                          In which city was the computer scientist Michael
+                                                                          Jordan born?
+            Adaptive Retrieval-Augmented Generation
+            (RAG) is an effective strategy to alleviate hal-             1) When to Retrieve                              Internal State
+
+                                                                                                                                      Low self-aware
+            lucination of large language models (LLMs). It                 I don’t need retrieval.                                      uncertainty
+            dynamically determines whether LLMs need                     The answer is Pittsburgh.                     I need retrieval.
+                                                                                Previous                                      Ours
+            external knowledge for generation and invokes
+                                                                         2) How to Integrate                     Invoke Retrieval
+            retrieval accordingly. This paper introduces
+                                                                                                Michael Jordan, also known as MJ, is an
+            Self-aware Knowledge Retrieval (S EA KR), a                   Self-aware            former professional basketball player …
+            novel adaptive retrieval model that extracts self-            Reranking
+                                                                                                Michael Jordan is a scientist, professor at
+            aware uncertainty of LLMs from their internal                                       the University of California, Berkeley …
+            states. S EA KR activates retrieval when the
+                                                                                                                                 San Diego
+            LLMs present high self-aware uncertainty for                  Self-aware
+            generation. To effectively integrate retrieved                Reasoning
+                                                                                                                                  Maryland
+            knowledge snippets, S EA KR re-ranks them
+            based on LLM’s self-aware uncertainty to pre-
+            serve the snippet that reduces their uncertainty        Figure 1: Adaptive retrieval mainly concerns 1) when
+            to the utmost. To facilitate solving complex            to retrieve and 2) how to integrate retrieved knowledge.
+            tasks that require multiple retrievals, S EA KR
+            utilizes their self-aware uncertainty to choose
+            among different reasoning strategies. Our ex-              Most existing RAG methods retrieve knowledge
+            periments on both complex and simple Ques-              for every input query by default. However, due
+            tion Answering datasets show that S EA KR out-
+                                                                    to the noisy nature of the data storage, retrieved
+            performs existing adaptive retrieval methods.
+                                                                    knowledge can be misleading or even conflicting
+                                                                    when the LLM can extract the correct answer from
+               https://github.com/THU-KEG/SeaKR
+                                                                    its own parametric knowledge (Mallen et al., 2022,
+    1       Introduction                                            2023; Xie et al., 2023; Liu et al., 2024). Conducting
+                                                                    retrieval for every generation is both inefficient
+    Retrieval-Augmented Generation (RAG, Lewis                      and unnecessary. Adaptive retrieval strategy (Jiang
+    et al., 2020; Gao et al., 2023) retrieves and inte-             et al., 2023; Su et al., 2024; Wang et al., 2023,
+    grates external knowledge into the context of large             2024) is hence proposed to dynamically determine
+    language models (LLMs, Achiam et al., 2023; Tou-                whether LLMs require external knowledge and then
+    vron et al., 2023; Meta, 2024). RAG represents                  invoke the retrieval step accordingly.
+    a promising strategy to combat the issue of hallu-                 Adaptive retrieval needs to consider two ma-
+    cination (Trivedi et al., 2022; Yao et al., 2022; Ji            jor factors: 1) When to retrieve knowledge and
+    et al., 2023; Cao et al., 2023)—where LLMs pro-                 2) How to integrate retrieved knowledge. Recent
+    duce factually incorrect answers camouflaged as                 studies (Kadavath et al., 2022; Zhu et al., 2023)
+    correct ones—primarily caused by queries that ex-               show that LLMs are aware of their uncertainty for
+    ceed the limited parametric knowledge boundaries                the generated content and this uncertainty can be
+    (Yin et al., 2024) of LLMs.                                     discerned from their internal states (Chen et al.,
+        †
+          Equal contribution.
+                                                                    2023a; Zhang et al., 2024). We argue that this self-
+        ‡
+          Work was done when interned at Tsinghua University.       aware nature of LLMs can be utilized to determine
+        §
+          Corresponding author.                                     when retrieval is needed and help with knowledge
+                                                                 27022
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 27022–27043
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+integration. Motivated by this, we propose SElf-       2     Related Work
+Aware Knowledge Retrieval (S EA KR) for adaptive
+retrieval. To the best of our knowledge, S EA KR       We formally define and introduce works related to
+is the first to leverage self-awareness from the in-   S EA KR, including retrieval augmented generation
+ternal states of LLMs to dynamically determine         and analyzing LLMs through their internal states.
+when to retrieve and effectively integrate retrieved
+                                                       2.1    Retrieval Augmented Generation
+knowledge.
+                                                       Retrieval augmented generation (RAG) system
+   To decide when to retrieve, existing adaptive re-   typically comprises a search engine for knowledge
+trieval (Wang et al., 2024; Jiang et al., 2023; Su     retrieval and a Large Language Model (LLM) for
+et al., 2024; Ni et al., 2024) judges the knowl-       answer generation (Khandelwal et al., 2019; Guu
+edge sufficiency of LLMs solely based on their         et al., 2020; Lewis et al., 2020; Borgeaud et al.,
+outputs, which is prone to ubiquitous self-bias of     2022; Ram et al., 2023; Shi et al., 2023). Given a
+LLMs (Xu et al., 2024). In contrast, S EA KR ini-      user-posed question, RAG first searches for rele-
+tiates retrieval self-aware uncertainty from the in-   vant knowledge snippets using the search engine
+ternal states of LLMs, which more accurately de-       and then generates the answer via machine reading
+termines the knowledge demand. To be specific,         comprehension (Chen et al., 2017).
+the self-aware uncertainty of LLMs is extracted           Adaptive retrieval augmented generation dy-
+from the internal states in the feed-forward net-      namically determines whether LLMs require re-
+work (FFN) of each layer corresponding to the last     trieved knowledge, thereby reducing the adverse ef-
+generated token. The consistency measure across        fect of inaccurately retrieved information. FLARE
+multiple generations to the same prompt is com-        (Jiang et al., 2023) and DRAGIN (Su et al., 2024)
+puted as the self-aware uncertainty score of LLMs,     activate the search engine when LLMs output to-
+subsequently used for the retrieval decision and       kens with low probability. Self-RAG (Asai et al.,
+knowledge integration.                                 2023) and Wang et al. (2024) prompt LLMs to
+                                                       decide on retrieval. Self-knowledge guided gen-
+   To effectively integrate retrieved knowledge into   eration (Wang et al., 2023) trains a classification
+the generation process, which is largely neglected     model to judge the factuality of model generation.
+by previous adaptive retrieval methods, S EA KR de-       Existing adaptive retrieval methods mainly face
+signs two adaptive integration strategies based on     two challenges. 1) To decide when to retrieve,
+the LLM self-awareness: 1) Self-aware re-ranking.      it is superficial to have the decision of retrieval
+S EA KR asks the LLM to read multiple recalled         solely on the output of LLM. However, the re-
+snippets and selects the knowledge that reduces        trieval decision made by LLMs is still at risk of
+most of its uncertainty as the augmented context.      hallucination, which potentially does not reliably
+2) Self-aware reasoning. S EA KR supports iterative    indicate the actual knowledge sufficiency (Yona
+knowledge retrieval to gather multiple knowledge       et al., 2024). Furthermore, LLMs have the ten-
+for answering complex questions. With multiple         dency to confidently produce incorrect contents
+retrieved knowledge, S EA KR integrates different      even when correct knowledge is missing from their
+reasoning strategies, including direct generation      parameters (Huang et al., 2023; Xu et al., 2024).
+and comprehensive reasoning, to digest the knowl-      2) To integrate retrieved knowledge, these attempts
+edge. It then selects the strategy that produces the   rely on the correctness of search engine returned
+least generation uncertainty.                          knowledge, neglecting to re-rank multiple retrieved
+                                                       knowledge and optimize the reasoning paths.
+   We conduct experiments on complex question-            Retrieval augmented reasoning integrates the
+answering (QA) and simple QA tasks. We find            reasoning capabilities of LLMs into the RAG
+that S EA KR brings substantial improvement over       framework to solve complex questions. IRCoT
+existing adaptive retrieval methods on complex QA      (Trivedi et al., 2022) implements retrieval aug-
+benchmarks. Our ablation study shows that dynam-       mentation within multi-step chain-of-thought (CoT,
+ically integrating retrieved knowledge brings even     Wei et al., 2022) reasoning processes, which is
+more performance gain than self-aware retrieval,       adopted by many following works (Su et al., 2024;
+further highlighting the necessity of dynamical in-    Jeong et al., 2024). ProbTree (Cao et al., 2023)
+tegration for adaptive retrieval.                      decomposes complex questions into sub-questions,
+                                                  27023
+  Self-aware Retrieval                                Self-aware Re-ranking                          Self-aware Reasoning
+  𝐜𝒓
+         Question 𝐪           Rationale Buffer 𝑅                Knowledge Buffer 𝐾                     Rationale Buffer      Knowledge Buffer
+
+                                              𝐫                                                        Prompt                  Prompt
+           Pseudo               Rationale                   +     𝐪   +    𝑅             𝑈 𝐜 ↑
+                                                                                                       Template                Template
+          Generation            Generation
+                𝐜"             ?                                                                        So the                  Read and
+        Invoke Retrieval 𝐪𝐫𝐲                                +     𝐪   +    𝑅             𝑈 𝐜 ↓          answer is               Answer 𝑞
+       Query generation                                                                                 𝑈(𝐜) ↑                        𝑈 𝐜 ↓
+                                   𝐤   Knowledge            +     𝐪   +    𝑅             𝑈(𝐜) ↑
+                                                                                                                          The final answer is …
+                                        Buffer 𝐾
+
+  Self-aware Uncertainty Extraction                                                                                                  Legends
+                                                                                 𝒌 Samples           Gram        Self-aware
+        ⟨IN⟩2        ⟨IN⟩3             ⋯           ⟨OUT⟩2   ⋯     ⟨EOS⟩
+                                                                                                  Determinant    Uncertainty
+                                                                                                                                              𝑆(⋅)
+                        𝑳 − 𝒍 Transformer Decoder Layers
+                                                                                                                 𝑈(𝐜)
+                                       ⋯                    ⋯                                                                              LLM(⋅)
+                                                                                     ⋯
+                             𝒍 Transformer Decoder Layers
+                                                                                                                                              𝑈(⋅)
+        ⟨IN⟩1        ⟨IN⟩2             ⋯           ⟨OUT⟩1   ⋯     ⟨OUT⟩m
+
+
+                                               Figure 2: The overall framework of S EA KR.
+
+
+which are solved using RAG before being aggre-                             3      Self-Aware Knowledge Retrieval
+gated into the final answer.
+                                                                           As shown in Figure 2, S EA KR has three key com-
+2.2     Self-awareness in Internal States of LLMs                          ponents. 1) a search engine S(·), which returns
+                                                                           ranked knowledge snippets according to the rel-
+Most of the mainstream LLMs are stacks of Trans-
+                                                                           evance to its input search query qry. 2) a large
+former (Vaswani et al., 2017) decoders. To pre-
+                                                                           language model, denoted as LLM(c), which takes
+dict the next token, without losing generality,
+                                                                           a context c as input, outputs a continuation to the
+the ith layer processes the hidden representation
+                                                                           context. Most importantly, (3) a self-aware uncer-
+H(l−1) from its previous layer according  to the                         tainty estimator U (c), to quantify the uncertainty
+formula: H(l) = FFN Attn H(l−1) , where
+                                                                           level of LLM to generate for input context c.
+Attn(·) denotes attention sub-layer, FFN(·) is the
+feed-forward sub-layer.                                                       For each input natural language question q,
+   Many works (Meng et al., 2022; Li et al., 2022;                         S EA KR adopts a Chain-of-Thought (CoT) (Wei
+Gurnee and Tegmark, 2023; Zou et al., 2023)                                et al., 2022) style iterative reasoning strategy.
+show that the hidden representations H(l) entail                           S EA KR utilizes the self-aware uncertainty estima-
+non-trivial information about the internal states of                       tor to measure the LLM uncertainty level from
+LLMs. These internal states are capable of being                           its internal states (§3.1). S EA KR maintains two
+used to detect hallucinated generations from LLMs.                         buffers to collect retrieved knowledge K = {ki }
+One direct way is to train a factuality classifier                         and generated rationales R = {ri } during the iter-
+with internal states as input (Kadavath et al., 2022;                      ation. During the ith iteration, S EA KR generates
+Azaria and Mitchell, 2023; Chen et al., 2023b;                             a rationale ri , before which it dynamically deter-
+Zhang et al., 2024). Non-factual generation can                            mines whether to augment the generation with ex-
+also be detected as uncertainty of LLMs by internal                        ternal knowledge, i.e., self-aware retrieval (§3.2).
+state level consistency measuring among multiple                           If S EA KR decides to invoke retrieval, it adaptively
+generations (Chen et al., 2023a).                                          selects knowledge ki with self-aware re-ranking
+                                                                           (§3.3). Finally, S EA KR integrates all previously
+   These works potentially pave the way for im-
+                                                                           gathered information, including K and R, into the
+proving adaptive retrieval via examining the self-
+                                                                           final answer, with self-aware reasoning (§3.4).
+awareness from internal states. Since model de-
+coding breaks down continuous internal states into
+                                                                           3.1       Self-aware Uncertainty Estimator
+discrete tokens, information loss during this pro-
+cess is inevitable. Compared with output-level self-                       For input context c = ⟨IN⟩1 · · · ⟨IN⟩n with n to-
+awareness detection, internal states-level detection                       kens, LLM works as a probabilistic distribution
+is more substantial and therefore better suited for                        conditioned on the input context. To generate, it
+adaptive retrieval.                                                        outputs o with m tokens ending with an ⟨EOS⟩ to-
+                                                                      27024
+ken: LLM(c) = ⟨OUT⟩1 · · · ⟨OUT⟩m ⟨EOS⟩. We aim          exceeds an empirical threshold U (cr ) > δ.
+to extract how certain LLMs are that o is a cor-            Query Generation. To generate a query for
+rect continuation for c. To this end, we follow          the search engine, the LLM performs a pseudo-
+INSIDE (Chen et al., 2023a) and measure the un-          generation: rs = LLM(cr ). Tokens in r indicating
+certainty in the hidden space of the ⟨EOS⟩ token.        high uncertainty due to their low probability are
+   Specifically, for an input context c, we first sam-   identified and removed from the pseudo-generated
+ple generation and preserve the hidden represen-         rationale to form the search query (Jiang et al.,
+                                            (l)
+tation for its ⟨EOS⟩ token, denoted as H⟨EOS⟩ . As       2023). We expect the retrieved knowledge to con-
+⟨EOS⟩ attends to all previous tokens, it compresses      tain information that directly provides information
+information on both the output and the input. Then,      to fill in the uncertain tokens in rs .
+            (l)
+we treat H⟨EOS⟩ as a random variable, and sample            Rationale Generation. Finally, S EA KR gener-
+k different generations from the LLM for the same        ates rationale to proceed on answering the question
+                          (l)
+input context, whose H⟨EOS⟩ are subsequently used        q. If retrieval is invoked, then knowledge snippets
+to compute their Gram matrix (Horn and Johnson,          k are added to the current input context cr . Oth-
+2012), which measures the correlation among each         erwise, the input context remains unchanged. The
+pair of representations. Finally, the uncertainty of     generated rationale r = LLM(c) is then appended
+the LLM is evaluated as the determinant of the reg-      to the rationale buffer.
+ularized Gram matrix, a score of the consistency
+among a set of representations.                          3.3   Self-aware Re-ranking
+   S EA KR uses the regularized Gram determi-            Traditional RAG ranks the retrieved knowledge ac-
+nant as the self-aware uncertainty score for two         cording to its relevance to the posed query. This
+reasons. 1) Pre-trained LLMs are proved to be            approach overlooks how the retrieved knowledge
+well-calibrated probabilistic models, which behave       aligns with the intrinsic knowledge of LLMs, poten-
+less consistently when producing incorrect con-          tially leading to performance degradation when the
+tents (Kadavath et al., 2022; Zhu et al., 2023). 2)      retrieved information contradicts the model’s inter-
+The Gram determinant examines the consistency            nal knowledge. Unlike existing methods, S EA KR
+on the internal state level, free from the influence     prioritizes the utility of the retrieved knowledge in
+of natural language where the same semantics can         reducing the LLM’s self-aware uncertainty. It se-
+be expressed differently (Qi et al., 2022).              lects the knowledge that most effectively reduces
+                                                         the LLM’s uncertainty.
+3.2 Self-aware Retrieval
+                                                            Specifically, S EA KR allows the search engine
+Self-aware retrieval relies on the self-aware un-        to retrieve multiple knowledge pieces. We preserve
+certainty estimator U (·) to decide whether to use       the top N results and organize them along with
+retrieved knowledge for rationale generation. In         previously generated rationales using the following
+the following, we introduce our design to organize       template (Detailed in Appendix D.2):
+the input context, to generate the search query, and
+to generate the rationale.                                     [In-Context Learning Examples]
+   Input Context. We first prepare the input con-              Rationale [r1] Rationale [r2]
+text to prompt LLMs to generate one step of ra-                            ......
+tionale without retrieval, and use U (·) to examine            Knowledge Evidence: [k]
+whether the LLM is uncertain so as to invoke re-               For question: [q] Next Rationale:
+trieval accordingly. We organize q and historical        As the search engine recalls top N different knowl-
+rationales R into the input context cr using the fol-    edge snippets, S EA KR creates N input contexts
+lowing prompt template, we show details of the           and evaluates their corresponding self-aware uncer-
+prompting template in Appendix D.1:                      tainty from the LLM. The knowledge piece with
+     [In-Context Learning Examples]                      the least uncertainty evaluated by U (·) is selected.
+     Rationale [r1] Rationale [r2]
+                 ......                                  3.4   Self-aware Reasoning
+     For question: [q] Next Rationale:                   The retrieval process within the S EA KR system
+Here, placeholders are denoted in square brackets.       halts under two conditions: 1) the LLM signals the
+Retrieval is triggered if the self-aware uncertainty     end of generation with a prefatory statement, “So
+                                                    27025
+the final answer is”, terminating the iteration; 2)          We use them in the open-domain QA setting,
+the retrieval activity reaches the maximum limit.         where documents for machine reading comprehen-
+   To effectively synthesize all previously retrieved     sion are discarded. For dataset splitting, S EA KR
+knowledge, S EA KR employs two distinct reason-           is tuning-free and thus does not need a training set.
+ing strategies: 1) Reasoning with generated ra-           We use a sampled subset from NQ’s training split
+tionales R. This approach prompts the LLM to              to search for hyper-parameters, which are adopted
+directly generate the final answer. It puts the in-       by all other datasets. We follow IRCoT (Trivedi
+struction “So the final answer is” right after the last   et al., 2022) to use their official development set
+generated rationale. 2) Reasoning with retrieved          and DPR (Karpukhin et al., 2020) for simple QA.
+knowledge K. This strategy involves concatenating
+all re-ranked retrieved knowledge, which is then          4.1.2   Baselines
+prepended to the question to serve as a reference         We mainly compare S EA KR with representative
+context. The difference between the two reasoning         RAG models, which include:
+strategies is that: reasoning with generated ratio-          Non-adaptive retrieval-based methods. •
+nales uses LLM generated content as the context           Chain-of-Thought (CoT) (Wei et al., 2022)
+to produce the final answer; while reasoning with         prompts an LLM to answer questions with multi-
+knowledge uses the retrieved passages as the con-         step explanations. We implement CoT with simi-
+text to produce the final answer. S EA KR then re-        lar prompts as S EA KR by removing the retrieval-
+quires the LLM to engage in CoT reasoning based           related instructions. • IRCoT (Trivedi et al.,
+on this augmented textual context. We show de-            2022) interweaves CoT reasoning with retrieval
+tailed prompting templates in Appendix D.3. The           augmented generation strategy. IRCoT retrieves
+final answer is generated using the strategy that         for every reasoning step by default and integrates
+promotes the lowest level of uncertainty evaluated        the top-ranked knowledge.
+by U (·) between the answers generated with these            Adaptive retrieval-based methods. • Self-RAG
+two strategies.                                           (Asai et al., 2023) fine-tunes the LLM to gener-
+                                                          ate a special token to indicate whether they need
+4   Experiments                                           retrieval. The LLM is also trained to criticize the
+In this section, we conduct experiments to com-           retrieved knowledge. The training data is generated
+pare S EA KR with baseline RAG methods that are           by GPT-4 (Achiam et al., 2023) with seed questions
+commonly used on question answering (QA) tasks.           from NaturalQuestions (Kwiatkowski et al., 2019).
+                                                          • FLARE (Jiang et al., 2023) triggers retrieval
+4.1 Experiment Setup                                      when the LLM generates tokens with low proba-
+We introduce the benchmark datasets used in the           bility. If so, it retrieves knowledge and regenerates
+experiments and the baseline methods. We also             the answer. The original FLARE does not support
+describe key implementation details for S EA KR.          complex QA. We re-implement FLARE with IR-
+                                                          CoT strategy to support evaluation on complex QA.
+4.1.1 Benchmark Datasets                                  • DRAGIN (Su et al., 2024) decides to retrieve
+We use knowledge-intensive QA tasks, including            when low-probability tokens are generated and re-
+both complex QA and simple QA.                            formulates the query based on attention weights.
+   Complex QA requires the model to perform
+multi-hop reasoning to answer the questions. Each         4.1.3   Implementation and Variable Control
+question also needs multiple supporting knowledge.        To implement S EA KR, we use LLaMA-2-chat with
+Specifically, for complex QA tasks, we test on            7 billion parameters as the backbone LLM. The
+2WikiMultiHopQA (2Wiki, Ho et al., 2020), Hot-            search engine is implemented with BM25 (Robert-
+potQA (HPQA, Yang et al., 2018), and the answer-          son et al., 2009) algorithm using Elastic Search.
+able subset of IIRC (Ferguson et al., 2020).              Following DRAGIN (Su et al., 2024), we use the
+   Simple QA does not require multi-hop reason-           English version Wikipedia dumped on December
+ing. These questions focus more on evaluating ac-         20, 2018 as the external knowledge source. For
+curate knowledge acquisition. We use NaturalQues-         simple QA, which does not require multiple knowl-
+tions (NQ Kwiatkowski et al., 2019), TriviaQA             edge evidence, we constrain the search time to 1.
+(Joshi et al., 2017), and SQuAD (Rajpurkar et al.,        These choices and constraints are also applied to
+2016) in the experiments.                                 all our baseline methods for fair comparison.
+                                                     27026
+               2Wiki        HPQA          IIRC                          NQ         TriviaQA      SQuAD
+  Models                                                   Model
+             EM     F1    EM     F1    EM     F1                      EM     F1   EM     F1     EM     F1
+  CoT        14.6 22.3 18.4 27.5 13.9 17.3                 CoT       13.4 18.7 42.6 48.6         8.7 13.6
+  IR-CoT     18.9 26.5 21.4 30.4 17.8 21.6
+                                                           Self-RAG 32.3 40.2 21.2 37.9 5.1 18.3
+  Self-RAG 4.6 19.6 6.8 17.5 0.9 5.7                       FLARE    25.3 35.9 51.5 60.3 19.4 28.3
+  FLARE    14.3 21.3 14.9 22.1 13.6 16.4                   DRAGIN 23.2 33.2 54.0 62.3 18.7 28.7
+  DRAGIN 22.4 30.0 23.7 34.2 19.1 22.9
+                                                           S EA KR   25.6 35.5 54.4 63.1 27.1 36.5
+  S EA KR    30.2 36.0 27.9 39.7 19.5 23.5
+                                                       Table 2: Experiment results on simple QA datasets in
+Table 1: Experiment results on complex QA datasets.    percentage (%). Self-Rag is fine-tuned from LLaMA-2-
+All the results are shown in percentage (%).           chat (7B) with NQ style data. IRCoT is not included as
+                                                       Simple QA do not require multiple retrieval.
+
+   For hyper-parameters, we empirically set the
+number of knowledge recalled by the search engine      S EA KR mainly lies in S EA KR’s awareness of its
+to N = 3. We sample the hidden representation for      knowledge insufficiency to answer the question.
+⟨EOS⟩ for k = 20 times, and implement with vLLM        At the opposite extreme, IRCoT retrieves in every
+(Kwon et al., 2023) for parallel inference. The        reasoning step, also lagging behind S EA KR. This
+self-aware uncertainty threshold δ is searched on      observation testifies to our hypothesis that adap-
+with the development set. We 10 examples for in-       tively determining when to retrieve is necessary.
+context learning. The internal states are extracted       Compared with the only fine-tuning based adap-
+from the middle layer of the LLM, i.e., l = L2 ,       tive retrieval method—Self-RAG, we can see that
+where L is the total layer number.                     Self-RAG achieves less satisfactory results. This is
+                                                       mainly caused by the distribution of its fine-tuning
+4.2 Experiment Results                                 data, which is generated by GPT-4 (Achiam et al.,
+We evaluate all the methods with F1 measure and        2023) with demonstrations from NaturalQuestions,
+exact match (EM) score.                                a simple QA dataset. The distribution shift from
+                                                       simple QA to complex QA largely undermines
+4.2.1 Results on Complex QA                            LLMs’ capacity to perform self-aware RAG. In
+We show experiment results on complex QA tasks         contrast, S EA KR, as a tuning-free adaptive re-
+in Table 1. S EA KR achieves 36.0%, 39.7%, and         trieval method, achieves even better results. This
+23.5% F1 scores on 2WikiMultiHop, HotpotQA,            shows that by exploring the intrinsic self-awareness
+and IIRC, which outperforms the best baselines by      of LLMs better generalizes to different QA tasks.
+6.0%, 5.5%, and 0.6%, respectively. These results         S EA KR outperforms FLARE and DRAGIN by a
+indicate that self-aware knowledge retrieval strat-    large margin. The most salient differences between
+egy is beneficial for solving complex questions. It    S EA KR and FLARE / DRAGIN are two folds: 1)
+is worth noting that IIRC is especially challeng-      S EA KR determines the retrieval via self-aware un-
+ing as it requires many numerical reasoning steps,     certainty, while FLARE and DRAGIN superficially
+which is extremely difficult for LLMs with 7B pa-      rely on output probability; 2) S EA KR is augmented
+rameters. As S EA KR does not optimize the numer-      with adaptive integration strategies, i.e., self-aware
+ical reasoning capability, the performance gain on     re-ranking and self-aware reasoning, while FLARE
+IIRC is less obvious than on 2Wiki and HPQA.           and DRAGIN neglect this part. This performance
+   For detailed analysis, we can see from the ta-      gain is mainly due to these two improvements. We
+ble that CoT reasoning, even without retrieval aug-    will conduct ablation study (§5.1) and case study
+mentation, can still solve a non-trivial amount of     (§5.4) to verify these reasons.
+complex questions, reaching even 22.3%, 27.5%,
+and 17.3% F1 measures on the three datasets. This      4.2.2     Results on Simple QA
+owns to questions that fully fall into the knowl-      Table 2 shows results on simple QA tasks. S EA KR
+edge boundary of existing language models. As          achieves the best performance among baselines on
+CoT utilizes similar reasoning prompts as S EA KR,     TriviaQA and SQuAD, at 63.1% and 36.5% F1
+with differences only in their retrieval-related in-   measure, On NaturalQuestions, S EA KR demon-
+structions, the performance gap between CoT and        strates comparable performance with tuning-free
+                                                   27027
+baseline FLARE, while lagging behind Self-RAG,                                2Wiki      HPQA           NQ
+                                                          Models
+which is fine-tuned to determine when to retrieve                           EM    F1   EM     F1   EM    F1
+on GPT-4 generated NaturalQuestions-style data.
+                                                          S EA KR          31.4 37.8 27.4 38.1 25.6 36.1
+The experiment results show that S EA KR is effec-
+tive for questions that do not require reasoning.         Ablating Self-aware Uncertainty Estimator
+                                                           Prompt           27.0 33.9 26.5 37.3 23.8 34.2
+   We note that the performance gap between
+                                                           Perplexity       29.0 35.2 26.6 36.9 23.0 33.4
+S EA KR and baselines in simple QA is less obvious         LN-Entropy       30.0 36.0 26.2 37.5 24.8 34.8
+than in complex QA datasets, especially on NQ and          Energy           26.8 33.2 22.2 31.7 22.8 32.3
+TriviaQA. This is because knowledge integration           Ablating Self-aware Retrieval
+for simple questions is comprehended as a single           − S.A. Retrieval 29.0 35.7 26.8 37.6 25.4 35.8
+machine reading comprehension step, demanding
+                                                          Ablating Self-aware Re-Ranking
+less on knowledge integration.                             − S.A. Re-rank 29.2 35.0 26.2 36.6 24.8 35.0
+                                                          Ablating Self-aware Reasoning
+5   Analysis
+                                                           Rationales-only 29.4 35.9 26.6 36.3      /        /
+We follow conventions (Trivedi et al., 2022; Jiang         Knowledge-only 30.4 37.0 27.6 37.2       /        /
+et al., 2023) to sample 500 questions from each
+                                                       Table 3: Ablations study results. S.A. is abbreviate for
+dataset to reduce the cost in analysis experiments.    self-aware. S EA KR performs differently from Table 1
+                                                       and Table 2 due to dataset sampling. Self-aware reason-
+5.1 Ablation Study                                     ing only applies to complex QA as simple QA does not
+We conduct the ablation study to verify the effec-     require multiple retrieval.
+tiveness of each component in S EA KR and explore
+alternative implementations. We show our ablation                            2Wiki       HPQA           NQ
+                                                          Models
+study results in Table 3.                                                  EM     F1   EM    F1    EM    F1
+   Ablating Self-aware Uncertainty Estimator.
+                                                          LLaMA-2 with 7B Parameters
+We explore multiple ways to extract self-aware             Base Version  20.4 26.9 22.0 30.1 15.0 20.8
+uncertainty from the LLM. The prompting-based              Chat Version  31.4 37.8 27.4 38.1 25.6 36.1
+method asks the LLM “do I have sufficient knowl-
+                                                          LLaMA-3 with 8B Parameters
+edge to solve the question?” and judges its un-            Base Version     38.4 44.7 29.2 39.2 25.0 33.9
+certainty from the output directly. The perplexity-        Instruct Version 40.6 48.1 36.0 47.7 31.0 43.0
+based method estimates the self-aware uncertainty
+based on the perplexity of the pseudo-generated        Table 4: Experiments with different backbone LLMs.
+contents. Multi-Perplexity estimates the uncer-
+tainty by averaging the perplexity of multiple gen-
+erations, where we generate 20 times. Length nor-      self-aware re-ranking by choosing the first knowl-
+malized entropy (LN-Entropy, Malinin and Gales,        edge from the search engine, without utilizing
+2020) is another uncertainty estimator for auto-       the self-aware uncertainty score to select knowl-
+regressive language models. Energy score calcu-        edge (− S.A. Re-rank). From Table 3 we see that
+lates the uncertainty in the logit space, which is     discarding self-aware re-ranking undermines the
+originally proposed to detect out-of-distribution      performance of S EA KR. This is because the self-
+samples (Liu et al., 2020).                            aware re-ranking functions by de-noising retrieved
+   Ablating Self-aware Retrieval. To ablate the        knowledge, which integrates external knowledge
+self-aware retrieval, we retrieve knowledge for each   resources more flexibly.
+generation step, without dynamically determining          Comparing the effect between removing self-
+when to retrieve (− S.A. Retrieval). We can see that   aware retrieval and self-aware re-ranking, we ob-
+experiments on both the complex QA and simple          serve that ablating self-aware re-ranking reduces
+QA degrade, indicating that when the LLM does          the performance of S EA KR more than removing
+not supplement knowledge, retrieved information        self-aware retrieval. This indicates the crucial as-
+indeed misleads LLM into generating incorrect in-      pect of designing effective knowledge integration
+formation. Thus, it is necessary to determine when     method in adaptive retrieval.
+to retrieve dynamically to avoid such interference.       Ablating Self-aware Reasoning. We ablate self-
+   Ablating Self-aware Re-ranking. We ablate the       aware reasoning by choosing two default reasoning
+                                                  27028
+ Question (HPQA):      Who lived longer, Alejandro Jodorowsky or Philip Saville?      Ground-Truth Answer:         Alejandro Jodorowsky
+                       . . . Philip Saville (sometimes credited as Philip Savile, 28 October 1930 – 22 December 2016) was a British
+ Knowledge Buffer:
+                       television and film director, screenwriter and former actor . . .
+ Rationale Buffer:     Philip Saville was born on 28 October 1930 and passed away on 22 December 2016.
+ Pseudo-Generation:    Alejandro Jodorowsky was born on 7 July 1929.                  Self-aware Uncertainty:      U (c) = −4.4, U (c) > δ
+
+  #Search   #U (c)    U (c)   Retrieved Knowledge Ranked by Search Engine S(qry)
+                              . . . interview with “The Guardian” newspaper in November 2009, however, Jodorowsky revealed that he was
+     1        3      −4.37
+                              unable to find the funds to make “King Shot”, and instead would be entering preparations on “Sons of El . . .
+     2        1      −4.91    Alejandro Jodorowsky Prullansky (born 17 February 1929) is a Chilean-French filmmaker . . .
+     3        2      −4.88    . . . Alejandro Jodorowsky Prullansky (born 17 February 1929) is a Chilean-French filmmaker. Since . . .
+
+Table 5: Case study. #Search denotes the knowledge rank given by the search engine. #U (c) is the ranking according
+to self-aware uncertainty. S EA KR answers the question with two iterations and here we show the overall process of
+the second iteration. S EA KR first performs pseudo-generation, which results in high uncertainty U (c) = −4.4 and
+triggers retrieval. The first returned knowledge from the search engine is relevant to the Alejandro Jodorowsky with
+certains dates, but does not help in answering the question. In contrast, the second retrieved knowledge reduces the
+self-aware uncertainty most, and indeed contains the critical information. We also notice that the third retrieved
+knowledge has overlapped information with the second one, which also result in a relatively low uncertainty score.
+
+
+strategies without adaptive choosing. Rationale-
+only prompts the LLM to generate the final an-
+swer directly after the last generated rationale.
+Knowledge-only concatenates the question with
+all previously selected knowledge K to require the
+LLM to synthesize the final answer with CoT rea-
+soning. Both the two strategies perform inferior to
+                                                                              (a) Searching for 𝑁 and 𝑘.            (b) Searching for 𝛿.
+the original S EA KR. We interpret the results from
+two different angles. (1) The self-aware reasoning                              Figure 3: Hyper-parameter search results.
+integrates all previously retrieved knowledge more
+effectively. (2) The self-aware reasoning functions
+                                                                        5.3     Hyper-parameter Search
+as ensemble learning. Thus, self-aware reasoning
+exceeds each individual strategy (Murphy, 2012).                        We search hyper-parameters for the knowledge re-
+                                                                        call size N , the dimension of the Gram determi-
+                                                                        nant k, and the uncertainty threshold δ on a sample
+5.2 Backbone LLMs                                                       of training set of NQ. The exploration results are
+                                                                        shown in Figure 3. The best number of generations
+To examine whether S EA KR scales to more power-                        to compute the Gram determinant k falls into the
+ful LLMs, we substitute the backbone LLM with                           interval [10 − 25]. The most indicative internal
+LLaMA-3 with 8 billion parameters, which is pre-                        state is extracted from the middle layer, at l = 16.
+trained with more than 10× FLOPS than LLaMA-2                           To determine the condition for the LLM to demand
+(7B). We also examine the effectiveness of align-                       retrieval, we use δ > −6 as the cut point to trig-
+ment tuning of the backbone LLM, and compare                            ger retrieval, under which condition less than 80%
+with the chat version of LLaMA-2 and instruct ver-                      questions cannot be answered correctly. Our imple-
+sion of LLaMA-3.                                                        mentation for S EA KR is in line with these results.
+   Table 4 shows the comparisons. We find that
+S EA KR benefits from stronger backbone LLMs                            5.4     Case Study
+(i.e., LLaMA-3), indicating that the effectiveness                      In Table 5, we show an example on how S EA KR
+of S EA KR scales positively with the sophistication                    answers a question from HotpotQA. The main ob-
+and capacity of the underlying language models.                         servations are two folds— 1) S EA KR accurately
+Another observation is that backbone LLMs with                          identifies its knowledge insufficiency. We observe
+alignment tuning achieve higher performance. This                       this from its false pseudo-generation, where the
+is because of their better instruction-following ca-                    LLM reckons the birthday of Alejandro Jodorowsky
+pability to solve complex tasks.                                        as 7 July 1929. Luckily, S EA KR indeed gives a rel-
+                                                                 27029
+atively high self-aware uncertainty estimation, and      ence in a single batch. Thus, the latency of 20
+invokes retrieval timely. 2) S EA KR effectively in-     pseudo-generation is roughly the same as a single
+tegrates retrieved knowledge. We observe that the        pseudo-generation. All the experiments can be held
+top-ranked knowledge from the search engine does         on a single NVidia 3090 GPU with 24GiB GRAM.
+not help with answering the question, while the             (4) Model Scaling. Due to our limited computa-
+knowledge that reduces the self-aware uncertainty        tion resources, we are not able to deploy LLMs
+most contains the information for the following          larger than one with 8 billion parameters. As
+step of reasoning. (More cases in Appendix B)            recent evidences suggest that model scaling is
+                                                         more closely related to training FLOPS, rather than
+6   Conclusion                                           model scale. We thus compare between LLaMA-2
+In this paper, we propose self-aware knowledge           (7B) and LLaMA-3 (8B) to verify whether S EA KR
+retrieval (S EA KR) to adaptive retrieval. S EA KR       is scalable to more powerful LLMs. This is be-
+extracts self-aware uncertainty of LLMs from their       cause although they have similar parameter scales,
+internal states, and uses this as an indicator to in-    LLaMA-3 is trained on 10× more corpora, and
+voke knowledge retrieval and dynamically integrate       thus 10× more FLOPS than LLaMA-2.
+retrieved knowledge. Experiments on both com-               (5) Information Retrieval. The authors would
+plex QA and simple QA tasks show that S EA KR            like to mention that, with the development of in-
+outperforms existing adaptive baselines.                 formation retrieval technology, the second part of
+                                                         S EA KR (i.e., Self-aware Re-ranking) could be sur-
+Acknowledgement                                          passed by advanced IR methods, in the future.
+This work is supported by National Natural Science
+                                                         Ethical Considerations
+Foundation of China (62476150), the Tsinghua
+University (Department of Computer Science and           We discuss the ethical considerations and broader
+Technology)-Siemens Ltd., China Joint Research           impact of S EA KR.
+Center for Industrial Intelligence and Internet of          (1) Intended Usage. S EA KR falls into the cate-
+Things (JCIIOT), and Tsinghua University Initia-         gory of retrieval augmented generation, which is in-
+tive Scientific Research Program.                        tended to increase the factual correctness of LLMs.
+                                                         Thus, the intention of our work is to improve the
+Limitations                                              trustworthiness of LLM.
+We discuss the limitations of S EA KR.                      (2) Potential Misuse. However, for detailed
+   (1) Scope of Usage. As S EA KR requires access        technology we adopted, it can be misused to cre-
+to the internal state of LLMs, this limits the usabil-   ate misleading information. For example, the self-
+ity of S EA KR to open-sourced LLMs. However,            aware uncertainty estimator can be used as an ad-
+the most powerful and widely adopted LLMs are            versarial signal for model training, which could
+still preserved by commercial companies, such as         make models better at deceiving humans with un-
+GPT series model. We still need to explore new           certain information. Another issue is the increased
+ways to estimate the self-aware uncertainty from         integration of LLM and IR systems, which may be
+the output of the language model, rather than their      used to automate cyber manhunt.
+internal states.                                            (3) Risk Control. S EA KR is developed upon
+   (2) Task Coverage. We mainly evaluate S EA KR         open-sourced LLMs. We will also release our code.
+on short-form question answering tasks, neglecting       We hope that transparency helps to monitor and
+a broad spectrum of natural language processing          prevent its mis-usage.
+tasks, such as long-form question answering, cre-           (4) Intellectual Artifacts. We cite the creator
+ative writing, etc.                                      of our used intellectual artifacts. Specifically, we
+   (3) Computation Issues. To compute Gram               use 6 question answering benchmark dataset in
+determinant, S EA KR requires the backbone to con-       this paper, they are 2WikiMultiHopQA (Ho et al.,
+duct 20 pseudo-generations, which is computation-        2020), HotpotQA (Yang et al., 2018), IIRC (Fergu-
+ally costly. We explore the engineering trick to         son et al., 2020), NaturalQuestion (Kwiatkowski
+mitigate this issue—by deploying the backbone            et al., 2019), TriviaQA (Joshi et al., 2017), and
+LLM with vLLM (Kwon et al., 2023), which im-             SQuAD (Rajpurkar et al., 2016). We would also
+plements paged attention to support parallel infer-      like to acknowledge creators of Self-RAG (Asai
+                                                    27030
+et al., 2023), FLARE (Jiang et al., 2023), and DRA-           James Ferguson, Matt Gardner, Hannaneh Hajishirzi,
+GIN (Su et al., 2024) for sharing their codebases,              Tushar Khot, and Pradeep Dasigi. 2020. IIRC: A
+                                                                dataset of incomplete information reading compre-
+which are used to reproduce their methods, along
+                                                                hension questions. In Proceedings of the 2020 Con-
+with IRCoT. All the used intellectual artifacts’ li-            ference on Empirical Methods in Natural Language
+cense allows for academic usage.                                Processing (EMNLP).
+
+                                                              Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang
+                                                                Jia, Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and
+References                                                      Haofen Wang. 2023. Retrieval-augmented genera-
+                                                                tion for large language models: A survey. CoRR,
+Josh Achiam, Steven Adler, Sandhini Agarwal, Lama
+                                                                abs/2312.10997.
+  Ahmad, Ilge Akkaya, Florencia Leoni Aleman,
+  Diogo Almeida, Janko Altenschmidt, Sam Altman,              Wes Gurnee and Max Tegmark. 2023. Language models
+  Shyamal Anadkat, et al. 2023. GPT-4 technical re-             represent space and time. CoRR, abs/2310.02207.
+  port. arXiv preprint arXiv:2303.08774.
+                                                              Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasupat,
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and             and Mingwei Chang. 2020. Retrieval augmented
+  Hannaneh Hajishirzi. 2023. Self-RAG: Learning to              language model pre-training. In Proceedings of the
+  retrieve, generate, and critique through self-reflection.     37th International Conference on Machine Learning,
+  In The Twelfth International Conference on Learning           ICML 2020, 13-18 July 2020, Virtual Event.
+  Representations.
+                                                              Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,
+Amos Azaria and Tom Mitchell. 2023. The internal                and Akiko Aizawa. 2020. Constructing a multi-hop
+ state of an llm knows when its lying. In Findings              QA dataset for comprehensive evaluation of reason-
+ of the Association for Computational Linguistics:              ing steps. In Proceedings of the 28th International
+ EMNLP 2023.                                                    Conference on Computational Linguistics.
+
+                                                              Roger A Horn and Charles R Johnson. 2012. Matrix
+Sebastian Borgeaud, Arthur Mensch, Jordan Hoff-
+                                                                analysis. Cambridge university press.
+  mann, Trevor Cai, Eliza Rutherford, Katie Milli-
+  can, George Bm Van Den Driessche, Jean-Baptiste             Jie Huang, Xinyun Chen, Swaroop Mishra,
+  Lespiau, Bogdan Damoc, Aidan Clark, et al. 2022.               Huaixiu Steven Zheng, Adams Wei Yu, Xiny-
+  Improving language models by retrieving from tril-             ing Song, and Denny Zhou. 2023. Large language
+  lions of tokens. In International Conference on Ma-            models cannot self-correct reasoning yet. CoRR,
+  chine Learning, ICML 2022, 17-23 July 2022, Balti-             abs/2310.01798.
+  more, Maryland, USA.
+                                                              Soyeong Jeong, Jinheon Baek, Sukmin Cho, Sung Ju
+Shulin Cao, Jiajie Zhang, Jiaxin Shi, Xin Lv, Zijun Yao,        Hwang, and Jong C Park. 2024. Adaptive-RAG:
+  Qi Tian, Lei Hou, and Juanzi Li. 2023. Probabilistic          Learning to adapt retrieval-augmented large lan-
+  tree-of-thought reasoning for answering knowledge-            guage models through question complexity. CoRR,
+  intensive complex questions. In Findings of the Asso-         abs/2403.14403.
+  ciation for Computational Linguistics: EMNLP 2023,
+  pages 12541–12560.                                          Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan
+                                                                Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea
+Chao Chen, Kai Liu, Ze Chen, Yi Gu, Yue Wu,                     Madotto, and Pascale Fung. 2023. Survey of halluci-
+  Mingyuan Tao, Zhihang Fu, and Jieping Ye. 2023a.              nation in natural language generation. ACM Comput-
+  INSIDE: Llms’ internal states retain the power of             ing Surveys, 55.
+  hallucination detection. In The Twelfth International
+  Conference on Learning Representations.                     Zhengbao Jiang, Frank F Xu, Luyu Gao, Zhiqing Sun,
+                                                                Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie
+                                                                Callan, and Graham Neubig. 2023. Active retrieval
+Danqi Chen, Adam Fisch, Jason Weston, and Antoine
+                                                                augmented generation. In Proceedings of the 2023
+  Bordes. 2017. Reading Wikipedia to answer open-
+                                                                Conference on Empirical Methods in Natural Lan-
+  domain questions. In Proceedings of the 55th Annual
+                                                                guage Processing.
+  Meeting of the Association for Computational Lin-
+  guistics (Volume 1: Long Papers).                           Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke
+                                                               Zettlemoyer. 2017. TriviaQA: A large scale distantly
+Yuyan Chen, Qiang Fu, Yichen Yuan, Zhihao Wen,                 supervised challenge dataset for reading comprehen-
+  Ge Fan, Dayiheng Liu, Dongmei Zhang, Zhixu Li,               sion. In Proceedings of the 55th Annual Meeting of
+  and Yanghua Xiao. 2023b. Hallucination detection:            the Association for Computational Linguistics (Vol-
+  Robustly discerning reliable answers in large lan-           ume 1: Long Papers).
+  guage models. In Proceedings of the 32nd ACM
+  International Conference on Information and Knowl-          Saurav Kadavath, Tom Conerly, Amanda Askell, Tom
+  edge Management, CIKM 2023, Birmingham, United                Henighan, Dawn Drain, Ethan Perez, Nicholas
+  Kingdom, October 21-25, 2023.                                 Schiefer, Zac Hatfield-Dodds, Nova DasSarma, Eli
+                                                         27031
+  Tran-Johnson, et al. 2022. Language models (mostly)     Andrey Malinin and Mark Gales. 2020. Uncertainty
+  know what they know. CoRR, abs/2207.05221.                estimation in autoregressive structured prediction. In
+                                                            9th International Conference on Learning Represen-
+Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick         tations, ICLR 2021, Virtual Event, Austria, May 3-7,
+  Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and          2021.
+  Wen-tau Yih. 2020. Dense passage retrieval for open-
+  domain question answering. In Proceedings of the        Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,
+  2020 Conference on Empirical Methods in Natural           Daniel Khashabi, and Hannaneh Hajishirzi. 2022.
+  Language Processing (EMNLP), pages 6769–6781,             When not to trust language models: Investigating
+  Online. Association for Computational Linguistics.        effectiveness of parametric and non-parametric mem-
+                                                            ories. In Proceedings of the 61st Annual Meeting of
+Urvashi Khandelwal, Omer Levy, Dan Jurafsky, Luke           the Association for Computational Linguistics (Vol-
+  Zettlemoyer, and Mike Lewis. 2019. Generalization         ume 1: Long Papers).
+  through memorization: Nearest neighbor language
+  models. In 8th International Conference on Learning     Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,
+  Representations, ICLR 2020, Addis Ababa, Ethiopia,        Daniel Khashabi, and Hannaneh Hajishirzi. 2023.
+  April 26-30, 2020.                                        When not to trust language models: Investigating
+                                                            effectiveness of parametric and non-parametric mem-
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+                                                            ories. In Proceedings of the 61st Annual Meeting of
+  field, Michael Collins, Ankur Parikh, Chris Alberti,
+                                                            the Association for Computational Linguistics (Vol-
+  Danielle Epstein, Illia Polosukhin, Matthew Kelcey,
+                                                            ume 1: Long Papers).
+  Jacob Devlin, Kenton Lee, Kristina N. Toutanova,
+  Llion Jones, Ming-Wei Chang, Andrew Dai, Jakob          Kevin Meng, David Bau, Alex Andonian, and Yonatan
+  Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu-          Belinkov. 2022. Locating and editing factual associ-
+  ral questions: a benchmark for question answering         ations in GPT. In Advances in Neural Information
+  research. Transactions of the Association of Compu-       Processing Systems 35: Annual Conference on Neu-
+  tational Linguistics, 7.                                  ral Information Processing Systems 2022, NeurIPS
+Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying                2022, New Orleans, LA, USA, November 28 - Decem-
+ Sheng, Lianmin Zheng, Cody Hao Yu, Joseph Gon-             ber 9, 2022.
+ zalez, Hao Zhang, and Ion Stoica. 2023. Efficient
+ memory management for large language model serv-         Meta. 2024. Introducing meta llama 3: The most capa-
+ ing with pagedattention. In Proceedings of the 29th       ble openly available llm to date. https://ai.meta.
+ Symposium on Operating Systems Principles, pages          com/blog/meta-llama-3/.
+ 611–626.
+                                                          Kevin P Murphy. 2012. Machine learning: a probabilis-
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio        tic perspective. MIT press.
+  Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+  rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-        Shiyu Ni, Keping Bi, Jiafeng Guo, and Xueqi Cheng.
+  täschel, et al. 2020. Retrieval-augmented generation      2024. When do LLMs need retrieval augmentation?
+  for knowledge-intensive nlp tasks. In Advances in         mitigating LLMs’ overconfidence helps retrieval aug-
+  Neural Information Processing Systems 33: Annual          mentation. In Findings of the Association for Com-
+  Conference on Neural Information Processing Sys-          putational Linguistics: ACL 2024.
+  tems 2020, NeurIPS 2020, December 6-12, 2020,
+  virtual.                                                Ji Qi, Yuxiang Chen, Lei Hou, Juanzi Li, and Bin
+                                                             Xu. 2022. Syntactically robust training on partially-
+Kenneth Li, Aspen K Hopkins, David Bau, Fernanda             observed data for open information extraction. In
+  Viégas, Hanspeter Pfister, and Martin Wattenberg.          Findings of the Association for Computational Lin-
+  2022. Emergent world representations: Exploring            guistics: EMNLP 2022.
+  a sequence model trained on a synthetic task. In
+  The Eleventh International Conference on Learning       Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev, and
+  Representations, ICLR 2023, Kigali, Rwanda, May            Percy Liang. 2016. SQuAD: 100,000+ questions
+  1-5, 2023.                                                 for machine comprehension of text. In Proceedings
+                                                             of the 2016 Conference on Empirical Methods in
+Weitang Liu, Xiaoyun Wang, John Owens, and Yixuan           Natural Language Processing.
+  Li. 2020. Energy-based out-of-distribution detection.
+ Advances in neural information processing systems,       Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,
+  33:21464–21475.                                           Amnon Shashua, Kevin Leyton-Brown, and Yoav
+                                                            Shoham. 2023. In-context retrieval-augmented lan-
+Yantao Liu, Zijun Yao, Xin Lv, Yuchen Fan, Shulin Cao,      guage models. Transactions of the Association for
+  Jifan Yu, Lei Hou, and Juanzi Li. 2024. Untangle          Computational Linguistics, 11.
+  the KNOT: Interweaving conflicting knowledge and
+  reasoning skills in large language models. In Pro-      Stephen Robertson, Hugo Zaragoza, et al. 2009. The
+  ceedings of the 2024 Joint International Conference        probabilistic relevance framework: Bm25 and be-
+  on Computational Linguistics, Language Resources          yond. Foundations and Trends® in Information Re-
+  and Evaluation (LREC-COLING 2024).                         trieval, 3(4):333–389.
+                                                     27032
+Weijia Shi, Sewon Min, Michihiro Yasunaga, Minjoon        Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  Seo, Rich James, Mike Lewis, Luke Zettlemoyer, and        gio, William W Cohen, Ruslan Salakhutdinov, and
+ Wen-tau Yih. 2023. Replug: Retrieval-augmented             Christopher D Manning. 2018. HotpotQA: A dataset
+  black-box language models. CoRR, abs/2301.12652.          for diverse, explainable multi-hop question answer-
+                                                            ing. In Proceedings of the 2018 Conference on Em-
+Weihang Su, Yichen Tang, Qingyao Ai, Zhijing Wu,            pirical Methods in Natural Language Processing.
+ and Yiqun Liu. 2024. DRAGIN: Dynamic retrieval
+ augmented generation based on the real-time informa-     Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+ tion needs of large language models. In Proceedings        Shafran, Karthik Narasimhan, and Yuan Cao. 2022.
+ of the 62nd Annual Meeting of the Association for          React: Synergizing reasoning and acting in language
+ Computational Linguistics.                                 models. In The Eleventh International Conference
+                                                            on Learning Representations, ICLR 2023, Kigali,
+Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier       Rwanda, May 1-5, 2023.
+  Martinet, Marie-Anne Lachaux, Timothée Lacroix,
+  Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal      Xunjian Yin, Xu Zhang, Jie Ruan, and Xiaojun Wan.
+  Azhar, et al. 2023. Llama: Open and efficient foun-       2024. Benchmarking knowledge boundary for large
+  dation language models. CoRR, abs/2302.13971.             language model: A different perspective on model
+                                                            evaluation. CoRR, abs/2402.11493.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,     Gal Yona, Roee Aharoni, and Mor Geva. 2024. Can
+  and Ashish Sabharwal. 2022. Interleaving retrieval        large language models faithfully express their intrin-
+  with chain-of-thought reasoning for knowledge-            sic uncertainty in words? CoRR, abs/2405.16908.
+  intensive multi-step questions. In Proceedings of
+  the 61st Annual Meeting of the Association for Com-     Xiaokang Zhang, Zijun Yao, Jing Zhang, Kaifeng Yun,
+  putational Linguistics (Volume 1: Long Papers).           Jifan Yu, Juanzi Li, and Jie Tang. 2024. Transferable
+                                                            and efficient non-factual content detection via probe
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob            training with offline consistency checking. Proceed-
+  Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz             ings of the 62nd Annual Meeting of the Association
+  Kaiser, and Illia Polosukhin. 2017. Attention is all      for Computational Linguistics.
+  you need. In Advances in Neural Information Pro-
+  cessing Systems 30: Annual Conference on Neural         Chiwei Zhu, Benfeng Xu, Quan Wang, Yongdong
+  Information Processing Systems 2017, December 4-9,        Zhang, and Zhendong Mao. 2023. On the calibra-
+  2017, Long Beach, CA, USA.                                tion of large language models and alignment. In
+                                                            Findings of the Association for Computational Lin-
+Keheng Wang, Feiyu Duan, Peiguang Li, Sirui Wang,           guistics: EMNLP 2023.
+  and Xunliang Cai. 2024. Llms know what they need:
+  Leveraging a missing information guided framework       Andy Zou, Long Phan, Sarah Chen, James Campbell,
+  to empower retrieval-augmented generation. CoRR,          Phillip Guo, Richard Ren, Alexander Pan, Xuwang
+  abs/2404.14043.                                           Yin, Mantas Mazeika, Ann-Kathrin Dombrowski,
+                                                            et al. 2023. Representation engineering: A top-down
+Yile Wang, Peng Li, Maosong Sun, and Yang Liu. 2023.        approach to ai transparency. CoRR, abs/2310.01405.
+   Self-knowledge guided retrieval augmentation for
+   large language models. In Findings of the Associa-
+   tion for Computational Linguistics: EMNLP 2023.
+
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+   Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,
+   et al. 2022. Chain-of-thought prompting elicits rea-
+   soning in large language models. In Advances in
+   Neural Information Processing Systems 35: Annual
+   Conference on Neural Information Processing Sys-
+   tems 2022, NeurIPS 2022, New Orleans, LA, USA,
+   November 28 - December 9, 2022.
+
+Jian Xie, Kai Zhang, Jiangjie Chen, Renze Lou, and
+   Yu Su. 2023. Adaptive chameleon or stubborn sloth:
+   Unraveling the behavior of large language models in
+   knowledge conflicts. In The Twelfth International
+   Conference on Learning Representations.
+
+Wenda Xu, Guanglei Zhu, Xuandong Zhao, Liangming
+  Pan, Lei Li, and William Yang Wang. 2024. Perils of
+  self-feedback: Self-bias amplifies in large language
+  models. In Proceedings of the 62nd Annual Meeting
+  of the Association for Computational Linguistics.
+                                                     27033
+A     Additional Experiments                           B.3    Case Study for Self-aware Reasoning
+
+A.1 LLaMA-3.1-Instrct as the Backbone                  Table D.3 illustrates an additional example of self-
+                                                       aware reasoning.
+We also implement S EA KR using LLaMA-3.1-                In this case, S EA KR adaptively selects the op-
+Instruct with 8 billion parameters as the backbone     timal answer from two strategies: one generated
+LLM and report the results in Table 6.                 from all rationales and the other from all knowl-
+                                                       edge. The initial rationale incorrectly asserts that
+                2Wiki       HPQA           NQ          Stormbreaker is a fantasy film, misleading the rea-
+              EM     F1    EM     F1   EM     F1       soning afterward and exhibiting poor uncertainty
+                                                       scores. In contrast, when reasoning from all ev-
+    FLARE 32.0 40.2 26.0 36.7 18.4 27.5                idence passages, S EA KR regenerates each step
+    DRAGIN 27.6 35.4 20.8 31.2 16.4 26.7               from scratch, utilizing more informative knowl-
+    S EA KR 40.6 48.1 36.0 47.7 31.0 43.0              edge retrieved in the second step (The Spiderwick
+                                                       Chronicles is the fantasy film that has Sarah Bolger
+Table 6: Performance using LLaMA-3.1-Instruct as the   in it). It also results in a better uncertainty score, at
+backbone LLM.
+                                                       −6.20, than the average rationale score −4.73.
+
+                                                       C     Efficiency Analysis
+B     Case Study
+                                                       As S EA KR requires multiple calling to LLMs, we
+B.1    Case Study for Self-aware Retrieval             hack vllm to extract the uncertainty scores from
+We present additional examples for self-aware re-      multiple generations in parallel, which significantly
+trieval in Table 10.                                   speed up the execution of S EA KR. We compare
+   In each step, S EA KR evaluates the uncertainty     the latency between S EA KR and previous adaptive
+of the pseudo-generation and determines whether        RAG methods (FLARE, DRAGIN) for Complex
+to retrieve external knowledge based on the prede-     QA tasks, which potentially involves more tokens
+fined threshold. Three cases are presented: Case       to generate than Simple QA tasks. The average wall
+#1, where the generation fails to meet the prede-      time to process a single question in seconds with
+fined threshold and retrieval is triggered; Case #2    4×Geforce 3090 are shown in Table 8. We find that
+& #3, where the model correctly and confidently        S EA KR is even faster than previous adaptive RAG
+generates an output, bypassing potentially redun-      methods. We also show the average number of
+dant retrieval; Case #3 also shows that S EA KR        LLM calls and number of retrieval calls in Table 9
+successfully performs self-aware retrieval amidst
+multi-step reasoning, where the knowledge buffer
+and the rationale buffer are not empty.
+
+B.2    Case Study for Self-aware Re-ranking
+We present additional examples for self-aware re-
+ranking in Table 11.
+   After the retrieval is invoked, S EA KR performs
+pairwise re-ranking and identifies the optimal pas-
+sage for generating subsequent reasoning steps.
+Here, to determine what is the original parent com-
+pany of FastJet Tanzania, three pieces of external
+knowledge (passages) are retrieved, where Knowl-
+edge #1 and Knowledge #3 present distractions—
+listing the current headquarters (Dar es Salaam)
+and the major shareholder (Fastjet Plc), while
+Knowledge #2 contains critical information that it
+was founded as a subsidiary of a Kenya company.
+S EA KR’s self-aware uncertainty gives an effective
+re-ranking and prioritizes Knowledge #2.
+                                                   27034
+                                         Complex QA                          Simple QA
+                              TwoWiki      HotpotQA        IIRC      NQ      TriviaQA    SQuAD
+               #Examples       12, 576       7, 405        954      3, 610   11, 313     7, 357
+
+                                           Table 7: Dataset Statistics.
+
+
+         Model       TwoWiki        HotpotQA                     Self-aware Re-ranking
+        FLARE             8.44           13.25                   [ICL Examples]
+        DRAGIN           29.75           19.25
+        S EA KR           4.94            7.30                  Context:
+                                                                [1]. [Retrieved Doc 1]
+    Table 8: The execution wall time in seconds.                Answer in the same format as before.
+                                                                Question: [INPUT QUESTION]
+                                                                Answer:
+                   2Wiki  HPQA     NQ
+                 #LC #RC #LC #RC #LC #RC
+                                                           D.3     Self-aware Reasoning
+  FLARE        3.9      2.85 5.1     4.07 3.1    2.07
+  DRAGIN       5.8      2.92 5.1     2.56 4.5    2.24      In the final stage, S EA KR selects the optimal re-
+  AdaptiveRAG 10.1      5.98 8.8     5.30 9.1    5.51      sponse either from the rationales or directly from
+  S EA KR     10.0      2.81 9.47    1.63 10.0   1.00      the knowledge. For the rationales, we extract the
+                                                           answer following the phrase “So the answer is” in
+Table 9: Number of LLM calls (#LC) and retreival calls
+                                                           the last rationale. For the knowledge group, we
+(#RC).
+                                                           perform a full CoT reasoning using all retrieved
+                                                           passages. The stop token in both groups is the
+                                                           newline character \n.
+D    Prompt Templates
+                                                                 Self-aware Reasoning with retrieved knowl-
+                                                                 edge
+D.1 Self-aware Retrieval
+                                                                 [ICL Examples]
+At the beginning of each iteration of reason-
+ing, S EA KR executes and evaluates a pseudo-                   Context:
+generation. We set the stop token to a period (.) to            [1]. [Retrieved Doc 1]
+limit the generation to the next single step.                   [2]. [Retrieved Doc 1]
+                                                                [3]. [Retrieved Doc 1]
+                                                                Answer in the same format as before.
+    Self-aware Retrieval                                        Question: [INPUT QUESTION]
+    [ICL Examples]                                              Answer:
+
+    Question: [INPUT QUESTION]                                   Self-aware Reasoning with generated ratio-
+    Answer:                                                      nales
+                                                                 [ICL Examples]
+
+D.2 Self-aware Re-ranking                                       Question: [INPUT QUESTION]
+                                                                Answer:
+                                                                [Step 1].
+When the uncertainty score of direct generation
+                                                                [Step 2].
+fails to meet the threshold, S EA KR retrieves and
+                                                                [Step 3].
+re-rank a pseudo-generation in a pair-wise manner.
+                                                                So the answer is
+We also set the stop token to a period (.).
+                                                        27035
+D.4 In context learning examples
+We use the same in-context-learning examples for
+simple QA datasets (Fig. 4) and different exam-
+ples for each multihop QA dataset followed by IR-
+CoT(Trivedi et al., 2022): 2WikiMultiHopQA(Fig.
+5), HotpotQA(Fig. 6), and IIRC (Fig. 7).
+
+E   Datasets And Settings
+Dataset statistics are summarized in Table 7. We
+conduct the hyperparameter search using 3, 000
+samples from the training set of the Natural Ques-
+tions dataset.
+   We modified the source code of vLLM 0.4.2 to
+compute uncertainty scores based on internal states.
+This implementation uses PyTorch 2.3.0. For the re-
+trieval component, we employ Elasticsearch 7.17.9
+to run a local retrieval service.
+
+
+
+
+                                                  27036
+                                               Case #1
+Question (HPQA):          In what city is the company that Fastjet Tanzania was originally founded
+                          as a part of prior to rebranding based?
+Ground-Truth Answer:      Nairobi, Kenya
+Pseudo-Generation:        FastJet Tanzania was originally founded as a part of the company Fastjet
+                          plc, which was based in London, United Kingdom.
+Gold-Fact:                Fastjet Airlines Limited (Tanzania), also known as Fastjet Tanzania, was
+                          founded in 2011 as Fly540 Tanzania.
+Self-aware Uncertainty:   U (c) = −4.84, U (c) > δ, Need to retrieve ✗
+
+                                             Case #2
+Question (HPQA):          The Argentine National Anthem was adopted 3 years after which event
+                          that led to the removal of Viceroy Baltasar Hildalgo de Cisneros?
+Ground-Truth Answer:      May Revolution
+Pseudo-Generation:        The Argentine National Anthem was adopted in 1813 .
+Gold-Fact:                The National Anthem of Argentina, or the Himno Nacional Argentino as
+                          it is known to its citizens, was adopted on May 11, 1813.
+Self-aware Uncertainty:   U (c) = −6.11, U (c) < δ, No need to retrieve ✓
+
+                                           Case #3
+Question (HPQA):          Stephen Smith appears on ESPN First Take alongside which HBO boxing
+                          commentator?
+Ground-Truth Answer:      Max Kellerman
+Knowledge Buffer:         Stephen A. Smith Stephen Anthony Smith (born October 14, 1967) is an
+                          American sports television personality, sports radio host, sports journalist,
+                          and actor. Smith is a commentator on "ESPN First Take", where he
+                          appears with Max Kellerman and Molly Qerim. He also makes frequent
+                          appearances as an NBA analyst on "SportsCenter". He also is an NBA
+                          analyst for ESPN on "NBA Countdown" and NBA broadcasts on ESPN.
+                          Smith formerly hosted "The Stephen A. Smith and Ryan Ruocco Show"
+                          on ESPN Radio New York 98.7 FM. He now hosts "The Stephen A. Smith
+                          Show" on the Chris Russo sports radio station:
+Rationale Buffer:         Stephen Smith appears on ESPN First Take alongside Max Kellerman and
+                          Molly Qerim
+Pseudo-Generation:        Max Kellerman is an HBO boxing commentator.
+Gold-Fact:                Max Kellerman (born August 6, 1973) is an American sports television
+                          personality and boxing commentator
+Self-aware Uncertainty:   U (c) = −6.03, U (c) < δ, No need to retrieve ✓
+
+                     Table 10: Additional examples for self-aware retrieval.
+
+
+
+
+                                              27037
+Question (HPQA):            In what city is the company that Fastjet Tanzania was originally founded as a
+                            part of prior to rebranding based?
+Ground-Truth Answer:        Nairobi, Kenya
+Failed Direct Output:       FastJet Tanzania was originally founded as a part of the company Fastjet
+                            plc, which was based in London, United Kingdom.
+Gold-Fact:                  Fastjet Airlines Limited (Tanzania), also known as Fastjet Tanzania, was
+                            founded in 2011 as Fly540 Tanzania. Fly540, is a low-cost airline which
+                            commenced operations in 2006 and is based in Nairobi, Kenya.
+Query:                      FastJet Tanzania originally founded as part
+                                            Knowledge #1
+Passage:                    Plc group accounts. Some information has been made available for the
+                            Tanzanian operation (as at year ending 31 December): Fastjet Tanzania
+                            maintains a head office in Samora Avenue, Dar es Salaam, Tanzania. As of 4
+                            November 2017, Fastjet Tanzania serves the following destinations: Fastjet
+                            has signed an agreement with one of Africa’s largest cargo operators, BidAir
+                            Cargo, to carry cargo on its fleet of Airbus A319s. Fastjet has sufficient
+                            capacity to accommodate the carrying of cargo on its Tanzanian routes The
+                            Fastjet Tanzania fleet includes the following aircraft as of June 2017: Fastjet
+                            Tanzania Fastjet Airlines Limited (Tanzania), also known
+Pseudo-Generation:          Fastjet Tanzania was originally founded as a part of prior to rebranding
+                            based in Dar es Salaam, Tanzania.
+Self-aware Uncertainty:     U (c) = −5.10 ✗
+                                              Knowledge #2
+Passage:                    Fastjet Tanzania Fastjet Airlines Limited (Tanzania), also known as Fastjet
+                            Tanzania, is a low-cost airline that operates flights under the fastjet brand in
+                            Tanzania. The airline was founded in 2011 as "Fly540 Tanzania", but through
+                            the acquisition of Fly540 in 2012, it was rebranded as Fastjet Tanzania. It is
+                            based in Dar es Salaam. The airline carried more than 350,000 passengers
+                            in the first year of operations and sold one million seats by December 2014.
+                            Fastjet Tanzania was founded in 2011 as "Fly540 Tanzania", a subsidiary of
+                            Kenya-based Fly540. Using a Bombardier CRJ100 and a Dash 8-100,
+Pseudo-Generation:          Fastjet Tanzania was originally founded as a part of Fly540, which is based
+                            in Nairobi, Kenya.
+Self-aware Uncertainty:     U (c) = −5.828↓ ✓
+                                             Knowledge #3
+Passage:                    It currently (August 2015) has domestic routes operating linking Dar es
+                            Salaam with Mwanza, Kilimanjaro and Mbeya, and four international routes
+                            from Dar es Salaam to Johannesburg, Harare, Entebbe, Lilongwe and Lusaka.
+                            Fastjet Tanzania is 49% owned by Fastjet Plc; on 14 November 2014 it was
+                            announced that Fastjet Plc had entered into an agreement to sell an interest
+                            in fastjet Tanzania to Tanzanian investors. The issue of the shares brings the
+                            total Tanzanian legal and beneficial ownership of fastjet Tanzania to 51
+Pseudo-Generation:          Fastjet Tanzania was originally founded as a part of prior to rebranding
+                            based in Dar es Salaam, Tanzania.
+Self-aware Uncertainty:     U (c) = −5.302 ✗
+                                            Rerank Result
+Selected Knowledge:         Knowledge #2
+Generated Rationale:        Fastjet Tanzania was originally founded as a part of Fly540, which is based
+                            in Nairobi, Kenya.
+
+                        Table 11: Additional examples for self-aware re-ranking.
+
+
+                                                27038
+Question (HPQA):             What’s the name of the fantasy film starring Sarah Bolger, featuring a New
+                             England family who discover magical creatures around their estate?
+Ground-Truth Answer:         The Spiderwick Chronicles
+Rationale Buffer:            The fantasy film starring Sarah Bolger is "Stormbreaker"
+                             It features a New England family who discover magical creatures around their
+                             estate.
+                             So the answer is Stormbreaker.
+Knowledge Buffer:            Hard to Find" directed by Abner Pastoll. Filming completed in December
+                             2017, with a release slated for 2018. In January 2011, Bolger was selected to
+                             be in photographer Kevin Abosch’s project "The Face of Ireland" alongside
+                             other Irish celebrities including Sinéad O’Connor, Neil Jordan, and Pierce
+                             Brosnan. Sarah Bolger Sarah Bolger (born 28 February 1991) is an Irish
+                             actress. She has starred in the films "In America", "Stormbreaker", "The
+                             Spiderwick Chronicles" and "Emilie". She is also known for her role as Lady
+                             Mary Tudor in the TV series "The Tudors", for which she won an IFTA award,
+                             and for her
+                             The Spiderwick Chronicles (film) The Spiderwick Chronicles is a 2008
+                             American fantasy adventure film based on the bestselling book series of
+                             the same name by Holly Black and Tony DiTerlizzi. It was directed by
+                             Mark Waters and stars Freddie Highmore, Sarah Bolger, Mary-Louise Parker,
+                             Martin Short, Nick Nolte, and Seth Rogen. Set in the Spiderwick Estate in
+                             New England, it follows the adventures of Jared Grace and his family as
+                             they discover a field guide to fairies while battling goblins, mole trolls, and
+                             other magical creatures. Produced by Nickelodeon Movies and distributed by
+                             Paramount Pictures, it was released on February
+                             ESRB. The Spiderwick Chronicles (film) The Spiderwick Chronicles is a
+                             2008 American fantasy adventure film based on the bestselling book series
+                             of the same name by Holly Black and Tony DiTerlizzi. It was directed by
+                             Mark Waters and stars Freddie Highmore, Sarah Bolger, Mary-Louise Parker,
+                             Martin Short, Nick Nolte, and Seth Rogen. Set in the Spiderwick Estate in
+                             New England, it follows the adventures of Jared Grace and his family as
+                             they discover a field guide to fairies while battling goblins, mole trolls, and
+                             other magical creatures. Produced by Nickelodeon Movies and distributed by
+                             Paramount Pictures, it was released on
+                                           From Rationales
+Answer:                      Stormbreaker.
+Self-aware Uncertainty:      ((−5.25) + (−5.38) + (−3.56))/3 = −4.73.
+                                            From Knowledge
+Answer:                      The fantasy film starring Sarah Bolger is The Spiderwick Chronicles. So the
+                             answer is The Spiderwick Chronicles.
+Self-aware Uncertainty:      −6.20.✓
+                                              Final Answer
+                                       The Spiderwick Chronicles.
+
+                          Table 12: Additional examples for self-aware reasoning
+
+
+
+
+                                                 27039
+Examples for Simple QA
+Question: Nobody Loves You was written by John Lennon and released on what album that was issued by Apple
+Records, and was written, recorded, and released during his 18 month separation from Yoko Ono?
+Answer: The album issued by Apple Records, and written, recorded, and released during John Lennon’s 18 month
+separation from Yoko Ono is Walls and Bridges.
+Nobody Loves You was written by John Lennon on Walls and Bridges album.
+So the answer is Walls and Bridges.
+
+Question: What is known as the Kingdom and has National Route 13 stretching towards its border?
+Answer: Cambodia is officially known as the Kingdom of Cambodia.
+National Route 13 stretches towards the border to Cambodia.
+So the answer is Cambodia.
+
+Question: Jeremy Theobald and Christopher Nolan share what profession?
+Answer: Jeremy Theobald is an actor and producer.
+Christopher Nolan is a director, producer, and screenwriter.
+Therefore, they both share the profession of being a producer.
+So the answer is producer.
+
+Question: What film directed by Brian Patrick Butler was inspired by a film directed by F.W. Murnau?
+Answer: Brian Patrick Butler directed the film The Phantom Hour.
+The Phantom Hour was inspired by the films such as Nosferatu and The Cabinet of Dr. Caligari.
+Of these, Nosferatu was directed by F.W. Murnau.
+So the answer is The Phantom Hour.
+
+Question: Vertical Limit stars which actor who also played astronaut Alan Shepard in ’The Right Stuff’?
+Answer: The actor who played astronaut Alan Shepard in ’The Right Stuff’ is Scott Glenn.
+The movie Vertical Limit also starred Scott Glenn.
+So the answer is Scott Glenn.
+
+Question: Which car, produced by Ferrari from 1962 to 1964 for homologation into the FIA’s Group 3 Grand Touring
+Car category inspired the Vandenbrink GTO?
+Answer: The car produced by Ferrari from 1962 to 1964 for homologation into the FIA’s Group 3 Grand Touring Car
+category is the Ferrari 250 GTO.
+The Ferrari 250 GTO also inspired the Vandenbrink GTO’s styling.
+So the answer is Ferrari 250 GTO.
+
+Question: The actor that stars as Joe Proctor on the series ’Power’ also played a character on ’Entourage’ that has what
+last name?
+Answer: The actor that stars as Joe Proctor on the series ’Power’ is Jerry Ferrara.
+Jerry Ferrara also played a character on Entourage named Turtle Assante.
+Thus, Turtle Assante’s last name is Assante.
+So the answer is Assante.
+
+Question: In which country did this Australian who was detained in Guantanamo Bay detention camp and published
+’Guantanamo: My Journey’ receive para-military training?
+Answer: The Australian who was detained in Guantanamo Bay detention camp and published ’Guantanamo: My
+Journey’ is David Hicks.
+David Hicks received his para-military training in Afghanistan.
+So the answer is Afghanistan.
+
+Question: Does The Border Surrender or Unsane have more members?
+Answer: The Border Surrender band has following members: Keith Austin, Simon Shields, Johnny Manning and Mark
+Austin. That is, it has 4 members.
+Unsane is a trio of 3 members.
+Thus, The Border Surrender has more members.
+So the answer is The Border Surrender.
+
+
+
+
+                                        Figure 4: Examples for Simple QA
+
+
+
+                                                        27040
+2WikiMultiHopQA
+Question: Who was born first out of Martin Hodge and Ivania Martinich?
+Answer: Martin Hodge was born on 4 February 1959.
+Ivania Martinich was born on 25 July 1995.
+Thus, 4 February 1959 is earlier than 25 July 1995 and Martin Hodge was born first.
+So the answer is Martin Hodge.
+
+Question: When did the director of film Hypocrite (Film) die?
+Answer: The film Hypocrite was directed by Miguel Morayta.
+Miguel Morayta died on 19 June 2013.
+So the answer is 19 June 2013.
+
+Question: Are both Kurram Garhi and Trojkrsti located in the same country?
+Answer: Kurram Garhi is located in the country of Pakistan.
+Trojkrsti is located in the country of Republic of Macedonia.
+Thus, they are not in the same country.
+So the answer is no.
+
+Question: Do the director of film Coolie No. 1 (1995 Film) and the director of film The Sensational Trial have the same
+nationality?
+Answer: Coolie No. 1 (1995 film) was directed by David Dhawan.
+The Sensational Trial was directed by Karl Freund.
+David Dhawan’s nationality is Indian.
+Karl Freund’s nationality is German.
+Thus, they do not have the same nationality.
+So the answer is no.
+
+Question: Who is Boraqchin (Wife Of Ögedei)’s father-in-law?
+Answer: Boraqchin is married to Ögedei Khan.
+Ögedei Khan’s father is Genghis Khan.
+Thus, Boraqchin’s father-in-law is Genghis Khan.
+So the answer is Genghis Khan.
+
+Question: When did the director of film Laughter In Hell die?
+Answer: The film Laughter In Hell was directed by Edward L. Cahn.
+Edward L. Cahn died on August 25, 1963.
+So the answer is August 25, 1963.
+
+Question: Who is the grandchild of Krishna Shah (Nepalese Royal)?
+Answer: Krishna Shah has a child named Rudra Shah.
+Rudra Shah has a child named Prithvipati Shah.
+Thus, Krishna Shah has a grandchild named Prithvipati Shah.
+So the answer is Prithvipati Shah.
+
+Question: Where did the director of film Maddalena (1954 Film) die?
+Answer: The film Maddalena is directed by Augusto Genina.
+Augusto Genina died in Rome.
+So the answer is Rome.
+
+Question: What is the cause of death of Grand Duke Alexei Alexandrovich Of Russia’s mother?
+Answer: The mother of Grand Duke Alexei Alexandrovich of Russia is Maria Alexandrovna.
+Maria Alexandrovna died from tuberculosis.
+So the answer is tuberculosis.
+
+Question: Which film has the director died later, The Gal Who Took the West or Twenty Plus Two?
+Answer: The mother of Grand Duke Alexei Alexandrovich of The film Twenty Plus Two was directed by Joseph M.
+Newman.
+The Gal Who Took the West was directed by Frederick de Cordova.
+Joseph M. Newman died on January 23, 2006.
+Fred de Cordova died on September 15, 2001.
+Thus, January 23, 2006 is later than September 15, 2001, and the person to die later from the two is Twenty Plus Two.
+So the answer is Twenty Plus Two.
+
+
+
+                                   Figure 5: Examples for 2WikiMultiHopQA
+
+                                                        27041
+HotpotQA
+Question: Jeremy Theobald and Christopher Nolan share what profession?
+Answer: Jeremy Theobald is an actor and producer.
+Christopher Nolan is a director, producer, and screenwriter.
+Therefore, they both share the profession of being a producer.
+So the answer is producer.
+
+Question: What film directed by Brian Patrick Butler was inspired by a film directed by F.W. Murnau?
+Answer: Brian Patrick Butler directed the film The Phantom Hour.
+The Phantom Hour was inspired by the films such as Nosferatu and The Cabinet of Dr. Caligari.
+Of these, Nosferatu was directed by F.W. Murnau.
+So the answer is The Phantom Hour.
+
+Question: How many episodes were in the South Korean television series in which Ryu Hye-young played Bo-ra?
+Answer: The South Korean television series in which Ryu Hye-young played Bo-ra is Reply 1988.
+The number of episodes Reply 1988 has is 20.
+So the answer is 20.
+
+Question: Were Lonny and Allure both founded in the 1990s?
+Answer: Lonny (magazine) was founded in 2009.
+Allure (magazine) was founded in 1991.
+Thus, of the two, only Allure was founded in the 1990s.
+So the answer is no.
+
+Question: Vertical Limit stars which actor who also played astronaut Alan Shepard in The Right Stuff ?
+Answer: The actor who played astronaut Alan Shepard in The Right Stuff is Scott Glenn.
+The movie Vertical Limit also starred Scott Glenn.
+So the answer is Scott Glenn.
+
+Question: What was the 2014 population of the city where Lake Wales Medical Center is located?
+Answer: Lake Wales Medical Center is located in the city of Lake Wales, Polk County, Florida.
+The population of Lake Wales in 2014 was 15,140.
+So the answer is 15,140.
+
+Question: Who was born first? Jan de Bont or Raoul Walsh?
+Answer: Jan de Bont was born on 22 October 1943.
+Raoul Walsh was born on March 11, 1887.
+Thus, Raoul Walsh was born first.
+So the answer is Raoul Walsh.
+
+Question: In what country was Lost Gravity manufactured?
+Answer: The Lost Gravity (roller coaster) was manufactured by Mack Rides.
+Mack Rides is a German company.
+So the answer is Germany.
+
+Question: Which of the following had a debut album entitled ’We Have an Emergency’: Hot Hot Heat or The Operation
+M.D.?
+Answer: The debut album of the band ’Hot Hot Heat’ was ’Make Up the Breakdown’.
+The debut album of the band ’The Operation M.D.’ was ’We Have an Emergency’.
+So the answer is The Operation M.D..
+
+Question: How many awards did the ’A Girl Like Me’ singer win at the American Music Awards of 2012?
+Answer: The singer of ’A Girl Like Me’ is Rihanna.
+In the American Music Awards of 2012, Rihanna won one award.
+So the answer is one.
+
+Question: The actor that stars as Joe Proctor on the series ’Power’ also played a character on ’Entourage’ that has what
+last name?
+Answer: The actor that stars as Joe Proctor on the series ’Power’ is Jerry Ferrara.
+Jerry Ferrara also played a character on Entourage named Turtle Assante.
+Thus, Turtle Assante’s last name is Assante.
+So the answer is Assante.
+
+
+
+                                          Figure 6: Examples for HotpotQA
+
+
+
+                                                          27042
+IIRC
+Question: What is the age difference between the kicker and the quarterback for the Chargers?
+Answer: The kicker for the Chargers is Nate Kaeding.
+The quarterback (QB) for the Chargers is Philip Rivers.
+Nate Kaeding was born in the year 1982.
+Philip Rivers was born in the year 1981.
+Thus, the age difference between them is of 1 year.
+So the answer is 1.
+
+Question: How many years was the ship that took the battalion from New South Wales to Ceylon in service?
+Answer: The ship that took the battalion from New South Wales to Ceylon is General Hewitt.
+General Hewitt was launched in Calcutta in 1811.
+General Hewitt was sold for a hulk or to be broken up in 1864.
+So she served for a total of 1864 - 1811 = 53 years.
+So the answer is 53.
+
+Question: What year was the theatre that held the 2016 NFL Draft built?
+Answer: The theatre that held the 2016 NFL Draft is Auditorium Theatre.
+The Auditorium Theatre was built in 1889.
+So the answer is 1889.
+
+Question: How long had Milan been established by the year that Nava returned there as a reserve in the first team’s
+defense?
+Answer: Nava returned to Milan as a reserve in the first team’s defense in the year 1990.
+Milan had been established in the year 1899.
+Thus, Milan had been established for 1990 - 1899 = 91 years when Nava returned to Milan as a reserve in the first
+team’s defense.
+So the answer is 91.
+
+Question: When was the town Scott was born in founded?
+Answer: Scott was born in the town of Cooksville, Illinois.
+Cooksville was founded in the year 1882.
+So the answer is 1882.
+
+Question: In what country did Wright leave the French privateers?
+Answer: Wright left the French privateers in Bluefield’s river.
+Bluefields is the capital of the South Caribbean Autonomous Region (RAAS) in the country of Nicaragua.
+So the answer is Nicaragua.
+
+Question: Who plays the A-Team character that Dr. Hibbert fashioned his hair after?
+Answer: Dr. Hibbert fashioned his hair after Mr. T from The A-Team.
+Mr. T’s birthname is Lawrence Tureaud.
+So the answer is Lawrence Tureaud.
+
+Question: How many people attended the conference held near Berlin in January 1942?
+Answer: The conference held near Berlin in January 1942 is the Wannsee Conference.
+The Wannsee Conference was attended by 15 people.
+So the answer is 15.
+
+Question: When did the country Ottwalt went into exile in founded?
+Answer: Ottwalt went into exile in the country of Denmark.
+Denmark has been inhabited since around 12,500 BC.
+So the answer is 12,500 BC.
+
+Question: When was the J2 club Uki played for in 2001 founded?
+Answer: The J2 club that Uki played for is Montedio Yamagata.
+Montedio Yamagata was founded in 1984.
+So the answer is 1984.
+
+
+
+
+                                          Figure 7: Examples for IIRC
+
+
+
+                                                      27043
+

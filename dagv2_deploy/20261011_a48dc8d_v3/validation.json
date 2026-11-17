@@ -1,0 +1,514 @@
+{
+  "pytest_passed": 1020,
+  "pytest_skipped": 90,
+  "pytest_warnings": 69,
+  "pytest_seconds": 57.65,
+  "pytest_log": {
+    "file": "pytest_final_v3_tokenization.log",
+    "sha256": "f060998442cb00b7f846c0340efae9b8138a75ad7456e8635d6698e1e61a7733"
+  },
+  "pytest_skip_scope": "Optional jsonschema tests unavailable in Python 3.11 were run with the standard validator under Python 3.13; see typed_request_schema_review.",
+  "warning_scope": "Numerical RuntimeWarnings from the existing full suite; observed count recorded above.",
+  "live_smoke_evaluation_labels_read": false,
+  "evaluation_only_json_read": false,
+  "answer_accuracy_evaluated": false,
+  "correct_answers_used_for_parameter_selection": false,
+  "metadata_research_scope": "Earlier research parsed metadata fields from an official CSV containing labels; this is not a claim that no label-bearing file was ever read.",
+  "original_integrity": {
+    "checked": 54,
+    "label_hash_checks_deferred_until_scoring": [
+      "data/2wikimultihopqa/evaluation_only.json",
+      "data/hotpotqa/evaluation_only.json",
+      "data/musique/evaluation_only.json"
+    ]
+  },
+  "source_hashes_match_live_validation": true,
+  "deployment_profile": {
+    "path": "configs/residual-memory.personamem16k.json",
+    "sha256": "ec4a7ddf03ccd83e5b04d85d063efb70f18efde5e5b710ae816fa4a06f972377",
+    "previous_profile": "configs/residual-memory.example.json",
+    "previous_profile_sha256": "b8135f5eb52f2a82da51eca1ebdb7724f5e557c539921f73ead6e98a3642b46d",
+    "only_added_top_level_field": "tokenization",
+    "tokenization_mode": "vllm_chat",
+    "tokenization_timeout_seconds": 15.0,
+    "tokenization_endpoint_sha256": "19e1cd2b2dfbeb3e609180fd9f3d20f2e98a6bc8a290907e56fd0490e7529a5a",
+    "unchanged_residual_budgets": {
+      "context_tokens": 16384,
+      "llm_calls": 24,
+      "ann_calls": 36,
+      "reasoning_output_tokens": 4096,
+      "input_margin": 256
+    },
+    "original_final_request_context_tokens": 16384,
+    "original_frozen_intermediate_regex_checks_unchanged": true
+  },
+  "real_service_smoke": {
+    "output": "live_smoke_06",
+    "selection": "Same first two canonical PersonaMem questions as the uploaded failure run.",
+    "question_attempts": 1,
+    "status_counts": {
+      "original": {
+        "ok": 2
+      },
+      "dagbt_residual_memory_v1": {
+        "ok": 2
+      }
+    },
+    "rows": [
+      {
+        "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+        "arm": "original",
+        "status": "ok",
+        "seconds": 9.253500999999233,
+        "completion_kind": null,
+        "request_tokenization": {
+          "chat_records": 3,
+          "all_tokenization_validation_matched": true,
+          "context_tokens": 16384,
+          "max_prompt_tokens": 8356,
+          "max_output_token_reserve": 2048,
+          "max_total_with_reserves": 9388
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 3,
+          "cache_hits": 0,
+          "http_attempts": 3,
+          "successful_http_requests": 3,
+          "failed_counts": 0,
+          "observed_seconds": 0.25514512485824525,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 3,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 15989,
+          "completion_tokens": 126,
+          "total_tokens": 16115,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+        "arm": "original",
+        "status": "ok",
+        "seconds": 7.63842700002715,
+        "completion_kind": null,
+        "request_tokenization": {
+          "chat_records": 3,
+          "all_tokenization_validation_matched": true,
+          "context_tokens": 16384,
+          "max_prompt_tokens": 9181,
+          "max_output_token_reserve": 2048,
+          "max_total_with_reserves": 10213
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 3,
+          "cache_hits": 0,
+          "http_attempts": 3,
+          "successful_http_requests": 3,
+          "failed_counts": 0,
+          "observed_seconds": 0.18952845805324614,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 3,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 17001,
+          "completion_tokens": 121,
+          "total_tokens": 17122,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+        "arm": "dagbt_residual_memory_v1",
+        "status": "ok",
+        "seconds": 64.86965358292218,
+        "completion_kind": "certified_symbolic",
+        "ledger_used": {
+          "llm": 4,
+          "http_attempts": 5,
+          "ann": 1,
+          "embedding_http": 1
+        },
+        "audit_complete": true,
+        "reading_batches": 3,
+        "failed_reading_batches": 0,
+        "failed_obligations": 0,
+        "request_tokenization": {
+          "chat_records": 4,
+          "all_tokenization_validation_matched": true,
+          "context_tokens": 16384,
+          "max_prompt_tokens": 10176,
+          "max_output_token_reserve": 4096,
+          "max_total_with_reserves": 14536
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 298,
+          "cache_hits": 47,
+          "http_attempts": 251,
+          "successful_http_requests": 251,
+          "failed_counts": 0,
+          "observed_seconds": 19.557160550612025,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 4,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 19007,
+          "completion_tokens": 1458,
+          "total_tokens": 20465,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+        "arm": "dagbt_residual_memory_v1",
+        "status": "ok",
+        "seconds": 369.0784483749885,
+        "completion_kind": "semantic_assessment",
+        "ledger_used": {
+          "llm": 8,
+          "http_attempts": 10,
+          "ann": 2,
+          "embedding_http": 2
+        },
+        "audit_complete": true,
+        "reading_batches": 7,
+        "failed_reading_batches": 0,
+        "failed_obligations": 0,
+        "request_tokenization": {
+          "chat_records": 8,
+          "all_tokenization_validation_matched": true,
+          "context_tokens": 16384,
+          "max_prompt_tokens": 11839,
+          "max_output_token_reserve": 4096,
+          "max_total_with_reserves": 16199
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 1102,
+          "cache_hits": 315,
+          "http_attempts": 787,
+          "successful_http_requests": 787,
+          "failed_counts": 0,
+          "observed_seconds": 83.59137938253116,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 8,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 79643,
+          "completion_tokens": 9928,
+          "total_tokens": 89571,
+          "token_usage_complete": true
+        }
+      }
+    ],
+    "all_chat_records_prompt_usage_matched": true,
+    "chat_records_verified": 18,
+    "tokenization_auxiliary_cost": {
+      "logical_calls": 1406,
+      "cache_hits": 362,
+      "http_attempts": 1044,
+      "successful_http_requests": 1044,
+      "failed_counts": 0,
+      "observed_seconds": 103.59321351605467
+    },
+    "scope": "Final frozen source, both arms, production worker/Transport and real services; execution-path validation without answer scoring or parameter training."
+  },
+  "historical_tokenization_review": {
+    "scope": "Historical read-only tokenization of existing smoke05 wire messages; no new generation.",
+    "reasoning_requests_exactly_matched": 10,
+    "original_requests_exactly_matched": 6,
+    "all_16_historical_prompt_counts_matched": true,
+    "source_reports": [
+      {
+        "file": "smoke05_server_tokenization_audit.json",
+        "sha256": "49d893f3f7c95dca27c06ed1c695a98c770dbc1af5f4ccdbcc2af726acf78922"
+      },
+      {
+        "file": "smoke05_original_server_tokenization_audit.json",
+        "sha256": "17e5f2768e0efaff26a8ee46f5538308c78c44c29e233227795a1bcd9c9f4602"
+      }
+    ],
+    "historical_first_rejected_window": [
+      {
+        "operation": "semantic_compose",
+        "input_tokens_local": 12502,
+        "server_token_count": 8650,
+        "estimated_total_using_server_count": 13010,
+        "fits_unchanged_16384_with_output_margin": true
+      },
+      {
+        "operation": "semantic_compose_repair",
+        "input_tokens_local": 12875,
+        "server_token_count": 8830,
+        "estimated_total_using_server_count": 13190,
+        "fits_unchanged_16384_with_output_margin": true
+      }
+    ],
+    "limit": "Historical first-window counts do not replace final-code smoke06 validation."
+  },
+  "embedding_probe": {
+    "source_request_ref": "4795a49129b2218462c5c6bdb38b6d49aa5eba1a7a316e9a1d05524aab91eadf",
+    "endpoint": "http://111.19.156.74:8001/v1/embeddings",
+    "model": "qwen3-embedding-8b",
+    "network_attempts": 1,
+    "navigation_view": {
+      "event": "navigation_query_view",
+      "view_version": "qwen_navigation_prefix_view_v1",
+      "tokenizer_sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "token_count_source": "packaged_qwen_tokenizer_empirically_validated",
+      "server_tokenizer_identity_verified": false,
+      "max_input_tokens": 4096,
+      "service_added_tokens_observed": 1,
+      "safety_tokens": 64,
+      "text_token_limit": 4031,
+      "original_tokens_local": 4405,
+      "fixed_tokens_local": 108,
+      "original_input_sha256": "d37496f6cd7a41fb36c35969dd1a95aff5fe260ce74bd87190e7bd35325a75ea",
+      "selection_policy": "rendered_source_order_then_original_prefix",
+      "source_offsets_unit": "unicode_characters",
+      "source_records_modified": false,
+      "evidence_support_claim": false,
+      "status": "ready",
+      "bounded": true,
+      "final_tokens_local": 4031,
+      "final_tokens_with_observed_service_overhead": 4032,
+      "final_input_sha256": "dfcebea313b34a716dbbb06729170a303866f9eb79f96d4ef76c4bbfdf6a932c",
+      "sources": [
+        {
+          "section": "anchor",
+          "source_id": "personamem:memory:1eef90fdaf0b137a36fc930a9880e89f51c774c0c56379053587014f4985be4c",
+          "source_sha256": "7049b05536f6db0d29eefcf846c57b8b59e4d54fc5eaf6999cf5d0526a34cb5f",
+          "source_characters": 2193,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2193
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:120c2859e739afd048bfa9231d79d830326ecced29d840273b418ef63ef2d908",
+          "source_sha256": "c995a83ee1b977ccab6664d8b91f93095ced9eb1f6a0bdcacc2ffc6212f33c9e",
+          "source_characters": 1531,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 1531
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:22a7b1cb784232e0125b43f66e5be689d3331211ecca31b11f8d66c0b9621934",
+          "source_sha256": "0a44b424538a8941c98e306a20f562fbe98798fee2ff40f792d40db3712f339c",
+          "source_characters": 2754,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2754
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:884c4465940463950185be8e682390f4f6652cc329b461d7e9a24fcbcd4705b5",
+          "source_sha256": "7cd7fb4eabe7f2f380ed5e816f8b51cf85e67b9a69a34a745b1aa06f71d63053",
+          "source_characters": 2509,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2509
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:8b7233f2be0818efb3c5b0e6d1e07fc776fe876f791fed0322ca49714abe7125",
+          "source_sha256": "04eb83d413f91d6894d792c8c77542757545c9ae54a7ea19c895924301183a2a",
+          "source_characters": 1923,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 1923
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:d30a6dc4e11d34f7f06ae8ecb58b79cab966b77736fc2476ee7a4ea79dbebc1d",
+          "source_sha256": "522349d9e7e549d1eb0c4785c2aa3a281d005502e67a08076a8b084dd1099c79",
+          "source_characters": 2199,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2199
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:e14c96ef08cacebf422a4774b00af360b63f19e12b00dd45b530089b64ba48f0",
+          "source_sha256": "0ac100d7473b5eda75536dc1ce551fb7b5120278abb19a377dcffdbca394026a",
+          "source_characters": 2907,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2907
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:f37e6b41e2724a0447ece2a111511dc3d21bd83c0e4ca87a66f01f2a41b45d9e",
+          "source_sha256": "682836cdc4ddff922f1d8478ff8e745f6ecf14a82a2f924805b00a12cd7e2ed4",
+          "source_characters": 2169,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 2169
+            }
+          ],
+          "omitted_char_ranges": [],
+          "included": true,
+          "truncated": false
+        },
+        {
+          "section": "premise",
+          "source_id": "personamem:memory:fdfcfc40fed6faa928d83dc8b39ed475f790334c2d941f557716275752f23a89",
+          "source_sha256": "6bf29ec10f1e04c998ca36fff45ebfb6eb9749ba9f223747abfd384d8e8a7610",
+          "source_characters": 2860,
+          "included_char_ranges": [
+            {
+              "start": 0,
+              "end": 587
+            }
+          ],
+          "omitted_char_ranges": [
+            {
+              "start": 587,
+              "end": 2860
+            }
+          ],
+          "included": true,
+          "truncated": true
+        }
+      ]
+    },
+    "http_status": 200,
+    "service_usage": {
+      "prompt_tokens": 4032,
+      "total_tokens": 4032,
+      "completion_tokens": 0,
+      "prompt_tokens_details": null
+    },
+    "response_model": "qwen3-embedding-8b",
+    "embedding_rows": 1
+  },
+  "typed_request_schema_review": {
+    "scope": "Typed observation wire shapes and legal retraction targets, independent of answer labels. Existing local semantic validation is unchanged.",
+    "validator": "jsonschema.Draft202012Validator",
+    "synthetic_contract_tests": {
+      "passed": 99,
+      "skipped": 0,
+      "python": "3.13"
+    },
+    "actual_smoke04_response_replays": [
+      {
+        "label": "six_objects_for_set",
+        "call_index": 2,
+        "valid": false,
+        "expected_valid": false
+      },
+      {
+        "label": "counter_without_existing_route",
+        "call_index": 2,
+        "valid": false,
+        "expected_valid": false
+      }
+    ],
+    "joint_reading_source_sha256": "389e9b90e93a48e0a00ef7adc6c14c26b04ac23d6cbb00cd467789432f2f3aae",
+    "network_calls": 0,
+    "production_dependencies_added": 0
+  },
+  "packaging_scaffold_verification": {
+    "passed": true,
+    "scope": "isolated offline fixture only",
+    "checks": [
+      "exact_base_reconstruction",
+      "active_writer_rejected",
+      "corrupted_payload_rejected",
+      "changed_base_rejected",
+      "partial_install_rollback",
+      "install_hashes_verified",
+      "idempotent_install",
+      "exact_archive_members_verified",
+      "unlisted_archive_file_rejected",
+      "stale_payload_removed",
+      "installer_templates_preserved",
+      "root_stray_file_excluded",
+      "duplicate_archive_member_rejected",
+      "symlink_archive_member_rejected",
+      "unsafe_and_symlink_paths_rejected"
+    ],
+    "production_release_built": false,
+    "network_calls": 0
+  },
+  "baseline_research": {
+    "repository_document": "docs/PREFERENCE_RAG_BASELINE_PROTOCOL_20261012.md",
+    "sha256": "d9d8af3d7517b75b1a66f197a3a7e348e83561db8107613b421662b105c4aa55",
+    "evidence_directory": "dagv2_analysis/a48_v3_validation/research",
+    "external_baselines_run": false
+  },
+  "limitations": [
+    "Two questions validate execution, not full-dataset reliability or answer accuracy.",
+    "No generation/embedding model, service endpoint, credential, output reserve or per-question call/context budget was changed; a new opt-in tokenization endpoint/profile was added.",
+    "Server counts match observed prompt usage; deployed weights, tokenizer identity and future server-template stability are not independently pinned.",
+    "Server max_model_len is capability metadata; the experiment remains at 16384.",
+    "Original frozen internal regex prechecks remain potentially more conservative; only the final adapted chat gate shares deployment counting.",
+    "Tokenization requests and latency are reported separately from generation/embedding usage.",
+    "Packaged embedding tokenizer is empirically matched, not a verified server-side tokenizer/weights hash."
+  ],
+  "development_validation": {
+    "earlier_candidate_runs": "Smoke01–04 exposed parent-slot, source-metadata growth and typed/retraction protocol gaps; smoke05 then exposed a local heuristic context rejection. Earlier failures are retained and are not reported as successful validation.",
+    "smoke05_capacity_failure": {
+      "failure_location": "Local source-window preflight before semantic generation was sent.",
+      "provider_context_error_observed": false,
+      "evidence": [
+        "smoke05_reasoning_token_audit.json",
+        "smoke05_server_tokenization_audit.json"
+      ],
+      "not_reused_as_final_capacity_validation": "terminal_capacity_final.json predates deployment counting and is not included as new-capacity evidence."
+    },
+    "final_run_uses_new_output_and_single_attempt": true,
+    "offline_index_reconstruction_additional_embedding_requests": 0
+  }
+}

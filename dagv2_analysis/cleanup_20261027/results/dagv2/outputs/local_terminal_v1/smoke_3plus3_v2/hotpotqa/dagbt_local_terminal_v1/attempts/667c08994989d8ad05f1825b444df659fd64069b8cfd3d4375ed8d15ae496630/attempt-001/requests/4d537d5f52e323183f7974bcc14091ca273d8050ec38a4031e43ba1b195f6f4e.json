@@ -1,0 +1,68 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "[No evidence passages]",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video."
+    ],
+    "top_n": 4,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "1",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791598908.787895,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791598910.640876
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9969484897917329
+      },
+      {
+        "index": 3,
+        "relevance_score": 0.9932550119553616
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.002757622367395409
+      },
+      {
+        "index": 2,
+        "relevance_score": 0.0008555875220826462
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1524,
+      "completion_tokens": 8,
+      "total_tokens": 1532
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

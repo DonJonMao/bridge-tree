@@ -1,0 +1,140 @@
+{
+  "check": "fusion_planner_protocol",
+  "version": "dagbt_fusion_reliability_v2",
+  "status": "failed",
+  "trace_directory": "/Users/mao/projects/dagv2/outputs/verification/reliability_v2/pytest_final/test_probe_http_retries_are_bo1/preflight_calls/planner-1790498197574836000",
+  "configured_protocol": "json_object",
+  "schema_sha256": "21ade5b99f9a5e2fbf598d81d7bf80cf8bae174e79a71062d51596644b59b086",
+  "synthetic_query": "Which city hosts the science museum visited by the fictional traveler Mira?",
+  "logical_call_limit": 1,
+  "repair_calls": 0,
+  "protocol_fallback": false,
+  "experiment_task": false,
+  "scope": "one synthetic planner request using the actual fusion schema/validator; no labels or question budget; does not establish map/select/reader compatibility or answer quality",
+  "error_type": "ServiceError",
+  "error": "Retry limit at planner/1; request a3899726e2021d9d2482766b8dbbd882163fcba126b368cc13497f462b4b1b54",
+  "elapsed_seconds": 0.0018347080331295729,
+  "ledger": {
+    "limits": {},
+    "used": {
+      "llm": 3,
+      "http_attempts": 3
+    },
+    "remaining": {},
+    "events": [
+      {
+        "event": "model_context_budget",
+        "stage": "planner/1",
+        "input_tokens_local": 490,
+        "output_token_reserve": 4096,
+        "safety_margin": 8,
+        "input_margin": 256,
+        "context_tokens": 16384,
+        "total_tokens_local": 4850,
+        "within_estimated_budget": true,
+        "token_count_is_estimate": true,
+        "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+        "tokenizer_id": null,
+        "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 3
+      }
+    ]
+  },
+  "cost": {
+    "logical_calls": 1,
+    "cache_hits": 0,
+    "unique_requests": 1,
+    "http_attempts": 3,
+    "http_retries": 2,
+    "successful_http_requests": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0,
+    "requests_by_stage": {
+      "[\"planner\", \"1\"]": 1
+    },
+    "incomplete_or_failed_http_attempts": 3,
+    "missing_usage_responses": 0,
+    "incomplete_event_lines": 0,
+    "malformed_request_records": 0,
+    "token_scope": "observed successful nonseeded API responses; failed/lost server work may be unreported",
+    "token_usage_complete": false
+  },
+  "logical_calls": 1,
+  "reasoning_requests": [
+    {
+      "operation": "planner",
+      "call_index": 1,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+        },
+        {
+          "role": "user",
+          "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+        }
+      ],
+      "logical_call_index": 1,
+      "response_format": "json_object",
+      "input_tokens_local": 490,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "error_type": "ServiceError",
+      "failure_category": "service_or_budget"
+    }
+  ],
+  "response_events": [
+    {
+      "event": "reasoning_request_started",
+      "operation": "planner",
+      "logical_call_index": 1,
+      "accounting_note": "One logical model request; Transport meters each physical retry against llm budget"
+    }
+  ]
+}

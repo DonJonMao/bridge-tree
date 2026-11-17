@@ -1,0 +1,47 @@
+{
+  "unit_id": "index:a778e4b6749e95c417d4cbd135d41251cf3e7ab2e49d71f29a10d0c0b8378fd1:hotpotqa",
+  "url": "http://127.0.0.1:62687/v1/embeddings",
+  "payload": {
+    "model": "qwen3-embedding-8b",
+    "input": [
+      "Title 32\nRaw source 32"
+    ]
+  },
+  "stage": [
+    "index_embedding",
+    "32"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790231782.5732532,
+      "retry_index": 1,
+      "kind": "embedding_http",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    },
+    {
+      "started_unix": 1790231782.586407,
+      "retry_index": 1,
+      "kind": "embedding_http",
+      "http_status": 200,
+      "finished_unix": 1790231782.588533
+    }
+  ],
+  "response": {
+    "data": [
+      {
+        "index": 0,
+        "embedding": [
+          1.0,
+          2.0,
+          3.0
+        ]
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1,
+      "total_tokens": 1
+    }
+  }
+}

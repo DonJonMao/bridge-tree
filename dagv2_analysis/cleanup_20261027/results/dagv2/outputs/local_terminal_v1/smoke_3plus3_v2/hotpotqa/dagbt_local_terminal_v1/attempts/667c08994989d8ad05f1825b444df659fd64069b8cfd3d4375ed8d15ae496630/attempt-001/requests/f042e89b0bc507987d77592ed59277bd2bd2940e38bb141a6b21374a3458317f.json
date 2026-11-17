@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:164\", \"source_id\": \"hotpotqa:164\"}]\nAnthony Rapp\nAnthony Deane Rapp (born October 26, 1971) is an American stage and film actor and singer best known for originating the role of Mark Cohen in the Broadway production of \"Rent\" in 1996 and later for reprising the role in the film version and the Broadway Tour of \"Rent\" in 2009. He also performed the role of Charlie Brown in the 1999 Broadway revival of \"You're a Good Man, Charlie Brown\" and originated the role of Lucas in the musical \"If/Then\" in 2014.\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "198",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599249.644189,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599250.481921
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00039223318753293896
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 708,
+      "completion_tokens": 2,
+      "total_tokens": 710
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

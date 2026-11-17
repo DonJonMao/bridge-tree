@@ -1,0 +1,2239 @@
+{
+  "kind": "generation_only_q1_residual_protocol_repair_review",
+  "created_utc": "2026-10-16T02:39:59.738142+00:00",
+  "external_calls": 0,
+  "reference_or_evaluation_loaded": false,
+  "task": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/baseline_v13/output/tasks/wwqa-0001/dagbt_residual_memory_v2",
+  "events_sha256": "d9ad42508f0d0c6ff7644a45aabaf3388db9a749409077c912208d416f399d18",
+  "result_sha256": "3954778705fc942a49b7f7df8eceb3913643cc8af9dc252b8582094282d69288",
+  "generation_terminal": true,
+  "status": "ok",
+  "completion_kind": "certified_symbolic",
+  "ledger_used": {
+    "llm": 16,
+    "http_attempts": 16,
+    "web_actions": 5,
+    "json_repairs": 3
+  },
+  "completed_call_allocation": {
+    "planner": 1,
+    "joint_read": 7,
+    "web_navigate": 4,
+    "joint_read_repair": 3,
+    "audit_joint": 1
+  },
+  "errors": [],
+  "findings": [
+    {
+      "type": "model_protocol_violation_repaired",
+      "calls": [
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "description": "Correct support on s102 was offered while declaring old s96/s100 obligations settled without reviewing those originals. Repair12 legally returned no-new-evidence but retained obligations. Ordinary13 repeated settlement without original coverage. Repair14 reviewed originals but illegally restated frozen support. Repair15 omitted frozen observations, used explicitly offered review references and sourced irrelevant original reviews; obligations could then settle."
+    },
+    {
+      "type": "successful_final_runtime_audit",
+      "calls": [
+        16
+      ],
+      "description": "Final generation audit returned supported and publication produced a certified answer. No reference-judge correctness claim is made in this generation-only review."
+    },
+    {
+      "type": "no_reproducible_general_implementation_defect_identified_here",
+      "description": "Observed failures are actual protocol rejections with required sources and authorized repair paths supplied. The paid repair path eventually completes; no bypass or input overflow was observed."
+    }
+  ],
+  "response_records": [
+    {
+      "event_line": 9,
+      "sequence": 8,
+      "call_index": 1,
+      "operation": "planner",
+      "response_ref": "34f482d7b79b8a6bc396a30c2470a558d92e473d9d279dffd63661e68e8a9b5a",
+      "raw_output": "{\n  \"steps\": [\n    {\n      \"question\": \"When and where was the ICSE duplicate submission statement agreed upon?\",\n      \"output_slot\": \"agreement_details\",\n      \"answer_type\": \"record\",\n      \"inputs\": [],\n      \"execution\": \"retrieval\"\n    }\n  ],\n  \"final_node_id\": \"agreement_details\",\n  \"output_contract\": {\n    \"mode\": \"value\",\n    \"result_type\": \"record\",\n    \"entity_scope\": \"ICSE duplicate submission statement\",\n    \"time_scope\": \"agreement\",\n    \"explanation\": \"none\",\n    \"fields\": [\"time\", \"location\"]\n  },\n  \"program\": {\n    \"variables\": {\n      \"time\": {\n        \"type\": \"text\",\n        \"demand\": \"agreement_details\",\n        \"open\": true,\n        \"scope\": {\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\"\n        }\n      },\n      \"location\": {\n        \"type\": \"text\",\n        \"demand\": \"agreement_details\",\n        \"open\": true,\n        \"scope\": {\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\"\n        }\n      }\n    },\n    \"expression\": {\n      \"op\": \"record\",\n      \"fields\": {\n        \"time\": { \"op\": \"var\", \"id\": \"time\" },\n        \"location\": { \"op\": \"var\", \"id\": \"location\" }\n      }\n    },\n    \"rules_complete\": true\n  }\n}",
+      "input_tokens_local": 3647
+    },
+    {
+      "event_line": 28,
+      "sequence": 27,
+      "call_index": 2,
+      "operation": "joint_read",
+      "response_ref": "4e02712f6424e151413db509f73f90e0ad4e31cdfc4a7399fb87f15bdbb0e2df",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    }\n  ],\n  \"audit_verdict\": \"unknown\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 5115
+    },
+    {
+      "event_line": 42,
+      "sequence": 41,
+      "call_index": 3,
+      "operation": "web_navigate",
+      "response_ref": "7417eefa2d6257715a1210b3c96fc1403d14cd2fd01210c8fbd476b773a7beb9",
+      "raw_output": "{\"link_id\": \"l9\"}",
+      "input_tokens_local": 9845,
+      "selected_link": {
+        "id": "l9",
+        "source_doc_id": "web-a839c19604f161a49b32fd91",
+        "url": "http://www.icse-conferences.org/reports.html",
+        "text": "ICSE SC Documents",
+        "source_region": "content",
+        "source_context": {
+          "start": 152,
+          "end": 332,
+          "text": "DINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nWELCOME\nICSE, the International Conference on Software Enginee"
+        }
+      }
+    },
+    {
+      "event_line": 60,
+      "sequence": 59,
+      "call_index": 4,
+      "operation": "joint_read",
+      "response_ref": "ab3b98753d3c2f0675910b90ac899d541d3ee236e45a58bd746f93349e827d6b",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    }\n  ]\n}",
+      "input_tokens_local": 4164
+    },
+    {
+      "event_line": 84,
+      "sequence": 83,
+      "call_index": 5,
+      "operation": "web_navigate",
+      "response_ref": "7a28efe65eb4749c60f52e8016cb799c6ec266a707be44e29a89f844df723aab",
+      "raw_output": "{\"link_id\": \"l16\"}",
+      "input_tokens_local": 11931,
+      "selected_link": {
+        "id": "l16",
+        "source_doc_id": "web-994d48b14af171acdfb8dc89",
+        "url": "http://www.icse-conferences.org/sc/ICSE/2017/ICSE-PC-Chairs-Guiding-Document-1.1.pdf",
+        "text": "ICSE PC Chairs Guiding Document 1.1 by Canfora, Chechik, Cleland-Huang, van der Hoek, Robillard, Visser and Whittle (PDF)",
+        "source_region": "content",
+        "source_context": {
+          "start": 753,
+          "end": 933,
+          "text": "echnical Track V1.0 by Orso,\nRobillard and Zimmermann (PDF)\nICSE PC Chairs Guiding Document 1.1 by Canfora, Chechik,\nCleland-Huang, van der Hoek, Robillard, Visser and Whittle (PDF"
+        }
+      }
+    },
+    {
+      "event_line": 119,
+      "sequence": 118,
+      "call_index": 6,
+      "operation": "joint_read",
+      "response_ref": "de293d4661333c4efdff39fd4143e43b8f350e2c3b32858de3498b4cd5ce81e8",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    }\n  ]\n}",
+      "input_tokens_local": 7055
+    },
+    {
+      "event_line": 144,
+      "sequence": 143,
+      "call_index": 7,
+      "operation": "web_navigate",
+      "response_ref": "45c7dca2228f1d15b91e309a1a3632ecb137009057ad30247282e1e7afb8277c",
+      "raw_output": "{\"link_id\": \"l11\"}",
+      "input_tokens_local": 11999,
+      "selected_link": {
+        "id": "l11",
+        "source_doc_id": "web-994d48b14af171acdfb8dc89",
+        "url": "http://icse-conferences.org/organization.html",
+        "text": "Organizing ICSE.",
+        "source_region": "content",
+        "source_context": {
+          "start": 479,
+          "end": 659,
+          "text": "ontinuity. More corporate ICSE knowledge can be found under Organizing ICSE.\nICSE 2024 SC Strategic Discussions (PDF)\nICSE\n2019 PC Chairs Report by Bultan and Whittle (PDF)\nICSE\n20"
+        }
+      }
+    },
+    {
+      "event_line": 162,
+      "sequence": 161,
+      "call_index": 8,
+      "operation": "joint_read",
+      "response_ref": "6d7bd2d7a341ffffa031453434e257dd48d6ed8b9f195cfa1cecf852610afbbd",
+      "raw_output": "```json\n{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"time_obs_1\",\n          \"stance\": \"unknown\",\n          \"value\": null,\n          \"source_ids\": [\"s96\", \"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\"\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"location_obs_1\",\n          \"stance\": \"unknown\",\n          \"value\": null,\n          \"source_ids\": [\"s96\", \"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\"\n    }\n  ],\n  \"audit_verdict\": \"unknown\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}\n```",
+      "input_tokens_local": 4097,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": null,
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": null,
+      "original_source_spans": [
+        {
+          "id": "s96",
+          "doc_id": "d1",
+          "start": 0,
+          "end": 374,
+          "text": "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s97",
+          "doc_id": "d1",
+          "start": 374,
+          "end": 742,
+          "text": "served as a premier forum for the presentation and exchange of the latest research results\nand practical experiences in\nsoftware engineering theories, methods, techniques, tools, and practices. To ensure the\ncontinued excellence and success of\nthe ICSE conference series, the ICSE Steering Committee (SC), ACM Special Interest Group in\nSoftware Engineering (SIGSOFT),\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s98",
+          "doc_id": "d1",
+          "start": 742,
+          "end": 1109,
+          "text": "IEEE-CS Technical Council on Software Engineering (TCSE), Association for Computing\nMachinery, Inc. (ACM), and Institute of\nElectrical and Electronics Engineers (IEEE), incorporated, through its IEEE Computer Society\n(IEEE-CS) entered into a\nMemorandum of Understanding (MOU). The purpose of the MOU is to define and clarify the\nroles, authorities, responsibilities,\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s99",
+          "doc_id": "d1",
+          "start": 1109,
+          "end": 1472,
+          "text": "and key practices of the co-sponsors and the organizers of ICSE. This document also contains\nICSE Operating Rules and Guidelines\nthat constitute significant ICSE corporate knowledge to support ICSE continuity.\nICSE Organizational Guidelines\nICSE Operating\nRules and Guidelines 2023 (24 pages pdf document)\nCall for Letters of Interest to Host ICSE 2030.\nCall for\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s100",
+          "doc_id": "d1",
+          "start": 1472,
+          "end": 1626,
+          "text": "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "source_role": "document",
+          "source_message_indices": []
+        }
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 195,
+      "sequence": 194,
+      "call_index": 9,
+      "operation": "joint_read",
+      "response_ref": "b24ca6e5117a848ea56ff0defadade773087442b61d9ef71c21f1bbc77b33f6f",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"obs_time_1\",\n          \"stance\": \"unknown\",\n          \"value\": null,\n          \"source_ids\": [\"s96\", \"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": []\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"obs_location_1\",\n          \"stance\": \"unknown\",\n          \"value\": null,\n          \"source_ids\": [\"s96\", \"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": []\n    }\n  ],\n  \"audit_verdict\": \"unknown\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 6906,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": []
+      },
+      "original_source_spans": [
+        [
+          "s96",
+          "d1",
+          0,
+          374,
+          "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "document",
+          []
+        ],
+        [
+          "s100",
+          "d1",
+          1472,
+          1626,
+          "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "document",
+          []
+        ],
+        [
+          "s37",
+          "d2",
+          7392,
+          7737,
+          "While\tthis\tprocess\tconstrains\tfuture\tPC\tCo-Chairs\tby\tvirtue\tof\tdecisions\tmade\tin\tprevious\tyears,\tthis\tprocess\tbalances\tthe\tneeds\tof\tthe\tvarious\tstakeholders,\thelps\tfuture\tPC\tCo-Chairs\tchairs\tin\tproviding\ta\tblueprint\tof\tthe\treview\tprocess\tupon\twhich\tthey\tcan\tbuild,\tand\tencourages\tcareful\texploration\tof\talternative\treview\tmodels\twhen\tso\tneeded.\t",
+          "document",
+          []
+        ],
+        [
+          "s36",
+          "d2",
+          7042,
+          7392,
+          "This\tplan\tshall\tbe\tput\tinto\taction\tby\tthe\tPC\tCo-Chairs\t(in\tconsultation\twith\tthe\tICSE\tTechnical\tReview\tsubcommittee,\tif\tso\tdesired),\twith\tthe\tresults\tpresented\tand\treflected\tupon\tin\tthe\tfinal\treport\tfrom\tthe\tPC\tCo-Chairs\tand\tdiscussed,\tas\tneeded,\tduring\ta\tsubsequent\tICSE\tSteering\tCommittee\tmeeting.\t\nVersion\t1.1\t ICSE\tPC\tChairs\tGuiding\tDocument\t 4\t\n",
+          "document",
+          []
+        ],
+        [
+          "s38",
+          "d2",
+          7737,
+          7936,
+          "Current Review Process For\tthe\tprocess\tdescribed\tabove\tto\tbe\teffective,\tthe\tcurrent\treview\tprocess\tshould\tbe\tcarefully\tdocumented,\tas\twell\tas\tupdated\teach\tyear\tthat\tinvolves\tchanges\tto\tthe\tprocess.\t\t",
+          "document",
+          []
+        ],
+        [
+          "s39",
+          "d2",
+          7936,
+          8189,
+          "Appendix\tA\tis\tmeant\tto\tserve\tas\tthe\t‘living\tstatement\tof\tthe\tICSE\treview\tprocess\tas\tdecided\tupon\tby\tthe\tICSE\tSteering\tCommittee\t(by\tdelegation\tto\tthe\tICSE\tTechnical\tReview\tsubcommittee)’;\tit\tthus\tshould\tbe\tupdated\taccordingly\twhen\tchanges\tare\tapproved.\t",
+          "document",
+          []
+        ],
+        [
+          "s40",
+          "d2",
+          8189,
+          8349,
+          "The\tchair\tof\tthe\tICSE\tTechnical\tReview\tCommittee\tis\tresponsible\tfor\tdoing\tthis,\tin\tcooperation\twith\tthe\tPC\tCo-Chairs\twho\tsuggested\tchanges\tthat\twere\tapproved.\t\t",
+          "document",
+          []
+        ],
+        [
+          "s41",
+          "d2",
+          8349,
+          8697,
+          "Part III: Additional Amassed Wisdom Timeline The\tabove\tprocess\trequires\ta\tlonger\tlead\ttime\tthan\tusual\tfor\tPC\tCo-Chairs,\tbecause\tchanges\tto\tthe\treview\tprocess\tmight\tneed\tto\tbe\treviewed\tand\tdiscussed\tby\tthe\tICSE\tSteering\tCommittee\tas\ta\twhole\t(with\tparticularly\tsignificant\tchanges\thaving\tbeen\tdiscussed\ttwice\tin\tthe\tpast\tby\tthe\tSteering\tCommittee).\t\t",
+          "document",
+          []
+        ],
+        [
+          "s42",
+          "d2",
+          8697,
+          9097,
+          "The\ttimeline\tbelow\tbuilds\tin\ttime\tfor\tone\tround\tof\tdiscussion\tby\tthe\tSteering\tCommittee\tas\ta\twhole\t(should\tthat\tbe\tneeded);\tif\tparticularly\tchallenging\tchanges\tare\tbeing\tproposed,\ta\tlonger\tlead\ttime\tthan\tthe\ttimeline\tbelow\tmight\tbe\tneeded,\tin\twhich\tcase\tit\tis\tsuggested\tthat\tthe\tchanges\tar\tesubmitted\tto\tthe\tTechnical\tReview\tsubcommittee\tin\ttime\tfor\tdiscussion\tby\tthe\tICSE\tSteering\tCommittee\tin\tMay\to",
+          "document",
+          []
+        ],
+        [
+          "s43",
+          "d2",
+          9097,
+          9110,
+          "f\tyear\tn-2.\t ",
+          "document",
+          []
+        ],
+        [
+          "s44",
+          "d2",
+          9110,
+          9510,
+          "Year\t Month\t Action\tn-2\t Jul\t Submit\tpossible\tchanges\tto\tTechnical\tReview\tSubcommittee\tn-2\t Jul/Aug/Sep\tInvite\treview\tteam\t(option\t1;\tsee\tcommon\tchallenge\t#1)\tn-2\t Sep\tor\tNov\t SC\tmeeting\tto\tdiscuss\tpossible\tchanges\t(if\tdeemed\tnecessary\tby\tTechnical\tReview\tSubcomittee)\tn-1\t Jan\t Invite\treview\tteam\t(option\t2;\tsee\tcommon\tchallenge\t#1)\tn-1\t Feb\t Publish\tcall\tfor\tpapers\tn-1\t May\t Meet\twith\treview\tteam\t",
+          "document",
+          []
+        ],
+        [
+          "s45",
+          "d2",
+          9510,
+          9639,
+          "in\tperson\tn-1\t Aug/Sep\t Paper\tsubmission\tdeadline\tn-1\t Dec\t Paper\taccept/reject\tdecisions\tn\t Jan\t Review\tteam\tand\tauthor\tsurvey\t\n",
+          "document",
+          []
+        ],
+        [
+          "s46",
+          "d2",
+          9639,
+          9785,
+          "Version\t1.1\t ICSE\tPC\tChairs\tGuiding\tDocument\t 5\t\nn\t Apr\t PC\tCo-Chairs\treview\treport\tdrafted,\tso\tit\tcan\tbe\tshared\tat\tICSE\tSC\tmeeting\tn\t May\t ICSE!\t",
+          "document",
+          []
+        ],
+        [
+          "s47",
+          "d2",
+          9785,
+          10185,
+          "n\t May\t SC\tmeeting\tto\tdiscuss\treview\treport\t(as\tneeded)\tn\t Aug\tor\tOct\t PC\tCo-Chairs\treview\treport\tfinalized\tand\tofficially\tpublished\ton\tthe\tICSE\tSC\tweb\tsite\tn\t Aug\tor\tOct\t Upload\tall\tused\tmaterials\t(standard\te-mails,\tslides,\treview\tprocess)\tto\tonline\tarchive\tfor\tfuture\tPC\tCo-Chairs\t\tCommon Challenge #1: Selecting the Review Team Irrespective\tof\tthe\treview\tprocess\tbeing\tfollowed,\tselecting\tthe\trevi",
+          "document",
+          []
+        ]
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-1e18d2763217bc6048b1fb68",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 220,
+      "sequence": 219,
+      "call_index": 10,
+      "operation": "web_navigate",
+      "response_ref": "4e39dec51973a53442e535054df978eb4ddd6e21ce145d79b2eeb01d138abfdb",
+      "raw_output": "{\"link_id\": \"l13\"}",
+      "input_tokens_local": 11883,
+      "selected_link": {
+        "id": "l13",
+        "source_doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+        "url": "http://icse-conferences.org/duplicate.html",
+        "text": "ICSE Duplicate Submission Statement",
+        "source_region": "content",
+        "source_context": {
+          "start": 1496,
+          "end": 1626,
+          "text": "ost ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)"
+        }
+      },
+      "requested_slots": null,
+      "evidence_obligations": null,
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": null,
+      "original_source_spans": null,
+      "source_documents": null
+    },
+    {
+      "event_line": 238,
+      "sequence": 237,
+      "call_index": 11,
+      "operation": "joint_read",
+      "response_ref": "b66d68557b953f16c6ddbb0b1cc5109b5ccdd383ca351aa8592c3b495be254d3",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"obs_time_1\",\n          \"stance\": \"support\",\n          \"value\": \"November 2002\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": [\"obligation_df0eeadc0bab14dbdf334294\"]\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"obs_location_1\",\n          \"stance\": \"support\",\n          \"value\": \"Charleston, South Carolina\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": [\"obligation_416561bfd7e46233a0ab71ae\"]\n    }\n  ],\n  \"audit_verdict\": \"supported\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 5863,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": []
+      },
+      "original_source_spans": [
+        {
+          "id": "s96",
+          "doc_id": "d1",
+          "start": 0,
+          "end": 374,
+          "text": "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s100",
+          "doc_id": "d1",
+          "start": 1472,
+          "end": 1626,
+          "text": "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s101",
+          "doc_id": "d2",
+          "start": 0,
+          "end": 348,
+          "text": "ICSE Duplicate Submission Statement\nICSE Duplicate Submission Statement\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nICSE DUPLICATE SUBMISSION STATEMENT\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s102",
+          "doc_id": "d2",
+          "start": 348,
+          "end": 725,
+          "text": "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s103",
+          "doc_id": "d2",
+          "start": 725,
+          "end": 1056,
+          "text": "(ICSE)® will be considered to be a duplicate submission\nand rejected by that conference with no regard to the paper's scientific merit if there is\nsubstantial overlap in the technical content of the conference submission and any other work\nthat is:\nunder review at another publication,\nhas been accepted by another publication, or\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s104",
+          "doc_id": "d2",
+          "start": 1056,
+          "end": 1389,
+          "text": "has appeared in another publication, at any time before the conference\nreview process is complete.\nIn this context, a \"publication\" is any peer-reviewed scientific\narchive such as a conference, journal, or technical book. The determination of substantial\noverlap in the technical content will be made by the program committee chairs.",
+          "source_role": "document",
+          "source_message_indices": []
+        }
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 253,
+      "sequence": 252,
+      "call_index": 12,
+      "operation": "joint_read_repair",
+      "response_ref": "77fc6ede21ce862aca89bab6e093453d6b87d321ab21f5924be4764c1b843307",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [],\n      \"unresolved\": [],\n      \"reading_status\": \"no_relevant_evidence\"\n    }\n  ]\n}",
+      "input_tokens_local": 7942,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": {
+        "failed": [
+          {
+            "variable": "location",
+            "id": "*",
+            "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+            "observation": null,
+            "obligation_review_sources": [
+              {
+                "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+                "required_source_ids": [
+                  "s100",
+                  "s96"
+                ],
+                "covered_source_ids": [
+                  "s102"
+                ],
+                "missing_source_ids": [
+                  "s100",
+                  "s96"
+                ]
+              }
+            ],
+            "slot": {
+              "variable": "location",
+              "observations": [
+                {
+                  "id": "obs_location_1",
+                  "stance": "support",
+                  "value": "Charleston, South Carolina",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location."
+                }
+              ],
+              "unresolved": [],
+              "resolved_obligation_ids": [
+                "obligation_416561bfd7e46233a0ab71ae"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "obs_location_1"
+              ],
+              "observations": []
+            }
+          },
+          {
+            "variable": "time",
+            "id": "*",
+            "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+            "observation": null,
+            "obligation_review_sources": [
+              {
+                "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+                "required_source_ids": [
+                  "s100",
+                  "s96"
+                ],
+                "covered_source_ids": [
+                  "s102"
+                ],
+                "missing_source_ids": [
+                  "s100",
+                  "s96"
+                ]
+              }
+            ],
+            "slot": {
+              "variable": "time",
+              "observations": [
+                {
+                  "id": "obs_time_1",
+                  "stance": "support",
+                  "value": "November 2002",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time."
+                }
+              ],
+              "unresolved": [],
+              "resolved_obligation_ids": [
+                "obligation_df0eeadc0bab14dbdf334294"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "obs_time_1"
+              ],
+              "observations": []
+            }
+          }
+        ],
+        "attempt": 1,
+        "previous_response_identity": "22a47a38a97ba436be52067ea1116a23eb8693630ec179ff5c7fa081d0fc75b2",
+        "frozen_observation_ids": {
+          "location": [
+            "obs_location_1"
+          ],
+          "time": [
+            "obs_time_1"
+          ]
+        }
+      },
+      "web_repair_edit_scope": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "historical_marker_authorization_unchanged": true,
+        "slots": [
+          {
+            "variable": "time",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [],
+            "required_observation_ids": [],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "obs_time_1"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "location",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [],
+            "required_observation_ids": [],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "obs_location_1"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          }
+        ]
+      },
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [
+          {
+            "variable": "location",
+            "id": "obs_location_1",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          },
+          {
+            "variable": "time",
+            "id": "obs_time_1",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          }
+        ],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": [],
+        "invented_response_examples": {
+          "illustration_only_never_current_ids": true,
+          "assume": {
+            "sample_catalogue": "Sample catalogue: a link to a specification, with no attribute claim or ambiguity.",
+            "sample_specification": "The sample item has the requested attribute: blue.",
+            "offered_frozen_support": {
+              "id": "sample_fact",
+              "source_ids": [
+                "sample_specification"
+              ]
+            },
+            "offered_issue": {
+              "id": "sample_issue",
+              "source_ids": [
+                "sample_catalogue"
+              ]
+            }
+          },
+          "valid_only_if_original_really_irrelevant": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [
+              {
+                "id": "sample_catalogue_review",
+                "stance": "irrelevant",
+                "value": null,
+                "source_ids": [
+                  "sample_catalogue"
+                ],
+                "entity_scope": "sample item",
+                "time_scope": "sample scope",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "This original is only a navigation link, with no attribute claim or ambiguity."
+              }
+            ],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "invalid_missing_original_review": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "applicable_variables": [
+            "time",
+            "location"
+          ]
+        },
+        "empty_withdrawal_edit_scope": {
+          "read_only": true,
+          "condition": "no_new_admissible_observation",
+          "variables": [
+            "time",
+            "location"
+          ],
+          "reading_status": "no_relevant_evidence",
+          "empty_fields": [
+            "observations",
+            "unresolved"
+          ],
+          "omit_fields": [
+            "reviewed_observation_ids",
+            "resolved_obligation_ids",
+            "resolved_failed_batch_ids"
+          ],
+          "controller_evidence_and_issues_unchanged": true
+        }
+      },
+      "original_source_spans": [
+        {
+          "id": "s96",
+          "doc_id": "d1",
+          "start": 0,
+          "end": 374,
+          "text": "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s100",
+          "doc_id": "d1",
+          "start": 1472,
+          "end": 1626,
+          "text": "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s101",
+          "doc_id": "d2",
+          "start": 0,
+          "end": 348,
+          "text": "ICSE Duplicate Submission Statement\nICSE Duplicate Submission Statement\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nICSE DUPLICATE SUBMISSION STATEMENT\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s102",
+          "doc_id": "d2",
+          "start": 348,
+          "end": 725,
+          "text": "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s103",
+          "doc_id": "d2",
+          "start": 725,
+          "end": 1056,
+          "text": "(ICSE)® will be considered to be a duplicate submission\nand rejected by that conference with no regard to the paper's scientific merit if there is\nsubstantial overlap in the technical content of the conference submission and any other work\nthat is:\nunder review at another publication,\nhas been accepted by another publication, or\n",
+          "source_role": "document",
+          "source_message_indices": []
+        },
+        {
+          "id": "s104",
+          "doc_id": "d2",
+          "start": 1056,
+          "end": 1389,
+          "text": "has appeared in another publication, at any time before the conference\nreview process is complete.\nIn this context, a \"publication\" is any peer-reviewed scientific\narchive such as a conference, journal, or technical book. The determination of substantial\noverlap in the technical content will be made by the program committee chairs.",
+          "source_role": "document",
+          "source_message_indices": []
+        }
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 287,
+      "sequence": 286,
+      "call_index": 13,
+      "operation": "joint_read",
+      "response_ref": "d8af63a2e34a09b81a20cc511e91b60b779f43045cd17afcfbc6b0f7ef26678c",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7052959f948c4a4944d70346\",\n          \"stance\": \"support\",\n          \"value\": \"November 2002\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": [\"obligation_df0eeadc0bab14dbdf334294\"]\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7ac966b98b997234edc0cfdb\",\n          \"stance\": \"support\",\n          \"value\": \"Charleston, South Carolina\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"resolved_obligation_ids\": [\"obligation_416561bfd7e46233a0ab71ae\"]\n    }\n  ]\n}",
+      "input_tokens_local": 6987,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": []
+      },
+      "original_source_spans": [
+        [
+          "s96",
+          "d1",
+          0,
+          374,
+          "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "document",
+          []
+        ],
+        [
+          "s100",
+          "d1",
+          1472,
+          1626,
+          "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "document",
+          []
+        ],
+        [
+          "s102",
+          "d2",
+          348,
+          725,
+          "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "document",
+          []
+        ],
+        [
+          "s48",
+          "d3",
+          10185,
+          10349,
+          "ew\tteam\tthat\tactually\tconducts\tthe\treviews\tof\tthe\tpapers\tand\tassists\tthe\tPC\tCo-Chairs\tin\tdeciding\twhether\tto\taccept\tor\treject\ta\tpaper\tis\ta\tnon-trivial\tundertaking.\t",
+          "document",
+          []
+        ],
+        [
+          "s47",
+          "d3",
+          9785,
+          10185,
+          "n\t May\t SC\tmeeting\tto\tdiscuss\treview\treport\t(as\tneeded)\tn\t Aug\tor\tOct\t PC\tCo-Chairs\treview\treport\tfinalized\tand\tofficially\tpublished\ton\tthe\tICSE\tSC\tweb\tsite\tn\t Aug\tor\tOct\t Upload\tall\tused\tmaterials\t(standard\te-mails,\tslides,\treview\tprocess)\tto\tonline\tarchive\tfor\tfuture\tPC\tCo-Chairs\t\tCommon Challenge #1: Selecting the Review Team Irrespective\tof\tthe\treview\tprocess\tbeing\tfollowed,\tselecting\tthe\trevi",
+          "document",
+          []
+        ],
+        [
+          "s49",
+          "d3",
+          10349,
+          10714,
+          "Per\tthe\tMemorandum\tof\tUnderstanding\t\tand\tper\taccepted\tgood\tpractice,\tit\tis\timportant\tto\tstrive\tfor\ta\tbalance\tin\tcomposition\tof\tthe\treview\tteam,\ttopics\tcovered,\texpertise,\tuniversity\tand\tindustry\taffiliation,\tgeographic\tarea,\tseniority,\tand\tgender.\tIn\tthe\tpast,\teach\tset\tof\tPC\tCo-Chairs\thas\tgenerally\tdeveloped\tits\town\tapproach\tto\tperforming\tthis\tselection\tprocess.\t",
+          "document",
+          []
+        ],
+        [
+          "s50",
+          "d3",
+          10714,
+          10991,
+          "Yet,\tsome\ttips\tfrom\tprevious\tPC\tCo-Chairs\tinclude:\t• It\tis\ttypically\tuseful\tto\tdevelop\ta\tmatrix\tof\ttopics\tversus\tthe\tplanned\treview\tteam,\ttogether\twith\tanticipated\tnumber\tof\tpaper\tsubmissions\tin\teach\ttopic\t(based\ton\tprevious\tyears,\tadjusted\tper\tthe\tPC\tCo-Chairs\texpectations).\t",
+          "document",
+          []
+        ],
+        [
+          "s51",
+          "d3",
+          10991,
+          11299,
+          "This\tmatrix\tcan\thelp\tin\tmany\tways,\tfrom\tfinding\tout\twhich\thas\tover-capacity\tin\tsome\ttopic,\tto\tholes\tin\tcoverage,\tto\t–\tperhaps\tmost\timportantly\t–\tidentifying\tcandidate\treviewers\tduring\tthe\tpaper\tassignment\tprocess.\tExamples\tof\tthis\ttype\tof\tmatrix\tfrom\tprevious\tyears\tare\talso\tvaluable\tto\tfuture\tPC\tCo-Chairs.\t",
+          "document",
+          []
+        ],
+        [
+          "s52",
+          "d3",
+          11299,
+          11695,
+          "• Nearly\tevery\tyear,\tsome\ttopic\tsuddenly\tis\tmuch\tmore\tpopular\tthan\tin\tprevious\tyears,\tor\tsome\tnew\ttopic\temerges\tthat\tjust\twas\tnot\ton\tthe\tscene\tbefore.\tIt\tis\tdifficult\tto\tanticipate\tthese\tkinds\tof\tswings\tand\ttrends,\tthough\tto\tat\tleast\tthink\tabout\t‘what\tmight\tbe\tcoming’\ttends\tto\thelp\tin\tbuilding\tsome\tovercapcity\tin\tthe\treview\tteam.\t• Some\treviewers\tare\thighly\tspecialist,\tothers\tare\tgeneralists.\t",
+          "document",
+          []
+        ],
+        [
+          "s53",
+          "d3",
+          11695,
+          11951,
+          "It\tis\toften\tuseful\tto\tbalance\tthe\tpresence\tof\tthese\tkinds\tof\treviewers\tin\tthe\treview\tteam.\t• The\tmore\tpeople\tone\tcan\tselect\tone\ttrusts,\tthe\tbetter\toff\tone\tis.\tThis,\thowever,\tshould\tbe\tcarefully\tbalanced\twith\tthe\tneed\tto\tnot\tshow\t‘favoritism’\tor\t‘clubism’.\t",
+          "document",
+          []
+        ]
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "time_metadata": {}
+        },
+        "d3": {
+          "doc_id": "web-1e18d2763217bc6048b1fb68",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 300,
+      "sequence": 299,
+      "call_index": 14,
+      "operation": "joint_read_repair",
+      "response_ref": "60ff44fcf5685bb45a6a747d2cb2889881bb4ad020cd00c6a5b392d52d5ecb9e",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"reading_status\": \"evidence_assessment\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7052959f948c4a4944d70346\",\n          \"stance\": \"support\",\n          \"value\": \"November 2002\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time.\"\n        },\n        {\n          \"id\": \"s96_review_time\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s96\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s96 is a navigation page with a 'Last updated Jan 2026' timestamp for the overall page, not the agreement date of the duplicate submission statement. It provides no evidence about the agreement time.\"\n        },\n        {\n          \"id\": \"s100_review_time\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement time. It is irrelevant to establishing when the statement was agreed upon.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reviewed_observation_ids\": [\"fact_7052959f948c4a4944d70346\"],\n      \"resolved_obligation_ids\": [\"obligation_df0eeadc0bab14dbdf334294\"]\n    },\n    {\n      \"variable\": \"location\",\n      \"reading_status\": \"evidence_assessment\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7ac966b98b997234edc0cfdb\",\n          \"stance\": \"support\",\n          \"value\": \"Charleston, South Carolina\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location.\"\n        },\n        {\n          \"id\": \"s96_review_location\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s96\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s96 is a navigation page with no text about the agreement location of the duplicate submission statement. It is irrelevant.\"\n        },\n        {\n          \"id\": \"s100_review_location\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement location. It is irrelevant.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reviewed_observation_ids\": [\"fact_7ac966b98b997234edc0cfdb\"],\n      \"resolved_obligation_ids\": [\"obligation_416561bfd7e46233a0ab71ae\"]\n    }\n  ],\n  \"audit_verdict\": \"supported\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 9250,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": {
+        "failed": [
+          {
+            "variable": "location",
+            "id": "*",
+            "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+            "observation": null,
+            "obligation_review_sources": [
+              {
+                "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+                "required_source_ids": [
+                  "s100",
+                  "s96"
+                ],
+                "covered_source_ids": [
+                  "s102"
+                ],
+                "missing_source_ids": [
+                  "s100",
+                  "s96"
+                ]
+              }
+            ],
+            "slot": {
+              "variable": "location",
+              "observations": [
+                {
+                  "id": "fact_7ac966b98b997234edc0cfdb",
+                  "stance": "support",
+                  "value": "Charleston, South Carolina",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location."
+                }
+              ],
+              "unresolved": [],
+              "resolved_obligation_ids": [
+                "obligation_416561bfd7e46233a0ab71ae"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "fact_7ac966b98b997234edc0cfdb"
+              ],
+              "observations": []
+            }
+          },
+          {
+            "variable": "time",
+            "id": "*",
+            "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+            "observation": null,
+            "obligation_review_sources": [
+              {
+                "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+                "required_source_ids": [
+                  "s100",
+                  "s96"
+                ],
+                "covered_source_ids": [
+                  "s102"
+                ],
+                "missing_source_ids": [
+                  "s100",
+                  "s96"
+                ]
+              }
+            ],
+            "slot": {
+              "variable": "time",
+              "observations": [
+                {
+                  "id": "fact_7052959f948c4a4944d70346",
+                  "stance": "support",
+                  "value": "November 2002",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time."
+                }
+              ],
+              "unresolved": [],
+              "resolved_obligation_ids": [
+                "obligation_df0eeadc0bab14dbdf334294"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "fact_7052959f948c4a4944d70346"
+              ],
+              "observations": []
+            }
+          }
+        ],
+        "attempt": 1,
+        "previous_response_identity": "e6eac552606ce36c0e49bca0315a86d0cfa0dfbf95b3d4b1c03a37f383dcf1e0",
+        "frozen_observation_ids": {
+          "location": [
+            "fact_7ac966b98b997234edc0cfdb"
+          ],
+          "time": [
+            "fact_7052959f948c4a4944d70346"
+          ]
+        }
+      },
+      "web_repair_edit_scope": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "historical_marker_authorization_unchanged": true,
+        "slots": [
+          {
+            "variable": "time",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [],
+            "required_observation_ids": [],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "fact_7052959f948c4a4944d70346"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "location",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [],
+            "required_observation_ids": [],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "fact_7ac966b98b997234edc0cfdb"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          }
+        ]
+      },
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [
+          {
+            "variable": "location",
+            "id": "fact_7ac966b98b997234edc0cfdb",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          },
+          {
+            "variable": "time",
+            "id": "fact_7052959f948c4a4944d70346",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          }
+        ],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": [],
+        "invented_response_examples": {
+          "illustration_only_never_current_ids": true,
+          "assume": {
+            "sample_catalogue": "Sample catalogue: a link to a specification, with no attribute claim or ambiguity.",
+            "sample_specification": "The sample item has the requested attribute: blue.",
+            "offered_frozen_support": {
+              "id": "sample_fact",
+              "source_ids": [
+                "sample_specification"
+              ]
+            },
+            "offered_issue": {
+              "id": "sample_issue",
+              "source_ids": [
+                "sample_catalogue"
+              ]
+            }
+          },
+          "valid_only_if_original_really_irrelevant": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [
+              {
+                "id": "sample_catalogue_review",
+                "stance": "irrelevant",
+                "value": null,
+                "source_ids": [
+                  "sample_catalogue"
+                ],
+                "entity_scope": "sample item",
+                "time_scope": "sample scope",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "This original is only a navigation link, with no attribute claim or ambiguity."
+              }
+            ],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "invalid_missing_original_review": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "applicable_variables": [
+            "time",
+            "location"
+          ]
+        },
+        "empty_withdrawal_edit_scope": {
+          "read_only": true,
+          "condition": "no_new_admissible_observation",
+          "variables": [
+            "time",
+            "location"
+          ],
+          "reading_status": "no_relevant_evidence",
+          "empty_fields": [
+            "observations",
+            "unresolved"
+          ],
+          "omit_fields": [
+            "reviewed_observation_ids",
+            "resolved_obligation_ids",
+            "resolved_failed_batch_ids"
+          ],
+          "controller_evidence_and_issues_unchanged": true
+        }
+      },
+      "original_source_spans": [
+        [
+          "s96",
+          "d1",
+          0,
+          374,
+          "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "document",
+          []
+        ],
+        [
+          "s100",
+          "d1",
+          1472,
+          1626,
+          "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "document",
+          []
+        ],
+        [
+          "s102",
+          "d2",
+          348,
+          725,
+          "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "document",
+          []
+        ],
+        [
+          "s48",
+          "d3",
+          10185,
+          10349,
+          "ew\tteam\tthat\tactually\tconducts\tthe\treviews\tof\tthe\tpapers\tand\tassists\tthe\tPC\tCo-Chairs\tin\tdeciding\twhether\tto\taccept\tor\treject\ta\tpaper\tis\ta\tnon-trivial\tundertaking.\t",
+          "document",
+          []
+        ],
+        [
+          "s47",
+          "d3",
+          9785,
+          10185,
+          "n\t May\t SC\tmeeting\tto\tdiscuss\treview\treport\t(as\tneeded)\tn\t Aug\tor\tOct\t PC\tCo-Chairs\treview\treport\tfinalized\tand\tofficially\tpublished\ton\tthe\tICSE\tSC\tweb\tsite\tn\t Aug\tor\tOct\t Upload\tall\tused\tmaterials\t(standard\te-mails,\tslides,\treview\tprocess)\tto\tonline\tarchive\tfor\tfuture\tPC\tCo-Chairs\t\tCommon Challenge #1: Selecting the Review Team Irrespective\tof\tthe\treview\tprocess\tbeing\tfollowed,\tselecting\tthe\trevi",
+          "document",
+          []
+        ],
+        [
+          "s49",
+          "d3",
+          10349,
+          10714,
+          "Per\tthe\tMemorandum\tof\tUnderstanding\t\tand\tper\taccepted\tgood\tpractice,\tit\tis\timportant\tto\tstrive\tfor\ta\tbalance\tin\tcomposition\tof\tthe\treview\tteam,\ttopics\tcovered,\texpertise,\tuniversity\tand\tindustry\taffiliation,\tgeographic\tarea,\tseniority,\tand\tgender.\tIn\tthe\tpast,\teach\tset\tof\tPC\tCo-Chairs\thas\tgenerally\tdeveloped\tits\town\tapproach\tto\tperforming\tthis\tselection\tprocess.\t",
+          "document",
+          []
+        ],
+        [
+          "s50",
+          "d3",
+          10714,
+          10991,
+          "Yet,\tsome\ttips\tfrom\tprevious\tPC\tCo-Chairs\tinclude:\t• It\tis\ttypically\tuseful\tto\tdevelop\ta\tmatrix\tof\ttopics\tversus\tthe\tplanned\treview\tteam,\ttogether\twith\tanticipated\tnumber\tof\tpaper\tsubmissions\tin\teach\ttopic\t(based\ton\tprevious\tyears,\tadjusted\tper\tthe\tPC\tCo-Chairs\texpectations).\t",
+          "document",
+          []
+        ],
+        [
+          "s51",
+          "d3",
+          10991,
+          11299,
+          "This\tmatrix\tcan\thelp\tin\tmany\tways,\tfrom\tfinding\tout\twhich\thas\tover-capacity\tin\tsome\ttopic,\tto\tholes\tin\tcoverage,\tto\t–\tperhaps\tmost\timportantly\t–\tidentifying\tcandidate\treviewers\tduring\tthe\tpaper\tassignment\tprocess.\tExamples\tof\tthis\ttype\tof\tmatrix\tfrom\tprevious\tyears\tare\talso\tvaluable\tto\tfuture\tPC\tCo-Chairs.\t",
+          "document",
+          []
+        ],
+        [
+          "s52",
+          "d3",
+          11299,
+          11695,
+          "• Nearly\tevery\tyear,\tsome\ttopic\tsuddenly\tis\tmuch\tmore\tpopular\tthan\tin\tprevious\tyears,\tor\tsome\tnew\ttopic\temerges\tthat\tjust\twas\tnot\ton\tthe\tscene\tbefore.\tIt\tis\tdifficult\tto\tanticipate\tthese\tkinds\tof\tswings\tand\ttrends,\tthough\tto\tat\tleast\tthink\tabout\t‘what\tmight\tbe\tcoming’\ttends\tto\thelp\tin\tbuilding\tsome\tovercapcity\tin\tthe\treview\tteam.\t• Some\treviewers\tare\thighly\tspecialist,\tothers\tare\tgeneralists.\t",
+          "document",
+          []
+        ],
+        [
+          "s53",
+          "d3",
+          11695,
+          11951,
+          "It\tis\toften\tuseful\tto\tbalance\tthe\tpresence\tof\tthese\tkinds\tof\treviewers\tin\tthe\treview\tteam.\t• The\tmore\tpeople\tone\tcan\tselect\tone\ttrusts,\tthe\tbetter\toff\tone\tis.\tThis,\thowever,\tshould\tbe\tcarefully\tbalanced\twith\tthe\tneed\tto\tnot\tshow\t‘favoritism’\tor\t‘clubism’.\t",
+          "document",
+          []
+        ]
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "time_metadata": {}
+        },
+        "d3": {
+          "doc_id": "web-1e18d2763217bc6048b1fb68",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 312,
+      "sequence": 311,
+      "call_index": 15,
+      "operation": "joint_read_repair",
+      "response_ref": "ed94db68fb3fb04ae712e42aa775e4a9984ce65252a1841831da97781cf862d8",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"s100_review_time\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement time. It is irrelevant to establishing when the statement was agreed upon.\"\n        },\n        {\n          \"id\": \"s96_review_time\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s96\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s96 is a navigation page with a 'Last updated Jan 2026' timestamp for the overall page, not the agreement date of the duplicate submission statement. It provides no evidence about the agreement time.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"reviewed_observation_ids\": [\"fact_7052959f948c4a4944d70346\"],\n      \"resolved_obligation_ids\": [\"obligation_df0eeadc0bab14dbdf334294\"]\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"s100_review_location\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s100\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement location. It is irrelevant.\"\n        },\n        {\n          \"id\": \"s96_review_location\",\n          \"stance\": \"irrelevant\",\n          \"value\": null,\n          \"source_ids\": [\"s96\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s96 is a navigation page with no text about the agreement location of the duplicate submission statement. It is irrelevant.\"\n        }\n      ],\n      \"unresolved\": [],\n      \"reading_status\": \"evidence_assessment\",\n      \"reviewed_observation_ids\": [\"fact_7ac966b98b997234edc0cfdb\"],\n      \"resolved_obligation_ids\": [\"obligation_416561bfd7e46233a0ab71ae\"]\n    }\n  ],\n  \"audit_verdict\": \"supported\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 9982,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": [
+        {
+          "id": "obligation_df0eeadc0bab14dbdf334294",
+          "variable": "time",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. The page has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. The page itself has a 'Last updated Jan 2026' timestamp (s96), but this applies to the overall page, not specifically to the agreement date of the duplicate submission statement. No explicit text within the provided spans establishes when the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        },
+        {
+          "id": "obligation_416561bfd7e46233a0ab71ae",
+          "variable": "location",
+          "entity_scope": "ICSE duplicate submission statement",
+          "time_scope": "agreement",
+          "source_ids": [
+            "s100",
+            "s96"
+          ],
+          "descriptions": [
+            "The provided text spans (s96, s100) only list 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon.",
+            "The source document lists 'ICSE Duplicate Submission Statement' as a linked document on the ICSE organizational page, but the provided text spans do not include the content of that statement. No explicit text within the provided spans establishes where the ICSE duplicate submission statement was agreed upon."
+          ],
+          "origins": [
+            "58af4a08b470aef7c767e6891f2a01ed18333e498c2dd67c00b4698f4a76e4fe"
+          ]
+        }
+      ],
+      "repair_scope": {
+        "failed": [
+          {
+            "variable": "location",
+            "id": "*",
+            "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+            "observation": null,
+            "slot": {
+              "variable": "location",
+              "observations": [
+                {
+                  "id": "fact_7ac966b98b997234edc0cfdb",
+                  "stance": "support",
+                  "value": "Charleston, South Carolina",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location."
+                },
+                {
+                  "id": "s96_review_location",
+                  "stance": "irrelevant",
+                  "value": null,
+                  "source_ids": [
+                    "s96"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s96 is a navigation page with no text about the agreement location of the duplicate submission statement. It is irrelevant."
+                },
+                {
+                  "id": "s100_review_location",
+                  "stance": "irrelevant",
+                  "value": null,
+                  "source_ids": [
+                    "s100"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement location. It is irrelevant."
+                }
+              ],
+              "unresolved": [],
+              "reviewed_observation_ids": [
+                "fact_7ac966b98b997234edc0cfdb"
+              ],
+              "resolved_obligation_ids": [
+                "obligation_416561bfd7e46233a0ab71ae"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "fact_7ac966b98b997234edc0cfdb"
+              ],
+              "observations": []
+            }
+          },
+          {
+            "variable": "location",
+            "id": "s100_review_location",
+            "feedback": "Observed draft has not been validated",
+            "observation": {
+              "id": "s100_review_location",
+              "stance": "irrelevant",
+              "value": null,
+              "source_ids": [
+                "s100"
+              ],
+              "entity_scope": "ICSE duplicate submission statement",
+              "time_scope": "agreement",
+              "parent_versions": {},
+              "retract_ids": [],
+              "reason": "Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement location. It is irrelevant."
+            }
+          },
+          {
+            "variable": "location",
+            "id": "s96_review_location",
+            "feedback": "Observed draft has not been validated",
+            "observation": {
+              "id": "s96_review_location",
+              "stance": "irrelevant",
+              "value": null,
+              "source_ids": [
+                "s96"
+              ],
+              "entity_scope": "ICSE duplicate submission statement",
+              "time_scope": "agreement",
+              "parent_versions": {},
+              "retract_ids": [],
+              "reason": "Source s96 is a navigation page with no text about the agreement location of the duplicate submission statement. It is irrelevant."
+            }
+          },
+          {
+            "variable": "time",
+            "id": "*",
+            "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+            "observation": null,
+            "slot": {
+              "variable": "time",
+              "observations": [
+                {
+                  "id": "fact_7052959f948c4a4944d70346",
+                  "stance": "support",
+                  "value": "November 2002",
+                  "source_ids": [
+                    "s102"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time."
+                },
+                {
+                  "id": "s96_review_time",
+                  "stance": "irrelevant",
+                  "value": null,
+                  "source_ids": [
+                    "s96"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s96 is a navigation page with a 'Last updated Jan 2026' timestamp for the overall page, not the agreement date of the duplicate submission statement. It provides no evidence about the agreement time."
+                },
+                {
+                  "id": "s100_review_time",
+                  "stance": "irrelevant",
+                  "value": null,
+                  "source_ids": [
+                    "s100"
+                  ],
+                  "entity_scope": "ICSE duplicate submission statement",
+                  "time_scope": "agreement",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement time. It is irrelevant to establishing when the statement was agreed upon."
+                }
+              ],
+              "unresolved": [],
+              "reviewed_observation_ids": [
+                "fact_7052959f948c4a4944d70346"
+              ],
+              "resolved_obligation_ids": [
+                "obligation_df0eeadc0bab14dbdf334294"
+              ]
+            },
+            "frozen_observation_reviews": {
+              "slot_observation_ids": [
+                "fact_7052959f948c4a4944d70346"
+              ],
+              "observations": []
+            }
+          },
+          {
+            "variable": "time",
+            "id": "s100_review_time",
+            "feedback": "Observed draft has not been validated",
+            "observation": {
+              "id": "s100_review_time",
+              "stance": "irrelevant",
+              "value": null,
+              "source_ids": [
+                "s100"
+              ],
+              "entity_scope": "ICSE duplicate submission statement",
+              "time_scope": "agreement",
+              "parent_versions": {},
+              "retract_ids": [],
+              "reason": "Source s100 is a list of links including 'ICSE Duplicate Submission Statement', but provides no text about the agreement time. It is irrelevant to establishing when the statement was agreed upon."
+            }
+          },
+          {
+            "variable": "time",
+            "id": "s96_review_time",
+            "feedback": "Observed draft has not been validated",
+            "observation": {
+              "id": "s96_review_time",
+              "stance": "irrelevant",
+              "value": null,
+              "source_ids": [
+                "s96"
+              ],
+              "entity_scope": "ICSE duplicate submission statement",
+              "time_scope": "agreement",
+              "parent_versions": {},
+              "retract_ids": [],
+              "reason": "Source s96 is a navigation page with a 'Last updated Jan 2026' timestamp for the overall page, not the agreement date of the duplicate submission statement. It provides no evidence about the agreement time."
+            }
+          }
+        ],
+        "attempt": 2,
+        "previous_response_identity": "bb4051caab2294283a488f1db10e3db10f0e5fcb37cc262334b2a0a082985f3f",
+        "frozen_observation_ids": {
+          "location": [
+            "fact_7ac966b98b997234edc0cfdb"
+          ],
+          "time": [
+            "fact_7052959f948c4a4944d70346"
+          ]
+        }
+      },
+      "web_repair_edit_scope": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "historical_marker_authorization_unchanged": true,
+        "slots": [
+          {
+            "variable": "time",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "s100_review_time",
+              "s96_review_time"
+            ],
+            "required_observation_ids": [
+              "s100_review_time",
+              "s96_review_time"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "fact_7052959f948c4a4944d70346"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "location",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "s100_review_location",
+              "s96_review_location"
+            ],
+            "required_observation_ids": [
+              "s100_review_location",
+              "s96_review_location"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [
+              "fact_7ac966b98b997234edc0cfdb"
+            ],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          }
+        ]
+      },
+      "web_review_checklist": {
+        "evidence_semantics": "bookkeeping_not_facts",
+        "grants_review_authority": false,
+        "offered_frozen_observations": [
+          {
+            "variable": "location",
+            "id": "fact_7ac966b98b997234edc0cfdb",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          },
+          {
+            "variable": "time",
+            "id": "fact_7052959f948c4a4944d70346",
+            "stance": "support",
+            "source_ids": [
+              "s102"
+            ],
+            "can_contribute_to_settled_source_coverage": true
+          }
+        ],
+        "frozen_ids_without_reference_permission": [],
+        "obligations": [
+          {
+            "obligation_id": "obligation_df0eeadc0bab14dbdf334294",
+            "variable": "time",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          },
+          {
+            "obligation_id": "obligation_416561bfd7e46233a0ab71ae",
+            "variable": "location",
+            "required_original_source_ids": [
+              "s100",
+              "s96"
+            ],
+            "source_ids_covered_only_if_frozen_rows_explicitly_referenced": [],
+            "sources_requiring_new_model_review": [
+              "s100",
+              "s96"
+            ],
+            "new_review_required_only_if_settlement_claimed": true,
+            "settlement_still_requires_valid_sourced_review_and_explicit_claim": true
+          }
+        ],
+        "claimable_failed_batch_ids": [],
+        "blocked_failed_batch_ids": [],
+        "invented_response_examples": {
+          "illustration_only_never_current_ids": true,
+          "assume": {
+            "sample_catalogue": "Sample catalogue: a link to a specification, with no attribute claim or ambiguity.",
+            "sample_specification": "The sample item has the requested attribute: blue.",
+            "offered_frozen_support": {
+              "id": "sample_fact",
+              "source_ids": [
+                "sample_specification"
+              ]
+            },
+            "offered_issue": {
+              "id": "sample_issue",
+              "source_ids": [
+                "sample_catalogue"
+              ]
+            }
+          },
+          "valid_only_if_original_really_irrelevant": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [
+              {
+                "id": "sample_catalogue_review",
+                "stance": "irrelevant",
+                "value": null,
+                "source_ids": [
+                  "sample_catalogue"
+                ],
+                "entity_scope": "sample item",
+                "time_scope": "sample scope",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "This original is only a navigation link, with no attribute claim or ambiguity."
+              }
+            ],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "invalid_missing_original_review": {
+            "variable": "sample_attribute",
+            "reading_status": "evidence_assessment",
+            "observations": [],
+            "unresolved": [],
+            "reviewed_observation_ids": [
+              "sample_fact"
+            ],
+            "resolved_obligation_ids": [
+              "sample_issue"
+            ]
+          },
+          "applicable_variables": [
+            "time",
+            "location"
+          ]
+        }
+      },
+      "original_source_spans": [
+        [
+          "s96",
+          "d1",
+          0,
+          374,
+          "Organizing ICSE\nOrganizing ICSE\nICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTEE\nICSE SC Documents\nSPONSORS\nCONTACTS\nLast updated\nJan 2026\nORGANIZING ICSE\nFor over forty years, the International Conference on Software\nEngineering (ICSE) has\n",
+          "document",
+          []
+        ],
+        [
+          "s100",
+          "d1",
+          1472,
+          1626,
+          "Letters of Interest to Host ICSE 2030 (1 page pdf document)\nOther useful documents:\nICSE Duplicate Submission\nStatement\nICSE Awards and Plaques (PDF, PPT)",
+          "document",
+          []
+        ],
+        [
+          "s102",
+          "d2",
+          348,
+          725,
+          "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "document",
+          []
+        ],
+        [
+          "s48",
+          "d3",
+          10185,
+          10349,
+          "ew\tteam\tthat\tactually\tconducts\tthe\treviews\tof\tthe\tpapers\tand\tassists\tthe\tPC\tCo-Chairs\tin\tdeciding\twhether\tto\taccept\tor\treject\ta\tpaper\tis\ta\tnon-trivial\tundertaking.\t",
+          "document",
+          []
+        ],
+        [
+          "s47",
+          "d3",
+          9785,
+          10185,
+          "n\t May\t SC\tmeeting\tto\tdiscuss\treview\treport\t(as\tneeded)\tn\t Aug\tor\tOct\t PC\tCo-Chairs\treview\treport\tfinalized\tand\tofficially\tpublished\ton\tthe\tICSE\tSC\tweb\tsite\tn\t Aug\tor\tOct\t Upload\tall\tused\tmaterials\t(standard\te-mails,\tslides,\treview\tprocess)\tto\tonline\tarchive\tfor\tfuture\tPC\tCo-Chairs\t\tCommon Challenge #1: Selecting the Review Team Irrespective\tof\tthe\treview\tprocess\tbeing\tfollowed,\tselecting\tthe\trevi",
+          "document",
+          []
+        ],
+        [
+          "s49",
+          "d3",
+          10349,
+          10714,
+          "Per\tthe\tMemorandum\tof\tUnderstanding\t\tand\tper\taccepted\tgood\tpractice,\tit\tis\timportant\tto\tstrive\tfor\ta\tbalance\tin\tcomposition\tof\tthe\treview\tteam,\ttopics\tcovered,\texpertise,\tuniversity\tand\tindustry\taffiliation,\tgeographic\tarea,\tseniority,\tand\tgender.\tIn\tthe\tpast,\teach\tset\tof\tPC\tCo-Chairs\thas\tgenerally\tdeveloped\tits\town\tapproach\tto\tperforming\tthis\tselection\tprocess.\t",
+          "document",
+          []
+        ],
+        [
+          "s50",
+          "d3",
+          10714,
+          10991,
+          "Yet,\tsome\ttips\tfrom\tprevious\tPC\tCo-Chairs\tinclude:\t• It\tis\ttypically\tuseful\tto\tdevelop\ta\tmatrix\tof\ttopics\tversus\tthe\tplanned\treview\tteam,\ttogether\twith\tanticipated\tnumber\tof\tpaper\tsubmissions\tin\teach\ttopic\t(based\ton\tprevious\tyears,\tadjusted\tper\tthe\tPC\tCo-Chairs\texpectations).\t",
+          "document",
+          []
+        ],
+        [
+          "s51",
+          "d3",
+          10991,
+          11299,
+          "This\tmatrix\tcan\thelp\tin\tmany\tways,\tfrom\tfinding\tout\twhich\thas\tover-capacity\tin\tsome\ttopic,\tto\tholes\tin\tcoverage,\tto\t–\tperhaps\tmost\timportantly\t–\tidentifying\tcandidate\treviewers\tduring\tthe\tpaper\tassignment\tprocess.\tExamples\tof\tthis\ttype\tof\tmatrix\tfrom\tprevious\tyears\tare\talso\tvaluable\tto\tfuture\tPC\tCo-Chairs.\t",
+          "document",
+          []
+        ],
+        [
+          "s52",
+          "d3",
+          11299,
+          11695,
+          "• Nearly\tevery\tyear,\tsome\ttopic\tsuddenly\tis\tmuch\tmore\tpopular\tthan\tin\tprevious\tyears,\tor\tsome\tnew\ttopic\temerges\tthat\tjust\twas\tnot\ton\tthe\tscene\tbefore.\tIt\tis\tdifficult\tto\tanticipate\tthese\tkinds\tof\tswings\tand\ttrends,\tthough\tto\tat\tleast\tthink\tabout\t‘what\tmight\tbe\tcoming’\ttends\tto\thelp\tin\tbuilding\tsome\tovercapcity\tin\tthe\treview\tteam.\t• Some\treviewers\tare\thighly\tspecialist,\tothers\tare\tgeneralists.\t",
+          "document",
+          []
+        ],
+        [
+          "s53",
+          "d3",
+          11695,
+          11951,
+          "It\tis\toften\tuseful\tto\tbalance\tthe\tpresence\tof\tthese\tkinds\tof\treviewers\tin\tthe\treview\tteam.\t• The\tmore\tpeople\tone\tcan\tselect\tone\ttrusts,\tthe\tbetter\toff\tone\tis.\tThis,\thowever,\tshould\tbe\tcarefully\tbalanced\twith\tthe\tneed\tto\tnot\tshow\t‘favoritism’\tor\t‘clubism’.\t",
+          "document",
+          []
+        ]
+      ],
+      "source_documents": {
+        "d1": {
+          "doc_id": "web-e0b7139eeb6bd0c5f93e87be",
+          "time_metadata": {}
+        },
+        "d2": {
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "time_metadata": {}
+        },
+        "d3": {
+          "doc_id": "web-1e18d2763217bc6048b1fb68",
+          "time_metadata": {}
+        }
+      }
+    },
+    {
+      "event_line": 329,
+      "sequence": 328,
+      "call_index": 16,
+      "operation": "audit_joint",
+      "response_ref": "b1f02f00c34e9fb48717d12d306e21a241c149681a54ca73a0cc57ecc996db06",
+      "raw_output": "{\n  \"slots\": [\n    {\n      \"variable\": \"time\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7052959f948c4a4944d70346\",\n          \"stance\": \"support\",\n          \"value\": \"November 2002\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement time.\"\n        }\n      ],\n      \"unresolved\": []\n    },\n    {\n      \"variable\": \"location\",\n      \"observations\": [\n        {\n          \"id\": \"fact_7ac966b98b997234edc0cfdb\",\n          \"stance\": \"support\",\n          \"value\": \"Charleston, South Carolina\",\n          \"source_ids\": [\"s102\"],\n          \"entity_scope\": \"ICSE duplicate submission statement\",\n          \"time_scope\": \"agreement\",\n          \"parent_versions\": {},\n          \"retract_ids\": [],\n          \"reason\": \"Source s102 explicitly states: 'the statement about duplicate submissions that was agreed to at the ICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002.' This directly provides the agreement location.\"\n        }\n      ],\n      \"unresolved\": []\n    }\n  ],\n  \"audit_verdict\": \"supported\",\n  \"final_prediction\": null,\n  \"semantic_answer\": null\n}",
+      "input_tokens_local": 3531,
+      "requested_slots": [
+        "time",
+        "location"
+      ],
+      "evidence_obligations": null,
+      "repair_scope": null,
+      "web_repair_edit_scope": null,
+      "web_review_checklist": null,
+      "original_source_spans": [
+        {
+          "id": "s102",
+          "doc_id": "web-7011649fa562f8a75845bdb3",
+          "start": 348,
+          "end": 725,
+          "text": "Below is the statement about duplicate submissions that was agreed to at the\nICSE steering committee held in Charleston, South Carolina at FSE-10 in November 2002. It is\nhighly recommend that this statement be included in the CFP and on the web page of all\nfuture ICSE conferences.\nDuplicate Submissions\nA paper submitted to an International Conference on Software Engineering\n",
+          "source_role": "document",
+          "source_message_indices": [],
+          "time_metadata": {}
+        }
+      ],
+      "source_documents": null
+    }
+  ],
+  "limitations": [
+    "This is a new baseline generation record, not the old v13 trial.",
+    "No evaluation, reference answers or golden paths were read.",
+    "Final source support is inspected only as runtime evidence; this file does not contain reference-judge results."
+  ]
+}

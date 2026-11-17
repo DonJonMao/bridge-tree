@@ -1,0 +1,52 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:53228/v1/chat/completions",
+  "payload": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Fixed protocol request"
+      }
+    ],
+    "max_tokens": 10,
+    "model": "unused-fixture-reader",
+    "temperature": 0,
+    "top_p": 1,
+    "seed": 20260918
+  },
+  "stage": [
+    "resolve",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498167.536899,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    },
+    {
+      "started_unix": 1790498167.540436,
+      "retry_index": 2,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1790498167.543251
+    }
+  ],
+  "response": {
+    "choices": [
+      {
+        "message": {
+          "content": "{}"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 10,
+      "completion_tokens": 2
+    }
+  }
+}

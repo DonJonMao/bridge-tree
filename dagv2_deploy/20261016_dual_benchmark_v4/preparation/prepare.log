@@ -1,0 +1,54 @@
+{"event": "query_projection_start", "shard": "data/test-00000-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00000-of-00006.parquet", "questions": 139, "transferred_bytes": 183330}
+{"event": "query_projection_start", "shard": "data/test-00001-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00001-of-00006.parquet", "questions": 139, "transferred_bytes": 190204}
+{"event": "query_projection_start", "shard": "data/test-00002-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00002-of-00006.parquet", "questions": 138, "transferred_bytes": 187226}
+{"event": "query_projection_start", "shard": "data/test-00003-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00003-of-00006.parquet", "questions": 138, "transferred_bytes": 180807}
+{"event": "query_projection_start", "shard": "data/test-00004-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00004-of-00006.parquet", "questions": 138, "transferred_bytes": 189609}
+{"event": "query_projection_start", "shard": "data/test-00005-of-00006.parquet"}
+{"event": "query_projection_prepared", "shard": "data/test-00005-of-00006.parquet", "questions": 138, "transferred_bytes": 191499}
+{"event": "download_start", "repository": "Tevatron/browsecomp-plus-corpus", "shard": "data/train-00000-of-00007.parquet", "total_bytes": 218510750}
+{"event": "download_start", "repository": "Tevatron/browsecomp-plus-corpus", "shard": "data/train-00001-of-00007.parquet", "total_bytes": 271758203}
+{"event": "download_start", "repository": "Tevatron/browsecomp-plus-corpus", "shard": "data/train-00002-of-00007.parquet", "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 33554432, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00000-of-00007.parquet", "bytes": 51380224, "total_bytes": 218510750}
+{"event": "download_progress", "shard": "data/train-00001-of-00007.parquet", "bytes": 33554432, "total_bytes": 271758203}
+{"event": "download_progress", "shard": "data/train-00000-of-00007.parquet", "bytes": 84934656, "total_bytes": 218510750}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 67108864, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00001-of-00007.parquet", "bytes": 67108864, "total_bytes": 271758203}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 100663296, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00000-of-00007.parquet", "bytes": 118489088, "total_bytes": 218510750}
+{"event": "download_progress", "shard": "data/train-00001-of-00007.parquet", "bytes": 100663296, "total_bytes": 271758203}
+{"event": "download_progress", "shard": "data/train-00000-of-00007.parquet", "bytes": 152043520, "total_bytes": 218510750}
+{"event": "download_progress", "shard": "data/train-00001-of-00007.parquet", "bytes": 134217728, "total_bytes": 271758203}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 134217728, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00000-of-00007.parquet", "bytes": 185597952, "total_bytes": 218510750}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 167772160, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 201326592, "total_bytes": 257605847}
+{"event": "download_progress", "shard": "data/train-00002-of-00007.parquet", "bytes": 234881024, "total_bytes": 257605847}
+Traceback (most recent call last):
+  File "/Users/mao/projects/dagv2-webwalker-v4/scripts/prepare_browsecomp_plus.py", line 286, in <module>
+    
+  File "/Users/mao/projects/dagv2-webwalker-v4/scripts/prepare_browsecomp_plus.py", line 276, in main
+    documents = records('Tevatron/browsecomp-plus-corpus', CORPUS_REVISION, 'train-', CORPUS_SHAS,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/browsecomp_data.py", line 182, in prepare
+    for document in documents:
+  File "/Users/mao/projects/dagv2-webwalker-v4/scripts/prepare_browsecomp_plus.py", line 232, in records
+    enumerate(entries[:download_workers])}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/scripts/prepare_browsecomp_plus.py", line 106, in download
+    next_notice += 32 * 1024 ** 2
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Downloaded official shard failed size/SHA256 verification

@@ -1,0 +1,107 @@
+........................................................................ [ 16%]
+.........................F.............................................. [ 33%]
+........................................................................ [ 50%]
+........................................................................ [ 66%]
+........................................................................ [ 83%]
+........................................................................ [100%]
+=================================== FAILURES ===================================
+__________________ test_map_context_boundary_can_fit_exactly ___________________
+
+    def test_map_context_boundary_can_fit_exactly():
+>       result = resolve({'fusion': {'map_batch_tokens': 12280}})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_config.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = {'fusion': {'map_batch_tokens': 12280}}, method = 'fusion'
+
+    def resolve(config, method='fusion'):
+        if method not in METHODS:
+            raise ValueError(f'Unknown fusion method: {method}')
+        if not isinstance(config, Mapping) or not isinstance(config.get('fusion', {}), Mapping):
+            raise ValueError('Configuration and fusion settings must be mappings')
+        supplied = config.get('fusion', {})
+        unknown = set(supplied) - set(DEFAULTS)
+        if unknown:
+            raise ValueError('Unknown fusion settings: ' + ', '.join(sorted(map(str, unknown))))
+        result = {**deepcopy(DEFAULTS), **deepcopy(dict(supplied)), **METHODS[method]}
+        for name in ('ann_calls','set_score_calls','llm_calls','reader_calls','context_tokens',
+                     'map_batch_tokens','reasoning_output_tokens','reader_output_tokens',
+                     'max_initial_nodes','max_alternatives','max_enumeration_states',
+                     'initial_width','proposal_width','max_quote_chars'):
+            if not isinstance(result[name], int) or isinstance(result[name], bool) or result[name] < 1:
+                raise ValueError(f'{name} must be positive integer')
+        for name in ('reserved_gap_ann_calls','reserved_audit_calls','max_refinement_nodes',
+                     'max_feedback_rounds','json_repairs','max_repairs_per_request','input_margin','pair_rescue_width'):
+            if not isinstance(result[name], int) or isinstance(result[name], bool) or result[name] < 0:
+                raise ValueError(f'{name} must be nonnegative integer')
+        for name in ('condition_audit','allow_alternatives','invalidation','refinement','reader_chain','navigation_closure'):
+            if not isinstance(result[name], bool):
+                raise ValueError(f'{name} must be boolean')
+        if result['selection'] not in ('dependency','flat') or result['retrieval'] not in ('bridge','dense'):
+            raise ValueError('selection must be dependency/flat and retrieval must be bridge/dense')
+        if result['response_format'] not in ('plain', 'json_object', 'json_schema'):
+            raise ValueError('response_format must be plain/json_object/json_schema')
+        if result['navigation_closure'] and result['selection'] != 'dependency':
+            raise ValueError('navigation_closure requires dependency selection; flat-navigation combination is undefined')
+        if result['proxy_mode'] not in ('activation','none'):
+            raise ValueError('proxy_mode must be activation or none')
+        if not isinstance(result['search'], Mapping):
+            raise ValueError('search must be a mapping of EvidenceSearchConfig settings')
+        if result['search']:
+            # Reuse the actual vendored search contract rather than maintaining a
+            # second validator that could drift from its scheduling implementation.
+            from vendor.bridgetree.evidence_config import EvidenceSearchConfig
+            try:
+                EvidenceSearchConfig(**dict(result['search']))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f'Invalid Evidence BridgeTree search settings: {exc}') from exc
+        result['search'] = deepcopy(dict(result['search']))
+        if result['max_initial_nodes'] > 6 or result['max_refinement_nodes'] > 2:
+            raise ValueError('Initial/refinement nodes exceed the audited 6+2 finite graph')
+        if result['max_alternatives'] > 2:
+            raise ValueError('At most two support alternatives per node')
+        if result['reserved_gap_ann_calls'] >= result['ann_calls']:
+            raise ValueError('ANN gap reservation leaves no discovery budget')
+        final_calls = result['reserved_audit_calls'] + int(result['selection'] == 'flat')
+        if final_calls >= result['llm_calls']:
+            raise ValueError('LLM audit/selection reservation leaves no reasoning budget')
+        if result['reasoning_output_tokens'] + result['input_margin'] + 8 >= result['context_tokens']:
+            raise ValueError('Reasoning output reserve leaves no input context')
+        if result['reader_output_tokens'] + 8 >= result['context_tokens']:
+            raise ValueError('Reader output reserve leaves no input context')
+        if result['map_batch_tokens'] + result['reasoning_output_tokens'] + result['input_margin'] + 8 > result['context_tokens']:
+>           raise ValueError('Map batch plus reasoning output reserve exceeds context_tokens')
+E           ValueError: Map batch plus reasoning output reserve exceeds context_tokens
+
+dagbt/config.py:95: ValueError
+=============================== warnings summary ===============================
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_config.py::test_map_context_boundary_can_fit_exactly - Valu...
+1 failed, 431 passed, 6 warnings in 39.41s

@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1947\", \"source_id\": \"hotpotqa:1947\"}]\nIn the Bedroom\nIn the Bedroom is a 2001 American crime drama film directed by Todd Field, and dedicated to Andre Dubus, whose short story \"Killings\" is the source material on which the screenplay, by Field and Robert Festinger, is based. The film stars Tom Wilkinson, Sissy Spacek, Nick Stahl, Marisa Tomei, and William Mapother.\n\n[Passage {\"doc_id\": \"hotpotqa:5994\", \"source_id\": \"hotpotqa:5994\"}]\nAmy Madigan\nAmy Marie Madigan (born September 11, 1950) is an American actress, producer, and singer. She was nominated for the Academy Award for Best Supporting Actress for the 1985 film \"Twice in a Lifetime\". Her other film credits include \"Love Child\" (1982), \"Places in the Heart\" (1984), \"Field of Dreams\" (1989), \"Uncle Buck\" (1989), \"The Dark Half\" (1993), \"Pollock\" (2000), and \"Gone Baby Gone\" (2007). Madigan won the Golden Globe Award for Best Supporting Actress on Television and was nominated for the Primetime Emmy Award for Outstanding Lead Actress in a Miniseries or a Movie for her portrayal of Sarah Weddington in the 1989 television film \"Roe vs. Wade\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "230",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599281.086997,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599282.1254752
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0008537632995734943
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 862,
+      "completion_tokens": 2,
+      "total_tokens": 864
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

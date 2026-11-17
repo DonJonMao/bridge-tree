@@ -1,0 +1,1429 @@
+KG-CRAFT: Knowledge Graph-based Contrastive Reasoning with LLMs
+            for Enhancing Automated Fact-checking
+
+                          Vítor N. Lourenço1,2 , Aline Paes1 , Tillman Weyde3 ,
+                                 Audrey Depeige2 , Mohnish Dubey2
+    1
+        Universidade Federal Fluminense, 2 Amazon, 3 City St George’s, University of London
+                             Correspondence: vitorlourenco@id.uff.br, vitornl@amazon.co.uk
+
+
+
+                       Abstract                                gence of Automated Fact-Checking (AFC) sys-
+                                                               tems (Zhou and Zafarani, 2020; Alam et al., 2022;
+    Claim verification is a core component of au-
+                                                               Guo et al., 2021; Eldifrawi et al., 2024).
+    tomated fact-checking systems, aimed at de-
+    termining the truthfulness of a statement by               AFC is designed to assess the veracity of claims
+    assessing it against reliable evidence sources             by retrieving, analysing, and reasoning over rel-
+    such as documents or knowledge bases. This
+                                                               evant evidence from reliable sources (Wu et al.,
+    work presents KG-CRAFT, a method that im-
+    proves automatic claim verification by leverag-            2025). Early approaches relied on classification
+    ing large language models (LLMs) augmented                 and evidence retrieval pipelines (Shu et al., 2019;
+    with contrastive questions grounded in a knowl-            Kotonya and Toni, 2020; Atanasova et al., 2020).
+    edge graph. KG-CRAFT first constructs a                    Whilst the integration of relational structures and
+    knowledge graph from claims and associated                 knowledge bases (Lourenço and Paes, 2022; White-
+    reports, then formulates contextually relevant             house et al., 2022; Lourenço et al., 2025; Huang
+    contrastive questions based on the knowledge               et al., 2025; Chen et al., 2025), and hierarchical
+    graph structure. These questions guide the
+    distillation of evidence-based reports, which
+                                                               architectures (Yang et al., 2022) improved perfor-
+    are synthesised into a concise summary that                mance, these methods lacked the scalability and
+    is used for veracity assessment by LLMs. Ex-               adaptability that LLMs later demonstrated. Recent
+    tensive evaluations on two real-world datasets             LLM-based approaches have achieved significant
+    (LIAR-RAW and RAWFC) demonstrate that                      advances in AFC through the integration of ex-
+    our method achieves a new state-of-the-art in              ternal knowledge (Cheung and Lam, 2023; Guo
+    predictive performance. Comprehensive anal-                et al., 2023) and the introduction of retrieval mech-
+    yses validate in detail the effectiveness of our
+                                                               anisms (Singal et al., 2024; Zhang and Gao, 2024;
+    knowledge graph-based contrastive reasoning
+    approach in improving LLMs’ fact-checking                  Yue et al., 2024). However, these solutions often
+    capabilities.                                              lack structured reasoning mechanisms (Liu et al.,
+                                                               2024), which can lead to unreliable verification
+1   Introduction                                               processes. Contrastive reasoning (Jacovi et al.,
+                                                               2021; Paranjape et al., 2021) has demonstrated
+The digital transformation has reshaped how so-                effectiveness in enhancing model interpretability
+ciety consumes and shares information, posing                  and decision-making, yet its application to fact-
+new challenges to information integrity (Haider                checking remains underexplored.
+and Sundin, 2022). The Reuters Institute Digital
+News Report 2024 highlights how social media has               To address the aforementioned open challenges
+fragmented the news ecosystem (Newman et al.,                  and ultimately enhance AFC capabilities, we pro-
+2024). Despite expanding access and engagement,                pose a method for improving claim verification
+this shift has also fuelled the spread of misinforma-          within the AFC pipeline. We focus on claim ver-
+tion (Valenzuela et al., 2019).                                ification in a bounded context, where each claim
+                                                               is accompanied by a predefined set of associated
+Misinformation is particularly concerning in high-             reports. This setting reflects numerous domains,
+stakes contexts such as elections and public health            e.g., legal document review (Zheng et al., 2021),
+crises, where it can cause serious societal harm.              financial auditing (Zhu et al., 2021), and scientific
+Consequently, the demand for more effective and                peer review (Wadden et al., 2020), where analysis
+scalable fact-checking methods has driven the emer-            is restricted to a specific corpus. Consequently, the
+                                                          6419
+        Proceedings of the 19th Conference of the European Chapter of the Association for Computational Linguistics
+                                         Volume 1: Long Papers, pages 6419–6439
+                            March 24-29, 2026 ©2026 Association for Computational Linguistics
+core challenge shifts from open-domain evidence          ing a new, contextually relevant, evidence-based
+retrieval to reasoning effectively over the avail-       information set. Inspired by the scalability and
+able information to determine a claim’s veracity.        demonstrated performance of LLMs in automated
+Specifically, we propose Knowledge Graph-based           fact-checking (Cheung and Lam, 2023; Wang et al.,
+Contrastive Reasoning for Automated FacT verifi-         2024a; Xiong et al., 2025), this new set is con-
+cation (KG-CRAFT).                                       solidated into a concise summary representing a
+                                                         distilled version of the input reports, which is then
+Motivated by findings in both cognitive science          used to assess the veracity of the claim.
+and natural language processing (Schuster et al.,
+2021; Buçinca et al., 2025), we leverage con-            The main contributions of this work are: (i) a novel
+trastive reasoning for our automated fact-checking       Knowledge Graph-based Contrastive Reasoning
+task. Prior work highlights that verification re-        method that enhances LLM capabilities in AFC;
+quires distinguishing whether a claim is supported       (ii) state-of-the-art performance on two real-world
+or contradicted (Thorne et al., 2018; Aly et al.,        fact-checking datasets; and (iii) a comprehensive
+2021), and that contrastive explanations align more      ablation study analysing the proposed components
+closely with human reasoning (Miller, 2019). More-       for AFC.
+over, contrastive learning methods have proven
+effective in enforcing meaningful semantic distinc-      2   Related Work
+tions (Chen et al., 2020; Gao et al., 2021). We          This section situates our contribution within prior
+therefore introduce contrastive questions into the       work on AFC, and LLM-based claim verification.
+fact-checking pipeline, encouraging models not           Foundational concepts are deferred to Appendix A,
+only to assess whether evidence supports a claim         which provides formal definitions and notation for
+but also to explicitly consider alternatives, thereby    (i) contrastive explanations and reasoning, and (ii)
+promoting more robust verification.                      knowledge graph construction with LLMs; these
+                                                         concepts are developed in greater detail in the
+However, generating meaningful contrasts from
+                                                         appendix. Appendix A also presents an extended
+unstructured text alone is a non-trivial challenge.
+                                                         review of related work, including further discussion
+Without a structured representation of the underly-
+                                                         of KG-based approaches to fact-checking.
+ing facts and their relationships, contrastive ques-
+tions may focus on superficial linguistic differences    Non-generative Automated Fact-checking Clas-
+rather than semantically significant distinctions,       sical AFC models encode claims and documents
+leading to less informative or even arbitrary con-       using text embeddings, and verify them via super-
+trasts (Bhattacharjee et al., 2022). By explicitly       vised classifiers. Notable systems include dEFEND,
+encoding entities and their semantic relations, a        which employs sentence–comment co-attention for
+knowledge graph (KG) provides a structured means         news and user comments (Shu et al., 2019); SBERT-
+of identifying candidates for contrast (Liu et al.,      FC, which introduced the PubHealth dataset, and
+2019). This structure guides the model to formu-         an explainability analysis (Kotonya and Toni,
+late questions that explore meaningful conceptual        2020); and GenFE/GenFE-MT, which jointly op-
+distinctions (e.g., contrasting one entity with an-      timise veracity prediction and explanation genera-
+other of the same type), ensuring that the reasoning     tion (Atanasova et al., 2020). CofCED proposes
+process is both more robust and more aligned with        a hierarchical encoder with cascaded evidence se-
+human-like. This approach helps to ensure that           lectors for multi-source reports (Yang et al., 2022).
+contrasts are grounded in verification-relevant rela-    Incorporating KGs into pretrained models (e.g.,
+tionships rather than being purely text-driven.          via Wikidata) improves accuracy, especially for
+                                                         political claims (Whitehouse et al., 2022); a re-
+To implement this structured contrastive approach,
+                                                         cent survey comprehensively reviews KG-based
+KG-CRAFT first decomposes each claim and its as-
+                                                         AFC (Qudus et al., 2025).
+sociated reports into entities and their relationships
+to construct the KG. After, it formulates and selects    Fact-checking Using LLMs LLMs have be-
+contrastive questions based on the KG structure,         come central to AFC, yet their reliability remains
+aiming to maximise both diversity and contextual         constrained by training coverage and hallucina-
+relevance to the claim. The set of questions is          tions (Wang et al., 2024b; Augenstein et al., 2024).
+then answered using the input reports, generat-          Early systems augment LLMs with structure or ex-
+                                                     6420
+ternal evidence: FactLLaMA couples instruction-                generation, and prompt-based answer summarisa-
+following with retrieval (Cheung and Lam, 2023);               tion (Section 3.2); and claim veracity verification
+IKA builds example graphs for verification and                 (Section 3.3).
+explanation (Guo et al., 2023); TELLER inte-
+grates human expertise with LLM reasoning (Liu                 3.1   Knowledge Graph Extraction
+et al., 2024); defence-style frameworks partition              The first phase of KG-CRAFT extracts entities and
+evidence into competing narratives for robust ver-             relationships from C and RC and uses them to
+ification (Wang et al., 2024a); and CorXFact                   construct a knowledge representation of the input.
+models claim–evidence correlations (Tan et al.,                We draw inspiration from prior work (Zhu et al.,
+2025). Retrieval-augmented generation (RAG),                   2024; Zhang and Soh, 2024) and leverage LLMs
+ranging from basic RAG pipelines (Singal et al.,               for knowledge graph construction. Through phased
+2024), to retrieval optimised with fine-grained feed-          few-shot prompting, we instrument the LLM to first
+back (Zhang and Gao, 2024), and architectures                  identify entities E, then label them according to
+targeting evidence retrieval plus contrastive argu-            their conceptual categories C, to give them seman-
+ment synthesis (Yue et al., 2024), has become an               tic meaning and enable disambiguation. Next, we
+increasingly prominent approach. Other recent                  identify the relationships R that relate the identified
+directions include iterative verification for scala-           entities (prompt details in Appendix D.1), forming
+bility (FIRE) (Xie et al., 2025), and the handling             a set of triples T ⊆ E × R × E. The unified re-
+of zero-day manipulations via real-time context                sulting sets constitute the input knowledge graph
+retrieval (Meng et al., 2025).                                 GC,RC = (E, R, T , C).
+
+3   Knowledge Graph-based Contrastive                          3.2   Contrastive Reasoning
+    Reasoning                                                  The second phase of KG-CRAFT uses GC,RC to
+                                                               formulate and answer contrastive questions. It
+We introduce a novel approach that leverages knowl-            consists of: (i) formulating questions that contrast
+edge graphs to fuel contrastive reasoning and en-              the claim’s facts (Tclaim ⊆ T ) with the reports’ facts
+hance LLM fact-checking capabilities: Knowledge                (T −Tclaim ); (ii) answering the formulated questions
+Graph-based Contrastive Reasoning for Automatic                using the reports (RC ); and (iii) summarising the
+FacT Verification (KG-CRAFT). Our work focuses                 question-answer pairs into a single self-contained
+on the claim verification component of automated               paragraph.
+fact-checking, integrating contrastive reasoning
+into the verification process through the use of               Contrastive Question Formulation Algorithm 1
+structured evidence to generate contextually rel-              describes the process to formulate contrastive ques-
+evant contrastive queries, thereby guiding more                tions. Given GC,RC , the claim-specific triples Tclaim ,
+accurate claim classification. We begin with the               and a maximum number K of desired questions,
+claim verification task formulation.                           the algorithm creates the K most relevant and di-
+                                                               verse contrastive questions. For each triple in the
+Problem Statement Let C be a claim with a set                  claim (consisting of head entity, relation, and tail
+of associated reports RC = {ri }i=1C , where each
+                                            |R |
+                                                               entity), it first identifies the entity categories hc
+report ri = (si,1 , . . . , si,|ri | ) is a sequence of sen-   and ht ∈ C of the head and tail entities, respec-
+tences (i.e., a document). Optionally, sentence-               tively(Algorithm 1, ll.6-8). Then, it creates two
+level evidence annotations are given as a set of               sets of contrastive entities: Hcontr , containing al-
+indices εC ⊆ {(i, j)}; if unavailable, set εC = ∅.             ternative head entities of category hc and Tcontr ,
+The objective is to predict a veracity label VC ∈ Y,           with alternative tail entities of category ht (Algo-
+|Y| ≥ 2 via a verifier fθ : (C, RC ) 7→ VC . Evi-              rithm 1, ll.9-10). Using these sets, the algorithm
+dence εC (when present) is used for analysis but is            generates questions by replacing either the original
+not required by the formulation.                               head or tail entity whilst maintaining the relation,
+                                                               following the pattern “Why [original head] rather
+Next, we present the components of KG-CRAFT,
+                                                               than [alternative]?” or “Why [alternative] rather
+depicted in Figure 1: knowledge graph construction
+                                                               than [original tail]?” (Algorithm 1, ll.11-14).
+from the textual input (the claim and its associated
+reports) (Section 3.1); contrastive reasoning, com-            To ensure that the formulated questions are individ-
+prising contrastive question generation, answer                ually relevant and collectively diverse, we adopt
+                                                           6421
+       claim under evaluation
+                                                                                                                                                                               Contrastive Question Generation
+       Claim
+
+       "NFL players did not stand for the national anthem                                                                             generated contrastive questions
+       until the Defense Dept. started paying the league to                                                                           Contrastive questions
+       stage patriotic displays in 2009."
+                                                                                                                                        Contrastive question 1
+                                                                                                                                        Why Defense Department PAID NFL, rather than Defense Department PAID San Francisco 49Ers?
+       reports associated to the claim
+       Reports                                                                                                                                                                             ...
+
+        Report 1                                                                                                                        Contrastive question
+        "[...] Several player last season follow in the footstep of former San Francisco 49ers quarterback Colin                        Why NFL STAGED PATRIOTIC DISPLAY National Anthem, rather than San Francisco 49Ers STAGED
+        Kaepernick , who in the previous year choose to kneel during the national anthem a a form of protest                            PATRIOTIC DISPLAY National Anthem?
+        against police brutality and racial inequality. [...]"
+
+                                                                 ...                                                                                                       Contrastive Question Answer Generation
+
+        Report                                                                                                                        generated answers for the contrastive questions
+        "It's a tribute to the NFL's ability to drape itself in the flag that nobody even realize that – prior to 2009 –              Contrastive questions asnwers
+        player be on the field for the national anthem wasn't even standard practice."
+                                                                                                                                        Contrastive question answer 1
+                                                                                                                                        "The context provided does not mention anything about the Defense Department paying the NFL or any
+                                                                                                                                        specific NFL team. [...]"
+                                                     Knowledge Graph Extraction
+                                                                                                                                                                                          ...
+                                                                                                                                        Contrastive question answer
+                                                                                           San
+                               Defense                                                                                                  "Based on the context provided, it seems that the NFL as an organization has taken a more active role in
+                                            T       Organization             T          Francisco
+                           Department                                                                                                   promoting patriotic displays during the national anthem, rather than leaving it up to individual teams like
+                                                                                          49Ers            O                            the San Francisco 49Ers. [...]"                                                                                 A
+                                                                                                                                                                                                                                                       A
+
+                                           PAID
+                                                                                                               S
+                                                         T                               PLAYED FOR                                                                                 Answers Summarisation
+                               S
+                                                                                                                                      summary of contrastive questions and their answers
+                                                                                                    Colin                             Answers summary
+                                       O                NFL                PROTESTED IN
+                                                                                                  Kaepernick
+                                                                                                                                  A   "The provided context focuses on the controversy surrounding NFL players kneeling during the national
+                                                                                                                                 A    anthem as a form of protest against racial inequality and police brutality. The response from players was
+                                            S                                                                      T
+                                                                            O                 S                                       mixed, with some teams and players choosing to stand, kneel, or remain in the locker room during the
+                           T                                                                                                          anthem. The NFL implemented a policy in 2018 that required players and team personnel to stand and show
+                                                   STAGED PATRIOTIC                                                                   respect for the flag and anthem, though it allowed players to remain in the locker room if they did not want
+                                       T    O          DISPLAY                                                                        to stand. This suggests the NFL was trying to balance respecting players' right to protest with appeasing fans
+                                                                                                  T
+                                                                                                                                                                                                                                                       /\/\/\/\/\/\
+
+                                                                                                                                      and the government who were critical of the protests. [...]"                                                     /\/\/\/\/\/\
+
+
+
+
+                                                      National
+                                   Claim                               T              Event              Report                                                                        Claim Verification
+                                                      Anthem
+
+
+                                                                                                                                                                      predicted claim veracity
+                                                                                                                                                                      Veracity label
+                                   T       :type             S             :subject               O       :object                                      /\/\/\/\/\/\
+                                                                                                                                                       /\/\/\/\/\/\   "half-true"
+
+
+
+
+Figure 1: Overview of the KG-CRAFT framework for automated fact-checking. The method comprises three main
+phases: (1) knowledge graph extraction from the claim and associated reports, (2) contrastive reasoning, including
+contrastive question formulation, answer generation, and answer summarisation, and (3) claim veracity prediction.
+
+
+a ranking strategy based on Maximal Marginal                                                                                          a structured query-response prompt mechanism pag
+Relevance (MMR) (Algorithm 1, l.20). For that,                                                                                        (available in Appendix D.2). An LLM analyses and
+we first compute embeddings of the questions                                                                                          generates information from the claim-associated
+QEm = {Embedding(qi ) | qi ∈ Q}i=1 , followed
+                                       |Q|
+                                                                                                                                      reports – prompting it to answer independently the
+by the pairwise similarity matrix across all embed-                                                                                   contrastive questions based on the set of reports RC
+dings. The initial query embedding qθ is selected                                                                                     associated with the claim. This process generates
+as the embedding with the highest average similar-                                                                                    a set of answers Ã = {LLMpag (q, RC ) | q ∈
+ity to all others, thereby ensuring a representative                                                                                  QKranked }, where each answer is directly derived
+starting point.                                                                                                                       from the reports, maintaining traceability between
+                                                                                                                                      claim, reports, contrastive questions, and answers.
+We then iteratively construct the ranked set Qranked                                                                                  Our goal by highlighting the contrastive elements
+using the MMR procedure. At each iteration, the                                                                                       in the generated answers is to highlight the key
+next embedding qi is selected to maximise                                                                                             evidence supporting the claim’s veracity during the
+                               h                                                                                             i        reasoning process.
+qi = arg max Sim(q, qθ )− ′ max                                                                            Sim(q, q′ ) ,
+        q∈QEm                                                              q ∈Qranked
+      \ Qranked
+                                                                                                                                      Answers Summarisation The final step of the
+                                                                                                                           (1)
+                                                                                                                                      Contrastive Reasoning process involves aggre-
+where Sim(·, ·) is the cosine distance, and Qranked
+                                                                                                                                      gating the question-answer pairs into a concise,
+is the set of already selected embeddings. The
+                                                                                                                                      evidence-based summary. From the claim C and
+first term promotes relevance to the initial query
+                                                                                                                                      the paired contrastive questions and answers from
+qθ , whilst the second penalises redundancy with
+                                                                                                                                      QKranked and Ã, respectively, we prompt pas (Ap-
+respect to Qranked . The process is repeated until
+                                                                                                                                      pendix D.3) to an LLM to generate a concise para-
+all candidate questions are ranked into Qranked .
+                                                                                                                                      graph that relates all contrastive question-answer
+Finally, the algorithm returns the top K questions
+                                                                                                                                      pairs. This summarisation step, represented as
+QKranked (Algorithm 1, ll.17-18).
+                                                                                                                                      AC = LLMpas (C, {(qi , ai ) | qi ∈ QKranked , ai ∈
+Contrastive Question Answer Generation The                                                                                            Ã}), ensures that key contrasting elements and
+second step of the process answers the previously                                                                                     supporting evidence are presented in a structured
+formulated contrastive questions QKranked through                                                                                     summary, producing a distilled source of informa-
+                                                                                                                             6422
+Algorithm 1 Define Contrastive Questions                          the effect of the number of contrastive questions
+Require:                                                          K on claim verification with KG-CRAFT? RQ4
+ 1: G = (E, R, T , C) ▷ Claim and reports KG; entities E,         How effective is KG-CRAFT with Small Language
+    relations R, triples T , and entities’ classes C
+ 2: Tclaim ▷ Claim’s extracted triples; Tclaim ⊆ T                Models (SLMs) compared to LLMs? To answer
+ 3: K                 ▷ Maximum # of Contrastive Questions        these questions, we evaluate KG-CRAFT on two
+Ensure:                                                           real-world fact-checking benchmarks and compare
+ 4: QKranked ▷ Set of top K most relevant and diverse con-
+    trastive questions for a claim and its reports                the results with baseline methods, and perform
+                                                                  several ablation studies. Additional experiments
+ 5: Q ← ∅
+ 6: for each t = {h, r, t} ∈ Tclaim do
+                                                                  and ablation studies can be found in Appendix C.
+ 7:     hc ← τ (h)                          ▷ where τ : E → C
+ 8:     tc ← τ (t)                                                4.1     Experimental Settings
+ 9:     Hcontr ← {h | h ∈ E, τ (h) = hc } \ {h}
+10:                ▷ Set of entities of the same class as head    Datasets We evaluated the proposed approach
+11:     Tcontr ← {t | t ∈ E, τ (t) = tc } \ {t}                   on two publicly available fact-checking datasets:
+12:                 ▷ Set of entities of the same class as tail   LIAR-RAW and RAWFC, (refer Appendix B.2
+13:     for each h′ ∈ Hcontr , t′ ∈ Tcontr do
+14:         qh ← FormulateQuestion(t, h′ )                        for datasets statistics). LIAR-RAW (Yang et al.,
+15:         qt ← FormulateQuestion(t, t′ )                        2022) extends LIAR-PLUS (Alhindi et al., 2018)
+16:         Q ← Q ∪ {qh , qt }                                    and contains fine-grained claims from Politifact1
+17:     end for
+18: end for                                                       with six veracity classes (pants-fire, false,
+19: Qranked ← ReRank(Q) ▷ Rank contrastive questions              barely-true, half-true, mostly-true, true)
+    based on Equation (1)                                         along with their relevant reports. RAWFC (Yang
+20: QKranked ← (Qranked )1:K          ▷ Select first K elements
+    from ranked set                                               et al., 2022) contains claims collected from
+                                                                  Snopes2 on various topics with three veracity
+21: return QKranked
+                                                                  classes (false, half, true) and their associated
+                                                                  reports retrieved using claim keywords.
+tion. The resulting summary AC emphasises key                     Comparisons We compare KG-CRAFT against
+contrasting facts whilst abstracting non-essential                other methods in three categories: Traditional –
+information, preserving semantic links between                    methods that do not use LLMs –, Naïve LLM –
+critical evidence and the claim to create a focused               direct application of LLMs without specialised
+source of verification.                                           prompts or reasoning strategies –, and Specialised
+                                                                  LLM – methods that use LLMs with significant
+3.3 Verification of Claim Veracity                                adaptations, such as tuning or prompt engineer-
+The last phase of KG-CRAFT assesses the claim’s                   ing, or as part of complex architectures. Tra-
+veracity VC . For that, we prompt pcv (see Ap-                    ditional approaches encompass dEFEND (Shu
+pendix D.4) an LLM, containing the original claim                 et al., 2019), SBERT-FC (Kotonya and Toni, 2020),
+C and the produced summary AC as the only source                  GenFE and GenFE-MT (Atanasova et al., 2020),
+of evidence, mitigating potential noise in the origi-             and CofCED (Yang et al., 2022). Naïve LLM
+nal reports RC . The prompt pcv also includes the                 approaches encompass Llama 2 7B and Chat-
+possible labels and their descriptions. In this way,              GPT 3.5 Turbo (Wang et al., 2024a), Claude 3.5 Son-
+the LLM acts as a classifier to infer the claim’s                 net, Claude 3.7 Sonnet, and Llama 3.3 70B
+veracity, represented as VC = LLMpcv (C, AC ), en-                prompted with the claim and related reports to
+suring that the veracity assessment is based on the               verify the veracity of the claim. The Specialised
+distilled evidence produced through our Contrastive               LLM approaches encompasses FactLLAMA and
+Reasoning method.                                                 FactLLAMAknow (Cheung and Lam, 2023), and
+                                                                  L-DefenseLLAMA2 and L-DefenseChatGPT (Wang
+4    Experiments and Results                                      et al., 2024a). FactLLAMA is a Low-Rank
+                                                                  Adaptation (LoRA) (Hu et al., 2022) fine-tuned
+This section is guided by the following research
+                                                                  Llama 2 7B, and FactLLAMAknow is the model
+questions: RQ1 How effective is KG-CRAFT
+                                                                  augmented with external knowledge. L-Defense
+in claim verification compared to state-of-the-art
+                                                                  is a defence-based framework that leverages the
+methods? RQ2 How beneficial are KG-based
+                                                                  wisdom of crowds to verify claim veracity using
+contrastive questions compared to purely LLM-
+generated contrastive questions? RQ3 What is                         1
+                                                                         www.politifact.com, 2 www.snopes.com
+                                                              6423
+Llama 2 7B and ChatGPT 3.5 Turbo.                     tion 3.2) by a few-shot prompt that, given the
+                                                      claim, reports, and examples, requests the LLM
+Implementation Details We extracted the
+                                                      to generate k = 5 contrastive questions (prompt
+KGs (Section 3.1) of both datasets utilis-
+                                                      details in Appendix D.5). Results depicted on Ta-
+ing Claude 3 Haiku.      Further, KG-CRAFT
+                                                      ble 2 show fact-checking F1-score, and macro and
+is instantiated and evaluated (Section 4.2)
+                                                      weighted AlignScore and RQUGE for the LIAR-
+using Claude 3.5 Sonnet (KG-CRAFTC3.5 ),
+                                                      RAW dataset.
+Claude 3.7 Sonnet (KG-CRAFTC3.7 ), and
+Llama 3.3 70B (KG-CRAFTL3.3 ) (refer to Ap-           AlignScore is a metric based on a general function
+pendix B for more implementation details).            of information alignment to perform automatic fac-
+                                                      tual consistency evaluation of text pairs (Zha et al.,
+Evaluation Metrics We adopted standard classi-
+                                                      2023). In our evaluation, we use AlignScore (here
+fication metrics: precision (Pr), recall (Re), and
+                                                      called macro AlignScore) to measure the informa-
+F1-score (F1). For all metrics, higher values indi-
+                                                      tion alignment between the text piece generated at
+cate better performance.
+                                                      the answer summarisation step (Section 3.2) with
+4.2 Claim Verification Evaluation                     the original claim. RQUGE is a reference-free
+                                                      evaluation metric for generated questions, based
+We first address RQ1 by evaluating the perfor-
+                                                      on the corresponding context and answer (Moham-
+mance of KG-CRAFT in verifying claim veracity.
+                                                      madshahi et al., 2023). In our evaluation, we use
+As shown in Table 1, our method – in the in-
+                                                      RQUGE (here called macro RQUGE) to measure
+stances KG-CRAFTC3.7 and KG-CRAFTL3.3 (all
+                                                      the acceptability score of a formulated contrastive
+using five contrastive questions K = 5) – con-
+                                                      question (Section 3.2), given a corresponding con-
+sistently outperforms all other methods on both
+                                                      text (the claim) and an answer (the answer generated
+datasets. KG-CRAFTC3.5 outperforms all com-
+                                                      from the contrastive question Section 3.2). We fur-
+parator methods except for DelphiAgentgpt-4o ) on
+                                                      ther extend AlignScore and RQUGE (here called
+the RAWFC dataset. KG-CRAFTL3.3 improves the
+                                                      weighted AlignScore and weighted RQUGE) to
+F1-score by 44 percentage points (pp) on the LIAR-
+                                                      weight their results by the distance of the predicted
+RAW dataset and 13 pp on the RAWFC dataset,
+                                                      claim veracity class from the ground truth claim
+compared to the second best performing methods,
+                                                      class. For that, we assigned each class an inte-
+L-Defense (Wang et al., 2024a) and (DelphiA-
+                                                      ger numerical value ranging from 1 (pants-fire)
+gent (Xiong et al., 2025)), respectively. Compared
+                                                      to 6 (true) and measured the mean squared er-
+to their Naïve LLM counterparts, KG-CRAFTC3.5 ,
+                                                      ror (MSE) between the predicted class. After, we
+KG-CRAFTC3.7 , and KG-CRAFTL3.3 , show F1
+                                                      weight AlignScore and RQUGE macro scores us-
+performance gains of 32, 44, and 42 pp on LIAR-
+                                                      ing the obtained MSE (details of the AlignScore
+RAW and 11, 12, and 27 pp on RAWFC.
+                                                      and RQUGE weighted scores are in Appendix B.3
+4.3 Ablation Studies                                  and Appendix B.4, respectively).
+To evaluate KG-CRAFT’s components and reveal          As depicted in Table 2, the contrastive questions
+its strengths and limitations, we conduct three ab-   generated by the LLMs, results in lower informa-
+lation studies. We first compare KG-based and         tion alignment (AlignScore) between the answer
+LLM-generated contrastive questions to evaluate       summary AC and claim C and lower question ac-
+the benefits of structured question formulation       ceptability score (RQUGE) between formulated
+(RQ2). Then, we analyse the effect of varying         contrastive questions QKranked , generated answer
+the number K of contrastive questions (RQ3). Fi-      Ã, and claim C. As a consequence, the lower infor-
+nally, we assess whether KG-CRAFT boosts the          mation alignment and question acceptability score
+performance of Small Language Models (SLMs)           impact the fact-checking capability, resulting in a
+by comparing their results to Claude 3.7 Sonnet       lower fact-checking F1-score.
+and KG-CRAFTC3.7 (RQ4).
+                                                      4.3.2   Impact of the Number of Contrastive
+4.3.1   Impact of Using LLM-generated                         Questions
+        Contrastive Questions                         To address RQ3, we investigate how varying the
+To answer RQ2, we replaced the Contrastive Ques-      number of contrastive questions k affects the per-
+tion Formulation component of KG-CRAFT (Sec-          formance of KG-CRAFT. We conduct this analysis
+                                                  6424
+                   Table 1: Fact-checking results (%) on the RAWFC and LIAR-RAW datasets.
+
+                                                                 LIAR-RAW                                                                        RAWFC
+             Method
+                                                            Pr                                  Re                 F1                 Pr                  Re                F1
+             Traditional
+             dEFEND (Shu et al., 2019)                     23.09                              18.56               17.51           44.93              43.26             44.07
+             SBERT-FC (Kotonya and Toni, 2020)             24.09                              22.07               22.19           51.06              45.92             45.51
+             GenFE (Atanasova et al., 2020)                28.01                              26.16               26.49           44.92              44.74             44.43
+             GenFE-MT (Atanasova et al., 2020)             18.55                              19.90               15.15           45.64              45.27             45.08
+             CofCED (Yang et al., 2022)                    29.48                              29.55               28.93           52.99              50.99             51.07
+             EExpFND (Wang et al., 2025)                   29.91                              29.93               29.58           54.43              53.49             53.61
+             Naïve LLM
+             Llama 2 7B (Wang et al., 2024a)               17.11                              17.37               15.14           37.30              38.03             36.77
+             ChatGPT 3.5 Turbo (Wang et al., 2024a)        25.41                              27.33               25.11           47.72              48.62             44.43
+             Claude 3.5 Sonnet                             29.25                              27.83               28.52           54.85              55.04             54.94
+             Claude 3.7 Sonnet                             28.26                              26.63               27.42           55.90              57.12             56.50
+             Llama 3.3 70B                                 47.21                              23.52               31.40           53.16              55.04             54.08
+             Specialised LLM
+             FactLLAMA (Cheung and Lam, 2023)              32.32                              31.57               29.98           53.76              54.00             53.76
+             FactLLAMAknow (Cheung and Lam, 2023)          32.46                              32.05               30.44           56.11              55.50             55.65
+             L-DefenseLLAMA2 (Wang et al., 2024a)          31.63                              31.71               31.40           60.95              61.00             60.12
+             L-DefenseChatGPT (Wang et al., 2024a)         30.55                              32.20               30.53           61.72              61.01             61.20
+             DelphiAgentgpt-4o-mini (Xiong et al., 2025)   32.79                              22.33               26.03           68.53              63.95             64.68
+             DelphiAgentgpt-4o (Xiong et al., 2025)        31.33                              28.36               28.36           68.05              68.03             68.04
+             KG-CRAFT (ours)
+             KG-CRAFTC3.5                                  62.70                              59.38               60.99           67.10              66.25             66.67
+             KG-CRAFTC3.7                                  73.92                              70.86               72.36           69.37              68.59             68.98
+             KG-CRAFTL3.3                                  77.38                              70.67               73.87           81.63              81.53             81.58
+   Note: The best and second best results are highlighted across each dataset and metric. KG-CRAFT results are significantly
+                             better than their Naïve LLM counterparts baseline with p < 0.01.
+
+
+Table 2: Ablation study on the LIAR-RAW dataset                                               2.0     Precision
+                                                                                                                  Relative Performance Compared to k = 5 on LIAR-RAW (2 labels) 1.96%
+
+comparing the quality of KG-based in contrast to LLM-                                                 Recall
+                                                                                                      F1-Score
+                                                                                                                                                                                           1.40%
+                                                                                                                                                                                                        1.68%
+
+                                                                                              1.5
+based formulated contrastive questions. Metrics include
+Fact-checking F1-score, and macro (-M) and weighted                                           1.0
+
+
+
+
+                                                                   Relative Performance (%)
+                                                                                                                                                                           0.85%
+                                                                                                                                                                                   0.69%
+                                                                                                                                                                   0.53%
+(-W) values for AlignScore (AS) and RQUGE (RQ).                                               0.5
+
+                                                                                                                                               0.00% 0.00% 0.00%
+                                                                                              0.0
+
+       Metric      LLM-based         KG-based                                                 0.5                               -0.36%
+                                                                                                                                      -0.45%
+                                                                                                                          -0.56%
+                  C3.5     L3.3     C3.5     L3.3                                             1.0
+
+
+       FC F1      27.79   29.68    60.99    73.87                                                    -1.26%-1.23%-1.24%
+                                                                                                             1                    3                   5
+                                                                                                                                                      k
+                                                                                                                                                                            7                      10
+
+
+       AS-M       30.96   29.51    41.71    40.32
+       AS-W       29.15   24.36    39.17    35.84                Figure 2: Impact of varying the number of contrastive
+       RQ-M       2.04     1.92     2.02     1.95                questions k on fact-checking performance.
+       RQ-W       1.50     1.43     1.67     1.64
+
+
+                                                                 sively smaller gains. Specifically, compared to
+on a binary classification variant of LIAR-RAW,                  K = 5, using fewer questions (K = 1 or K = 3)
+where the original six labels are mapped into two                leads to decreased performance, with K = 1 show-
+classes: {pants-fire, false, barely-true} as                     ing the most significant drops of 1.2 points across
+false, and {half-true, mostly-true, true}                        the metrics. Conversely, increasing the number of
+as true (details in Appendix B.2). We evaluate KG-               questions beyond K = 5 yields small improvements,
+CRAFTC3.5 using k ∈ {1, 3, 5, 7, 10} contrastive                 with K = 10 showing the best relative gains of 1.6
+questions, with K = 5 serving as our baseline for                points in F1. The relatively small performance
+relative performance comparison.                                 differences (within ±2 points) indicate that our
+                                                                 framework maintains robust performance across
+As depicted in Figure 2, increasing K generally                  different K values, with K = 5 representing an
+improves performance metrics, but with progres-                  effective balance between performance and com-
+                                                           6425
+putational efficiency.                                                                                                                                                             sults demonstrate that KG-CRAFT outperforms
+                                                                                                                                                                                   state-of-the-art methods on two real-world datasets
+4.3.3                         Using Small Language Models                                                                                                                          (LIAR-RAW and RAWFC). Our empirical analy-
+We investigate whether our KG-based contrastive                                                                                                                                    sis indicates that the contrastive reasoning method
+reasoning methodology can enhance the perfor-                                                                                                                                      generates contextually relevant and evidence-based
+mance of Small Language Models (SLMs), as                                                                                                                                          information that aids in assessing claim veracity.
+raised in question RQ4. We evaluate four                                                                                                                                           We investigate the effect of the number of con-
+SLMs: two with less than 600M parame-                                                                                                                                              trastive questions used in the process, finding that
+ters (SmolLM2 135M (Allal et al., 2025) and                                                                                                                                        more questions lead to better results, but even small
+Qwen3 0.6B (Yang et al., 2025)) and two with                                                                                                                                       numbers lead to competitive performance. Even
+less than 2B parameters (SmolLM2 1.7B (Allal                                                                                                                                       with Small Language Models, our approach proves
+et al., 2025) and Qwen3 1.7B (Yang et al., 2025)).                                                                                                                                 competitive with LLM baselines. For future work,
+We compare their F1 performance against Naïve                                                                                                                                      we propose an extended evaluation with other do-
+Claude 3.7 Sonnet and KG-CRAFTC3.7 .                                                                                                                                               mains and the generation of explanations for full
+                                                                         Performance on LIAR-RAW (2 labels)
+                                                                                                                                                                                   AFC based on contrastive answer summaries.
+            1.0
+                        Precision
+                        Recall
+
+
+                                                                                                                                                                                   Limitations
+                        F1-Score                     0.866 0.866 0.866
+
+            0.8                                                                                       0.764
+                                                                                                                      0.734                               0.726
+                                                                                                              0.706                                               0.695 0.710
+                                                                                                                                 0.672
+
+                                                                                                                                                                                   Whilst our results demonstrate the effectiveness
+                                                                                                                                         0.655 0.663
+                         0.631
+                                 0.614 0.622
+            0.6
+
+
+    Score
+                                                                              0.502 0.502 0.502
+                                                                                                                                                                                   of the proposed framework, some limitations re-
+            0.4
+                                                                                                                                                                                   main. First, we do not qualitatively verify the
+            0.2
+                                                                                                                                                                                   intermediate components of our pipeline, such as
+                                                                                                                                                                                   the knowledge graph construction step, which is
+            0.0
+                           nn et                ud e 3 KG                olL KG
+                                                                            M2 -CR
+                                                                                                  Sm K
+                                                                                                    olL G-
+                                                                                                                              Qw KG
+                                                                                                                                en -CR
+                                                                                                                                                       Qw KG
+                                                                                                                                                         en -CR
+                                                                                                                                                                                   particularly sensitive and central to the method’s
+                                                                                                                                                                                   overall performance. Additionally, we rely on a
+                          So
+                        3.7                           .7 -C
+                                                        So RA                  13 AFT                  M2 CRA                     3 0 AF                   3 1 AF
+                   ud                                     nn FT                  5M                       1.7 FT                     .6B T                    .7B T
+                  Cla
+                      e                                     et           Sm                                  B
+                                               Cla
+
+
+                                                                                                                                                                                   fixed set of LLMs for the intermediate tasks, though
+Figure 3: Performance comparison of Small Language                                                                                                                                 alternative models or fine-tuned approaches could
+Models incorporated within KG-CRAFT against larger
+                                                                                                                                                                                   potentially yield improved results. Our evalua-
+models.
+                                                                                                                                                                                   tion is limited to two datasets; however, these are
+                                                                                                                                                                                   widely adopted benchmarks in the fact-checking
+The results in Figure 3 show that our framework
+                                                                                                                                                                                   literature and provide a meaningful basis for com-
+significantly enhances SLMs’ fact-checking per-
+                                                                                                                                                                                   parison. We also acknowledge the reliance on
+formance. Notably, SmolLM2 1.7B achieves an
+                                                                                                                                                                                   expensive LLMs throughout the process, which
+F1-Score of 73.40%, substantially outperform-
+                                                                                                                                                                                   may not be accessible to all users. However, our
+ing Naïve Claude 3.7 Sonnet (62.22%). Even
+                                                                                                                                                                                   results also demonstrate the potential of the pro-
+the smaller models show promising results, with
+                                                                                                                                                                                   posed framework to enhance the performance of
+Qwen3 0.6B reaching an F1-Score of 66.34%,
+                                                                                                                                                                                   smaller language models that require significantly
+which surpasses Naïve Claude 3.7 Sonnet despite
+                                                                                                                                                                                   fewer computational resources.
+its much smaller size.
+                                                                                                                                                                                   Although we claim to improve the results of Spe-
+These findings suggest that KG-CRAFT effectively
+                                                                                                                                                                                   cialised LLMs-based AFC, we are aware of a non-
+compensates for the limitations of smaller models
+                                                                                                                                                                                   negligible potential threat to the validity of our
+by supplying them with relevant verification cues.
+                                                                                                                                                                                   results: the use of different families of LLMs in
+Applying KG-CRAFT significantly narrows the
+                                                                                                                                                                                   previous and in our work. The results may there-
+performance gap between SLMs and larger models,
+                                                                                                                                                                                   fore be influenced by variations in model capabili-
+indicating that the explicit use of contrastive ques-
+                                                                                                                                                                                   ties, and different outcomes could emerge if their
+tions grounded in extracted KGs enhances smaller
+                                                                                                                                                                                   LLMs or ours were replaced. However, we were
+models’ competitiveness.
+                                                                                                                                                                                   unable to modify the original systems’ LLMs or
+                                                                                                                                                                                   employ legacy models in our experiments. This
+5                 Conclusion
+                                                                                                                                                                                   highlights a broader challenge for the community:
+This paper presents KG-CRAFT, a novel method for                                                                                                                                   ensuring reproducibility and fair comparison in
+claim veracity classification via knowledge graph-                                                                                                                                 an ecosystem where new and more capable LLMs
+based contrastive reasoning with LLMs. Our re-                                                                                                                                     are continuously emerging. Nonetheless, we pre-
+                                                                                                                                                                                6426
+sented ablation studies of KG-CRAFT with LLMs           cil for Scientific and Technological Develop-
+of limited size (SLMs), showing that it significantly   ment), (grant #307088/2023-5) and the Na-
+enhances their performance.                             tional Institutes of Science and Technology
+                                                        (INCT): IAIA (grant #406417/2022-9), TILD-IAR
+Furthermore, all experiments are conducted in the
+                                                        (grant #408490/2024-1), and IAPROBEM (grant
+English language. Although our method is de-
+                                                        #408589/2024-8).
+signed to be language-agnostic, performance may
+vary across languages due to potential limitations
+in intermediate components such as entity linking,      References
+relation extraction, or question generation. Future
+                                                        Firoj Alam, Stefano Cresci, Tanmoy Chakraborty, Fab-
+work should explore broader language coverage,
+                                                        rizio Silvestri, Dimiter Dimitrov, Giovanni Da San Mar-
+dataset diversity, and deeper analysis of intermedi-    tino, Shaden Shaar, Hamed Firooz, and Preslav Nakov.
+ate outputs.                                            2022. A survey on multimodal disinformation detection.
+                                                        In Proc. 29th Int. Conf. Comput. Linguist., COLING.
+Ethical Considerations
+                                                        Tariq Alhindi, Savvas Petridis, and Smaranda Muresan.
+Automated fact-checking with LLMs raises im-            2018. Where is your evidence: Improving fact-checking
+                                                        by justification modeling. In Proceedings of the First
+portant ethical concerns, particularly due to their     Workshop on Fact Extraction and VERification (FEVER).
+ability to produce fluent yet incorrect or fabricated   Association for Computational Linguistics.
+outputs. When used to synthesise evidence or gen-
+                                                        Loubna Ben Allal, Anton Lozhkov, Elie Bakouch,
+erate contrastive questions, such errors can mislead    Gabriel Martín Blázquez, Guilherme Penedo, Lewis
+users or amplify misinformation. Condensing large       Tunstall, Andrés Marafioti, Hynek Kydlíček, Agustín Pi-
+evidence sets also involves decisions about what        queres Lajarín, Vaibhav Srivastav, Joshua Lochner,
+to include or omit; if not carefully managed, this      Caleb Fahlgren, Xuan-Son Nguyen, Clémentine Four-
+                                                        rier, Ben Burtenshaw, Hugo Larcher, Haojun Zhao, Cyril
+can result in oversimplification or the exclusion       Zakka, Mathieu Morlon, and 3 others. 2025. Smollm2:
+of critical context, compromising factual accuracy.     When smol goes big – data-centric training of a small
+Moreover, whilst contrastive reasoning may im-          language model. Preprint, arXiv:2502.02737.
+prove interpretability, the overall decision-making     Rami Aly, Zhijiang Guo, Michael Sejr Schlichtkrull,
+process remains difficult to audit, with limited        James Thorne,         Andreas Vlachos,        Christos
+traceability from evidence to claim and limited         Christodoulopoulos, Oana Cocarascu, and Arpit
+justification for model outputs. Automated fact-        Mittal. 2021. The fact extraction and VERification over
+                                                        unstructured and structured information (FEVEROUS)
+checking systems may also be misinterpreted as          shared task. In Proceedings of the Fourth Workshop on
+authoritative, reinforcing confirmation bias. It is     Fact Extraction and VERification (FEVER).
+therefore essential to clearly communicate model
+                                                        Pepa Atanasova, Jakob Grue Simonsen, Christina Li-
+limitations and maintain human oversight. We            oma, and Isabelle Augenstein. 2020. Generating fact
+emphasise the importance of fairness-aware de-          checking explanations. In Proceedings of the 58th
+sign, transparent evidence attribution, and rigorous    Annual Meeting of the Association for Computational
+human evaluation to mitigate these risks.               Linguistics.
+                                                        Isabelle Augenstein, Timothy Baldwin, Meeyoung Cha,
+Use of Generative AI                                    Tanmoy Chakraborty, Giovanni Luca Ciampaglia, David
+During the preparation of this work, the authors        Corney, Renee DiResta, Emilio Ferrara, Scott Hale, Alon
+used the Claude family models and the Amazon            Halevy, Eduard Hovy, Heng Ji, Filippo Menczer, Ruben
+                                                        Miguez, Preslav Nakov, Dietram Scheufele, Shivam
+Nova family models to grammar and spelling check.       Sharma, and Giovanni Zagni. 2024. Factuality chal-
+After using these tools/services, the authors re-       lenges in the era of large language models and opportu-
+viewed and edited the content as needed and took        nities for fact-checking. Nature Machine Intelligence,
+full responsibility for the publication’s content.      6(8):852–863.
+                                                        Amrita Bhattacharjee, Mansooreh Karami, and Huan
+Acknowledgments                                         Liu. 2022. Text transformations in contrastive self-
+                                                        supervised learning: A review. In Proceedings of the
+The second author thanks the support of                 Thirty-First International Joint Conference on Artificial
+FAPERJ - Fundação Carlos Chagas Filho de                Intelligence, IJCAI 2022, Vienna, Austria, 23-29 July
+Amparo à Pesquisa do Estado do Rio de                   2022, pages 5394–5401. ijcai.org.
+Janeiro, processes SEI-260003/002930/2024, SEI-         Zana Buçinca, Siddharth Swaroop, Amanda E. Paluch,
+260003/000614/2023, CNPq (National Coun-                Finale Doshi-Velez, and Krzysztof Z. Gajos. 2025. Con-
+                                                    6427
+trastive explanations that anticipate human misconcep-    Yani Huang, Richong Zhang, Zhijie Nie, Junfan
+tions can improve human decision-making skills. In        Chen, and Xuefeng Zhang. 2025. A graph-based
+Proceedings of the 2025 CHI Conference on Human Fac-      verification framework for fact-checking. Preprint,
+tors in Computing Systems, CHI 2025, YokohamaJapan,       arXiv:2503.07282.
+26 April 2025- 1 May 2025, pages 1024:1–1024:25.
+ACM.                                                      Alon Jacovi, Swabha Swayamdipta, Shauli Ravfogel,
+                                                          Yanai Elazar, Yejin Choi, and Yoav Goldberg. 2021.
+Bohan Chen and Andrea L Bertozzi. 2023. Autokg:           Contrastive explanations for model interpretability. In
+Efficient automated knowledge graph generation for lan-   Proceedings of the 2021 Conference on Empirical Meth-
+guage models. In 2023 IEEE International Conference       ods in Natural Language Processing.
+on Big Data (BigData), pages 3117–3126. IEEE.
+                                                          Neema Kotonya and Francesca Toni. 2020. Explain-
+Ting Chen, Simon Kornblith, Mohammad Norouzi,             able automated fact-checking for public health claims.
+and Geoffrey Hinton. 2020. A simple framework for         In Proceedings of the 2020 Conference on Empirical
+contrastive learning of visual representations. In Pro-   Methods in Natural Language Processing.
+ceedings of ICML.
+                                                          Canasai Kruengkrai, Junichi Yamagishi, and Xin Wang.
+Yingjian Chen, Haoran Liu, Yinhong Liu, Jinxiang Xie,     2021. A multi-level attention model for evidence-based
+Rui Yang, Han Yuan, Yanran Fu, Peng Yuan Zhou,            fact checking. In Findings of the Association for Com-
+Qingyu Chen, James Caverlee, and Irene Li. 2025.          putational Linguistics: ACL-IJCNLP 2021, pages 2447–
+GraphCheck: Breaking long-term text barriers with         2460, Online. Association for Computational Linguis-
+extracted knowledge graph-powered fact-checking. In       tics.
+Proceedings of the 63rd Annual Meeting of the Associ-
+ation for Computational Linguistics (Volume 1: Long       Yuqing Lan, Zhenghao Liu, Yu Gu, Xiaoyuan Yi, Xiao-
+Papers).                                                  hua Li, Liner Yang, and Ge Yu. 2025. Multi-Evidence
+                                                          Based Fact Verification via A Confidential Graph Neural
+Tsun-Hin Cheung and Kin-Man Lam. 2023. Factllama:         Network . IEEE Transactions on Big Data, 11(02):426–
+Optimizing instruction-following language models with     437.
+external knowledge for automated fact-checking. In
+2023 Asia Pacific Signal and Information Processing       Peter Lipton. 1990. Contrastive explanation. Royal
+Association Annual Summit and Conference.                 Institute of Philosophy Supplements, 27:247–266.
+
+Islam Eldifrawi, wi, Shengrui Wang, and Amine Tra-        Hui Liu, Wenya Wang, Haoru Li, and Haoliang Li.
+belsi. 2024. Automated justification production for       2024. Teller: A trustworthy framework for explainable,
+claim veracity in fact checking: A survey on archi-       generalizable and controllable fake news detection. In
+tectures and approaches. In Proceedings of the 62nd       Findings of the Association for Computational Linguis-
+Annual Meeting of the Association for Computational       tics: ACL 2024.
+Linguistics.
+                                                          Zhibin Liu, Zheng-Yu Niu, Hua Wu, and Haifeng Wang.
+Tianyu Gao, Xingcheng Yao, and Danqi Chen. 2021.          2019. Knowledge aware conversation generation with
+Simcse: Simple contrastive learning of sentence embed-    explainable reasoning over augmented graphs. In Pro-
+dings. In Proceedings of EMNLP.                           ceedings of the 2019 Conference on Empirical Methods
+                                                          in Natural Language Processing and the 9th Interna-
+Riccardo Guidotti. 2024. Counterfactual explanations      tional Joint Conference on Natural Language Process-
+and how to find them: literature review and bench-        ing (EMNLP-IJCNLP).
+marking. Data Mining and Knowledge Discovery,
+38(5):2770–2824.                                          Vítor Lourenço, Aline Paes, and Tillman Weyde. 2025.
+                                                          Exploring content and social connections of fake news
+Hao Guo, Weixin Zeng, Jiuyang Tang, and Xiang Zhao.       with explainable text and graph learning. In Proceedings
+2023. Interpretable fake news detection with graph evi-   of the XXXV Brazilian Conference on Intelligent Systems
+dence. In Proceedings of the 32nd ACM International       (to appear). SBC.
+Conference on Information and Knowledge Manage-
+ment.                                                     Vítor Lourenço and Aline Paes. 2022. A modality-level
+                                                          explainable framework for misinformation checking in
+Zhijiang Guo, M. Schlichtkrull, and Andreas Vlachos.      social networks. In LatinX AI Workshop at 36th Conf.
+2021. A survey on automated fact-checking. Transac-       Neural Inf. Process. Syst., LXAI-NeurIPS.
+tions of the Association for Computational Linguistics,
+10:178–206.                                               Mark Huasong Meng, Ruizhe Wang, Meng Xu, Chuan
+                                                          Yan, and Guangdong Bai. 2025. Detecting manipulated
+Jutta Haider and Olof Sundin. 2022. Paradoxes of media    contents using knowledge-grounded inference.
+and information literacy: The crisis of information.
+Taylor & Francis.                                         Tim Miller. 2019. Explanation in artificial intelligence:
+                                                          Insights from the social sciences. Artificial Intelligence,
+Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan          267.
+Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and
+Weizhu Chen. 2022. LoRA: Low-rank adaptation of           Alireza Mohammadshahi, Thomas Scialom, Majid Yaz-
+large language models. In International Conference on     dani, Pouya Yanki, Angela Fan, James Henderson, and
+Learning Representations.                                 Marzieh Saeidi. 2023. RQUGE: Reference-free metric
+                                                      6428
+for evaluating question generation by answering the ques-   American Chapter of the Association for Computational
+tion. In Findings of the Association for Computational      Linguistics: Human Language Technologies, Volume 1
+Linguistics: ACL 2023.                                      (Long Papers).
+Nic Newman, Richard Fletcher, Craig T. Robertson,           Sebastián Valenzuela, Daniel Halpern, James E Katz,
+Amy Ross Arguedas, and Rasmus Kleis Nielsen. 2024.          and Juan Pablo Miranda. 2019. The paradox of partici-
+Reuters institute digital news report 2024. Technical       pation versus misinformation: Social media, political
+report, Reuters Institute for the Study of Journalism.      engagement, and the spread of misinformation. Digital
+                                                            Journalism, 7(6):802–823.
+Liangming Pan, Xiaobao Wu, Xinyuan Lu, Anh Tuan
+Luu, William Yang Wang, Min-Yen Kan, and Preslav            Sahil Verma, Varich Boonsanong, Minh Hoang, Keegan
+Nakov. 2023. Fact-checking complex claims with              Hines, John Dickerson, and Chirag Shah. 2024. Coun-
+program-guided reasoning. In Proceedings of the 61st        terfactual explanations and algorithmic recourses for
+Annual Meeting of the Association for Computational         machine learning: A review. ACM Computing Surveys,
+Linguistics (Volume 1: Long Papers), pages 6981–7004.       56(12):1–42.
+Association for Computational Linguistics.
+                                                            David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu Wang,
+Shirui Pan, Linhao Luo, Yufei Wang, Chen Chen, Ji-          Madeleine van Zuylen, Arman Cohan, and Hannaneh
+apu Wang, and Xindong Wu. 2024. Unifying large              Hajishirzi. 2020. Fact or fiction: Verifying scientific
+language models and knowledge graphs: A roadmap.            claims. In Proceedings of the 2020 Conference on
+IEEE Transactions on Knowledge and Data Engineering,        Empirical Methods in Natural Language Processing
+36(7):3580–3599.                                            (EMNLP), pages 7534–7550.
+Bhargavi Paranjape, Julian Michael, Marjan Ghazvinine-      David Wadden, Kyle Lo, Lucy Lu Wang, Arman Cohan,
+jad, Hannaneh Hajishirzi, and Luke Zettlemoyer. 2021.       Iz Beltagy, and Hannaneh Hajishirzi. 2022. MultiVerS:
+Prompting contrastive explanations for commonsense          Improving scientific claim verification with weak su-
+reasoning tasks. In Findings of the Association for         pervision and full-document context. In Findings of
+Computational Linguistics: ACL-IJCNLP 2021.                 the Association for Computational Linguistics: NAACL
+Umair Qudus, Michael Röder, Muhammad Saleem, and            2022.
+Axel-Cyrille Ngonga Ngomo. 2025. Fact checking              Bo Wang, Jing Ma, Hongzhan Lin, Zhiwei Yang,
+knowledge graphs – a survey. ACM Comput. Surv.              Ruichao Yang, Yuan Tian, and Yi Chang. 2024a. Ex-
+Tal Schuster, Adam Fisch, and Regina Barzilay. 2021.        plainable fake news detection with large language model
+Get your vitamin c! robust fact verification with con-      via defense among competing wisdom. In Proceedings
+trastive evidence. In Proceedings of the 2021 Confer-       of the ACM Web Conference 2024.
+ence of the North American Chapter of the Association       Jinguang Wang, Shengsheng Qian, Jun Hu, Wenxiang
+for Computational Linguistics: Human Language Tech-         Dong, Xudong Huang, and Richang Hong. 2025. End-
+nologies, NAACL-HLT 2021, Online, June 6-11, 2021,          to-end explainable fake news detection via evidence-
+pages 624–643. Association for Computational Linguis-       claim variational causal inference. ACM Trans. Inf. Syst.,
+tics.                                                       43(4).
+Kai Shu, Limeng Cui, Suhang Wang, Dongwon Lee,              Yuxia Wang, Minghan Wang, Muhammad Arslan Man-
+and Huan Liu. 2019. defend: Explainable fake news           zoor, Fei Liu, Georgi Nenkov Georgiev, Rocktim Jyoti
+detection. In Proceedings of the 25th ACM SIGKDD            Das, and Preslav Nakov. 2024b. Factuality of large
+International Conference on Knowledge Discovery &           language models: A survey. In Proceedings of the 2024
+Data Mining.                                                Conference on Empirical Methods in Natural Language
+Ronit Singal, Pransh Patwa, Parth Patwa, Aman Chadha,       Processing, pages 19519–19529, Miami, Florida, USA.
+and Amitava Das. 2024. Evidence-backed fact checking        Association for Computational Linguistics.
+using RAG and few-shot in-context learning with LLMs.
+                                                            Chenxi Whitehouse, Tillman Weyde, Pranava Mad-
+In Proceedings of the Seventh Fact Extraction and
+                                                            hyastha, and Nikos Komninos. 2022. Evaluation of fake
+VERification Workshop.
+                                                            news detection with knowledge-enhanced language mod-
+Ilia Stepin, Jose M. Alonso, Alejandro Catala, and          els. Proceedings of the International AAAI Conference
+Martín Pereira-Fariña. 2021. A survey of contrastive        on Web and Social Media, 16(1).
+and counterfactual explanation generation methods for
+explainable artificial intelligence. IEEE Access, 9.        Zhouhui Wu, Nan Sun, Jiaojiao Jiang, and Shuiqiao
+                                                            Yang. 2025. Systematic approaches to fact verification:
+Xin Tan, Bowei Zou, and Ai Ti Aw. 2025. Improving           Evidence retrieval, veracity prediction, and beyond. In
+explainable fact-checking with claim-evidence correla-      Pacific-Asia Conference on Knowledge Discovery and
+tions. In Proceedings of the 31st International Confer-     Data Mining, pages 271–289. Springer.
+ence on Computational Linguistics.
+                                                            Zhuohan Xie, Rui Xing, Yuxia Wang, Jiahui Geng,
+James Thorne,          Andreas Vlachos,        Christos     Hasan Iqbal, Dhruv Sahnan, Iryna Gurevych, and
+Christodoulopoulos, and Arpit Mittal. 2018. FEVER: a        Preslav Nakov. 2025. Fire: Fact-checking with iterative
+large-scale dataset for fact extraction and VERification.   retrieval and verification. In Findings of the Association
+In Proceedings of the 2018 Conference of the North          for Computational Linguistics: NAACL 2025.
+                                                        6429
+Cheng Xiong, Gengfeng Zheng, Xiao Ma, Chunlin Li,            Seng Chua. 2021. TAT-QA: A question answering
+and Jiangfeng Zeng. 2025. Delphiagent: A trustworthy         benchmark on a hybrid of tabular and textual content
+multi-agent verification framework for automated fact        in finance. In Proceedings of the 59th Annual Meeting
+verification. Information Processing & Management,           of the Association for Computational Linguistics and
+62(6):104241.                                                the 11th International Joint Conference on Natural
+                                                             Language Processing (Volume 1: Long Papers).
+An Yang, Anfeng Li, Baosong Yang, Beichen Zhang,
+Binyuan Hui, Bo Zheng, Bowen Yu, Chang Gao, Chen-            Yuqi Zhu, Xiaohan Wang, Jing Chen, Shuofei Qiao,
+gen Huang, Chenxu Lv, Chujie Zheng, Dayiheng Liu,            Yixin Ou, Yunzhi Yao, Shumin Deng, Huajun Chen,
+Fan Zhou, Fei Huang, Feng Hu, Hao Ge, Haoran Wei,            and Ningyu Zhang. 2024. Llms for knowledge graph
+Huan Lin, Jialong Tang, and 41 others. 2025. Qwen3           construction and reasoning: Recent capabilities and
+technical report. Preprint, arXiv:2505.09388.                future opportunities. World Wide Web, 27(5):58.
+Zhiwei Yang, Jing Ma, Hechang Chen, Hongzhan Lin,
+Ziyang Luo, and Yi Chang. 2022. A coarse-to-fine
+cascaded evidence-distillation neural network for ex-
+plainable fake news detection. In Proceedings of the
+29th International Conference on Computational Lin-
+guistics.
+Zhenrui Yue, Huimin Zeng, Lanyu Shang, Yifan Liu,
+Yang Zhang, and Dong Wang. 2024. Retrieval aug-
+mented fact verification by synthesizing contrastive
+arguments. In Proceedings of the 62nd Annual Meeting
+of the Association for Computational Linguistics.
+Yuheng Zha, Yichi Yang, Ruichen Li, and Zhiting Hu.
+2023. AlignScore: Evaluating factual consistency with
+a unified alignment function. In Proceedings of the 61st
+Annual Meeting of the Association for Computational
+Linguistics (Volume 1: Long Papers).
+Bowen Zhang and Harold Soh. 2024. Extract, define,
+canonicalize: An llm-based framework for knowledge
+graph construction. In Proceedings of the 2024 Con-
+ference on Empirical Methods in Natural Language
+Processing, pages 9820–9836.
+Xuan Zhang and Wei Gao. 2024. Reinforcement re-
+trieval leveraging fine-grained feedback for fact checking
+news claims with black-box LLM. In Proceedings of the
+2024 Joint International Conference on Computational
+Linguistics, Language Resources and Evaluation.
+Xiaoyan Zhao, Lingzhi Wang, Zhanghao Wang, Hong
+Cheng, Rui Zhang, and Kam-Fai Wong. 2024. PACAR:
+Automated fact-checking with planning and customized
+action reasoning using large language models. In Pro-
+ceedings of the 2024 Joint International Conference
+on Computational Linguistics, Language Resources
+and Evaluation (LREC-COLING 2024), pages 12564–
+12573.
+Lucia Zheng, Neel Guha, Brandon R. Anderson, Peter
+Henderson, and Daniel E. Ho. 2021. When does pre-
+training help? assessing self-supervised learning for law
+and the casehold dataset of 53,000+ legal holdings. In
+Proceedings of the Eighteenth International Conference
+on Artificial Intelligence and Law, ICAIL ’21, page
+159–168.
+Xinyi Zhou and Reza Zafarani. 2020. A survey of fake
+news: Fundamental theories, detection methods, and
+opportunities. ACM Comput. Surv., 53(5).
+Fengbin Zhu, Wenqiang Lei, Youcheng Huang, Chao
+Wang, Shuo Zhang, Jiancheng Lv, Fuli Feng, and Tat-
+                                                         6430
+A   Background                                          These results show the effectiveness of a contrastive
+                                                        approach to reasoning and indicate its potential for
+A.1 Key Concepts                                        claim verification.
+Contrastive Explanations and Reasoning The
+                                                        Non-generative Automated Fact-checking
+principle of contrastive explanations is rooted on
+                                                        AFC typically relies on text embeddings to
+answering counterfactual why-question by compar-
+                                                        represent claims and supporting documents. A
+ing the actual outcome with hypothetical alterna-
+                                                        notable example is dEFEND, which introduced a
+tives (Lipton, 1990; Guidotti, 2024; Verma et al.,
+                                                        sentence-comment co-attention network to jointly
+2024). The contrastiveness presupposes that an ex-
+                                                        analyse news content and user comments (Shu
+planation answers “Why did P happen?” in terms
+                                                        et al., 2019). Kotonya and Toni (2020) developed
+of “Why did P happen rather than Q?”, where P
+                                                        SBERT-FC, introducing the PUBHEALTH dataset
+is an observed event and Q represents alternative
+                                                        to expand the thematic focus on public health
+hypotheses (Stepin et al., 2021). This approach
+                                                        and provide extended explainability analysis.
+ensures that explanations provide comprehensive
+                                                        GenFE and GenFE-MT (Atanasova et al., 2020)
+information by distinguishing the chosen outcome
+                                                        added joint optimisation of veracity prediction
+from a set of contrastive hypothetical alternatives,
+                                                        and explanation generation, showing improved
+establishing a minimum criterion where explana-
+                                                        classification and output quality.
+tions must demonstrate why the observed event was
+more probable than its alternatives.                    CofCED (Yang et al., 2022) introduced a novel
+                                                        hierarchical architecture, combining an encoder
+In short, contrastive explanations aim to answer
+                                                        with cascaded evidence selectors to process reports
+why-questions by comparing an observed outcome
+                                                        from multiple sources for claim verification and
+P with counterfactual alternatives Q. Rather than
+                                                        explanation generation. Whitehouse et al. (2022)
+just explaining why P occurred, they focus on why
+                                                        integrated knowledge bases into pre-trained models
+P happened instead of Q, highlighting why the
+                                                        and showed that using Wikidata improves accuracy,
+chosen outcome is more plausible.
+                                                        particularly for political claims where the knowl-
+Knowledge Graph Construction Using LLMs                 edge base is timely and relevant. More recently,
+A knowledge graph (KG) represents information           Qudus et al. (2025) surveyed the use of KGs for
+as a graph structure, where nodes are entities con-     AFC.
+nected by relations. Formally, G = (E, R, T , C),       Fact-checking Using LLMs The emergence of
+where T contains triples (h, r, t) with entities        LLMs and their strong performance across domains
+{h, t} ∈ E and relations r ∈ R.                         has led to a new set of approaches that place them at
+The use of LLMs to automate KG construction has         the core of AFC. Whilst LLMs can give answers to
+been a theme of several works (Chen and Bertozzi,       factual questions, their reliability is limited by the
+2023; Zhang and Soh, 2024; Pan et al., 2024),           extent of their training data and their tendency to
+specifically due to their performance on extracting     hallucinate factual statements (Wang et al., 2024b;
+entities and relations (Zhu et al., 2024).              Augenstein et al., 2024). Several frameworks have
+                                                        been proposed to address the challenges of reliabil-
+A.2 Related Work                                        ity and transparency in LLM-based fact-checking.
+Contrastive Explanations and Reasoning Jacovi           Early work in this direction includes FactL-
+et al. (2021) applied contrastive explanations by       LaMA (Cheung and Lam, 2023), which combined
+projecting inputs into a latent space that captures     instruction-following with external evidence re-
+only features distinguishing potential decisions,       trieval and demonstrated that augmenting LLMs
+enabling models to better identify which aspects        with external knowledge sources improves fact-
+support or contradict specific predictions. Paran-      checking accuracy, particularly for claims related
+jape et al. (2021) extended this concept to com-        to recent events. IKA (Guo et al., 2023) builds
+monsense reasoning tasks, showing that pre-trained      a graph of positive and negative examples from
+language models can generate contrastive explana-       labelled data to enhance fact-checking and expla-
+tions that highlight key differences between alterna-   nation capabilities. Liu et al. (2024) introduced
+tives, improving both performance and explanation       TELLER, a dual-system framework that empha-
+faithfulness.                                           sises trustworthiness through the integration of
+                                                    6431
+human expertise and LLM capabilities. Similarly,
+Wang et al. (2024a) developed a defence-based
+framework that addresses the limitations of uncen-
+sored crowd wisdom by splitting evidence into com-
+peting narratives and leveraging LLMs for reasoned
+verification. More recently, CorXFact (Tan et al.,
+2025) proposes simulating human fact-checking
+principles by analysing claim-evidence correla-
+tions.
+A popular approach to improving LLM
+fact-checking is Retrieval-Augmented Genera-
+tion (RAG). Examples include the use of basic
+RAG-based architectures (Singal et al., 2024), RAG
+enhanced with fine-grained feedback mechanisms
+for optimising the retrieval task (Zhang and Gao,
+2024), and more advanced RAG-based architec-
+tures focused on evidence retrieval and contrastive
+argument synthesis (Yue et al., 2024).
+Other recent approaches focus on specific aspects of
+fact-checking. For instance, FIRE (Xie et al., 2025)
+proposes an iterative approach to fact-checking
+claims aiming to improve scalability and efficiency
+and Meng et al. (2025) address the challenge of
+zero-day manipulated content through real-time
+contextual information retrieval.
+
+
+
+
+                                                   6432
+B       Implementation Details                         Table 4: Statistics of the LIAR-RAW and RAWFC
+                                                       datasets. | C |ALL denotes the total number of claims,
+This section presents information about our experi-    and | R |avg represents the average number of reports
+mental setup. We first detail the language models      per claim.
+employed and their configuration settings, followed
+                                                               Dataset      Statistics          Value
+by the description and statistics of the datasets
+                                                                            pants-fire          1,013
+used in our evaluation (Section 4.1). Addition-
+                                                                            false               2,466
+ally, we present our modification to the AlignScore
+                                                                            barely-true         2,057
+
+                                                             LIAR-RAW
+metric (Zha et al., 2023) (Section 4.3.1).
+                                                                            half-true           2,594
+B.1 Models Settings                                                         mostly-true         2,439
+                                                                            true                2,021
+We evaluate our framework using a diverse set of                            | C |ALL           12,590
+language models, ranging from large-scale mod-                              | R |avg             12.3
+els available through Amazon Bedrock3 to smaller,                           false                 646
+open-source alternatives from Hugging Face4 (Hug-                           half                  671
+                                                             RAWFC
+ging Face models were deployed using Amazon                                 true                  695
+SageMaker AI5 ). Table 3 presents the complete                              | C |ALL            2,012
+list of models used in our experiments, along with                          | R |avg             21.0
+their providers and custom hyperparameters. For
+                                                               LIAR-RAW     false               5,536
+all Amazon Bedrock models, we set the temper-
+                                                               (2 labels)   true                7,054
+ature to 0.0 to ensure deterministic outputs. For
+the Hugging Face models (SmolLM2 and Qwen3
+families), we configure specific maximum length        B.3       Weighted AlignScore and RQUGE
+and token generation parameters to accommodate
+                                                       As described in Section 4.3.1, AlignScore is a
+our fact-checking pipeline requirements.
+                                                       metric based on a general function of information
+B.2 Datasets                                           alignment to perform automatic factual consistency
+                                                       evaluation of text pairs (Zha et al., 2023). We
+We evaluated the proposed approach on two fact-        extended AlignScore to weight its results by the
+checking real-world datasets: LIAR-RAW and             distance of the predicted claim veracity class from
+RAWFC (statistics shown in Table 4). LIAR-             the ground truth claim class.
+RAW (Yang et al., 2022) extends LIAR-PLUS (Al-
+hindi et al., 2018) and contains 12,590 claims         For that, first, based on the semantic distance be-
+from Politifact6 associated to six veracity classes.   tween classes, we progressively assign each class
+RAWFC (Yang et al., 2022) comprises of 2,012           an integer numerical value ranging from 1 (ymin )
+claims collected from Snopes7 with three ve-           to | C | (ymax ), where C is the set of possible
+racity classes. Both datasets have their claims        labels. For instance, in the case of LIAR-RAW,
+split into three sets: train, test, and validation,    we assigned each class an integer numerical value
+containing, respectively, 80%, 10%, and 10%            ranging from 1 (pants-fire) to 6 (true). After,
+of the claims. LIAR-RAW and RAWFC are                  we measure the mean squared error (MSE) between
+used in Section 4.2 and Section 4.3.1. A mod-          the predicted class. Finally, as depicted in Equa-
+ified version of LIAR-RAW, called LAIR-RAW             tion (2)), we weight the macro AlignScore for the
+(2 labels), used in Sections 4.3.2 and 4.3.3, is       pair answer summarisation text and original claim
+also described in the table. This modification         using the obtained MSE.
+maps the original six labels into two classes:
+{pants-fire, false, barely-true} as false,
+                                                                                    (VC − y)2 
+                                                                AlignScorew = 1 −
+and {half-true, mostly-true, true} as true,                                        (ymax − ymin )2       (2)
+whilst preserving the original claims split.                                  × AlignScore(AC , C)
+    3
+      https://aws.amazon.com/bedrock/                  With this, we penalise the alignment scores of
+    4
+      https://huggingface.co/
+    5
+      https://aws.amazon.com/sagemaker-ai/
+                                                       answer summary AC and claim C where the fact-
+    6
+      https://www.politifact.com/                      checking model prediction VC does not match the
+    7
+      https://www.snopes.com/                          expected class y based on the answer summary,
+                                                   6433
+Table 3: Overview of language models used in our experiments, including model providers and custom hyperparam-
+eter settings.
+
+ Model Name              Model Provider   Model Identifier                               Custom Hyperparameters
+ Claude 3 Haiku          Amazon Bedrock   anthropic.claude-3-haiku-20240307-v1:0         temperature = 0.0
+ Claude 3.5 Haiku        Amazon Bedrock   us.anthropic.claude-3-5-haiku-20241022-v1:0    temperature = 0.0
+ Claude 3.5 Sonnet       Amazon Bedrock   us.anthropic.claude-3-5-sonnet-20241022-v2:0   temperature = 0.0
+ Claude 3.7 Sonnet       Amazon Bedrock   us.anthropic.claude-3-7-sonnet-20250219-v1:0   temperature = 0.0
+ Llama 3.3 70B           Amazon Bedrock   us.meta.llama3-3-70b-instruct-v1:0             temperature = 0.0
+                                                                                         max_length = 8192
+ SmolLM2 135M            Hugging Face     HuggingFaceTB/SmolLM2-135M-Instruct            max_new_tokens = 128
+                                                                                         max_length = 8192
+ SmolLM2 1.7B            Hugging Face     HuggingFaceTB/SmolLM2-1.7B-Instruct            max_new_tokens = 128
+                                                                                         max_length = 8192
+ Qwen3 0.6B              Hugging Face     Qwen/Qwen3-0.6B                                max_new_tokens = 32768
+                                                                                         max_length = 8192
+ Qwen3 1.7B              Hugging Face     Qwen/Qwen3-1.7B                                max_new_tokens = 32768
+
+
+
+while considering that predicting closer classes is
+better than predicting distinct classes.
+
+B.4 Weighted RQUGE
+As described in Section 4.3.1, RQUGE scores the
+acceptability of a generated question given a context
+and an answer (Mohammadshahi et al., 2023). Let
+qi ∈ QKranked be a (formulated contrastive) question
+for claim C (context) with corresponding answer
+ai ∈ Ã; denote the macro score over a set of K
+questions as
+
+
+                     
+  RQUGEmacro C
+                         1 XK
+                 =             RQUGE(qk , C, ak ).
+                         K k=1
+
+Analogously to Appendix B.3, we weight RQUGE
+by the distance between the model’s predicted
+veracity class VC and the gold label y. Using
+the same class mapping ymin → ymax and mean-
+squared error term, the per-claim weight is
+
+                              (VC − y)2
+            wC = 1 −                        .
+                            (ymax − ymin )2
+
+We define the weighted RQUGE for a single ques-
+tion and its macro form as:
+
+   RQUGEw (C) = wC × RQUGEmacro (C).                  (3)
+
+This penalises question-quality scores when the
+verifier’s prediction VC deviates from y, while
+granting higher credit to questions associated with
+closer (semantically adjacent) class predictions.
+                                                        6434
+C    Additional Experiments                             tion 4.3.1). The results indicate that this approach
+                                                        is less effective than our KG-based method. The
+C.1 Ablation Study                                      F1-scores are significantly lower, for instance, with
+To evaluate the impact of KG-CRAFT’s compo-             Llama 3.3 70B achieving only a 29.68% F1-score
+nents and validate its effectiveness as a complete      on LIAR-RAW, compared to the 73.87% F1-score
+framework, we conducted a comprehensive abla-           of the full KG-CRAFT framework. This suggests
+tion study on the LIAR-RAW and RAWFC datasets.          that LLMs, when prompted to generate their own
+Our analysis compares the full KG-CRAFT frame-          contrastive questions, often fail to create questions
+work (proposed in Section 3 and results discussed       that are both contextually relevant and aligned with
+in Section 4.2) against three key architectural vari-   the provided reports, resulting in overall lower
+ations: Naïve LLM, an LLM augmented with only           information alignment (AlignScore) between the
+the knowledge graph (KG), and an LLM that gen-          answer summaries and the original claims and
+erates contrastive questions without using the KG       overall lower question quality (RQUGE) between
+structure (presented and discussed in Section 4.3.1).   formulated questions, generated answers, and the
+The results, presented in Table 5, provide a detailed   original claims (Section 4.3.1). This finding rein-
+breakdown of each component’s contribution to the       forces the value of our knowledge graph approach
+overall performance.                                    for producing evidence-based questions.
+
+Naïve LLM The baselines Naïve LLM section               KG-CRAFT (ours) The results of KG-CRAFT
+(presented in Section 4.1 and results discussed         framework (proposed in Section 3 and results dis-
+in Section 4.2) shows the performance of afore-         cussed in Section 4.2), which combines all proposed
+mentioned backbone LLMs when tasked with fact-          components, consistently outperform all other vari-
+checking using only the claim and its associated        ations, achieving a new state-of-the-art on both
+reports. This approach lacks any structured rea-        datasets (Section 4.2). This confirms that the com-
+soning or pre-processing of the reports. The re-        bination of knowledge graph extraction with the
+sults for these models are notably lower than for       proposed contrastive reasoning significantly en-
+KG-CRAFT, confirming the need for an enhanced           hances LLMs’ fact-checking abilities.
+reasoning mechanism.
+
+LLM with KG augmentation (no contrastive                C.2     Evaluation with Other Datasets
+reasoning) This ablation evaluates the backbone         We further examine whether KG-CRAFT gener-
+models augmented of the knowledge graphs ex-            alises to scenarios where claims are accompanied
+tracted from the claim and reports, but bypassing       by fewer and shorter reports by evaluating on two
+the contrastive reasoning phase. The knowledge          benchmarks: SciFact (scientific abstracts) and Pub-
+graph (KG) is provided as additional context to         Health (health and policy claims).
+the LLM for veracity assessment. Comparing
+these results to the Naïve LLM baselines shows          C.2.1    Experimental Settings
+that augmenting the LLM with the extract (KG)
+does improve performance. However, the gains are        Datasets SciFact dataset (Wadden et al., 2020)
+marginal compared to the full KG-CRAFT frame-           targets scientific claim verification from research
+work, highlighting that the contrastive reasoning       paper abstracts. We used its validation set (also
+process is the primary driver of the significant        referred to as dev set), retaining claims with com-
+performance increase. For instance, on the LIAR-        plete supporting or refuting evidence (label classes:
+RAW dataset, Llama 3.3 70B shows a 15pp increase        supports and refutes). PubHealth (Kotonya
+in F1-score with KG augmentation, but the full KG-      and Toni, 2020) covers health-related and public
+CRAFT framework provides a more substantial             policy claims. We use the test split, selecting
+42pp gain compared to the naïve baseline.               claims that include the dataset’s supporting context
+                                                        (label classes: true, false, mixture). In both
+LLM-based Contrastive Questions (No KG)                 settings, we strictly use the reports provided by
+This ablation directly addresses RQ2 (Section 4.3)      each dataset, i.e., no external retrieval (also known
+by replacing the KG-based question formulation          as gold evidence), so observed differences reflect
+with questions generated purely by the LLM using        reasoning rather than retrieval. Full results are in
+a few-shot prompt (presented and discussed in Sec-      Tables Table 6 and Table 7.
+                                                    6435
+Table 5: Comparative performance analysis (%) of KG-CRAFT and its key components on LIAR-RAW and RAWFC
+datasets.
+
+                                                    LIAR-RAW                    RAWFC
+                         Method
+                                               Pr      Re        F1      Pr       Re      F1
+                         KG-CRAFT (ours)
+                         KG-CRAFTC3.5    62.70        59.38     60.99   67.10   66.25   66.67
+                         KG-CRAFTC3.7    73.92        70.86     72.36   69.37   68.59   68.98
+                         KG-CRAFTL3.3    77.38        70.67     73.87   81.63   81.53   81.58
+                         Naïve LLM
+                         Claude 3.5 Sonnet   29.25    27.83     28.52   54.85   55.04   54.94
+                         Claude 3.7 Sonnet   28.26    26.63     27.42   55.90   57.12   56.50
+                         Llama 3.3 70B       47.21    23.52     31.40   53.16   55.04   54.08
+                         LLM with KG augmentation (no contrastive reasoning)
+                         Claude 3.5 Sonnet 39.96 37.52 38.70 56.73 56.51                56.62
+                         Claude 3.7 Sonnet 60.70 56.42 58.48 68.27 66.09                67.16
+                         Llama 3.3 70B     61.50 38.11 47.06 60.64 58.54                59.57
+                         LLM-based contrastive questions (no KG)
+                         Claude 3.5 Sonnet 34.54 23.25 27.79            65.40   66.56   65.97
+                         Claude 3.7 Sonnet 30.20 27.05 28.54            67.65   68.57   68.11
+                         Llama 3.3 70B     42.18 22.90 29.68            64.98   64.99   64.98
+   Note: The best and second best results are highlighted across each dataset and metric. KG-CRAFT and Naïve LLM results
+                                                     are same in Table 1.
+
+
+Comparisons The performance of KG-CRAFT                       Evaluation Metrics As in our main experiments
+is benchmarked against seven competing meth-                  (Section 4.1), we report precision (Pr), recall (Re),
+ods, which include encoder-based classifiers, graph           and F1-score (F1) results. In addition, to com-
+models, program-style pipelines, and LLM-based                pare with GraphCheck, we report balanced accu-
+approaches. MLA (RoBERTa) (Kruengkrai et al.,                 racy (BAcc). For all metrics, higher values indicate
+2021) proposes a sequence inference model which               better performance.
+uses self-attention at both the token and sentence
+levels to capture information with a pre-LM en-               C.2.2     Results
+coder (RoBERTa). It also feeds static positional              On SciFact, KG-CRAFTL3.3 obtains 83.03 F1
+encodings into its multi-head attention mechanism.            (Pr/Re: 84.58/81.53), outperforming five out of
+MULTIVERS (Wadden et al., 2022) leverages                     the six competing techniques (e.g., MULTIVERS
+a multi-task learning approach aiming at multi-               72.50 and ProgramFC 71.82; more than 10pp
+evidence scientific verification and rationale ex-            difference) whilst presenting competing results
+traction from abstracts. ProgramFC (Pan et al.,               with the best performing method (GraphFC 87.37;
+2023) formulates fact verification as a program-              less than 5pp) (Table 6). Also, in SciFact,
+matic pipeline with modular steps for evidence                GraphCheckL3.3 obtained 89.40 BAcc, outperform-
+usage and decision making. PACAR (Zhao et al.,                ing KG-CRAFTL3.3 in 7.88pp (Table 7). On Pub-
+2024) is a prompting-based approach that aggre-               Health, KG-CRAFTL3.3 achieves the best BAcc at
+gates evidence with consistency-oriented reasoning.           78.66, surpassing GraphCheckL3.3 (73.60; 5.06 pp)
+GraphFC (Huang et al., 2025) encodes the report               and GraphCheckQwen 72B (71.70; 6.96 pp) (Table 7).
+structure with an explicit graph and graph rea-               Whilst KG-CRAFTC3.5 is consistently weaker than
+soning components. CO-GAT (ELECTRA) (Lan                      KG-CRAFTL3.3 results, where reported for com-
+et al., 2025) applies graph attention over scientific         pleteness.
+evidence with a pre-LLM encoder (ELECTRA).
+GraphCheck (Chen et al., 2025) is a recent LLM-               In both datasets, reports associated with each claim
+based verifier that incorporates lightweight graph            are shorter, we observe less diverse extracted KGs,
+signals and instruction-style prompting. We report            i.e., fewer entities and relations, which directly
+KG-CRAFT with two backbones: KG-CRAFTC3.5                     constrains the space of type-consistent substitu-
+and KG-CRAFTL3.3 , with the same settings as                  tions and thus the capacity to formulate diverse
+reported in our main experiments (Section 4.1).               contrastive questions. This likely contributes to
+                                                              the residual gap to GraphFC on SciFact, despite
+                                                         6436
+                            Table 6: Performance comparison on the SciFact dataset (%).
+
+                          Method                                             Pr        Re       F1
+                          Previous Methods
+                          MLA (RoBERTa) (Kruengkrai et al., 2021)a          80.62     49.76    61.54
+                          MULTIVERS (Wadden et al., 2022)                   73.80     71.20    72.50
+                          ProgramFC (Pan et al., 2023)b                       -         -      71.82
+                          PACAR (Zhao et al., 2024)                           -         -      75.06
+                          GraphFC (Huang et al., 2025)                        -         -      87.37
+                          CO-GAT (ELECTRA) (Lan et al., 2025)d              79.58     54.07    64.39
+                          KG-CRAFT (ours)
+                          KG-CRAFTC3.5                                      76.50     75.18    75.83
+                          KG-CRAFTL3.3                                      84.58     81.53    83.03
+   Note: The best and second best results are highlighted across each dataset and metric. All reported results use the evidence
+     provided by the dataset; thus, no external source is referenced. a Results taken from (Lan et al., 2025). b Results taken
+   from (Zhao et al., 2024). c Results taken from (Huang et al., 2025). d CO-GAT (ELECTRA) reported results use the large
+   model and abstract-level evidence settings. MULTIVERS reported results use the full and abstract-level evidence settings.
+
+                   Table 7: Performance comparison on the PubHealth and SciFact datasets (%).
+
+                                                            PubHealth                                 SciFact
+      Method
+                                                 BAcc       Pr       Re       F1       BAcc      Pr         Re       F1
+      GraphCheckL3.3 (Chen et al., 2025)         73.60       -        -           -    89.40      -             -     -
+      GraphCheckQwen 72B (Chen et al., 2025)     71.70       -        -           -    86.40      -             -     -
+      KG-CRAFT (ours)
+      KG-CRAFTC3.5                               61.02    76.50     75.18    75.83     75.17    76.50     75.18     75.83
+      KG-CRAFTL3.3                               78.66    72.82     73.89    73.35     81.52    84.58     81.53     83.03
+   Note: The best results for the Balanced Accuracy (BAcc) are highlighted across each dataset. KG-CRAFT Precision, Recall,
+              and F1-score are reported for completeness; they are not being compared with GraphCheck results.
+
+
+strong overall results and cross-domain robustness
+evidenced by PubHealth.
+
+
+
+
+                                                            6437
+D    Prompt Engineering                                       Contrastive Question
+                                                              Answer Generation Prompt
+This section presents the five prompts used in the
+                                                              You are an expert answering questions
+scope of this work: Knowledge Graph Extrac-                   based only on the provided context.
+tion (Section 3.1), Contrastive Question Answer
+Generation (Section 3.2), Answer Summarisation                ## Task:
+                                                              Using the context provided and being
+(Section 3.2), Claim Veracity Verification (Sec-              aware of the claim, answer the
+tion 3.3), and Contrastive Question Formulation               question regarding the claim aiming
+(Section 4.3.1). For each prompt, we provide the              to fact-check it. Limit your answer
+                                                              to 200 words at most.
+template.
+                                                               ## Desired Outcome:
+                                                              - Base the concise answer strictly on
+D.1 Knowledge Graph Extraction Prompt                          the context.
+                                                              - Present the information neutrally,
+                                                              without judging or labeling the
+The following prompt describes our phased ap-                  claim.
+proach to knowledge graph extraction, where the               - Do not re-state the claim in the
+LLM is guided to sequentially identify entities (E),           answer.
+                                                              - Write in continuous prose (no lists,
+assign their classes (C), and establish relationships          bullet points, or meta-commentary).
+(R) between them to construct the input knowledge             - Limit your answer to 200 words at
+graph G.                                                       most.
+
+                                                              ## Input:
+                                                              * Context: {context}
+     Knowledge        Graph       Extraction                  * Claim: {claim}
+     Prompt                                                   * Question: {contrastive question}
+
+    You are a top-tier algorithm designed                     ## Output:
+    for extracting information in
+    structured formats to build a
+    knowledge graph.
+    Knowledge graphs consist of a set of
+                                                        D.3    Answer Summarisation Prompt
+    triples. Each triple contains two                   The following prompt instructs the LLM to gen-
+    entities (subject and object) and one
+    relation that connects these subject                erate a concise summary (AC ) from the claim (C)
+    and object.                                         and its associated question-answer pairs (QKranked ,
+    Try to capture as much information                  Ã), emphasizing key contrasting elements while
+    from the text as possible without
+    sacrificing accuracy. Do not add any                abstracting non-essential information.
+    information that is not explicitly
+    mentioned in the text.                                    Answer Summarisation Prompt
+    This is the process to extract
+    information and build a knowledge                         You are an expert writing summarizing
+    graph:                                                    information from pairs of question
+    1. Extract nodes [...]                                    and answer.
+    2. Label nodes [...]
+    3. Extract relationships [...]                            ## Task:
+    Compliance criteria: [...]                                Your task is to generate an one
+    Text: {claim or report}                                   paragraph summary of the information
+                                                              based on given pairs of question and
+                                                              answer.
+
+D.2 Contrastive Question Answer Generation                     ## Desired Outcome:
+    Prompt                                                    - A one paragraph summary of the
+                                                               information contained in the question
+                                                               and answer.
+The following prompt instructs the LLM to gener-              - Present the information neutrally,
+ate answers to contrastive questions (QKranked ) by           without judging or labeling the
+analysing claim-associated reports (RC ), ensuring             claim.
+                                                              - Ensure that the summary is clear
+responses are grounded in evidence whilst main-                and accurately based on the provided
+taining traceability between claims, reports, and              context.
+questions.                                                    - Write in continuous prose (no lists,
+                                                               bullet points, or meta-commentary).
+
+
+                                                    6438
+    - Do not add any utterances (for                    based on given context.
+    example "Here are" statements) to the
+    final answer.                                        ## Desired Outcome:
+    - Limit your answer to 200 words at                 - Create contrastive questions of an
+    most.                                                input claim based on given context.
+                                                        - Present a list of five contrastive
+    ## Input:                                            questions.
+    * Question 1: {contrastive question}                - Do not add any utterances (for
+    * Answer 1: {contrastive question                    example "Here are" statements) to the
+    answer}                                              final answer.
+    * [...]
+                                                        ## Example Prompt:
+    ## Output:                                          * Claim: {claim example}
+                                                        * Context: {reports examples}
+
+                                                        ## Example Output:
+D.4 Claim Veracity Verification Prompt                  ”””
+The following prompt (pcv ) instructs the LLM to        {contrastive questions examples}
+                                                        ”””
+determine claim veracity (VC ) by analysing the
+original claim (C) against the distilled evidence        ## Additional Notes:
+summary (AC ), using predefined veracity labels         - Ensure that the contrastive
+                                                         questions are clear and accurately
+and their descriptions.                                  contrasts the claim based on the
+                                                         provided context.
+    Claim Veracity Verification Prompt                  - Maintain a consistent and readable
+                                                         format for the output.
+    You are an expert fact-checking                     - Ensure that the output is only the
+    claims based solely on the provided                  contrastive questions, no other
+    context of the claim.                                additional text or utterances.
+
+    ## Task:                                            ## Input:
+    Your task is to categorize the claim                * Claim: {claim}
+    based only on the context as:                       * Context: {reports}
+    - {veracity labels}
+                                                        ## Output:
+    ## Desired Outcome:
+    - The veracity of the claim based on
+    the context provided.
+    - Your response must be only one of
+    the he above options. Do not include
+    any other text.
+
+    ## Input:
+    * Context: {context}
+    * Claim: {claim}
+
+    ## Output:
+
+
+D.5 Contrastive Question Formulation
+    Prompt
+The following prompt guides the LLM to generate
+contrastive questions directly from claims and re-
+ports, serving as an alternative to the knowledge
+graph-based approach for our ablation study.
+    Contrastive Question Formulation
+    Prompt
+
+    You are an expert writing analyzing a
+    given claim and generating
+    contrastive questions based on given
+    context. Your task is to generate
+    contrastive questions of given claim
+
+
+                                                 6439
+

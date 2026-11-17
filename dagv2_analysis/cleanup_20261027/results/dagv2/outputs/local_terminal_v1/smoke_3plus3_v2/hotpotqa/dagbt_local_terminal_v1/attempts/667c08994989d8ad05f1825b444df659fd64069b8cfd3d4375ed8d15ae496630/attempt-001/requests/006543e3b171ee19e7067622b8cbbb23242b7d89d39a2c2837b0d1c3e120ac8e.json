@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:2956\", \"source_id\": \"hotpotqa:2956\"}]\nAnna Camp\nAnna Ragsdale Camp (born September 27, 1982) is an American actress and singer. She is known for her role as Sarah Newlin in \"True Blood\", and her recurring roles in \"Mad Men\", \"The Good Wife\", and \"The Mindy Project\". She is also known for her role as Aubrey Posen in \"Pitch Perfect\" (2012), \"Pitch Perfect 2\" (2015), and the upcoming \"Pitch Perfect 3\" (2017). She made her Broadway debut in the 2008 production of \"A Country House\" and played Jill Mason in the 2008 Broadway revival of \"Equus\". In 2012, she was nominated for a Drama Desk Award for her performance in the Off-Broadway play \"All New People\". Camp played Jane Hollander, a researcher for the fictitious \"News of the Week\" magazine in the Amazon series \"Good Girls Revolt.\" She also had a role in the 2011 film \"The Help\".\n\n[Passage {\"doc_id\": \"hotpotqa:6999\", \"source_id\": \"hotpotqa:6999\"}]\nAlexis Knapp\nAlexis Merizalde Knapp (born July 31, 1989) is an American actress and singer. She is known for her role as Stacie Conrad in the musical films \"Pitch Perfect\" (2012) , \"Pitch Perfect 2\" (2015) and the upcoming \"Pitch Perfect 3\". She is also known for her role of Alexis in the party film \"Project X\" (2012), and her role on the first season of the TBS comedy \"Ground Floor\".",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:2956\", \"source_id\": \"hotpotqa:2956\"}]\nAnna Camp\nAnna Ragsdale Camp (born September 27, 1982) is an American actress and singer. She is known for her role as Sarah Newlin in \"True Blood\", and her recurring roles in \"Mad Men\", \"The Good Wife\", and \"The Mindy Project\". She is also known for her role as Aubrey Posen in \"Pitch Perfect\" (2012), \"Pitch Perfect 2\" (2015), and the upcoming \"Pitch Perfect 3\" (2017). She made her Broadway debut in the 2008 production of \"A Country House\" and played Jill Mason in the 2008 Broadway revival of \"Equus\". In 2012, she was nominated for a Drama Desk Award for her performance in the Off-Broadway play \"All New People\". Camp played Jane Hollander, a researcher for the fictitious \"News of the Week\" magazine in the Amazon series \"Good Girls Revolt.\" She also had a role in the 2011 film \"The Help\".\n\n[Passage {\"doc_id\": \"hotpotqa:6999\", \"source_id\": \"hotpotqa:6999\"}]\nAlexis Knapp\nAlexis Merizalde Knapp (born July 31, 1989) is an American actress and singer. She is known for her role as Stacie Conrad in the musical films \"Pitch Perfect\" (2012) , \"Pitch Perfect 2\" (2015) and the upcoming \"Pitch Perfect 3\". She is also known for her role of Alexis in the party film \"Project X\" (2012), and her role on the first season of the TBS comedy \"Ground Floor\".\n\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "267",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599315.392842,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599317.23975
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00019110440698602286
+      },
+      {
+        "index": 1,
+        "relevance_score": 9.973530392559811e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2312,
+      "completion_tokens": 4,
+      "total_tokens": 2316
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

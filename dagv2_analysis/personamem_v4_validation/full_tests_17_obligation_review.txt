@@ -1,0 +1,160 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+.F...................................................                    [100%]
+=================================== FAILURES ===================================
+_ test_real_whole_repair_request_uses_references_and_preserves_original_review_semantics _
+
+    def test_real_whole_repair_request_uses_references_and_preserves_original_review_semantics():
+        reader, engine, state, calls, original, value = long_summary_reader()
+        expanded = value + ' The user also enjoyed painting last spring.'
+        def reply(index, data):
+            if index == 1:
+                return response(observation('expanded-summary', ['s1', 's2'], value=expanded))
+            wire = calls.requests[-1]['wire_data']
+            assert 'known_observation_ids' in wire['repair_scope']['whole_value_reviews'][0]
+            restored = expand_all_wire(wire)
+            known = restored['repair_scope']['whole_value_reviews'][0]['known_observations']
+            assert len(known) == 1 and known[0]['id'] == original and known[0]['value'] == value
+            return response(revised(original, state.versions['history'], value=expanded))
+        calls.respond = reply
+>       reader.read(engine.steps[0], 'Review historical additions', ['history'], ['painting'], 'actual-whole-review')
+
+tests/test_v4_whole_review_wire_review.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dagbt.joint_reading.JointReader object at 0x113a09750>
+step = {'output_slot': 'history', 'question': 'Read past creative activities', 'inputs': [], 'execution': 'retrieval', ...}
+query = 'Review historical additions', variables = ['history']
+doc_ids = ['painting'], identity = 'actual-whole-review', semantic = False
+audit = False, terminal_output = False, review_existing_obligations = True
+
+    def read(self, step, query, variables, doc_ids, identity, *, semantic=False, audit=False,
+             terminal_output=False, review_existing_obligations=True):
+        before=self.material_signature()
+        self.current_identity = identity
+        self.current_terminal_output=terminal_output
+        operation = 'audit_joint' if audit else 'semantic_compose' if semantic else 'joint_read'
+        if not audit:
+            values,_,ids=self.state.valid()
+            related={v for v,d in self.state.program['variables'].items() if v in values and d['demand'] in step['inputs']}
+            frontier=list(related)
+            while frontier:
+                v=frontier.pop()
+                for rid in ids.get(v,[]):
+                    for p in self.state.routes[rid]['parent_versions']:
+                        if p not in related:
+                            related.add(p);frontier.append(p)
+            related-=set(self.state.program.get('task_expressions',{}))
+            # New local text can withdraw an actual grounding parent. Never
+            # silently discard such a counter because it is outside local outputs.
+            variables=list(dict.fromkeys([*variables,*sorted(related)]))
+        aliases = [a for a,s in self.e.mapper.sources.items() if s['doc_id'] in doc_ids
+                   and (audit or (identity,a) not in self.read_states)]
+        relevant_obligations=any(item['variable'] in variables for item in self.evidence_obligations.values())
+        failed_variables={record['variable'] for record in self.failed_batch_reviews.values()
+                          if record['variable'] in variables and record['task_id']==step['output_slot']}
+        recovery_ready=(not semantic and not audit and not terminal_output
+                        and self.failed_review_ready(step,variables,doc_ids))
+        if failed_variables and set(variables)<=failed_variables and not recovery_ready:
+            # A renamed query/checkpoint cannot buy fresh attempts for the same
+            # failed text. New original evidence and budget are both necessary.
+            return False
+        if (not aliases and not semantic and not audit
+                and not recovery_ready and not (relevant_obligations and review_existing_obligations)):
+            return False
+        external_pending=set(self.state.pending)-self.pending_variables()
+        for alias in aliases:
+            self.unread_obligations[identity,alias]=set(variables)
+        # Source windows are explicit partitions, with same-document neighbours.
+        groups = []
+        for alias in aliases:
+            source = self.e.mapper.sources[alias]
+            adjacent = [self.e.mapper.source_aliases.get(source.get(k)) for k in ('previous_span_id','next_span_id')]
+            groups.append(list(dict.fromkeys([alias]+[a for a in adjacent if a])))
+        if not groups:
+            groups=[[]]
+        pending = list(groups)
+        while pending:
+            batch,consumed=self._fitting_prefix(operation,step,query,variables,pending,semantic,audit)
+            if not consumed:
+                self.batches.append({'operation':operation,'identity':identity,'status':'capacity_unavailable',
+                                     'unread_source_aliases':pending})
+                self.state.integrate([],external_pending|self.pending_variables())
+>               raise InputOverflow('Local sources/parents/counters exceed real wire capacity')
+E               dagbt.reasoning.InputOverflow: Local sources/parents/counters exceed real wire capacity
+
+dagbt/joint_reading.py:1874: InputOverflow
+=============================== warnings summary ===============================
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: divide by zero encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: overflow encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: invalid value encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_v4_whole_review_wire_review.py::test_real_whole_repair_request_uses_references_and_preserves_original_review_semantics
+1 failed, 1708 passed, 69 warnings in 105.37s (0:01:45)

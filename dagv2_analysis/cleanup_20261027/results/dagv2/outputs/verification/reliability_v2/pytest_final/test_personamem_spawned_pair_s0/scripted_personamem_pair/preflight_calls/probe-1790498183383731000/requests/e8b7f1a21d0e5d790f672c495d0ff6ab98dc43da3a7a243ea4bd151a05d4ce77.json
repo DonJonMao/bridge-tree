@@ -1,0 +1,42 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://127.0.0.1:53621/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "The city is located in France."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "2",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498183.385715,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790498183.386515
+    }
+  ],
+  "response": {
+    "model": "Qwen3-Reranker-8B",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.1
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

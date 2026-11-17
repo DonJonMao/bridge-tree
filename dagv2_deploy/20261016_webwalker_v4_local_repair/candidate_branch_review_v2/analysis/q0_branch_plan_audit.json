@@ -1,0 +1,2080 @@
+{
+  "updated_utc": "2026-10-16T03:33:58.227533+00:00",
+  "scope": "q0 generation artifacts only; no evaluation/reference/input/manifest reads",
+  "driver_state": {
+    "started_utc": "2026-10-16T03:24:50.772398+00:00",
+    "source": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_branch_review_v2/source",
+    "trial": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_branch_review_v2",
+    "driver_pid": 22541,
+    "completed_stages": [
+      {
+        "name": "preflight",
+        "exit_code": 0,
+        "seconds": 3.979270208001253,
+        "log_sha256": "acd9d037b26cf16e95ec2330dc61934a9788fd03e35f79e48d25f5c99b12b199"
+      }
+    ],
+    "status": "running_generation",
+    "updated_utc": "2026-10-16T03:24:54.752204+00:00",
+    "child_pid": 22559
+  },
+  "arms": [
+    {
+      "arm": "dagbt_joint_memory_v1",
+      "budget_used": {
+        "llm": 14,
+        "http_attempts": 14,
+        "web_actions": 5,
+        "json_repairs": 6
+      },
+      "raw_navigation_decisions": [
+        {
+          "call": 3,
+          "request_ref": "97246ccba010e97b27a89c898e2d6ba05b06733d4afd1df75f817b431c718552",
+          "has_response": true,
+          "request_identity": "5c8f6b1c2c15c31ea6122085befd669083af3b95ec2b12158e201925da5f34d6",
+          "repair": false,
+          "selected_link_id": "l86",
+          "primary": {
+            "id": "l86",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+            "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+            "source_region": "main",
+            "source_context": {
+              "start": 4885,
+              "end": 5065,
+              "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+            }
+          },
+          "alternative": {
+            "id": "l81",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/research-innovation/grants/",
+            "text": "Grants",
+            "source_region": "main",
+            "source_context": {
+              "start": 4630,
+              "end": 4810,
+              "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ehaweb.org) is a general homepage with no mention of SUPPLY. Link l86 points to a news article about the 'ASCERTAIN project' which is a different project but is the only project-related link visible. Since the subproblem mentions 'SUPPLY project', this link is the most plausible intermediate section to find project funding details, even though the project name differs. The alternative is to explore the 'Grants' page (l81) which might list funded projects.",
+            "alternative_link_id": "l81",
+            "alternative_reason": "The 'Grants' page (l81) is a plausible alternative because it may list funded projects and their details, including the SUPPLY project, if it is a grant-funded initiative."
+          },
+          "reason_characters": 587,
+          "alternative_reason_characters": 171
+        },
+        {
+          "call": 4,
+          "request_ref": "09a515eb65595778068db2cc8b9458eda9ff7292d090c5dab83e30883517094b",
+          "has_response": true,
+          "request_identity": "6672a24891d2f66a2044dc4bfd37594029c9b2f53a6ae4860943ed86b3c97478",
+          "repair": true,
+          "selected_link_id": "l81",
+          "primary": {
+            "id": "l81",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/research-innovation/grants/",
+            "text": "Grants",
+            "source_region": "main",
+            "source_context": {
+              "start": 4630,
+              "end": 4810,
+              "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+            }
+          },
+          "alternative": {
+            "id": "l86",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+            "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+            "source_region": "main",
+            "source_context": {
+              "start": 4885,
+              "end": 5065,
+              "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (EHA homepage) shows a 'Grants' link (l81) in the main content area, which is a plausible intermediate section to find information about funded projects like SUPPLY. The link text 'Grants' directly relates to funding programs, making it a reasonable next step to locate project-specific details.",
+            "alternative_link_id": "l86",
+            "alternative_reason": "Link l86 points to a news item about the 'ASCERTAIN project' entering its final phase, which is another EHA-related project. If the Grants page does not contain SUPPLY project details, this news section might provide similar project information or lead to a broader project listing."
+          },
+          "reason_characters": 422,
+          "alternative_reason_characters": 282
+        },
+        {
+          "call": 9,
+          "request_ref": "78485c293542df2325a559094d07460955318760f386b4ac26ffb1071d30f109",
+          "has_response": true,
+          "request_identity": "27d5aa4b467ef1a517f46d8a98bf6a58d93bbea0e73709eb04ba8c2d9eab0fce",
+          "repair": false,
+          "selected_link_id": "l83",
+          "primary": {
+            "id": "l83",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/",
+            "text": "Read more about ASCERTAIN",
+            "source_region": "main",
+            "source_context": {
+              "start": 6518,
+              "end": 6698,
+              "text": "ion is available to varying degrees depending on the model.\nRead more about ASCERTAIN\nWhat’s next\nIn our last meeting in April, the ASCERTAIN consortium came together to discuss ou"
+            }
+          },
+          "alternative": {
+            "id": "l84",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/events/ascertain-final-conference/",
+            "text": "Learn more about the final conference",
+            "source_region": "main",
+            "source_context": {
+              "start": 7246,
+              "end": 7426,
+              "text": "more equitable access to new health technologies in Europe.\nLearn more about the final conference\nWhat is ASCERTAIN doing for patients?\nMyeloma Patients Europe (MPE) represents pat"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ASCERTAIN project news) mentions that ASCERTAIN is an EU-funded project and EHA is a consortium partner, but does not name the specific funding program, start date, or duration. Link l83 points to 'Read more about ASCERTAIN' on access2meds.eu, which is likely the project's official site and should contain detailed information about the funding program, start date, and duration.",
+            "alternative_link_id": "l84",
+            "alternative_reason": "Link l84 points to 'Learn more about the final conference' which might include project timeline details, but l83 is more likely to have comprehensive project information including funding and dates."
+          },
+          "reason_characters": 508,
+          "alternative_reason_characters": 198
+        },
+        {
+          "call": 10,
+          "request_ref": "f755c062c10f54500710e19cbf149c6f44bb7318720da551e41b30cc08eef9a4",
+          "has_response": true,
+          "request_identity": "dbde33f8fae9981e67902425122bce46b742951988d6dabb5f5115628ac79347",
+          "repair": true,
+          "selected_link_id": "l83",
+          "primary": {
+            "id": "l83",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/",
+            "text": "Read more about ASCERTAIN",
+            "source_region": "main",
+            "source_context": {
+              "start": 6518,
+              "end": 6698,
+              "text": "ion is available to varying degrees depending on the model.\nRead more about ASCERTAIN\nWhat’s next\nIn our last meeting in April, the ASCERTAIN consortium came together to discuss ou"
+            }
+          },
+          "alternative": {
+            "id": "l84",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/events/ascertain-final-conference/",
+            "text": "Learn more about the final conference",
+            "source_region": "main",
+            "source_context": {
+              "start": 7246,
+              "end": 7426,
+              "text": "more equitable access to new health technologies in Europe.\nLearn more about the final conference\nWhat is ASCERTAIN doing for patients?\nMyeloma Patients Europe (MPE) represents pat"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ASCERTAIN project news) mentions ASCERTAIN is an EU-funded project but does not name the specific funding program (e.g., Horizon Europe, IMI). Link l83 points to 'Read more about ASCERTAIN' on access2meds.eu, which is likely the project's official site and should contain detailed funding information, start date, and duration.",
+            "alternative_link_id": "l84",
+            "alternative_reason": "Link l84 points to the final conference page, which might include project timeline details, but l83 is more likely to have comprehensive project information including funding program and duration."
+          },
+          "reason_characters": 455,
+          "alternative_reason_characters": 196
+        }
+      ],
+      "plan_chains": [
+        {
+          "paid_plan_ref": "337add6034973cdc9ab14e4c572e8f953e7fc67a094c8ac9d7ee073cd16e4b20",
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "project_info",
+            "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+            "paid_plan_ref": "337add6034973cdc9ab14e4c572e8f953e7fc67a094c8ac9d7ee073cd16e4b20",
+            "request_identity": "6672a24891d2f66a2044dc4bfd37594029c9b2f53a6ae4860943ed86b3c97478",
+            "logical_call_index": 4,
+            "selected_link_id": "l81",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (EHA homepage) shows a 'Grants' link (l81) in the main content area, which is a plausible intermediate section to find information about funded projects like SUPPLY. The link text 'Grants' directly relates to funding programs, making it a reasonable next step to locate project-specific details.",
+              "alternative_link_id": "l86",
+              "alternative_reason": "Link l86 points to a news item about the 'ASCERTAIN project' entering its final phase, which is another EHA-related project. If the Grants page does not contain SUPPLY project details, this news section might provide similar project information or lead to a broader project listing."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 66,
+            "elapsed_seconds": 44.149219036102295
+          },
+          "primary": {
+            "id": "l81",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/research-innovation/grants/",
+            "text": "Grants",
+            "source_region": "main",
+            "source_context": {
+              "start": 4630,
+              "end": 4810,
+              "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+            }
+          },
+          "alternative": {
+            "id": "l86",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+            "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+            "source_region": "main",
+            "source_context": {
+              "start": 4885,
+              "end": 5065,
+              "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+            }
+          },
+          "request_identity_matches_actual_paid_wire": true,
+          "accepted_plan_matches_raw_response": true,
+          "primary_follow_event": {
+            "event": "web_link_followed",
+            "node_id": "project_info",
+            "link": {
+              "id": "l81",
+              "source_doc_id": "web-307533c1a4508473094316ab",
+              "url": "https://ehaweb.org/research-innovation/grants/",
+              "text": "Grants",
+              "source_region": "main",
+              "source_context": {
+                "start": 4630,
+                "end": 4810,
+                "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+              }
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 70,
+            "elapsed_seconds": 48.85663628578186
+          },
+          "terminal_events": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "project_info",
+              "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "paid_plan_ref": "337add6034973cdc9ab14e4c572e8f953e7fc67a094c8ac9d7ee073cd16e4b20",
+              "request_identity": "6672a24891d2f66a2044dc4bfd37594029c9b2f53a6ae4860943ed86b3c97478",
+              "logical_call_index": 4,
+              "link": {
+                "id": "l86",
+                "source_doc_id": "web-307533c1a4508473094316ab",
+                "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+                "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+                "source_region": "main",
+                "source_context": {
+                  "start": 4885,
+                  "end": 5065,
+                  "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 90,
+              "elapsed_seconds": 54.588019132614136
+            }
+          ],
+          "pending_in_latest_generation_log": false,
+          "one_use": true,
+          "consumed_original_candidate_matches_paid_choice": true,
+          "reads_between_decision_and_endpoint": [
+            {
+              "event": "joint_read_completed",
+              "operation": "joint_read",
+              "identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "source_aliases": [
+                "s30",
+                "s29",
+                "s31",
+                "s32",
+                "s33",
+                "s20",
+                "s21",
+                "s22",
+                "s23",
+                "s24",
+                "s25",
+                "s26",
+                "s27",
+                "s28",
+                "s34"
+              ],
+              "visible_source_aliases": [
+                "s30",
+                "s29",
+                "s31",
+                "s32",
+                "s33",
+                "s20",
+                "s21",
+                "s22",
+                "s23",
+                "s24",
+                "s25",
+                "s26",
+                "s27",
+                "s28",
+                "s34"
+              ],
+              "valid_rows": 0,
+              "failed_slots": [],
+              "complete": true,
+              "input_tokens": 5524,
+              "sequence": 88,
+              "elapsed_seconds": 54.57013726234436
+            }
+          ],
+          "navigation_calls_between_decision_and_endpoint": [],
+          "semantic_events_between": []
+        },
+        {
+          "paid_plan_ref": "f92667bc82420290b11048457572da69a81616cb299c951dd07b7fc0ec32a07a",
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "project_info",
+            "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+            "paid_plan_ref": "f92667bc82420290b11048457572da69a81616cb299c951dd07b7fc0ec32a07a",
+            "request_identity": "dbde33f8fae9981e67902425122bce46b742951988d6dabb5f5115628ac79347",
+            "logical_call_index": 10,
+            "selected_link_id": "l83",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ASCERTAIN project news) mentions ASCERTAIN is an EU-funded project but does not name the specific funding program (e.g., Horizon Europe, IMI). Link l83 points to 'Read more about ASCERTAIN' on access2meds.eu, which is likely the project's official site and should contain detailed funding information, start date, and duration.",
+              "alternative_link_id": "l84",
+              "alternative_reason": "Link l84 points to the final conference page, which might include project timeline details, but l83 is more likely to have comprehensive project information including funding program and duration."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 169,
+            "elapsed_seconds": 129.55056715011597
+          },
+          "primary": {
+            "id": "l83",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/",
+            "text": "Read more about ASCERTAIN",
+            "source_region": "main",
+            "source_context": {
+              "start": 6518,
+              "end": 6698,
+              "text": "ion is available to varying degrees depending on the model.\nRead more about ASCERTAIN\nWhat’s next\nIn our last meeting in April, the ASCERTAIN consortium came together to discuss ou"
+            }
+          },
+          "alternative": {
+            "id": "l84",
+            "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+            "url": "https://www.access2meds.eu/events/ascertain-final-conference/",
+            "text": "Learn more about the final conference",
+            "source_region": "main",
+            "source_context": {
+              "start": 7246,
+              "end": 7426,
+              "text": "more equitable access to new health technologies in Europe.\nLearn more about the final conference\nWhat is ASCERTAIN doing for patients?\nMyeloma Patients Europe (MPE) represents pat"
+            }
+          },
+          "request_identity_matches_actual_paid_wire": true,
+          "accepted_plan_matches_raw_response": true,
+          "primary_follow_event": {
+            "event": "web_link_followed",
+            "node_id": "project_info",
+            "link": {
+              "id": "l83",
+              "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+              "url": "https://www.access2meds.eu/",
+              "text": "Read more about ASCERTAIN",
+              "source_region": "main",
+              "source_context": {
+                "start": 6518,
+                "end": 6698,
+                "text": "ion is available to varying degrees depending on the model.\nRead more about ASCERTAIN\nWhat’s next\nIn our last meeting in April, the ASCERTAIN consortium came together to discuss ou"
+              }
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 173,
+            "elapsed_seconds": 132.43004536628723
+          },
+          "terminal_events": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "project_info",
+              "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "paid_plan_ref": "f92667bc82420290b11048457572da69a81616cb299c951dd07b7fc0ec32a07a",
+              "request_identity": "dbde33f8fae9981e67902425122bce46b742951988d6dabb5f5115628ac79347",
+              "logical_call_index": 10,
+              "link": {
+                "id": "l84",
+                "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+                "url": "https://www.access2meds.eu/events/ascertain-final-conference/",
+                "text": "Learn more about the final conference",
+                "source_region": "main",
+                "source_context": {
+                  "start": 7246,
+                  "end": 7426,
+                  "text": "more equitable access to new health technologies in Europe.\nLearn more about the final conference\nWhat is ASCERTAIN doing for patients?\nMyeloma Patients Europe (MPE) represents pat"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 233,
+              "elapsed_seconds": 180.9030361175537
+            }
+          ],
+          "pending_in_latest_generation_log": false,
+          "one_use": true,
+          "consumed_original_candidate_matches_paid_choice": true,
+          "reads_between_decision_and_endpoint": [
+            {
+              "event": "joint_read_completed",
+              "operation": "joint_read",
+              "identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "source_aliases": [
+                "s60",
+                "s61",
+                "s62",
+                "s63",
+                "s64",
+                "s65"
+              ],
+              "visible_source_aliases": [
+                "s48",
+                "s60",
+                "s61",
+                "s62",
+                "s63",
+                "s64",
+                "s65"
+              ],
+              "valid_rows": 3,
+              "failed_slots": [],
+              "complete": true,
+              "input_tokens": 8497,
+              "sequence": 230,
+              "elapsed_seconds": 180.8747661113739
+            }
+          ],
+          "navigation_calls_between_decision_and_endpoint": [],
+          "semantic_events_between": []
+        }
+      ],
+      "original_link_coordinate_errors": [],
+      "reader_responses": [
+        {
+          "call": 2,
+          "operation": "joint_read",
+          "request_ref": "26af7c051ec9fed4d0dd74c63aa3a3d15697d6fd30cf0baca1d583b3b93ab860",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "start_date",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "duration",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 5,
+          "operation": "joint_read",
+          "request_ref": "58a31d81acac9b76b5d9165db6c955e2d24aba156afad2aaa8ea69535dcd6bfa",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "start_date",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "duration",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 6,
+          "operation": "joint_read",
+          "request_ref": "d5bdfc797ec7ae24c46e990ab3079dd149dc6088dd6a70e9f0ccc491747744c9",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "o1",
+                    "stance": "support",
+                    "value": "EU funded",
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "Source s48 states 'ASCERTAIN ... is an EU funded project'. The question asks about the SUPPLY project involving EHA, but the provided text only describes the ASCERTAIN project, not a SUPPLY project. No text mentions a 'SUPPLY' project. Therefore, the only relevant evidence is that ASCERTAIN is EU funded, but this does not directly answer the question about a SUPPLY project. However, the scope requires the SUPPLY project involving EHA; no such project is found. The observation is partial because the text does not mention SUPPLY."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "o2",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "No text in the provided sources mentions a 'SUPPLY' project or its start date. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the start date for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "o3",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "No text in the provided sources mentions a 'SUPPLY' project or its duration. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the duration for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 7,
+          "operation": "joint_read_repair",
+          "request_ref": "62a5c07ec6305ac5d6773be3b46a3d6d1bdd37ed753eb8aaf6a5e47b6aa72bc0",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "o1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "o2",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "o3",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": {
+            "failed": [
+              {
+                "variable": "duration",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "duration",
+                  "observations": [
+                    {
+                      "id": "o3",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "No text in the provided sources mentions a 'SUPPLY' project or its duration. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the duration for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "duration",
+                "id": "o3",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o3",
+                  "stance": "unknown",
+                  "value": null,
+                  "source_ids": [],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "No text in the provided sources mentions a 'SUPPLY' project or its duration. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the duration for the SUPPLY project is unknown."
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "funding_program",
+                  "observations": [
+                    {
+                      "id": "o1",
+                      "stance": "support",
+                      "value": "EU funded",
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "Source s48 states 'ASCERTAIN ... is an EU funded project'. The question asks about the SUPPLY project involving EHA, but the provided text only describes the ASCERTAIN project, not a SUPPLY project. No text mentions a 'SUPPLY' project. Therefore, the only relevant evidence is that ASCERTAIN is EU funded, but this does not directly answer the question about a SUPPLY project. However, the scope requires the SUPPLY project involving EHA; no such project is found. The observation is partial because the text does not mention SUPPLY."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "o1",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o1",
+                  "stance": "support",
+                  "value": "EU funded",
+                  "source_ids": [
+                    "s48"
+                  ],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "Source s48 states 'ASCERTAIN ... is an EU funded project'. The question asks about the SUPPLY project involving EHA, but the provided text only describes the ASCERTAIN project, not a SUPPLY project. No text mentions a 'SUPPLY' project. Therefore, the only relevant evidence is that ASCERTAIN is EU funded, but this does not directly answer the question about a SUPPLY project. However, the scope requires the SUPPLY project involving EHA; no such project is found. The observation is partial because the text does not mention SUPPLY."
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "start_date",
+                  "observations": [
+                    {
+                      "id": "o2",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "No text in the provided sources mentions a 'SUPPLY' project or its start date. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the start date for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "o2",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o2",
+                  "stance": "unknown",
+                  "value": null,
+                  "source_ids": [],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "No text in the provided sources mentions a 'SUPPLY' project or its start date. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the start date for the SUPPLY project is unknown."
+                }
+              }
+            ],
+            "attempt": 1,
+            "previous_response_identity": "fdc54d8f79999d8bd4891c67eae677c0ba2231e0039e993695275620f53ec605"
+          },
+          "protocol_diagnostics": {
+            "read_only": true,
+            "grants_review_authority": false,
+            "repair_edit_scope_unchanged": true,
+            "errors": [
+              {
+                "variable": "duration",
+                "observation_id": "o3",
+                "path": "repair_scope.failed[0].slot.observations[0].source_ids",
+                "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+              },
+              {
+                "variable": "start_date",
+                "observation_id": "o2",
+                "path": "repair_scope.failed[4].slot.observations[0].source_ids",
+                "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+              }
+            ]
+          }
+        },
+        {
+          "call": 8,
+          "operation": "joint_read_repair",
+          "request_ref": "ea1de6de325c6e03a981fcfac400ecde35785bab13026e79cd0758206622f99c",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "o1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "o2",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "o3",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": {
+            "failed": [
+              {
+                "variable": "duration",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "duration",
+                  "observations": [
+                    {
+                      "id": "o3",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "duration",
+                "id": "o3",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o3",
+                  "stance": "unknown",
+                  "value": null,
+                  "source_ids": [],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "funding_program",
+                  "observations": [
+                    {
+                      "id": "o1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "o1",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o1",
+                  "stance": "unknown",
+                  "value": null,
+                  "source_ids": [],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "*",
+                "feedback": "Malformed slot",
+                "observation": null,
+                "slot": {
+                  "variable": "start_date",
+                  "observations": [
+                    {
+                      "id": "o2",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "reading_status": "evidence_assessment"
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "o2",
+                "feedback": "Observed draft has not been validated",
+                "observation": {
+                  "id": "o2",
+                  "stance": "unknown",
+                  "value": null,
+                  "source_ids": [],
+                  "entity_scope": "SUPPLY project involving EHA",
+                  "time_scope": "project timeline",
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                }
+              }
+            ],
+            "attempt": 2,
+            "previous_response_identity": "e16ed8198942ead46f8660ee2d1ac469d80769a6badf08675c621615032f144f"
+          },
+          "protocol_diagnostics": {
+            "read_only": true,
+            "grants_review_authority": false,
+            "repair_edit_scope_unchanged": true,
+            "errors": [
+              {
+                "variable": "duration",
+                "observation_id": "o3",
+                "path": "repair_scope.failed[0].slot.observations[0].source_ids",
+                "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+              },
+              {
+                "variable": "funding_program",
+                "observation_id": "o1",
+                "path": "repair_scope.failed[2].slot.observations[0].source_ids",
+                "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+              },
+              {
+                "variable": "start_date",
+                "observation_id": "o2",
+                "path": "repair_scope.failed[4].slot.observations[0].source_ids",
+                "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+              }
+            ]
+          }
+        },
+        {
+          "call": 11,
+          "operation": "joint_read",
+          "request_ref": "af0592c9e7101021931eb8eef48cae70456f7ff385692b99002a769398bd417e",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "obs_funding_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_b48cba3737aa6a9fd1941858"
+                ]
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "obs_start_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_40c114ea68f2622bb151e859"
+                ]
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "obs_duration_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_cc52125a56c4287dd659d556"
+                ]
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [
+            {
+              "original_source": {
+                "id": "s48",
+                "doc_id": "web-c5488f35f88f78b37833d0fb",
+                "start": 4825,
+                "end": 5146,
+                "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+                "source_role": "document",
+                "source_message_indices": [],
+                "time_metadata": {}
+              },
+              "known_observation_refs": [],
+              "obligation_refs": [
+                {
+                  "variable": "funding_program",
+                  "id": "obligation_b48cba3737aa6a9fd1941858"
+                },
+                {
+                  "variable": "start_date",
+                  "id": "obligation_40c114ea68f2622bb151e859"
+                },
+                {
+                  "variable": "duration",
+                  "id": "obligation_cc52125a56c4287dd659d556"
+                }
+              ],
+              "offered_frozen_refs": []
+            }
+          ],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 12,
+          "operation": "joint_read_repair",
+          "request_ref": "c7590c939a235e6729c0ecfa07cac224f29933063e514f68deb11222d5706f93",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "obs_funding_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_b48cba3737aa6a9fd1941858"
+                ]
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "obs_start_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_40c114ea68f2622bb151e859"
+                ]
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "obs_duration_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_cc52125a56c4287dd659d556"
+                ]
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [
+            {
+              "original_source": {
+                "id": "s48",
+                "doc_id": "web-c5488f35f88f78b37833d0fb",
+                "start": 4825,
+                "end": 5146,
+                "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+                "source_role": "document",
+                "source_message_indices": [],
+                "time_metadata": {}
+              },
+              "known_observation_refs": [],
+              "obligation_refs": [
+                {
+                  "variable": "funding_program",
+                  "id": "obligation_b48cba3737aa6a9fd1941858"
+                },
+                {
+                  "variable": "start_date",
+                  "id": "obligation_40c114ea68f2622bb151e859"
+                },
+                {
+                  "variable": "duration",
+                  "id": "obligation_cc52125a56c4287dd659d556"
+                }
+              ],
+              "offered_frozen_refs": []
+            }
+          ],
+          "repair_scope": {
+            "failed": [
+              {
+                "variable": "duration",
+                "id": "*",
+                "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+                "observation": null,
+                "slot": {
+                  "variable": "duration",
+                  "observations": [
+                    {
+                      "id": "obs_duration_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_cc52125a56c4287dd659d556"
+                  ]
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "*",
+                "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+                "observation": null,
+                "slot": {
+                  "variable": "funding_program",
+                  "observations": [
+                    {
+                      "id": "obs_funding_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_b48cba3737aa6a9fd1941858"
+                  ]
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "*",
+                "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+                "observation": null,
+                "slot": {
+                  "variable": "start_date",
+                  "observations": [
+                    {
+                      "id": "obs_start_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_40c114ea68f2622bb151e859"
+                  ]
+                }
+              }
+            ],
+            "attempt": 1,
+            "previous_response_identity": "916089b15b1d62acdd7c1090357e6c6a91087d78459c893e368052d13dd7542f",
+            "frozen_observation_ids": {
+              "duration": [
+                "obs_duration_1"
+              ],
+              "funding_program": [
+                "obs_funding_1"
+              ],
+              "start_date": [
+                "obs_start_1"
+              ]
+            }
+          },
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 13,
+          "operation": "joint_read_repair",
+          "request_ref": "e37084415e855273fc839a42f0c8ad85ce63957fac1a11bf9dc39ccc2cb98a32",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "reading_status": "no_relevant_evidence",
+                "observations": [],
+                "unresolved": []
+              },
+              {
+                "variable": "start_date",
+                "reading_status": "no_relevant_evidence",
+                "observations": [],
+                "unresolved": []
+              },
+              {
+                "variable": "duration",
+                "reading_status": "no_relevant_evidence",
+                "observations": [],
+                "unresolved": []
+              }
+            ]
+          },
+          "source_review_cards": [
+            {
+              "original_source": {
+                "id": "s48",
+                "doc_id": "web-c5488f35f88f78b37833d0fb",
+                "start": 4825,
+                "end": 5146,
+                "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+                "source_role": "document",
+                "source_message_indices": [],
+                "time_metadata": {}
+              },
+              "known_observation_refs": [],
+              "obligation_refs": [
+                {
+                  "variable": "funding_program",
+                  "id": "obligation_b48cba3737aa6a9fd1941858"
+                },
+                {
+                  "variable": "start_date",
+                  "id": "obligation_40c114ea68f2622bb151e859"
+                },
+                {
+                  "variable": "duration",
+                  "id": "obligation_cc52125a56c4287dd659d556"
+                }
+              ],
+              "offered_frozen_refs": []
+            }
+          ],
+          "repair_scope": {
+            "failed": [
+              {
+                "variable": "duration",
+                "id": "*",
+                "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+                "observation": null,
+                "slot": {
+                  "variable": "duration",
+                  "observations": [
+                    {
+                      "id": "obs_duration_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_cc52125a56c4287dd659d556"
+                  ]
+                }
+              },
+              {
+                "variable": "funding_program",
+                "id": "*",
+                "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+                "observation": null,
+                "slot": {
+                  "variable": "funding_program",
+                  "observations": [
+                    {
+                      "id": "obs_funding_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_b48cba3737aa6a9fd1941858"
+                  ]
+                }
+              },
+              {
+                "variable": "start_date",
+                "id": "*",
+                "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+                "observation": null,
+                "slot": {
+                  "variable": "start_date",
+                  "observations": [
+                    {
+                      "id": "obs_start_1",
+                      "stance": "unknown",
+                      "value": null,
+                      "source_ids": [
+                        "s48"
+                      ],
+                      "entity_scope": "SUPPLY project involving EHA",
+                      "time_scope": "project timeline",
+                      "parent_versions": {},
+                      "retract_ids": [],
+                      "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project involving EHA. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+                    }
+                  ],
+                  "unresolved": [],
+                  "resolved_obligation_ids": [
+                    "obligation_40c114ea68f2622bb151e859"
+                  ]
+                }
+              }
+            ],
+            "attempt": 2,
+            "previous_response_identity": "916089b15b1d62acdd7c1090357e6c6a91087d78459c893e368052d13dd7542f",
+            "frozen_observation_ids": {
+              "duration": [
+                "obs_duration_1"
+              ],
+              "funding_program": [
+                "obs_funding_1"
+              ],
+              "start_date": [
+                "obs_start_1"
+              ]
+            }
+          },
+          "protocol_diagnostics": null
+        },
+        {
+          "call": 14,
+          "operation": "joint_read",
+          "request_ref": "18e9db17e23f82162d716147351ace1735399c0c98f7a6200d073280bf17588d",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [
+                  {
+                    "id": "obs_funding_1",
+                    "stance": "support",
+                    "value": "EU funded",
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "Source s48 explicitly states that the ASCERTAIN project is 'EU funded'. The question asks about the 'SUPPLY project involving EHA'. The provided text only discusses the ASCERTAIN project, not a project named 'SUPPLY'. However, the evidence obligation for this variable requires reviewing source s48. Upon review, s48 describes the ASCERTAIN project as EU funded. There is no mention of a 'SUPPLY' project. The obligation is settled by confirming that the only project described in the required source is ASCERTAIN, which is EU funded. The entity scope 'SUPPLY project involving EHA' is not found in the text; the closest entity is the ASCERTAIN project. The funding program for the ASCERTAIN project is 'EU funded'."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_b48cba3737aa6a9fd1941858"
+                ]
+              },
+              {
+                "variable": "start_date",
+                "observations": [
+                  {
+                    "id": "obs_start_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "Source s48, which is the required original source for the obligation, describes the ASCERTAIN project but does not provide a start date. The text only states that ASCERTAIN is an EU funded project. No start date is mentioned for any project, including a 'SUPPLY' project. Therefore, the start date is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_40c114ea68f2622bb151e859"
+                ]
+              },
+              {
+                "variable": "duration",
+                "observations": [
+                  {
+                    "id": "obs_duration_1",
+                    "stance": "unknown",
+                    "value": null,
+                    "source_ids": [
+                      "s48"
+                    ],
+                    "entity_scope": "SUPPLY project involving EHA",
+                    "time_scope": "project timeline",
+                    "parent_versions": {},
+                    "retract_ids": [],
+                    "reason": "Source s48, which is the required original source for the obligation, describes the ASCERTAIN project but does not provide a duration. The text only states that ASCERTAIN is an EU funded project. No duration is mentioned for any project, including a 'SUPPLY' project. Therefore, the duration is unknown."
+                  }
+                ],
+                "unresolved": [],
+                "reading_status": "evidence_assessment",
+                "resolved_obligation_ids": [
+                  "obligation_cc52125a56c4287dd659d556"
+                ]
+              }
+            ],
+            "audit_verdict": "conflict",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [
+            {
+              "original_source": {
+                "id": "s48",
+                "doc_id": "web-c5488f35f88f78b37833d0fb",
+                "start": 4825,
+                "end": 5146,
+                "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+                "source_role": "document",
+                "source_message_indices": [],
+                "time_metadata": {}
+              },
+              "known_observation_refs": [],
+              "obligation_refs": [
+                {
+                  "variable": "funding_program",
+                  "id": "obligation_b48cba3737aa6a9fd1941858"
+                },
+                {
+                  "variable": "start_date",
+                  "id": "obligation_40c114ea68f2622bb151e859"
+                },
+                {
+                  "variable": "duration",
+                  "id": "obligation_cc52125a56c4287dd659d556"
+                }
+              ],
+              "offered_frozen_refs": []
+            }
+          ],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        }
+      ],
+      "reading_span_exposures_checked": 189,
+      "reading_span_coordinate_errors": [],
+      "protocol_errors": [
+        {
+          "event": "protocol_error",
+          "operation": "web_navigate",
+          "error": "Navigation requires a complete bounded exploration plan",
+          "failure_category": "schema",
+          "response_ref": "97246ccba010e97b27a89c898e2d6ba05b06733d4afd1df75f817b431c718552",
+          "finish_reason": "stop",
+          "refusal": null,
+          "usage": {
+            "prompt_tokens": 11965,
+            "total_tokens": 12188,
+            "completion_tokens": 223,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "response_id": "chatcmpl-80235657d1e9852b",
+          "protocol": "plain",
+          "sequence": 52,
+          "elapsed_seconds": 34.58420515060425
+        },
+        {
+          "event": "protocol_error",
+          "operation": "web_navigate",
+          "error": "Navigation requires a complete bounded exploration plan",
+          "failure_category": "schema",
+          "response_ref": "78485c293542df2325a559094d07460955318760f386b4ac26ffb1071d30f109",
+          "finish_reason": "stop",
+          "refusal": null,
+          "usage": {
+            "prompt_tokens": 11980,
+            "total_tokens": 12182,
+            "completion_tokens": 202,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "response_id": "chatcmpl-af64c26d56a48441",
+          "protocol": "plain",
+          "sequence": 155,
+          "elapsed_seconds": 120.90687322616577
+        }
+      ],
+      "event_counts": {
+        "tokenization_count": 208,
+        "reasoning_request_started": 14,
+        "model_context_budget": 14,
+        "budget_reserved": 39,
+        "http_response": 14,
+        "tokenization_usage_validation": 14,
+        "reasoning_response": 14,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 1,
+        "web_http": 5,
+        "web_http_completed": 5,
+        "web_reading_capacity_admitted": 4,
+        "web_search_gap_observed": 9,
+        "joint_read_completed": 5,
+        "web_task_turn_completed": 5,
+        "protocol_error": 2,
+        "reasoning_repair_prepared": 2,
+        "web_navigation_window": 2,
+        "web_navigation_plan_decided": 2,
+        "web_link_followed": 4,
+        "web_branch_plan_consumed": 2,
+        "web_document_window_yielded": 1,
+        "web_paid_recovery_blocked": 1,
+        "residual_action_incomplete": 1,
+        "terminal_published": 1
+      },
+      "generation_result": {
+        "answer": {
+          "status": "unresolved_or_exhausted",
+          "prediction": null,
+          "semantic_answer": null,
+          "answer_source": "dag_terminal",
+          "final_node_id": "project_info",
+          "output_identity": "e79c8feb2169b82dc0929de1e73ad5bbd184d35d370607c4da01badff8df4cb0",
+          "sources": null,
+          "dependency_versions": {
+            "funding_program": 1,
+            "start_date": 0,
+            "duration": 0
+          },
+          "completion_kind": "incomplete",
+          "certificate": null,
+          "program_revision": 0,
+          "terminal_input_doc_ids": [],
+          "certificate_source_ids": []
+        },
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 14,
+            "http_attempts": 14,
+            "web_actions": 5,
+            "json_repairs": 6
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 10,
+            "reader": 0,
+            "json_repairs": 0,
+            "web_actions": 31
+          }
+        },
+        "errors": [
+          {
+            "node_id": "project_info",
+            "type": "InputOverflow",
+            "error": "Local sources/parents/counters exceed real wire capacity"
+          }
+        ],
+        "reasoning_call_count": 14,
+        "audit_complete": false
+      }
+    },
+    {
+      "arm": "dagbt_residual_memory_v2",
+      "budget_used": {
+        "llm": 5,
+        "http_attempts": 4,
+        "web_actions": 1,
+        "json_repairs": 2,
+        "cache_hits": 1
+      },
+      "raw_navigation_decisions": [
+        {
+          "call": 3,
+          "request_ref": "4339be9d87b1dbcd1ea26dc3a5bb00b3f8c3a4aa4b1fe87940607190eba0b0f3",
+          "has_response": true,
+          "request_identity": "e8e964fe737989b12cb976d590ec797531d5b5dc641e2b75b8eca381f1832854",
+          "repair": false,
+          "selected_link_id": "l86",
+          "primary": {
+            "id": "l86",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+            "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+            "source_region": "main",
+            "source_context": {
+              "start": 4885,
+              "end": 5065,
+              "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+            }
+          },
+          "alternative": {
+            "id": "l81",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/research-innovation/grants/",
+            "text": "Grants",
+            "source_region": "main",
+            "source_context": {
+              "start": 4630,
+              "end": 4810,
+              "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ehaweb.org) is a general homepage with no mention of SUPPLY. Link l86 points to a news article titled 'ASCERTAIN project for better pricing and reimbursement models enters final phase' which is a project-related news item. While not directly about SUPPLY, it is a plausible intermediate section that may contain information about EHA's project funding or related projects, potentially leading to the SUPPLY project details.",
+            "alternative_link_id": "l81",
+            "alternative_reason": "Link l81 points to the 'Grants' page, which is a plausible section to find information about funded projects like SUPPLY. However, it is a general grants overview page and may not contain specific project details, making it a secondary alternative."
+          },
+          "reason_characters": 551,
+          "alternative_reason_characters": 248
+        },
+        {
+          "call": 4,
+          "request_ref": "b6e31153a3dc283a039206b04b06a2986b4190886ebdef3d2bad00e22bc4f10f",
+          "has_response": true,
+          "request_identity": "fd118dce8c4cea21fe4389df249444f974554e112b7e60748ccd8dd62ad9dd90",
+          "repair": true,
+          "selected_link_id": "l86",
+          "primary": {
+            "id": "l86",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+            "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+            "source_region": "main",
+            "source_context": {
+              "start": 4885,
+              "end": 5065,
+              "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+            }
+          },
+          "alternative": {
+            "id": "l81",
+            "source_doc_id": "web-307533c1a4508473094316ab",
+            "url": "https://ehaweb.org/research-innovation/grants/",
+            "text": "Grants",
+            "source_region": "main",
+            "source_context": {
+              "start": 4630,
+              "end": 4810,
+              "text": "out our story.\nEHA2027 Congress\nEuropean affairs\nEHA Campus\nGrants\nSpecialized Working Groups\nWhat’s new?\nGo to overview\nTuesday, September 29, 2026\nEHA's Long-Term Advocacy for He"
+            }
+          },
+          "plan": {
+            "intent": "intermediate_branch",
+            "reason": "The subproblem asks about the SUPPLY project involving EHA. The current page (ehaweb.org) shows a news item about the 'ASCERTAIN project' but not SUPPLY. Link l86 points to a news article titled 'ASCERTAIN project for better pricing and reimbursement models enters final phase', which is a project-related article. Since the subproblem mentions 'SUPPLY project', and this is the only project-related news link on the page, it is the most plausible intermediate section to find information about the SUPPLY project or related project details such as funding program, start date, and duration.",
+            "alternative_link_id": "l81",
+            "alternative_reason": "Link l81 points to the 'Grants' page, which could list funding programs that might include the SUPPLY project. However, the news article (l86) is more directly about a specific project and is likely to contain the required details."
+          },
+          "reason_characters": 591,
+          "alternative_reason_characters": 231
+        }
+      ],
+      "plan_chains": [],
+      "original_link_coordinate_errors": [],
+      "reader_responses": [
+        {
+          "call": 2,
+          "operation": "joint_read",
+          "request_ref": "cf1fc55364bfe1adb2062e4474c7bf4b05b0a4bf5e59f6fe28812ac2a4b8ea6a",
+          "has_response": true,
+          "response": {
+            "slots": [
+              {
+                "variable": "funding_program",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "start_date",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              },
+              {
+                "variable": "duration",
+                "observations": [],
+                "unresolved": [],
+                "reading_status": "no_relevant_evidence"
+              }
+            ],
+            "audit_verdict": "unknown",
+            "final_prediction": null,
+            "semantic_answer": null
+          },
+          "source_review_cards": [],
+          "repair_scope": null,
+          "protocol_diagnostics": null
+        }
+      ],
+      "reading_span_exposures_checked": 19,
+      "reading_span_coordinate_errors": [],
+      "protocol_errors": [
+        {
+          "event": "protocol_error",
+          "operation": "web_navigate",
+          "error": "Navigation requires a complete bounded exploration plan",
+          "failure_category": "schema",
+          "response_ref": "4339be9d87b1dbcd1ea26dc3a5bb00b3f8c3a4aa4b1fe87940607190eba0b0f3",
+          "finish_reason": "stop",
+          "refusal": null,
+          "usage": {
+            "prompt_tokens": 11978,
+            "total_tokens": 12199,
+            "completion_tokens": 221,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "response_id": "chatcmpl-9b82d7a9026265b5",
+          "protocol": "plain",
+          "sequence": 51,
+          "elapsed_seconds": 30.54256582260132
+        },
+        {
+          "event": "protocol_error",
+          "operation": "web_navigate",
+          "error": "Navigation requires a complete bounded exploration plan",
+          "failure_category": "schema",
+          "response_ref": "b6e31153a3dc283a039206b04b06a2986b4190886ebdef3d2bad00e22bc4f10f",
+          "finish_reason": "stop",
+          "refusal": null,
+          "usage": {
+            "prompt_tokens": 12006,
+            "total_tokens": 12240,
+            "completion_tokens": 234,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "response_id": "chatcmpl-a597b8e9a0afa364",
+          "protocol": "plain",
+          "sequence": 64,
+          "elapsed_seconds": 40.50704383850098
+        },
+        {
+          "event": "protocol_error",
+          "operation": "web_navigate",
+          "error": "Navigation requires a complete bounded exploration plan",
+          "failure_category": "schema",
+          "response_ref": "b6e31153a3dc283a039206b04b06a2986b4190886ebdef3d2bad00e22bc4f10f",
+          "finish_reason": "stop",
+          "refusal": null,
+          "usage": {
+            "prompt_tokens": 12006,
+            "total_tokens": 12240,
+            "completion_tokens": 234,
+            "prompt_tokens_details": null,
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": null,
+              "accepted_prediction_tokens": null,
+              "rejected_prediction_tokens": null
+            }
+          },
+          "response_id": "chatcmpl-a597b8e9a0afa364",
+          "protocol": "plain",
+          "sequence": 78,
+          "elapsed_seconds": 40.51732301712036
+        }
+      ],
+      "event_counts": {
+        "tokenization_count": 25,
+        "reasoning_request_started": 5,
+        "model_context_budget": 5,
+        "budget_reserved": 13,
+        "http_response": 4,
+        "tokenization_usage_validation": 5,
+        "reasoning_response": 5,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 1,
+        "web_cache_hit": 1,
+        "web_reading_capacity_admitted": 1,
+        "web_search_gap_observed": 3,
+        "joint_read_completed": 1,
+        "web_task_turn_completed": 2,
+        "protocol_error": 3,
+        "reasoning_repair_prepared": 2,
+        "cached_attempt_charge": 1,
+        "request_cache_hit": 1,
+        "reasoning_repair_exhausted": 1,
+        "residual_action_incomplete": 1,
+        "local_read_replay_skipped": 1,
+        "web_navigation_assessment_paused": 1,
+        "terminal_published": 1
+      },
+      "generation_result": {
+        "answer": {
+          "status": "unresolved_or_exhausted",
+          "prediction": null,
+          "semantic_answer": null,
+          "answer_source": "dag_terminal",
+          "final_node_id": "project_info",
+          "output_identity": "8f68bcefd6d8439a794e59f5ec24f89d95fbd34f591166cdd2eabae651649ec0",
+          "sources": null,
+          "dependency_versions": {
+            "funding_program": 0,
+            "start_date": 0,
+            "duration": 0
+          },
+          "completion_kind": "incomplete",
+          "certificate": null,
+          "program_revision": 0,
+          "terminal_input_doc_ids": [],
+          "certificate_source_ids": []
+        },
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 5,
+            "http_attempts": 4,
+            "web_actions": 1,
+            "json_repairs": 2,
+            "cache_hits": 1
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 19,
+            "reader": 0,
+            "json_repairs": 4,
+            "web_actions": 35
+          }
+        },
+        "errors": [
+          {
+            "node_id": "project_info",
+            "type": "ProtocolError",
+            "error": "Navigation requires a complete bounded exploration plan"
+          }
+        ],
+        "reasoning_call_count": 5,
+        "audit_complete": false
+      }
+    }
+  ]
+}

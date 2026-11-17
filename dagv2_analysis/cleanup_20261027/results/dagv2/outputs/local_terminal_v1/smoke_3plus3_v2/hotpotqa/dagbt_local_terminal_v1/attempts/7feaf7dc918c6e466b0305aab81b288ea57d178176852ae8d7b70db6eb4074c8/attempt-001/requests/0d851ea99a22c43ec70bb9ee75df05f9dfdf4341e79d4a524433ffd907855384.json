@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:8873\", \"source_id\": \"hotpotqa:8873\"}]\nGovernment of Ireland Act 1914\nThe Government of Ireland Act 1914 (4 & 5 Geo. 5 c. 90), also known as the Home Rule Act, and before enactment as the Third Home Rule Bill, was an Act passed by the Parliament of the United Kingdom intended to provide home rule (self-government within the United Kingdom) for Ireland. It was the third such bill introduced by a Liberal government in a 28-year period in response to the Irish Home Rule movement.\n\n[Passage {\"doc_id\": \"hotpotqa:8876\", \"source_id\": \"hotpotqa:8876\"}]\nIrish Parliamentary Party\nThe Irish Parliamentary Party (IPP; commonly called the Irish Party or the Home Rule Party) was formed in 1874 by Isaac Butt, the leader of the Nationalist Party, replacing the Home Rule League, as official parliamentary party for Irish nationalist Members of Parliament (MPs) elected to the House of Commons at Westminster within the United Kingdom of Great Britain and Ireland up until 1918. Its central objectives were legislative independence for Ireland and land reform. Its constitutional movement was instrumental in laying the groundwork for Irish self-government through three Irish Home Rule bills."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "21",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600202.182497,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600203.099724
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.9802808695883038
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1122,
+      "completion_tokens": 2,
+      "total_tokens": 1124
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

@@ -1,0 +1,22 @@
+Command: /Users/mao/projects/dagv2/.venv/bin/python -B -m pytest -q tests/test_v4_discovery_frontier_review.py -k 'actual_parent_revision or cross_query or same_query_candidate or ambiguous_frontier'
+Working directory: /Users/mao/projects/dagv2-personamem-v4-reconcile
+Exit code: 1
+
+FAILED test_actual_parent_revision_invalidates_old_descendant_and_retained_frontier_keeps_scope_history[already_read_document]
+  with pytest.raises(ProtocolError, match='identity'):
+  Failed: DID NOT RAISE ProtocolError
+
+FAILED test_actual_parent_revision_invalidates_old_descendant_and_retained_frontier_keeps_scope_history[new_document]
+  with pytest.raises(ProtocolError, match='identity'):
+  Failed: DID NOT RAISE ProtocolError
+
+2 failed, 9 passed, 19 deselected in 0.32s
+
+Scope: a real FactState parent contradiction/update invalidates the prior descendant.
+Reusing the old discovery query identity with only an already-read document returns
+before the queued-frontier metadata check; reusing it with a brand-new document
+also bypasses that check. The normal changed-query case passes and retains the old
+scope in its provenance checkpoint. The production controller constructs versioned
+identities, so this proves a reader protocol-boundary hole, not a live-run cause.
+Production owner acknowledged the hole and is implementing a persisted identity
+context registry. Source was an evolving working tree, not a frozen release.

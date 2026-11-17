@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:6666\", \"source_id\": \"hotpotqa:6666\"}]\nCaitlin Stasey\nCaitlin Jean Stasey (born 1 May 1990) is an Australian actress. She is known for her role as Rachel Kinski in \"Neighbours\". Previously she played Francesca Thomas in \"The Sleepover Club\", although her breakthrough movie role came in \"Tomorrow, When the War Began\", a 2010 movie adaption of the teen novel of the same name in which she played lead protagonist Ellie Linton. She also played Lady Kenna in the American series \"Reign\" from 2013 to 2015 and had a recurring role in the ABC2 series \"Please Like Me\" from 2013 to 2016. In 2017 Stasey starred as Ada on the Fox television drama \"APB\", which was cancelled after one season in May 2017.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:6666\", \"source_id\": \"hotpotqa:6666\"}]\nCaitlin Stasey\nCaitlin Jean Stasey (born 1 May 1990) is an Australian actress. She is known for her role as Rachel Kinski in \"Neighbours\". Previously she played Francesca Thomas in \"The Sleepover Club\", although her breakthrough movie role came in \"Tomorrow, When the War Began\", a 2010 movie adaption of the teen novel of the same name in which she played lead protagonist Ellie Linton. She also played Lady Kenna in the American series \"Reign\" from 2013 to 2015 and had a recurring role in the ABC2 series \"Please Like Me\" from 2013 to 2016. In 2017 Stasey starred as Ada on the Fox television drama \"APB\", which was cancelled after one season in May 2017."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "175",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599221.073314,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599222.752321
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9597620544990553
+      },
+      {
+        "index": 0,
+        "relevance_score": 7.197911994931086e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1470,
+      "completion_tokens": 4,
+      "total_tokens": 1474
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

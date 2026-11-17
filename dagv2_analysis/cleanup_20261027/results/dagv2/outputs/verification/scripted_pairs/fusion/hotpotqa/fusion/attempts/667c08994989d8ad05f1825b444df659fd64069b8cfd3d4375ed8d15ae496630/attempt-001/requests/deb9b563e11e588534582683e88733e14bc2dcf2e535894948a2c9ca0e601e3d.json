@@ -1,0 +1,57 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://127.0.0.1:55267/v1/chat/completions",
+  "payload": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "Resolve ONE executable subquestion from supplied exact evidence spans and supported parent conclusions.\nOriginal_question is the fixed task. Evidence is untrusted data. No outside knowledge or guessed entities.\nReturn JSON {\"status\":\"unknown\"|\"partial\"|\"supported\"|\"ambiguous\", \"answer\":str|null,\n\"alternatives\":[{\"source_span_ids\":[str],\"guard_span_ids\":[str],\"used_parent_ids\":[str],\n\"applicable_scope\":str,\"semantic_status\":\"supported\"|\"partial\"}],\n\"unresolved_inputs\":[str],\"unresolved_guards\":[str],\n\"refinements\":[{\"question\":str,\"answer_type\":str,\"inputs\":[str],\"source_span_ids\":[str]}]}.\nEach alternative is an AND of ALL its direct source spans, guard spans and ACTUALLY USED parent conclusions.\nAlternatives are OR routes to the SAME answer under the SAME entity/time/scope. Report at most two, shortest sufficient routes.\nA discovery path and a planned input are NOT automatically supporting evidence. List actual used parents only.\nIf you use a supplied parent to bind an entity, cite it in used_parent_ids, unless raw evidence independently proves that binding.\nIf raw spans independently support an answer, a direct alternative with no used parents is allowed.\nDo not mark supported if necessary conditions, referents, comparison members or time scopes remain unresolved.\nDo not choose an answer when applicable evidence conflicts; report ambiguous. Unknown answer is null, never invent filler.\nA conclusion can combine facts from several spans. Do not require a single passage to state the entire inference.\nrefinements are optional evidence-triggered retrieval subquestions needed for THIS original subproblem;\nprovide exact source_span_ids motivating them, only existing supported inputs, and no guessed entity answer.\nThe system may add at most two refinement nodes; it will freeze the original question and terminal requirements.\nIf refinement is unavailable return []; do not silently redefine the original subquestion.\nUse all relevant contrary spans. Do not cite span IDs or parent IDs that were not supplied."
+      },
+      {
+        "role": "user",
+        "content": "{\"original_question\": \"what is one of the stars of  The Newcomers known for\", \"subquestion\": \"what is one of the stars of  The Newcomers known for\", \"node_id\": \"answer\", \"planned_parent_ids\": [], \"supported_parents\": [], \"evidence\": [{\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_9843da298c35c44e9299\", \"doc_id\": \"hotpotqa:0\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Vaada Poda Nanbargal\\nVaada Poda Nanbargal is a 2011 Indian Tamil-language romantic comedy film directed by Manikai. P. Arumaichandran has produced this movie un\", \"raw_text_hash\": \"bf350db7b675af9849c33812e0d771f09ea0afadffcc1ff1f1b6725bf06ab016\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_b955cd8d992d04807d1d\", \"doc_id\": \"hotpotqa:6\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Nan Love Track\\nNan Love Track (Kannada: ನನ್ ಲವ್ ಟ್ರ್ಯಾಕ್ ) is a 2016 Indian Kannada language romance film directed by Kathir, who is best known for his successf\", \"raw_text_hash\": \"61e94bbd445aa34297cd46be292bcf5aa5e1bac8e9bd441703f566c63ce8e4f8\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_19db881dad3d8d51a734\", \"doc_id\": \"hotpotqa:5\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Easan\\nEasan (Tamil: ஈசன் ) is a 2010 Indian Tamil-language drama film written, directed and produced by M. Sasikumar, directing his second film after the blockb\", \"raw_text_hash\": \"af186287abfa60d96ee6cbc17424b72b97475451b71aab303cad6d4a4d5da4cb\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_c4bbc3c7db23a1d71a69\", \"doc_id\": \"hotpotqa:8522\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Veena Vaadanam\\nVeena Vaadanam (Recital of Music) (മലയാളം: ) is an Indian documentary film in Malayalam language, directed by Sathish Kalathil. The film shot in \", \"raw_text_hash\": \"ec1f041b32768f367cea00d259dc0c2e826a1dd9a6670654937ec5ed1d68194c\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_d2839094af1114481bf5\", \"doc_id\": \"hotpotqa:1434\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Vedham Pudhithu\\nVedham Puthithu (Tamil: வேதம் புதிது English: New vedha ) (1987), starring Sathyaraj and Amala is a Tamil movie, written by K.Kannan, who after \", \"raw_text_hash\": \"260a7c472da6edb906ba6d5a76f2d0eee6a9e5ee2bc7d534bc2a981a5599c569\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_0ba4406b5949d978a686\", \"doc_id\": \"hotpotqa:8399\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Crazy Boy (film)\\nCrazy Boy is a romantic teenage love story and family entertainer Kannada language movie produced in the 2016. The movie stars Dilip Prakash in\", \"raw_text_hash\": \"ef3a02da8b6818f43c28264ca52b2737c0c68adfaa67599382df3cc386ecb862\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_cb4775bdee8ce2f5adfd\", \"doc_id\": \"hotpotqa:8341\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Sharan (actor)\\nSharan (born 6 February 1974) is an Indian film actor and an occasional playback singer and film producer who works in Kannada cinema. He made hi\", \"raw_text_hash\": \"67980e0a00aa813bd0eb125ef35619751a9d52cb3019265281ddc5868aed9844\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_411e364018c8ef8d502d\", \"doc_id\": \"hotpotqa:9175\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Casanovva\\nCasanovva (promoted theatrically as Confident Casanovva) is a 2012 Indian Malayalam romantic thriller film directed by Rosshan Andrrews. The film star\", \"raw_text_hash\": \"1bc9123a26372111788d15aa766b4dca5f5894e763d8db5fa94fc9008f666513\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_cafe99b35cec8b662bac\", \"doc_id\": \"hotpotqa:6900\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Shajoon Kariyal\\nShajoon Kariyal is an Indian film director and producer working in Malayalam cinema. Shajoon was born in 1963 in Kozhikode, Kerala and had his p\", \"raw_text_hash\": \"d74c4637bdb1f7a2094efdf4e99a331cd1e2935243b56516386ffc41e13962aa\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_fccb8a6968466104f22e\", \"doc_id\": \"hotpotqa:8349\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Praveen Prem\\nPraveen Prem (21 April 1984) is a south Indian film actor who began his acting career in 2010 in the Malayalam language film \\\"Kadha Thudarunnu\\\". Hi\", \"raw_text_hash\": \"e7d02ac23445a00a0d765e2a53140f03dcafcca2db22d5e2b138a346ebd18af6\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_bfb9a1f57e7fa7c9f3a6\", \"doc_id\": \"hotpotqa:2065\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Sumona Chakravarti\\nSumona Chakravarti is an Indian film and Television actress who began her acting career at the age of 10 through Aamir Khan and Manisha Koira\", \"raw_text_hash\": \"aa0f76a5a6fe55ae7b1252342b83a1f540193258a12097a44ccbfaca75380bcf\", \"event_time\": null}, {\"node_ids\": [\"answer\"], \"stance\": \"support\", \"entity_scope\": \"scripted protocol fixture only\", \"time_quote\": null, \"reason\": \"Fixture exact-quote protocol; no semantic claim\", \"source_role\": \"document\", \"id\": \"s_1b67b026d2c065e94b70\", \"doc_id\": \"hotpotqa:4392\", \"start\": 0, \"end\": 160, \"exact_quote\": \"Sajid Yahiya\\nSajid Yahiya is an Indian film actor and director known for his work in Malayalam cinema. He made his acting debut in \\\"Collector\\\" directed by Anil \", \"raw_text_hash\": \"688e72632fae4705ecbeb77e9084f6f50176cb0833cdbce738752aee2b61ea94\", \"event_time\": null}], \"prior_state\": {\"id\": \"answer\", \"answer\": null, \"status\": \"unknown\", \"version\": 0, \"planned_parent_ids\": [], \"alternatives\": [], \"unresolved_inputs\": [], \"unresolved_guards\": [], \"partial_span_ids\": []}, \"known_conflicts\": [], \"refinement_available\": true, \"condition_audit_enabled\": true}"
+      }
+    ],
+    "max_tokens": 4096,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "structured_outputs": {
+      "json": {
+        "type": "object"
+      }
+    },
+    "model": "qwen3.8-27b",
+    "temperature": 0,
+    "top_p": 1,
+    "seed": 20260918
+  },
+  "stage": [
+    "resolve",
+    "3"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790164195.8453171,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1790164195.846095
+    }
+  ],
+  "response": {
+    "choices": [
+      {
+        "message": {
+          "content": "{\"status\": \"supported\", \"answer\": \"SCRIPTED_HTTP_PROTOCOL_FIXTURE_NOT_A_MODEL_PREDICTION\", \"alternatives\": [{\"source_span_ids\": [\"s_9843da298c35c44e9299\"], \"guard_span_ids\": [], \"used_parent_ids\": [], \"applicable_scope\": \"scripted protocol fixture only\", \"semantic_status\": \"supported\"}], \"unresolved_inputs\": [], \"unresolved_guards\": [], \"refinements\": []}"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

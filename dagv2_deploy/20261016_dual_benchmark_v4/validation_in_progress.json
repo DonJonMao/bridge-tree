@@ -1,0 +1,88 @@
+{
+  "state": "in_progress",
+  "platform": "macOS-26.2-arm64-arm-64bit",
+  "python": "3.11.15",
+  "baseline": "e6677081cdfb33c01db3aaa274a497168f314f78",
+  "verified_unchanged_public_python_files": 107,
+  "tests": {
+    "command": "/Users/mao/projects/dagv2/.venv/bin/python -m pytest -q tests",
+    "passed": 3038,
+    "failed": 0,
+    "warnings": 69,
+    "seconds": 101.29
+  },
+  "shell_syntax_passed": true,
+  "git_diff_check_passed": true,
+  "actual_smoke": {
+    "state": "preflight",
+    "questions_per_dataset": 2,
+    "arms_per_question": 2,
+    "total_tasks": 8,
+    "after_personamem": null,
+    "note": "Local CLI validation uses the same suite backend without asserting a server PersonaMem gate."
+  },
+  "archive": "pending",
+  "scope": "Local Darwin validation; no claim of Linux full-dataset execution.",
+  "offline_entry_fixture_update": {
+    "reason": "HTTP fixture routing did not recognize independent grounding review payload",
+    "production_engine_changed": false,
+    "targeted_tests_passed": 9,
+    "seconds": 2.36,
+    "both_arms_certified_symbolic": true,
+    "independent_grounding_reviews_per_arm_at_least": 2,
+    "json_repairs": 0,
+    "external_network_used": false
+  },
+  "independent_review": {
+    "blocking_findings": 0,
+    "checks": [
+      "label isolation",
+      "source/config/data freeze",
+      "terminal result integrity before scoring",
+      "one attempt per task",
+      "owned worker shutdown",
+      "bounded corpus retrieval",
+      "both datasets generate before either scores"
+    ]
+  },
+  "data": {
+    "data_directory": "/Users/mao/projects/dagv2-webwalker-v4/data/browsecomp_plus",
+    "questions": 830,
+    "documents": 100195,
+    "files": {
+      "questions.jsonl": {
+        "bytes": 493842,
+        "sha256": "1c31873e82027956ed7f2eb9da9e6009d543004352894730cd871ca4f9ab6111"
+      },
+      "evaluation_only.json": {
+        "bytes": 202947,
+        "sha256": "8b7938742142fd18d618cf90d4696d9ccbe87d43c3d67c7a17d3bf19ff2761e7"
+      },
+      "corpus.sqlite3": {
+        "bytes": 2292801536,
+        "sha256": "d8e2222aac1cdebe85f14c10a7d4ad1ee1cc7c04746c3f26a54280ca18ff2c79"
+      },
+      "manifest.json": {
+        "bytes": 7679,
+        "sha256": "79ff78d42237353aa95edb5e6a7551223716a05380ddcd479d3fbc01b6a94eb3"
+      }
+    },
+    "source_shards": 13,
+    "full_download_sha256_verified_shards": 7,
+    "query_projected_shards": 6,
+    "query_projected_transfer_bytes": 1122675,
+    "successful_prepare_started_local": "2026-10-16T18:55:06+08:00",
+    "prepared_manifest_written_local": "2026-10-16T19:05:19.451906+08:00",
+    "successful_prepare_seconds": 613.452,
+    "official_queries": "https://huggingface.co/datasets/Tevatron/browsecomp-plus/tree/144cff8e35b5eaef7e526346aa60774a9deb941f",
+    "official_corpus": "https://huggingface.co/datasets/Tevatron/browsecomp-plus-corpus/tree/b27b02bc3e45511b8b82a13e6f90ce761df726f6"
+  },
+  "data_preparer_regression": {
+    "passed": 19,
+    "covered": [
+      "short EOF resume",
+      "incorrect Content-Range rejected before append",
+      "complete SHA mismatch rejected"
+    ]
+  }
+}

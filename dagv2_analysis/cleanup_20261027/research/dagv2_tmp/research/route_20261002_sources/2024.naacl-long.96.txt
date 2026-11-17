@@ -1,0 +1,883 @@
+           End-to-End Beam Retrieval for Multi-Hop Question Answering
+        Jiahao Zhang†          Haiyang Zhang† *            Dongmei Zhang†                        Yong Liu‡                        Shen Huang‡
+                   †
+                       Beijing University of Posts and Telecommunications, Beijing, China
+                                            {relyourself, zhhy, zhangdm}@bupt.edu.cn
+
+                                        ‡
+                                            Tencent Research, Beijing, China
+                                            {owenyongliu, springhuang}@tencent.com
+
+
+                           Abstract
+                                                                                                Question:
+                                                                                                                                    …city where Falling in
+                                                                             The gold spike in the city where Falling in            Reverse formed…
+
+        Multi-hop question answering (QA) involves                           Reverse formed is owned by a person whose
+                                                                             alma mater has how many undergraduates?
+        finding multiple relevant passages and step-by-
+        step reasoning to answer complex questions,
+                                                                             Title: Falling in Reverse
+        indicating a retrieve-and-read paradigm. How-               First    Falling in Reverse is an American rock band
+                                                                                                                                    …gold spike… owned
+                                                                                                                                    by a person…
+                                                                    Hop      based in Las Vegas, Nevada and formed in 2008,
+        ever, previous retrievers were customized for                        signed to Epitaph Records
+        two-hop questions, and most of them were
+        trained separately across different hops, re-                        Title: Gold Spike (property)
+        sulting in a lack of supervision over the en-
+                                                                                                                                    … alma mater…
+                                                                    Second   … at the Gold Spike, a 50 - room three floor hotel
+                                                                    Hop      located in downtown Las Vegas. It was owned by
+        tire multi-hop retrieval process and leading to                      entrepreneur Tony Hsieh and …
+
+        poor performance in complicated scenarios be-
+        yond two hops. In this work, we introduce                   Third
+                                                                             Title: LinkExchange                                    ...how many
+                                                                                                                                    undergraduates…
+
+        Beam Retrieval, an end-to-end beam retrieval                Hop
+                                                                             It was founded in March 1996 by 23-year-old
+                                                                             Harvard graduates Tony Hsieh …
+        framework for multi-hop QA. This approach
+        models the multi-hop retrieval process in an
+                                                                             Title: Harvard University
+        end-to-end manner by jointly optimizing an                  Last     Harvard's 2,400 professors, lecturers, and              Answer
+                                                                    Hop                                                                                      7200
+        encoder and two classification heads across                          instructors instruct 7,200 undergraduates and
+                                                                             14,000 graduate students. . …
+        all hops. Moreover, Beam Retrieval main-
+        tains multiple partial hypotheses of relevant
+                                                                 Figure 1: An example of multi-hop QA from MuSiQue-
+        passages at each step, expanding the search
+                                                                 Ans benchmark. This complicated 4-hop question re-
+        space and reducing the risk of missing relevant
+                                                                 quires the model to select relevant passages based on
+        passages. To establish a complete QA system,
+                                                                 the question and previously chosen passages.
+        we incorporate a supervised reader or a large
+        language model (LLM). Experimental results
+        demonstrate that Beam Retrieval achieves a
+        nearly 50% improvement compared with base-               2019). As a result, researchers have been increas-
+        lines on challenging MuSiQue-Ans, and it also            ingly drawn to more complex QA benchmarks,
+        surpasses all previous retrievers on HotpotQA            such as multi-hop QA. This presents a significant
+        and achieves 99.9% precision on 2WikiMulti-              challenge, as it requires reasoning across multiple
+        HopQA. Providing high-quality context, Beam
+                                                                 and diverse passages to accurately answer com-
+        Retrieval helps our supervised reader achieve
+        new state-of-the-art performance and substan-            plicated multi-hop questions. Many high-quality
+        tially improves the few-shot QA performance              multi-hop QA datasets have been introduced, such
+        of LLMs1 .                                               as HotpotQA (Yang et al., 2018), 2WikiMulti-
+                                                                 HopQA (Ho et al., 2020), MuSiQue (Trivedi et al.,
+1       Introduction                                             2022) and so on. Figure 1 illustrates an example
+Question Answering (QA) has been a mainstream                    of an actual question taken from MuSiQue-Ans
+research in natural language processing (NLP) for                dataset.
+a long time. With the development of pretrained                     Mainstream methods for multi-hop QA often
+language models (PLMs), simple QA tasks can be                   follow a retrieve-and-read paradigm (Chen et al.,
+solved by adopting a BERT-like PLM (Devlin et al.,               2017; Zhu et al., 2021), including a passage re-
+    * Corresponding author
+                                                                 triever to filter out extraneous information and a
+    1
+    Code is available at              https://github.com/        reader to obtain the final answer (Chen et al., 2017;
+canghongjian/beam_retriever                                      Tu et al., 2020; Xiong et al., 2021; Zhao et al.,
+                                                             1718
+    Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics:
+                        Human Language Technologies (Volume 1: Long Papers), pages 1718–1731
+                            June 16-21, 2024 ©2024 Association for Computational Linguistics
+2021; Wu et al., 2021; Trivedi et al., 2022; Li et al.,    large language model (LLM) (Brown et al., 2020;
+2023; Zhangyue et al., 2023). However, these meth-         OpenAI, 2023). We validate Beam Retrieval by
+ods have primarily focused on two-hop scenarios,           extensive experiments on three benchmark datasets
+exhibiting limited adaptability to more complex            MuSiQue-Ans, HotpotQA and 2WikiMultihopQA,
+situations beyond two-hops. Additionally, while            and experimental results demonstrate that Beam
+multi-hop retrieval requires identifying the next          Retrieval surpasses all previous retrievers by a large
+hop passage based on the question and previously           margin. Consequently, Beam Retrieval substan-
+selected passages (see figure ??), few of them fo-         tially improves the QA performance of downstream
+cus on supervision over the entire retrieval process.      QA readers on all three datasets.
+Furthermore, these retrievers exhibit limited robust-         We highlight our contributions as follows:
+ness, as the entire retrieval process is susceptible
+                                                               • We propose Beam Retrieval, which models
+to failure if the first stage identifies irrelevant pas-
+                                                                 the entire multi-hop retrieval process in an
+sages. In conclusion, previous retrievers perform
+                                                                 end-to-end manner by jointly optimizing an
+poorly when handling questions with more than
+                                                                 encoder and two classification heads across
+2 hops and provide low-quality context for down-
+                                                                 all hops. Designed to handle questions with
+stream QA tasks.
+                                                                 variable hops, Beam Retrieval shows great
+   To address the described problems, we pro-
+                                                                 performance, especially in complex scenarios
+pose Beam Retrieval, an end-to-end beam retrieval
+                                                                 beyond two hops.
+framework for multi-hop QA. Beam Retrieval uti-
+lizes an encoder and two classification heads to               • Our Beam Retrieval keeps multiple hypothe-
+model the entire multi-hop retrieval process in an               ses of relevant passages at each step during
+end-to-end manner and can be adapted to a ques-                  end-to-end training and inference, which mit-
+tion with a variable hop. During training, Beam                  igates the impact of retrieval errors that may
+Retrieval accumulates the loss at each step and                  occur in the early steps. This beam search
+jointly optimizes the encoder and two classification             paradigm brings further improvement.
+heads in the backpropagation phase, enabling the
+model to learn the entire retrieval process. During            • We evaluate our multi-hop QA system on
+inference, Beam Retrieval searches the relevant pas-             three multi-hop QA datasets to validate the
+sage at each step until the highest predicted score              effectiveness of Beam Retrieval. Beam
+falls below a predefined threshold. In summary,                  Retrieval achieves a nearly 50% improve-
+Beam Retrieval produces a chain of relevant pas-                 ment compared with baselines on challenging
+sages with the highest score using a single forward              MuSiQue-Ans, and it also surpasses all pre-
+pass, effectively learning the entire multi-hop re-              vious retrievers on HotpotQA and achieves
+trieval process. Moreover, we employ the beam                    99.9% precision on 2WikiMultiHopQA. Pro-
+search paradigm by keeping track of multiple par-                viding high-quality context, Beam Retrieval
+tial hypotheses of relevant passages at each step.               helps our supervised reader achieve new
+This approach enables our model to learn more neg-               state-of-the-art performance and substantially
+ative passage pairs in the expanded search space,                improves the few-shot QA performance of
+enhances the probability of obtaining the truly rele-            LLMs.
+vant passages, and mitigates the impact of retrieval
+                                                           2    Related Work
+errors that may occur in the early stages. To reduce
+the gap between training and reasoning, Beam Re-           Retrievers in Multi-Hop QA Mainstream meth-
+trieval is designed to reason using the same beam          ods for multi-hop QA often follow a retrieve-and-
+size as it employs during training.                        read paradigm (Chen et al., 2017; Zhu et al., 2021),
+   Beam Retrieval can also serve as a plugin in the        where a retriever is used to find passages relevant
+QA domain, providing high-quality relevant con-            to the multi-hop question, followed by a reader
+text and enhancing the performance of downstream           that answers the question based on the retrieved
+QA tasks. Based on Beam Retrieval, we implement            content. Previous retrievers focus on two types of
+a multi-hop QA system to extract the answers by            multi-hop QA settings: the open-domain setting
+incorporating a supervised reader (Li et al., 2023;        and the reading comprehension setting. In the open-
+Zhangyue et al., 2023) following conventional ma-          domain setting, models are required to retrieve rel-
+chine reading comprehension setting or a few-shot          evant passages within a large-scale corpus, while
+                                                       1719
+the reading comprehension setting involves search-              In contrast, we align the multi-hop retrieval task
+ing within a smaller set of candidate passages. In          with text decoding, proposing a more general re-
+open-domain multi-hop QA, retrievers can be cate-           trieval framework with higher precision. Con-
+gorized into semantic retrieval methods like BM25           ceptually, a passage pi ∈ D corresponds to a
+(Chen et al., 2017) and dense retrieval methods             token wi ∈ V and the question Q corresponds
+like MDR (Xiong et al., 2021) and BeamDR (Zhao              to a special start token “<s>”. Similarly, we
+et al., 2021). Retrievers in the reading compre-            also denote the output of a multi-hop retriever as
+hension setting are almost cross-encoders, divided          źt = f´(Q, p̂1 , ..., p̂t−1 ), given the concatenated se-
+into two types. One type is the one-step methods.           quence of question and passages identified so far,
+SAE (Tu et al., 2020) and MuSiQue SA Selector               (Q, p̂1 , ..., p̂t−1 ), which we write as p̂<t for short.
+(Trivedi et al., 2022) concatenate each candidate           The output źt ∈ Rn .
+passage and the question as inputs fed to BERT,                 We use an auto-encoder language model as an en-
+then select out the most relevant passages with the         coder to derive embeddings for the concatenated se-
+highest scores. Such methods do not utilize the             quence (Q, p̂1 , ..., p̂t−1 , źt ). Subsequently, a fully
+dependency between relevant passages, resulting             connected layer is utilized to project the final di-
+in a limited performance. The other type is the two-        mension of the “[CLS]” representations of these
+step method. S2G (Wu et al., 2021) and FE2H (Li             embeddings into a 2-dimensional space, represent-
+et al., 2023) select the first hop passage in the same      ing “irrelevant” and “relevant” respectively. The
+way as one-step. In the second stage, they identify         logit in the “relevant” side serves as the score for
+the second hop relevant passage by pairing the se-          the sequence. This scoring process is denoted by a
+lected passage with the other candidate passages.           function S(źt |p̂<t ), and it is shown in Figure 2.
+R3 (Zhangyue et al., 2023) selects three passages in            The probability distribution over the next possi-
+the first stage, then combines them two by two and          ble relevant passage being p ∈ D is the softmax:
+identifies the true passage pair in the second stage.
+Notice that the unselected passages in the first stage
+                                                                                              S(źt |p̂<t )
+will not be utilized in the second stage, leaving lim-         Ṕ (p̂t = p|p̂<t ) = P
+itations in retrieval. The Beam Retrieval proposed                                      p∈D\{p̂1 ,...,p̂t−1 } S(p|p̂<t )
+in this paper, primarily aimed at the reading com-                             ∀źt ∈ D \ {p̂1 , ..., p̂t−1 }
+prehension setting, similarly introduces the idea                                                           (1)
+of beam search as in BeamDR. However, unlike                  We should keep the uniqueness of each passage
+BeamDR, Beam Retrieval emphasizes modeling                  within the sequence, as there are no duplicated
+the entire multi-hop retrieval process and dealing          passages in the only one ground-truth relevant pas-
+with complex scenarios beyond two hops.                     sage chain. This requirement differs from the text
+                                                            decoding process, where such uniqueness is not
+3   Beam Retrieval                                          necessarily enforced.
+
+Beam Retrieval is designed to handle a k-hop multi-         3.2   Scoring
+hop question Q and accurately selects the most              As described in Section 3.1, every hypothesis will
+relevant passages, providing nearly noiseless con-          be scored at each step. Beam Retrieval also em-
+text for downstream QA tasks. In this section, we           ploys a scoring function S(źt |p̂<t ) as illustrated in
+clarify how Beam Retrieval infers and trains in an          Figure 2, which utilizes an encoder and two classifi-
+end-to-end manner, which is illustrated in Figure 2.        cation heads to obtain scores for each hypothesis of
+                                                            passages. At the first hop, for every passage pi ∈ D
+3.1 Problem Formulation
+                                                            we concatenate “[CLS] + Q + pi + [SEP]” to the
+Given a k-hop question Q and a candidate set with           encoder and derive the encoded (Q, pi ) representa-
+n passages as D = {p1 , p2 , ..., pn }, multi-hop re-       tions Hi = [hi1 , hi2 , ..., hiLi ] ∈ RLi ×h , where Li de-
+trieval aims to produce a relevant passages chain           notes the length of the concatenated sequence and h
+(p̂1 , p̂2 , ..., p̂k ). Most existing work formulates it   denotes the output dimension of the encoder. Then
+as a one-step or two-step sequence labeling task,           a classification head named “classif ier1 ” projects
+classifying every passage pi ∈ D as relevant or             every Hi into a 2-dimensional space, represent-
+not. However, this method lacks generality and              ing “irrelevant” and “relevant” respectively. We
+precision.                                                  take the logit in the “relevant” side as the score
+                                                        1720
+                                         Scoring               Q   The gold spike in the city where Falling in Reverse formed is owned by a person
+                                                                   whose alma mater has how many undergraduates?
+                                      Scores for Each
+                       𝒴 ∈ ℝ!×%                                              1-hop                                    2-hop                             3-hop                            4-hop
+                                        Hypothesis
+                                                                                                                    Score:0.33         𝑝!!
+                                                                                                    𝑝!%                           [LinkExchange]
+                                         Argmax                                                [Golden spike]
+                                                                                                                                                                         𝑝!!
+                                                                                                                                                          :0
+                                                                                   7                                                                  ore           [LinkExchange]
+                                                                              .5                                                                   Sc                                     Sc
+                                                                          e:0                                                                                                                ore:
+                                                                        or                                                                              .49                                      0
+                                    Relevant Side Logits           Sc                                                                                                                              .99
+
+                       𝒳 ∈ ℝ!×&                                                                                                                      .51                                                𝑝$
+                                                                                                                                                 re:0                                                [Harvard
+                                                                                                                                                                                              1
+                                                           Q                                                                                 Sc                                           0.0        University]
+                                    Classification Head                                                                                                                                re:
+The gold spike in                                                                                                                               o
+                                                                                                                                                                                   o
+                                                                                                                                                                                Sc
+                              !×$                                        Sc
+                       𝒳∈ ℝ                                                 ore
+                                                                                :0     .43                                                                              𝑝&
+                                    CLS Representation                                                                    :0.67
+                                                                                                                                       𝑝#                       [Education in India]
+                                                                                                                    Score          [Gold Spike
+                                                                                                    𝑝!"                            (property)]
+                       𝒳 ∈ ℝ!×#×$
+                                                                                             [Falling in Reverse]
+
+                                         Encoder
+                                                                                   ℒ1                                      ℒ2                                  ℒ3                             ℒ4
+
+                       𝒳 ∈ ℝ!×#
+                                    Input Concatenated
+                                        Sequences                                                                                                                                Classifier2 backward
+                                                                                                                                         ℒ                                       Classifier1 backward
+
+
+
+
+                    Figure 2: A visualization of Beam Retrieval with a beam size of 2 for the example in Figure 1. The left part shows
+                    how to obtain scores for each hypothesis, where M denotes the number of hypotheses at each hop, L denotes the
+                    max length of the hypotheses and h denotes the output dimension of the encoder. The right part shows how Beam
+                    Retrieval reasons and trains in an end-to-end way, where the red path refers to the ground-truth relevant passages.
+
+
+                    for the sequence (Q, pi ). At subsequent hop t,                                         catenate (Q, Pt−1
+                                                                                                                           b , ź ) for every ź ∈ D\P b
+                                                                                                                                 t              t     t−1 as in-
+                    we concatenate “[CLS] + Q + p̂1 + ... + p̂t−1                                           put concatenated sequences. In this way Beam Re-
+                    + źt + [SEP]” for every źt ∈ D \ {p̂1 , ..., p̂t−1 }.                                 trieval expands the search space, producing M hy-
+                    We use the same encoder but another classifica-                                         potheses of passages, where M is slightly less than
+                    tion head named “classif ier2 ” to obtain the score                                     B×n as we should keep the uniqueness of each pas-
+                    of concatenate sequence (Q, p̂1 , ..., p̂t−1 , źt ) in the                             sage within the sequence. Then we score these hy-
+                    same way. The structures of “classif ier1 ” and                                         potheses using the encoder and classif ier2 , choos-
+                    “classif ier2 ” are totally the same, the only differ-                                  ing the B hypotheses with the highest scores. This
+                    ence is “classif ier1 ” handles a fixed n sequence                                      process continues until the current highest pre-
+                    while “classif ier2 ” deals with a variable number                                      dicted score falls below a predefined threshold τ ,
+                    of sequences in an expanded search space.                                               and we take the passage sequence from the previ-
+                                                                                                            ous step that has the highest score.
+                    3.3 End-to-End Inference
+                    Compared with previous customized two-step re-
+                    trieval methods (Wu et al., 2021; Li et al., 2023;
+                    Zhangyue et al., 2023), Beam Retrieval employs                                             Beam Retrieval finishes the multi-hop retrieval
+                    the beam search paradigm to retrieve multiple rele-                                     task using a single forward pass, where it calls
+                    vant passages at each hop, discovering all the rele-                                    k times encoder, 1 time classif ier1 , and k − 1
+                    vant passages of Q in an end-to-end way. Let B be                                       times classif ier2 . Additionally, as we can see in
+                    the predefined beam size. Starting from the ques-                                       Figure 2, for methods that select only one passage
+                    tion Q, Beam Retrieval pairs it with n passages                                         at a time, choosing an irrelevant passage in the first
+                    in D and scores these n concatenated sequences                                          stage could fail in the entire multi-hop retrieval
+                    through the encoder and classif ier1 , choosing the                                     process. In conclusion, Beam Retrieval reduces the
+                    B passages with the highest scores as the first se-                                     risk of missing hidden relevant passage sequences
+                    lected passages. At subsequent hop t, Beam Re-                                          by keeping the most likely B hypotheses at each
+                    trieval keeps track of B partial hypotheses, denoted                                    hop and eventually choosing the hypothesis that
+                    as Pt−1
+                         b   = {p̂b1 , ..., p̂bt−1 }, b ∈ [1, B]. Then we con-                              has the overall highest score.
+                                                                                                    1721
+3.4 Jointly Optimization                                   setting. All experiments are conducted on three
+We jointly optimize the encoder, classif ier1 , and        benchmark datasets MuSiQue-Ans (Trivedi et al.,
+classif ier2 across all hops in an end-to-end man-         2022), distractor-setting of HotpotQA (Yang et al.,
+ner. Let (p1 , p2 , ..., pk ) be the ground truth rele-    2018) and 2WikiMultihopQA (Ho et al., 2020).
+vant passages. At the first hop, the loss can be           For each question, MuSiQue-Ans, HotpotQA, and
+represented as:                                            2WikiMultihopQA provide 20, 10, and 10 can-
+                                                           didate passages, respectively. MuSiQue-Ans re-
+                    X
+         L1 = −           l1,p logS(p|Q)+                  quires the model to answer the complicated multi-
+                    p∈D                             (2)    hop questions, while HotpotQA and 2WikiMulti-
+               (1 − l1,p )log(1 − S(p|Q))                  hopQA additionally require the model to provide
+                                                           corresponding supporting sentences. In the setting
+where l1,p is the label of p and S(p|Q) is the score       of Beam Retrieval augmented LLM, we evaluate
+function described in Section 3.1. At subsequent           our method on the partial part of three multi-hop
+hop t, the loss can be represented as:                     datasets, where we use the 500 questions for each
+             B
+             X       X                                     dataset sampled by (Trivedi et al., 2023).
+                                          b
+    Lt = −                   lt,p logS(p|Pt−1 , Q)            HotpotQA and 2WikiMultihopQA share a sim-
+              b=1 p∈D\Pt−1
+                       b                             (3)   ilar format and have 2-hop and 2,4-hop questions
+                                    b
+          + (1 − lt,p )log(1 − S(p|Pt−1 , Q))              respectively. Furthermore, 2WikiMultihopQA has
+                                                           entity-relation tuples support, but we do not use this
+where lt,p is the label of p. As the beam size B in-       annotation in our training or evaluation. To eval-
+creases, there is a corresponding rise in the number       uate Beam Retrieval’s performance in more com-
+of irrelevant passage sequences. This increment            plex scenarios, main experiments are conducted
+augments Beam Retrieval’s capability to accurately         on MuSiQue-Ans, which has 2,3,4-hop questions
+identify irrelevant paragraph sequences, allowing          and is more challenging, as it requires explicit con-
+the model to halt at the appropriate point during in-      nected reasoning.
+ference, reducing instances of either under-retrieval
+or over-retrieval of passages.
+   It is important to note that not all datasets of-       4.2     Models
+fer the ground-truth relevant passage for each hop.
+Consequently, for t ∈ [1, k] we define lt,p under          4.2.1    Beam Retrieval
+two scenarios: one with a provided order of rele-
+vant passages and another without a specified order.       Beam Retrieval selects all the relevant passages in
+If the order of ground-truth relevant passages is          an end-to-end way. We set the predefined threshold
+given, lt,p is set as:                                     τ to -1. We employ the base and the large version
+                       (                                   of DeBERTa (He et al., 2021) as our encoder. We
+                         1 if p = pt                       use a single RTX4090 GPU and set the number of
+                lt,p =                            (4)
+                         0 if p ̸= pt                      epochs to 16 and the batch size to 1 (here batch
+                                                           size means the number of examples taken from the
+    Otherwise lt,p is set as:                              dataset, and the actual batch size is the hypothesis
+               (                                           number M ). Owing to our multiple calls of encoder
+                  1 if p ∈ {p1 , p2 , ..., pk }            during training, we set gradient checkpointing to
+        lt,p =                                       (5)
+                  0 if p ∈  / {p1 , p2 , ..., pk }         True, otherwise it requires a huge amount of mem-
+                                                           ory. We use AdamW (Loshchilov and Hutter, 2017)
+    The overall training loss of Beam Retrieval is:
+                                                           with a learning rate of 2e-5 for the optimization and
+                             k
+                             X                             set the max position embeddings to 512. Consid-
+                       L=          Li                (6)   ering the long concatenated sequences, we adopt a
+                             i=1                           truncation method. If the total length exceeds the
+4    Experimental Setup                                    max length, we calculate the average length of each
+                                                           passage and truncate the extra part. To enhance the
+4.1 Datasets                                               robustness of the model, we shuffle the inner order
+We focus on the retrieval part of Multi-hop QA             of the concatenated passages within the hypothesis.
+and primarily aim at the reading comprehension             (See Appendix E for more details.)
+                                                       1722
+4.2.2 Downstream Reader                                of them are irrespective of the inner order between
+We implement a downstream reader to receive the        relevant passages. In the retrieve-and-read setting,
+retrieved relevant passages as the context C, and      retrieval EM is particularly critical, as missing rele-
+we concatenate input “[CLS] + Q + [SEP] + C +          vant passages can significantly impact the perfor-
+[SEP]” to feed our reader. Specifically, we conduct    mance of downstream readers.
+experiments with two types of readers: supervised         For MuSiQue-Ans, we report the standard F1-
+setting and few-shot LLM setting.                      based metrics for the answer (An) and support
+   (i) Supervised Reader For MuSiQue-Ans               passage identification (Sp). Actually, Sp F1 in
+dataset, we train a reading comprehension              MuSiQue-Ans is equivalent to retrieval F1. For
+model following BertForQuestionAnswering (De-          HotpotQA and 2WikiMultihopQA, we report the
+vlin et al., 2019; Wolf et al., 2020). For Hot-        EM and F1 metrics for the answer prediction task
+potQA and 2WikiMultihopQA, we train a multi-           (Ans) and supporting facts prediction task (Sup).
+task reader which extracts the answer and the sup-     In the Beam Retrieval augmented LLM setting, we
+porting facts of the question, following FE2H (Li      report the answer F1.
+et al., 2023) and R3 (Zhangyue et al., 2023), where
+you can refer to Appendix A for details. In the su-    5     Results
+pervised setting, we employ the large version of De-   Influence of Beam Size We first explore the in-
+BERTa for MuSiQue and 2WikiMultihopQA and              fluence of different beam sizes on MuSiQue-Ans,
+the xxlarge version of DeBERTa for HotpotQA. We        as shown in Table 1, where the encoder is the base
+use a single RTX4090 GPU to train the large ver-       version. Beam Retrieval performs well even with a
+sion reader and a single A100 to train the xxlarge     beam size of 1, showing that modeling the multi-
+version reader. We set the number of epochs            hop retrieval process in an end-to-end manner in-
+to 12 and the batch size to 4. We use AdamW            deed yields significant improvement, and a beam
+(Loshchilov and Hutter, 2017) with a learning rate     size of 2 brings further improvement, which is con-
+of 5e-6 for the optimization and set the max posi-     sistent with (Sutskever et al., 2014). However, a
+tion embeddings to 1024. To enhance the robust-        beam size greater than 2 leads to a slight decline
+ness of the model, we shuffle the inner order of       in performance, which we assume is due to the
+the concatenated passages within the context. (See     increase in the number of irrelevant sequences as
+Appendix E for more details.)                          the beam size expands, making the retrieval task
+   (ii)Few-Shot LLM In addition to the supervised      more difficult (further analysis can be found in
+reader above, we also incorporate a LLM as the         Appendix C). It is worth mentioning that in our ex-
+downstream reader to benchmark the few-shot QA         perimental setting, the candidate set size n ranges
+performance of Beam Retrieval augmented LLM.           from 10 to 20. As the beam size expands, both
+In the few-shot LLM setting, given that each ex-       the necessary training memory and training dura-
+ample contains up to 20 passages, we choose long-      tion increase rapidly. Due to these considerations,
+input LLMs. Specifically, we use closed model gpt-     we do not conduct experiments with a beam size
+3.5-turbo-16k provided from API of OpenAI2 and         larger than 4. In conclusion, we employ beam sizes
+open model longchat-13b-16k3 running locally on        of 1 and 2 for Beam Retrieval in our subsequent
+two 80G-A100 with the help of FastChat4 (Zheng         experiments.
+et al., 2023). We use the template described in
+Appendix B to obtain the answers directly.                 beam size    EM      F1     Mem (%)    Speed (%)
+                                                              1        74.18   87.46    100%        100%
+4.3 Evaluation Metrics                                        2        75.47   88.27    119%        58%
+                                                              3        74.56   87.84    150%         42%
+Generally, we use Exact Match (EM) and F1 scores
+                                                              4        74.43   87.65    194%         36%
+to evaluate the retrieval performance. Retrieval EM
+means whether the passage-level prediction is the      Table 1: Influence of different beam sizes among re-
+same as the ground truth, while retrieval F1 is the    trieval performance, training memory required, and
+harmonic mean of precision and recall, and both        training speed. A beam of size 2 offers the optimal bal-
+                                                       ance between retrieval performance and training costs.
+   2
+     https://openai.com/api/
+   3
+     https://huggingface.co/lmsys/
+longchat-13b-16k                                         In terms of computational cost, at each hop
+   4
+     https://github.com/lm-sys/FastChat                Beam Retrieval only calls the encoder and clas-
+                                                   1723
+sifier once theoretically, aligning with the resource                                                      Retrieval
+                                                                               Methods
+                                                                                                          EM      F1
+consumption of previous methods like FE2H and
+                                                                                       MuSiQue-Ans
+R3 , maintaining a similar order of magnitude in                   EE (Trivedi et al., 2022)              21.47   67.61
+both training and inference. We have conducted                     SA (Trivedi et al., 2022)              30.37   72.30
+a specific inference time experiment on the Hot-                   Ex(EE) (Trivedi et al., 2022)          48.78   77.79
+                                                                   Ex(SA) (Trivedi et al., 2022)          53.50   79.24
+potQA development set to compare the computa-
+                                                                   Beam Retrieval, beam size 1            77.37   89.77
+tion cost between Beam Retrieval and past SOTA                     Beam Retrieval, beam size 2            79.31   90.51
+retrievers R3 and FE2H, where we keep the same                                           HotpotQA
+backbone model and device. The results are shown                   SAE (Tu et al., 2020)                  91.98   95.76
+in Table 2:                                                        SA Selector* (Trivedi et al., 2022)    93.06   96.43
+                                                                   S2G (Wu et al., 2021)                  95.77   97.82
+                               Inference Time    EM                FE2H (Li et al., 2023)                 96.32   98.02
+           FE2H                    96.82ms      96.35              Smoothing R3 (Zhangyue et al., 2023)   96.85   98.32
+      Smoothing R3                127.75ms      96.85              Beam Retrieval, beam size 1            97.29   98.55
+ Beam Retrieval, beam size 1      124.64ms      97.29              Beam Retrieval, beam size 2            97.52   98.68
+ Beam Retrieval, beam size 2      196.35ms      97.52                              2WikiMultihopQA
+                                                                   SA Selector* (Trivedi et al., 2022)    98.25   99.13
+Table 2: Comparison of inference speed among Beam                  Beam Retrieval, beam size 1            99.93   99.96
+Retrieval and past SOTA methods. Beam Retrieval with
+                                                           Table 3: Retrieval performance on the development
+a beam size of 1 achieves optimal performance while
+                                                           set of MuSiQue-Ans, HotpotQA, 2WikiMultihopQA in
+maintaining a similar complexity level as previous meth-
+                                                           comparison with previous work. SA Selector* indicates
+ods.
+                                                           that we reproduce SA Selector by training it on the
+                                                           full HotpotQA and 2WikiMultihopQA. Beam Retrieval
+   Overall, while increasing the beam size does            surpasses all previous retrievers by a large margin.
+improve performance, it also correspondingly in-
+creases computational costs. However, the absolute                                                    MuSiQue-Ans
+                                                                             Methods
+processing time per question does not become un-                                                      An     Sp
+bearably long. Therefore, we recommend using a                     EE (Trivedi et al., 2022)          40.7  69.4
+                                                                   SA (Trivedi et al., 2022)          52.3  75.2
+beam size of 1 in practical applications, as it offers
+                                                                   Ex(EE) (Trivedi et al., 2022)      46.4  78.1
+comparable resource consumption to similar meth-                   Ex(SA) (Trivedi et al., 2022)      49.0  80.6
+ods, while also achieving superior performance.                    RoHTmix (Zhang et al., 2023)       63.6    0
+                                                                   Beam Retrieval, beam size 1        66.9  90.0
+                                                                   Beam Retrieval, beam size 2        69.2  91.4
+Beam Retrieval Performance We compare our
+Beam Retrieval with previous retrievers on three           Table 4: Overall performance on the test set of
+multi-hop datasets, as shown in Table 3. Beam              MuSiQue-Ans. Beam Retrieval achieves a new SOTA.
+Retrieval achieves new SOTA performance across
+all datasets, significantly outperforming existing
+                                                           Therefore we do not conduct further experiments
+methods even when using a beam size of 1, and
+                                                           with larger beam sizes or encoders for this dataset.
+notably attaining a nearly 50% EM improvement
+(from 53.50 to 77.37) on challenging MuSiQue-              Downstream QA Performance Table 4 and Ta-
+Ans. This result highlights the effectiveness of our       ble 5 compare multi-hop QA performance between
+proposed end-to-end modeling of the entire multi-          Beam Retrieval augmented supervised reader (here-
+hop retrieval process in handling more complex             inafter referred to as Beam Retrieval) and other
+situations. As demonstrated in Table 1, employing          strong multi-hop systems across three datasets.
+a beam size of 2 consistently improves performance         Thanks to the retrieved high-quality context, Beam
+on both MuSiQue-Ans and HotpotQA datasets, val-            Retrieval with a beam size of 2 achieves new SOTA
+idating the benefits of an expanded search space.          on all three datasets567 . Specifically, on MuSiQue-
+As the high-performance retrievers in HotpotQA                 5
+                                                                MuSiQue-Ans leaderboard:
+are customized for two-hop issues, we do not re-             https://leaderboard.allenai.org/musique_ans/
+produce them for the other two datasets. A large           submissions/public
+                                                              6
+version encoder is employed for all datasets except             HotpotQA leaderboard:
+                                                             https://hotpotqa.github.io/
+2WikiMultihopQA, where a base version encoder                 7
+                                                                2WikiMultihopQA leaderboard:https://github.com/
+achieves a remarkable 99.9% retrieval precision.           Alab-NII/2wikimultihop
+
+                                                        1724
+                                                               Answer         Supporting
+                                  Methods
+                                                              EM    F1        EM     F1
+                                                 HotpotQA
+                            HGN (Fang et al., 2020)        69.22     82.19   62.76    88.47
+                             SAE (Tu et al., 2020)         66.92     79.62   61.53    86.86
+                             S2G (Wu et al., 2021)         70.72     83.53   64.30    88.72
+                             FE2H (Li et al., 2023)        71.89     84.44   64.98    89.14
+                      Smoothing R3 (Zhangyue et al., 2023) 72.07     84.34   65.44    89.55
+                          Beam Retrieval, beam size 2      72.69     85.04   66.25    90.09
+                                              2WikiMultihopQA
+                           CRERC (Fu et al., 2021)         69.58     72.33   82.86    90.68
+                         NA-Reviewer (Fu et al., 2022)     76.73     81.91   89.61    94.31
+                      BigBird-base model (Ho et al., 2023) 74.05     79.68   77.14    92.13
+                          Beam Retrieval, beam size 1      88.47     90.87   95.87    98.15
+
+Table 5: Overall performance on the blind test set of HotpotQA and 2WikiMultihopQA in comparison with previous
+work. Beam Retrieval achieves SOTA in both datasets
+
+
+
+
+Figure 3: Answer F1 for gpt-3.5-turbo-16k (Left) and longchat-13b-16k (Right) under two conditions on three
+multi-hop datasets. Beam Retrieval substantially improves the few-shot QA performance of LLMs.
+
+
+Ans our Sp performance (91.4) is comparable to                                                   Retrieval
+                                                                       Methods
+the Human Score (93.9) reported in (Trivedi et al.,                                             EM      F1
+                                                             Beam Retrieval1,1                 74.18 87.46
+2022). To evaluate the degree of enhancement
+                                                             Beam Retrieval2,2                 75.47 88.27
+Beam Retrieval can provide, we compare the few-              Beam Retrieval3,3                 74.56 87.84
+shot QA performance of few-shot LLMs under two                        w/o Consistent Beam Size
+conditions: one using all candidate passages (re-            Beam Retrieval3,2                 74.31 87.84
+ferred to as “without BR"), and the other only in-           Beam Retrieval3,1                 74.06 87.67
+corporating relevant passages retrieved by Beam              Beam Retrieval2,1                 75.13 88.17
+Retrieval (referred to as “with BR"), which is de-                    w/o 2 Classification Heads
+                                                             BR1,1 with 4 Classification Heads 72.16 87.04
+picted in Figure 3. LLMs perform poorly in di-
+                                                             BR1,1 with 1 Classification Head  73.11 87.32
+rectly handling complex multi-hop QA tasks, while
+Beam Retrieval significantly boosts the few-shot         Table 6: Ablation study results on MuSiQue-Ans dataset.
+QA performance of both gpt-3.5-turbo-16k and             The subscript x,y indicates training with beam size x
+longchat-13b-16k, some of which are comparable           and reasoning with beam size y.
+to supervised methods.
+
+Ablation Study To understand the strong perfor-          beam size differs from the reasoning beam size, and
+mance of Beam Retrieval, we perform an ablation          it drops more sharply as the gap between training
+study by employing inconsistent beam sizes be-           and reasoning widens. We do not investigate situ-
+tween training and reasoning and using different         ations where the reasoning beam size exceeds the
+numbers of classification heads, as illustrated in       training beam size, as it is evident that the model
+Table 6. Performance declines when the training          cannot perform hard reasoning after easy training.
+                                                    1725
+We also vary the number of classification heads to           QA, where we hope that future work could explore
+verify if two heads are the optimal setting. First,          more advanced solutions.
+we use 4 classification heads as there are up to 4-
+hop questions and we arrange one head for one                Limitations
+hop, however it results in a 2-point decrease in             There are two major limitations to this work. First,
+EM. Then we employ a unified classification head,            the resource consumption during training will in-
+which also leads to a one-point performance drop.            crease with larger beam sizes. Second, Beam Re-
+These results confirm that using one head for the            trieval struggles with being independently applied
+first hop and another head for subsequent hops is            to open-domain settings. We will work on methods
+the best configuration. We hypothesize that the rea-         to reduce the training consumption of the model
+son for the 2 heads setup’s superior performance             and enable its application to open-domain multi-
+is due to the different total number of passages             hop retrieval with variable hops.
+sequences faced at the first hop compared to subse-
+quent hops.                                                  Ethics Statement
+                Methods                    Retrieval EM      This work is a fundamental research work that fo-
+     MDR (direct) (Xiong et al., 2021)         65.9          cuses on technical improvement, thus we have not
+    MDR (reranking) (Xiong et al., 2021)       81.2          applied additional filtering techniques to the textual
+     MDR (Beam Retrieval reranking)            82.2          data we used, beyond what has been performed on
+          MDR (gold reranking)                 85.6
+                                                             the original datasets. The textual data we used may
+Table 7: Fullwiki HotpotQA reranked retrieval results.       have information naming or uniquely identifying
+Retrieval EM means whether both gold passages are in-        individual people or offensive content that we have
+cluded in the top two retrieved passages (top one chain).    not been able to identify, as those are out of the
+Gold reranking refers to whether both gold passages are      focus of this work.
+included among all the retrieved chains.
+
+                                                             References
+Reranking in Open-Domain Setting Beam Re-
+trieval can serve as a reranker in open-domain               Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie
+                                                               Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+multi-hop retrieval, and we conduct a simple exper-            Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+iment on fullwiki HotpotQA to assess the impact                Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+of Beam Retrieval as a re-ranker, as illustrated in            Gretchen Krueger, Tom Henighan, Rewon Child,
+Table 7. We choose MDR (Xiong et al., 2021) as                 Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+                                                               Clemens Winter, Christopher Hesse, Mark Chen, Eric
+the baseline, initially employing it to obtain 100
+                                                               Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess,
+retrieved passage chains. Subsequently, Beam Re-               Jack Clark, Christopher Berner, Sam McCandlish,
+trieval is utilized to rerank the passages within these        Alec Radford, Ilya Sutskever, and Dario Amodei.
+chains, where we take the top two passages for met-            2020. Language models are few-shot learners.
+ric calculation. As an effective reranker, Beam Re-          Danqi Chen, Adam Fisch, Jason Weston, and Antoine
+trieval further enhances the retrieval performance             Bordes. 2017. Reading Wikipedia to answer open-
+of open-domain retrieval based on MDR.                         domain questions. In Proceedings of the 55th Annual
+                                                               Meeting of the Association for Computational Lin-
+6     Conclusion                                               guistics (Volume 1: Long Papers), pages 1870–1879,
+                                                               Vancouver, Canada. Association for Computational
+We present Beam Retrieval, an end-to-end beam re-              Linguistics.
+trieval framework for multi-hop QA. This approach            Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+models the entire retrieval process in an end-to-end            Kristina Toutanova. 2019. BERT: Pre-training of
+manner and maintains multiple partial hypotheses                deep bidirectional transformers for language under-
+of relevant passages at each step, showing great per-           standing. In Proceedings of the 2019 Conference of
+                                                                the North American Chapter of the Association for
+formance in complex scenarios beyond two hops.                 Computational Linguistics: Human Language Tech-
+Experimental results on three datasets prove the                nologies, Volume 1 (Long and Short Papers), pages
+effectiveness of Beam Retrieval and demonstrate it             4171–4186, Minneapolis, Minnesota. Association for
+could substantially improve the QA performance                  Computational Linguistics.
+of downstream readers. In general, Beam Retrieval            Yuwei Fang, Siqi Sun, Zhe Gan, Rohit Pillai, Shuo-
+establishes a strong baseline for complex multi-hop            hang Wang, and Jingjing Liu. 2020. Hierarchical
+                                                          1726
+  graph network for multi-hop question answering. In       Ilya Sutskever, Oriol Vinyals, and Quoc V Le. 2014. Se-
+  Proceedings of the 2020 Conference on Empirical             quence to sequence learning with neural networks. In
+  Methods in Natural Language Processing (EMNLP),             Advances in Neural Information Processing Systems,
+  pages 8823–8838, Online. Association for Computa-           volume 27. Curran Associates, Inc.
+  tional Linguistics.
+                                                           Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+James Ferguson, Matt Gardner, Hannaneh Hajishirzi,           and Ashish Sabharwal. 2022. MuSiQue: Multi-
+  Tushar Khot, and Pradeep Dasigi. 2020. IIRC: A             hop questions via single-hop question composition.
+  dataset of incomplete information reading compre-          Transactions of the Association for Computational
+  hension questions. In Proceedings of the 2020 Con-         Linguistics, 10:539–554.
+  ference on Empirical Methods in Natural Language
+  Processing (EMNLP), pages 1137–1147, Online. As-         Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+  sociation for Computational Linguistics.                   and Ashish Sabharwal. 2023. Interleaving retrieval
+                                                             with chain-of-thought reasoning for knowledge-
+Ruiliu Fu, Han Wang, Xuejun Zhang, Jun Zhou, and             intensive multi-step questions. In Proceedings of
+  Yonghong Yan. 2021. Decomposing complex ques-              the 61st Annual Meeting of the Association for Com-
+  tions makes multi-hop QA easier and more inter-            putational Linguistics (Volume 1: Long Papers),
+  pretable. In Findings of the Association for Compu-        pages 10014–10037, Toronto, Canada. Association
+  tational Linguistics: EMNLP 2021, pages 169–180,           for Computational Linguistics.
+  Punta Cana, Dominican Republic. Association for
+  Computational Linguistics.                               Ming Tu, Kevin Huang, Guangtao Wang, Jing Huang,
+                                                             Xiaodong He, and Bowen Zhou. 2020. Select, an-
+Ruiliu Fu, Han Wang, Jun Zhou, and Xuejun Zhang.             swer and explain: Interpretable multi-hop reading
+  2022. Na-reviewer: Reviewing the context to im-            comprehension over multiple documents. In The
+  prove the error accumulation issue for multi-hop qa.      Thirty-Fourth AAAI Conference on Artificial Intelli-
+  Electronics Letters, 58(6):237–239.                        gence, AAAI 2020, The Thirty-Second Innovative Ap-
+                                                             plications of Artificial Intelligence Conference, IAAI
+Pengcheng He, Xiaodong Liu, Jianfeng Gao, and                2020, The Tenth AAAI Symposium on Educational
+  Weizhu Chen. 2021. Deberta: decoding-enhanced             Advances in Artificial Intelligence, EAAI 2020, New
+  bert with disentangled attention. In 9th International    York, NY, USA, February 7-12, 2020, pages 9073–
+  Conference on Learning Representations, ICLR 2021,         9080. AAAI Press.
+  Virtual Event, Austria, May 3-7, 2021. OpenRe-
+  view.net.                                                Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+                                                             Chaumond, Clement Delangue, Anthony Moi, Pier-
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,               ric Cistac, Tim Rault, Remi Louf, Morgan Funtow-
+  and Akiko Aizawa. 2023. Analyzing the effective-           icz, Joe Davison, Sam Shleifer, Patrick von Platen,
+  ness of the underlying reasoning tasks in multi-hop        Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu,
+  question answering. In Findings of the Associa-            Teven Le Scao, Sylvain Gugger, Mariama Drame,
+  tion for Computational Linguistics: EACL 2023,             Quentin Lhoest, and Alexander Rush. 2020. Trans-
+  pages 1163–1180, Dubrovnik, Croatia. Association           formers: State-of-the-art natural language processing.
+  for Computational Linguistics.                             In Proceedings of the 2020 Conference on Empirical
+                                                             Methods in Natural Language Processing: System
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,               Demonstrations, pages 38–45, Online. Association
+  and Akiko Aizawa. 2020. Constructing A multi-hop           for Computational Linguistics.
+  QA dataset for comprehensive evaluation of reason-
+  ing steps. CoRR, abs/2011.01060.                         Bohong Wu, Zhuosheng Zhang, and Hai Zhao. 2021.
+                                                             Graph-free multi-hop reading comprehension: A
+Xin-Yi Li, Wei-Jun Lei, and Yu-Bin Yang. 2023. From          select-to-guide strategy. CoRR, abs/2107.11823.
+  easy to hard: Two-stage selector and reader for multi-
+  hop question answering. In ICASSP 2023 - 2023            Wenhan Xiong, Xiang Li, Srini Iyer, Jingfei Du, Patrick
+  IEEE International Conference on Acoustics, Speech         Lewis, William Yang Wang, Yashar Mehdad, Scott
+  and Signal Processing (ICASSP), pages 1–5.                Yih, Sebastian Riedel, Douwe Kiela, and Barlas
+                                                             Oguz. 2021. Answering complex open-domain ques-
+Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paran-          tions with multi-hop dense retrieval. In International
+  jape, Michele Bevilacqua, Fabio Petroni, and Percy        Conference on Learning Representations.
+  Liang. 2023. Lost in the middle: How lan-
+  guage models use long contexts. arXiv preprint           Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+  arXiv:2307.03172.                                          William Cohen, Ruslan Salakhutdinov, and Christo-
+                                                             pher D. Manning. 2018. HotpotQA: A dataset for
+Ilya Loshchilov and Frank Hutter. 2017. Decou-               diverse, explainable multi-hop question answering.
+   pled weight decay regularization. arXiv preprint          In Proceedings of the 2018 Conference on Empiri-
+   arXiv:1711.05101.                                         cal Methods in Natural Language Processing, pages
+                                                             2369–2380, Brussels, Belgium. Association for Com-
+OpenAI. 2023. Gpt-4 technical report.                        putational Linguistics.
+                                                       1727
+Jiajie Zhang, Shulin Cao, Tingjian Zhang, Xin Lv,               and d is the hidden dimension of the backbone
+   Juanzi Li, Lei Hou, Jiaxin Shi, and Qi Tian. 2023.           model. For answer type prediction, we perform
+   Reasoning over hierarchical question decomposition
+                                                                a 3-class ("Yes", "No" and "Span") classification,
+   tree for explainable question answering. In Proceed-
+   ings of the 61st Annual Meeting of the Association for       with the corresponding loss item denoted as Ltype .
+   Computational Linguistics (Volume 1: Long Papers),           To extract the supporting facts prediction, we ap-
+   pages 14556–14570, Toronto, Canada. Association              ply a linear layer on H to classify each sentence
+   for Computational Linguistics.                               as either a supporting facts sentence or not (using
+Yin Zhangyue, Wang Yuxin, Hu Xiannian, Wu Yiguang,              the sentence token “<e>”), with its corresponding
+  Yan Hang, Zhang Xinyu, Cao Zhao, Huang Xuanjing,              loss item denoted as Lsf . Similarly, we employ an-
+  and Qiu Xipeng. 2023. Rethinking label smoothing              other linear layer to project H and identify the start
+  on multi-hop question answering. In Proceedings of
+  the 22nd Chinese National Conference on Compu-
+                                                                and end positions of the answer, denoting the start
+  tational Linguistics, pages 611–623, Harbin, China.           position loss and the end position loss as Lstart and
+  Chinese Information Processing Society of China.              Lend , respectively, as introduced in BERT. Finally,
+                                                                the total answer span loss Lans is described using
+Chen Zhao, Chenyan Xiong, Jordan Boyd-Graber, and
+  Hal Daumé III. 2021. Multi-step reasoning over un-            the following formulas.
+  structured text with beam dense retrieval. In Pro-
+  ceedings of the 2021 Conference of the North Amer-
+  ican Chapter of the Association for Computational
+  Linguistics: Human Language Technologies, pages                             Lans =λ1 (Lstart + Lend )                  (7)
+  4635–4641, Online. Association for Computational
+  Linguistics.
+
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan               where λ1 is 0.5 in our setting. Formally, the total
+  Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin,                  loss Lqa can be jointly calculated as:
+  Zhuohan Li, Dacheng Li, Eric. P Xing, Hao Zhang,
+  Joseph E. Gonzalez, and Ion Stoica. 2023. Judging
+  llm-as-a-judge with mt-bench and chatbot arena.
+
+Fengbin Zhu, Wenqiang Lei, Chao Wang, Jianming
+  Zheng, Soujanya Poria, and Tat-Seng Chua. 2021.
+                                                                         Lqa =λ2 Ltype + λ3 Lsf + λ4 Lans                (8)
+  Retrieving and reading: A comprehensive sur-
+  vey on open-domain question answering. CoRR,
+  abs/2101.00774.                                               where λ4 is 0.2 and λ2 , λ3 are 1 in our setting. Here
+                                                                each loss function is the cross-entropy loss.
+A     Multi-Task Supervised Reader
+After receiving the relevant passages (p̂1 , p̂2 , ..., p̂k )
+from the retriever, our reader is expected to com-              B     Few-Shot Templates
+plete both the answer prediction task and the sup-
+porting facts prediction task. Following SAE and
+                                                                We use the prompts following (Liu et al., 2023). To
+R3 , we also implement a multi-task model to ex-
+                                                                ensure diversity in the demonstrations, we selected
+tract the answer and the supporting facts, jointly
+                                                                demonstrations with different hops and question
+training the answer prediction and supporting sen-
+                                                                types. The number of demonstrations is 3.
+tence classification in a multi-task learning way.
+   We define three types of tasks: supporting facts
+prediction, answer type prediction, and answer                     Prompt B.1: without Beam Retrieval
+span prediction. Following R3 , we incorporate
+                                                                   Write a high-quality answer for the given question using
+a special placeholder token “<d>” before each                      only the provided search results (some of which might be
+passage’s title and a token “<e>” before each sen-                 irrelevant).
+tence to provide additional information and guide
+                                                                   For example:
+the model to predict at the sentence level.
+   We concatenate the question and the retrieved                   {examples}
+passage chain (p̂1 , p̂2 , ..., p̂k ) as “[CLS] + question         {search_results}
++ [SEP] + p̂1 + p̂2 + ... + p̂k + [SEP]”. We denote
+the BERT-like PLM output as H = [h1, ..., hL ] ∈                   Question: {question}
+                                                                   Answer:
+RL×d where L is the length of the input sequence
+                                                            1728
+ Prompt B.2: with Beam Retrieval                                                                 3hop    4hop    5hop
+                                                                   Additional Hop, beam size 1   -2.65   -2.41   -2.83
+ Write a high-quality answer for the given question using          Additional Hop, beam size 2   -2.85   -2.90   -3.32
+ only the provided search results.
+                                                               Table 8: Influence of different beam sizes among the
+ For example:
+                                                               score of the additional hop. It leads to a lower negative
+ {examples}                                                    score at the additional unreasonable hop as the beam
+                                                               size increases.
+ {search_results}
+
+ Question: {question}
+ Answer:                                                       does the number of negative examples during train-
+                                                               ing, which in turn enhances the model’s ability to
+                                                               distinguish irrelevant passage sequences. This al-
+C    Analysis of Beam Search Algorithm in
+                                                               lows the model to assign very low negative scores
+     Beam Retrieval
+                                                               when extraneous passages are introduced, enabling
+Beam size is a crucial and interesting parameter               it to terminate in a timely manner. This is the di-
+in our proposed Beam Retrieval method. It is sim-              rect cause of the overall performance improvement
+ilar to the beam search process in text decoding,              associated with an increased beam size.
+where expanding the search space increases the                     Of course, the beam size can’t increase indefi-
+probability of finding the correct passages. Un-               nitely. There is indeed a point at which it may lead
+like beam search, Beam Retrieval uses beam size                to suboptimal states. This happens because as the
+in both the training and inference phases, mean-               beam size grows, the number of negative instances
+ing that the beam size of Beam Retrieval signifi-              increases, while there’s always only one positive
+cantly impacts our method’s training process. We               instance. This imbalance makes it increasingly
+will dive into the internal workings of Beam Re-               challenging for the model.
+trieval to explore the actual impact of beam size.                 Overall, the optimal choice of beam size involves
+As described in the formula 3, the essential role              a trade-off that takes into account the size of the
+of beam size is to increase the number of negative             backbone model, the number of candidate passages,
+examples in each cross-entropy loss. This enhances             and the difficulty of the retrieval task. If the back-
+the Beam Retrieval’s ability to recognize irrelevant           bone model is base version, the benefits of a larger
+passage sequences. As described in the main text,              beam size decrease because an increased beam size
+during the inference phase, the decision to stop is            expands the search space and brings complexity
+based on comparing the highest score of all cur-               to the task. Conversely, larger backbone models
+rent passage sequences with a specified threshold              can get more gains, as demonstrated in the table.
+τ . Therefore, the ability to identify irrelevant pas-         The ’large’ version of the model achieves a 2 per-
+sage sequences determines whether it can stop at               centage point increase (77.37 -> 79.31) with an
+an appropriate step. In fact, we conducted exper-              increased beam size, while the ’base’ version sees
+iments on MuSiQue to derive the distribution of                only a 1 percentage point improvement (74.18 ->
+scores across different hop counts and beam sizes.             75.47). The number of candidate passages and the
+    Specifically, we performed an additional hop of            retrieval task difficulty also influence the optimal
+reasoning for each question, recording the highest             beam size. For the more challenging MuSiQue task
+score among all passage sequences at the additional            with a larger pool of candidate passages (20), an
+hop.                                                           increase in beam size brings greater benefits. In
+    For instance, for a 4-hop question, we record              contrast, for the simpler HotpotQA task with fewer
+the score distribution for the abnormal hop 5. All             candidate passages (10), the advantages of increas-
+results represent the average scores, and we choose            ing beam size are less pronounced (97.29 -> 97.52).
+the versions of Beam Retrieval reported in Table 4             This is further confirmed by the below experiments
+in our original paper, and the results are shown in            on the new knowledge-intensive task IIRC (see
+the table below.                                               Appendix D), where the questions involve more
+    It is evident that as the beam size increases, it          variable hop counts, thus yielding greater benefits
+leads to a lower negative score at the unreasonable            from an increased beam size.
+hop, prompting Beam Retrieval to terminate at the                  Next, we will discuss why we choose beam
+appropriate hop. As the beam size increases, so                search rather than other possible alternatives for
+                                                            1729
+multi-hop retrieval. Indeed, there are alternative       son et al., 2020) dataset and conducted experiments
+approaches, such as the coarse-to-fine method pro-       to evaluate its efficacy. Details and results are given
+posed by R3 . This retriever suggests selecting the      below.
+three most likely passages in the first hop and then
+pairing them in the second hop to determine the             • Each question in IIRC is accompanied by
+most probable combination. However, this method               an original passage and a set of links to
+has two distinct disadvantages:                               Wikipedia pages which might contain neces-
+                                                              sary information missing from the original
+    • Passages not chosen in the first hop are never          passage. There are a total of 56550 Wikipedia
+      reconsidered in later stages;                           pages and the relevant sentences in pages for
+                                                              each question are given.
+    • It lacks scalability, as it requires determining
+      too many variables in complex scenarios be-           • We first divide each Wikipedia page into pas-
+      yond two hops.                                          sages consisting of 10 sentences. For each
+Take a three-hop scenario as an example: if you               question, we choose the passages with the
+need three passages in the end, how many should               relevant titles and highest Rouge scores as
+you choose in the first hop? (It should be more than          positive passages and randomly pick passages
+three, as there would only be combinations, where             in irrelevant links as negative passages. Note
+n is the number of passages chosen in the first hop,          that for each question, the number of relevant
+and k is the number of hops. If both n and k equal            passages varies from 1 to 6 and the number of
+three, there would only be one candidate.) How                negative passages varies from 10 to 25, which
+many document pairs should be selected in the                 introduces more uncertainty compared with
+second hop? And how should a triplet of passages              the three datasets in the paper (This is why
+be combined in the third hop from the pairs selected          we do not choose previous strong retrievers
+in the second? This process is complicated and                like FE2H and R3 as baselines below). Fi-
+involves too many parameters, obviously leading               nally, we get 7566 training samples and 954
+to geometrically increasing computational resource            test samples.
+consumption, thus making it highly unscalable.              • We train Beam Retrieval (base) on IIRC and
+   In contrast, our Beam Retrieval models an end-             compare it with a one-step retriever (like SAE
+to-end retrieval process, similar to the decoding of          and SA Selector) as the baseline. For Beam
+a language model, and naturally incorporates the              Retrieval, nothing changes except concatenat-
+concept of beam search. Our version with a beam               ing the question and its original passage as
+size of 1, where we select only one passage per hop,          the new question text. For baseline, it con-
+has outperformed the complex R3 method on Hot-                catenates each candidate passage and the new
+potQA dataset. It can also be effortlessly extended           question text as inputs fed to BERT, then se-
+to any number of hops, which is verified to adapt             lect out the most relevant n passages with the
+Beam Retrieval to another knowledge-intensive                 highest scores. The retrieval performance is
+task IIRC below, and previous experiments have                as follows:
+also validated the effectiveness of Beam Retrieval.
+We chose beam search over other methods because
+                                                                                             Retrieval EM
+it was inspired by the striking similarity between
+                                                               One-Step Retriever                57.35
+multi-hop retrieval process and language model de-
+                                                            Beam Retrieval, beam size 1          85.01
+coding, and it aligns closely with our end-to-end
+                                                            Beam Retrieval, beam size 2          86.90
+modeling manner.
+                                                            Beam Retrieval, beam size 3          86.37
+D    Beam Retrieval Performance on
+                                                         Table 9: Retrieval performance on IIRC. Beam Retrieval
+     Dataset IIRC                                        has significantly surpassed the one-step retriever.
+As a retrieval method, Beam Retrieval can be
+adapted for a variety of knowledge-intensive               We can see a beam size greater than 1 yields
+tasks. We have applied Beam Retrieval to an-             better performance. All the results on the new task
+other knowledge-intensive dataset IIRC (Incom-           verify the effectiveness and adaptability of Beam
+plete Information Reading Comprehension) (Fergu-         Retrieval.
+                                                     1730
+E     Ablation Study on Shuffle Operation
+In the training of our Beam Retrieval retriever and
+supervised reader, we both adopt a shuffle oper-
+ation to enhance the robustness of the model. It
+is a common and useful deep learning trick that
+involves shuffling the order of input components.
+Because we cannot guarantee that passages will
+always be retrieved in the correct order, we dynam-
+ically shuffle the order of input passages during
+training retriever and reader. To give a specific ex-
+ample, for a 4-hop question, if we have a pair of
+passages (p1 , p2 ) by the third hop, we shuffle the
+order of these two passages. This approach is also
+applied in subsequent hops, such as the fourth hop,
+where the order of three passages (p1 , p2 , p3 ) would
+be shuffled. Similarly, this shuffling is applied dur-
+ing the training of supervised readers, i.e. shuffle
+the order of retrieved passages passed to down-
+stream readers. This shuffle operation enhances
+the model’s robustness, allowing it to perform well
+even if the predicted passages at inference time
+do not maintain the expected order of reasoning,
+which is due to that the model was trained with
+shuffled input sequences.
+   We also conducted an ablation study to deter-
+mine the effectiveness of the shuffle operation on
+MuSiQue-Ans, as shown in the table below:
+
+           Methods                    An        Sp
+        Beam Retrieval                66.9     66.9
+    BR w/o shuffle in retriever        -       89.4
+     BR w/o shuffle in reader         64.3       -
+     Table 10: Ablation study on shuffle operation.
+
+
+
+
+                                                      1731
+

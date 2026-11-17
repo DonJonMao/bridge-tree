@@ -1,0 +1,3311 @@
+{
+  "one_reason": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"decision\": false, \"reason\": \"D\"}",
+      "semantic_answer": {
+        "decision": false,
+        "reason": "D"
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "42f707fad3e2c60a8dc39ed7e80222efb3e9e6e8da0a04932144edd4a97f7550",
+      "sources": {
+        "node_versions": {
+          "decision": 3
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.80131c18f6671f35"
+        },
+        "span_ids": [
+          "src_32c15e47dcce34accd8971fc",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m1",
+          "m4",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "return_age": 1,
+        "returned": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "fdd7e41f92b16b2042818c54e8564e402f7a6a51bc4b31824f952ce065ac296d",
+        "program_identity": "91ebfe3f42f1151ee23276344a382e77138c595dd93e7df4d270bb8b04e00b15",
+        "program_revision": 1,
+        "output": {
+          "decision": false,
+          "reason": "D"
+        },
+        "fact_versions": {
+          "return_age": 1,
+          "returned": 1
+        },
+        "fact_identities": {
+          "return_age": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+          "returned": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b"
+        },
+        "source_ids": [
+          "src_32c15e47dcce34accd8971fc",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "D",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 2,
+            "constraints_identity": "17b82b367f4927cd41e7321cc000c9daf41388b6425a25652ac1ec7bd1f27238",
+            "outputs": [
+              {
+                "decision": false,
+                "reason": "D"
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "add_age",
+          "delete_compliant",
+          "offline",
+          "result",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "18fd0c51de491b8354a6cedd5ddf451bbe31a545783e76d032c0af838a275943",
+          "route_ids": [
+            "fact_b5ae4931d32b7db11cc8cfdf"
+          ]
+        },
+        "binding_dependencies": {
+          "return_age": {
+            "version": 1,
+            "identity": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+            "route_ids": [
+              "fact_0203cda6d512fb3b93864ea2"
+            ]
+          },
+          "returned": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_807eadff41e49dc616631c20"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "18fd0c51de491b8354a6cedd5ddf451bbe31a545783e76d032c0af838a275943",
+            "route_ids": [
+              "fact_b5ae4931d32b7db11cc8cfdf"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_32c15e47dcce34accd8971fc",
+        "src_c2e5424a508b8c1f05421172",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 7,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 5,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 4,
+      "set_score_calls": 0,
+      "llm_attempts": 7,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "one_reason",
+          "result_type": "record",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "one"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.8894557952880859
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.8895280361175537
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2097,
+        "sequence": 13,
+        "elapsed_seconds": 0.8920948505401611
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2125,
+        "sequence": 22,
+        "elapsed_seconds": 0.8947598934173584
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "one_reason",
+          "fields": {
+            "D": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                },
+                {
+                  "op": "const",
+                  "value": false
+                },
+                {
+                  "op": "var",
+                  "id": "delete_compliant"
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.8965167999267578
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4789,
+        "sequence": 27,
+        "elapsed_seconds": 0.9023287296295166
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4893,
+        "sequence": 35,
+        "elapsed_seconds": 0.9099807739257812
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4995,
+        "sequence": 44,
+        "elapsed_seconds": 0.9180667400360107
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "decision": false,
+            "reason": "D"
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "D",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 45,
+        "elapsed_seconds": 0.9192047119140625
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "80131c18f6671f35917bde238f1ae571b946128cc06f5db8f229d301297a39c7",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s5",
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4555,
+        "audit_complete": true,
+        "sequence": 49,
+        "elapsed_seconds": 0.9305830001831055
+      }
+    ]
+  },
+  "all_failures": {
+    "answer": {
+      "status": "ok",
+      "prediction": "[\"D\", \"A\"]",
+      "semantic_answer": [
+        "D",
+        "A"
+      ],
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "1f20abbd9adb3ea8c04d1ce1e1b317b2871e1b2df7b1a6d11119a861bd5bdf16",
+      "sources": {
+        "node_versions": {
+          "decision": 5
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.12ca6fd487d0c970"
+        },
+        "span_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_3cc241a213df4ab814a4b78e",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m8",
+          "m1",
+          "m9",
+          "m4",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "add_age": 1,
+        "offline": 1,
+        "return_age": 1,
+        "returned": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "c199cfb6444954c5dc8223d0adf3975a84607e03378dd9c336616bfc8e9a507c",
+        "program_identity": "95338226485b5469ba02659036c02a1d363b3f7643ef099b379c1447bb65ac61",
+        "program_revision": 1,
+        "output": [
+          "D",
+          "A"
+        ],
+        "fact_versions": {
+          "add_age": 1,
+          "offline": 1,
+          "return_age": 1,
+          "returned": 1
+        },
+        "fact_identities": {
+          "add_age": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+          "offline": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "return_age": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+          "returned": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b"
+        },
+        "source_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_3cc241a213df4ab814a4b78e",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "constant_failures",
+            "used_variables": [
+              "add_age",
+              "offline",
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 2,
+            "constraints_identity": "17b82b367f4927cd41e7321cc000c9daf41388b6425a25652ac1ec7bd1f27238",
+            "outputs": [
+              [
+                "D",
+                "A"
+              ]
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "delete_compliant",
+          "result",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "f71e7b40563116b63607db62baafff7ed7dc5419906c4adae58b730611fcca7d",
+          "route_ids": [
+            "fact_bf2176a2f8004e2b891dccd6"
+          ]
+        },
+        "binding_dependencies": {
+          "add_age": {
+            "version": 1,
+            "identity": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+            "route_ids": [
+              "fact_055ee2162fc4f3fe5542a9ce"
+            ]
+          },
+          "offline": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_debc697e1f03c5e0d16fecd8"
+            ]
+          },
+          "return_age": {
+            "version": 1,
+            "identity": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+            "route_ids": [
+              "fact_0203cda6d512fb3b93864ea2"
+            ]
+          },
+          "returned": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_807eadff41e49dc616631c20"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "f71e7b40563116b63607db62baafff7ed7dc5419906c4adae58b730611fcca7d",
+            "route_ids": [
+              "fact_bf2176a2f8004e2b891dccd6"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_18d27d59a3022d000066e217",
+        "src_32c15e47dcce34accd8971fc",
+        "src_3cc241a213df4ab814a4b78e",
+        "src_c2e5424a508b8c1f05421172",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 13,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 11,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 8,
+      "set_score_calls": 0,
+      "llm_attempts": 13,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "all_failures",
+          "result_type": "set",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "all"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0008251667022705078
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0008780956268310547
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1fd80ae31037fc784438969fc1ab0ce75d07baa6164ea2e6bf1b0931c067600f",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2091,
+        "sequence": 13,
+        "elapsed_seconds": 0.0027930736541748047
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1fd80ae31037fc784438969fc1ab0ce75d07baa6164ea2e6bf1b0931c067600f",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2119,
+        "sequence": 22,
+        "elapsed_seconds": 0.00532984733581543
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                },
+                {
+                  "op": "const",
+                  "value": false
+                },
+                {
+                  "op": "var",
+                  "id": "delete_compliant"
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.007002115249633789
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e005c81c8dd6f1f461279e4b405f03842c3b9446993141943e391e749fcb509e",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4787,
+        "sequence": 27,
+        "elapsed_seconds": 0.012937068939208984
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e005c81c8dd6f1f461279e4b405f03842c3b9446993141943e391e749fcb509e",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4891,
+        "sequence": 35,
+        "elapsed_seconds": 0.0205838680267334
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e005c81c8dd6f1f461279e4b405f03842c3b9446993141943e391e749fcb509e",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4993,
+        "sequence": 44,
+        "elapsed_seconds": 0.02866196632385254
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "const",
+              "value": false
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "D"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          }
+        ],
+        "outcome": "indeterminate",
+        "sequence": 45,
+        "elapsed_seconds": 0.030931949615478516
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "9a2cafa9e755df879b296a521af4b21fd1aeb31635d31f3c5c90189731d8f91d",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4723,
+        "sequence": 49,
+        "elapsed_seconds": 0.03777885437011719
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "9a2cafa9e755df879b296a521af4b21fd1aeb31635d31f3c5c90189731d8f91d",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4823,
+        "sequence": 57,
+        "elapsed_seconds": 0.046643972396850586
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "9a2cafa9e755df879b296a521af4b21fd1aeb31635d31f3c5c90189731d8f91d",
+        "source_aliases": [
+          "s7"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6",
+          "s7"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4925,
+        "sequence": 66,
+        "elapsed_seconds": 0.0555119514465332
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "const",
+              "value": false
+            },
+            "A": {
+              "op": "const",
+              "value": false
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "O"
+        ],
+        "paused_demands": [
+          "A"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          }
+        ],
+        "outcome": "indeterminate",
+        "sequence": 67,
+        "elapsed_seconds": 0.056858062744140625
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ab0cfbe063b86f0ef72dc9613afd9d91664d94c22a4fbede99801e2ef9117332",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4711,
+        "sequence": 71,
+        "elapsed_seconds": 0.06453204154968262
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ab0cfbe063b86f0ef72dc9613afd9d91664d94c22a4fbede99801e2ef9117332",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4811,
+        "sequence": 79,
+        "elapsed_seconds": 0.07363200187683105
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ab0cfbe063b86f0ef72dc9613afd9d91664d94c22a4fbede99801e2ef9117332",
+        "source_aliases": [
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8",
+          "s9"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4913,
+        "sequence": 88,
+        "elapsed_seconds": 0.08332014083862305
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": [
+            "D",
+            "A"
+          ]
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "if_bound_condition",
+            "selected_branch": 1
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "constant_failures",
+            "used_variables": [
+              "add_age",
+              "offline",
+              "return_age",
+              "returned"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 89,
+        "elapsed_seconds": 0.08394813537597656
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "12ca6fd487d0c970f02c8976593d0fe1b4e7cb50f27dc844db7257dd1664145f",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s5",
+          "s7",
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s5",
+          "s1",
+          "s3",
+          "s7",
+          "s9"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 6024,
+        "audit_complete": true,
+        "sequence": 93,
+        "elapsed_seconds": 0.10382580757141113
+      }
+    ]
+  },
+  "V7_correction": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"decision\": false, \"reason\": \"A\"}",
+      "semantic_answer": {
+        "decision": false,
+        "reason": "A"
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "42f707fad3e2c60a8dc39ed7e80222efb3e9e6e8da0a04932144edd4a97f7550",
+      "sources": {
+        "node_versions": {
+          "decision": 2
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.2b9248dd0ef44ea6"
+        },
+        "span_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m8",
+          "m1",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "add_age": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "fdd7e41f92b16b2042818c54e8564e402f7a6a51bc4b31824f952ce065ac296d",
+        "program_identity": "91ebfe3f42f1151ee23276344a382e77138c595dd93e7df4d270bb8b04e00b15",
+        "program_revision": 1,
+        "output": {
+          "decision": false,
+          "reason": "A"
+        },
+        "fact_versions": {
+          "add_age": 1
+        },
+        "fact_identities": {
+          "add_age": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55"
+        },
+        "source_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "A",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 4,
+            "constraints_identity": "17b82b367f4927cd41e7321cc000c9daf41388b6425a25652ac1ec7bd1f27238",
+            "outputs": [
+              {
+                "decision": false,
+                "reason": "A"
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "delete_compliant",
+          "offline",
+          "result",
+          "return_age",
+          "returned",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "18fd0c51de491b8354a6cedd5ddf451bbe31a545783e76d032c0af838a275943",
+          "route_ids": [
+            "fact_b5ae4931d32b7db11cc8cfdf"
+          ]
+        },
+        "binding_dependencies": {
+          "add_age": {
+            "version": 1,
+            "identity": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+            "route_ids": [
+              "fact_055ee2162fc4f3fe5542a9ce"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "18fd0c51de491b8354a6cedd5ddf451bbe31a545783e76d032c0af838a275943",
+            "route_ids": [
+              "fact_b5ae4931d32b7db11cc8cfdf"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_18d27d59a3022d000066e217",
+        "src_32c15e47dcce34accd8971fc",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 15,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 13,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 21,
+      "set_score_calls": 0,
+      "llm_attempts": 15,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "one_reason",
+          "result_type": "record",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "one"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0008339881896972656
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0008859634399414062
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2097,
+        "sequence": 13,
+        "elapsed_seconds": 0.0026302337646484375
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2125,
+        "sequence": 22,
+        "elapsed_seconds": 0.00510406494140625
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "one_reason",
+          "fields": {
+            "D": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                },
+                {
+                  "op": "const",
+                  "value": false
+                },
+                {
+                  "op": "var",
+                  "id": "delete_compliant"
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.00675511360168457
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4789,
+        "sequence": 27,
+        "elapsed_seconds": 0.012586116790771484
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4893,
+        "sequence": 35,
+        "elapsed_seconds": 0.02027416229248047
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4995,
+        "sequence": 44,
+        "elapsed_seconds": 0.02791595458984375
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4994,
+        "sequence": 73,
+        "elapsed_seconds": 0.05861210823059082
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4993,
+        "sequence": 82,
+        "elapsed_seconds": 0.06734991073608398
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s7"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s7"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4993,
+        "sequence": 91,
+        "elapsed_seconds": 0.08873319625854492
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4995,
+        "sequence": 100,
+        "elapsed_seconds": 0.09888100624084473
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "3c1644ff3907d172e42d8979f17d0874a88cdb015fd04958de9c407336b61c9c",
+        "source_aliases": [
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s9"
+        ],
+        "valid_rows": 4,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4995,
+        "sequence": 109,
+        "elapsed_seconds": 0.10935807228088379
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e570d99c6e5012f91e1bf2d35b1e9cdaa7c565390165c7cbcf5691f1848373f7",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4725,
+        "sequence": 149,
+        "elapsed_seconds": 0.1733870506286621
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e570d99c6e5012f91e1bf2d35b1e9cdaa7c565390165c7cbcf5691f1848373f7",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4825,
+        "sequence": 157,
+        "elapsed_seconds": 0.18093109130859375
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e570d99c6e5012f91e1bf2d35b1e9cdaa7c565390165c7cbcf5691f1848373f7",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6",
+          "s8"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4927,
+        "sequence": 166,
+        "elapsed_seconds": 0.18872714042663574
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "decision": false,
+            "reason": "A"
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "A",
+            "used_variables": [
+              "add_age"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 167,
+        "elapsed_seconds": 0.18932700157165527
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "2b9248dd0ef44ea60478ddbbecb4e4ac3114f15d1d0d81dfd8822105d66d7c97",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 4227,
+        "audit_complete": true,
+        "sequence": 171,
+        "elapsed_seconds": 0.2005622386932373
+      }
+    ]
+  },
+  "entity_chain": {
+    "answer": {
+      "status": "ok",
+      "prediction": "River City",
+      "semantic_answer": "River City",
+      "answer_source": "dag_terminal",
+      "final_node_id": "city",
+      "output_identity": "06c8ad364c4fe9812fc88d64245143367a21bda1c910ce89936bc7fb7276b050",
+      "sources": {
+        "node_versions": {
+          "city": 1
+        },
+        "alternative_ids": {
+          "city": "city.derivation.d7c31789b4c94953"
+        },
+        "span_ids": [
+          "src_2dd180926c87437081fd7b99",
+          "src_2ec71f14a3445dbfb49207cb",
+          "src_49de4f7f53ee4d87ebff4716"
+        ],
+        "doc_ids": [
+          "school",
+          "city",
+          "film"
+        ]
+      },
+      "dependency_versions": {
+        "city": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "d078d3869595f616ebd2be268e4033f46e84b523858999ae195e66526487e2fd",
+        "program_identity": "8e96c3c928816fa27eaf7fcd99dc3f4cad605abc3cbe983a593aeadbe67f3ef6",
+        "program_revision": 0,
+        "output": "River City",
+        "fact_versions": {
+          "city": 1
+        },
+        "fact_identities": {
+          "city": "47e0685f6489e049930555419b639eb112d6cd3ec33072949b60d1decad657e4"
+        },
+        "source_ids": [
+          "src_2dd180926c87437081fd7b99",
+          "src_2ec71f14a3445dbfb49207cb",
+          "src_49de4f7f53ee4d87ebff4716"
+        ],
+        "derivation": [
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              "River City"
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "director",
+          "university"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "city": {
+            "version": 1,
+            "identity": "47e0685f6489e049930555419b639eb112d6cd3ec33072949b60d1decad657e4",
+            "route_ids": [
+              "fact_1f556b10cf12e2e8281adc1e"
+            ]
+          },
+          "director": {
+            "version": 1,
+            "identity": "4587b6d3784531d852e65bf738a15835039b78447a071b0e0b6259c0c86595fa",
+            "route_ids": [
+              "fact_592c0e47d5d22acdbcf6dbde"
+            ]
+          },
+          "university": {
+            "version": 1,
+            "identity": "33a9dadb6dab2dd06483c275ed1606a0cda25dc8ee28a4b1a51d476a60f52527",
+            "route_ids": [
+              "fact_87b5e9b9104fd4f5f3188c5a"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_2dd180926c87437081fd7b99",
+        "src_2ec71f14a3445dbfb49207cb",
+        "src_49de4f7f53ee4d87ebff4716"
+      ]
+    },
+    "cost": {
+      "generation_calls": 7,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 5,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 3,
+      "set_score_calls": 0,
+      "llm_attempts": 7,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "director",
+            "question": "Who directed Ash Wind?",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "university",
+            "question": "Which university did {director} attend?",
+            "inputs": [
+              "director"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "city",
+            "question": "Which city contains {university}?",
+            "inputs": [
+              "university"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          }
+        ],
+        "final_node_id": "city",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "entity",
+          "entity_scope": "Ash Wind",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "director": {
+              "type": "entity",
+              "demand": "director",
+              "open": true
+            },
+            "university": {
+              "type": "entity",
+              "demand": "university",
+              "open": true
+            },
+            "city": {
+              "type": "entity",
+              "demand": "city",
+              "open": true
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "city"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0008389949798583984
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "director",
+          "university",
+          "city"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "city",
+          "director",
+          "university"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0008971691131591797
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1ccf54167d77a87939cc77d4728a659f9c8881d175550436c86ec0c55f344956",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1915,
+        "sequence": 13,
+        "elapsed_seconds": 0.0023040771484375
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "university",
+          "city"
+        ],
+        "paused_demands": [
+          "director"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.0023670196533203125
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7fc084ed5c19db27a24b7aa0ca9790fa053db5e706e5e77e6eaede280fe75a74",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2148,
+        "sequence": 18,
+        "elapsed_seconds": 0.0035500526428222656
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7fc084ed5c19db27a24b7aa0ca9790fa053db5e706e5e77e6eaede280fe75a74",
+        "source_aliases": [
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2235,
+        "sequence": 26,
+        "elapsed_seconds": 0.0051860809326171875
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "city"
+        ],
+        "paused_demands": [
+          "university"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 27,
+        "elapsed_seconds": 0.005262136459350586
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee4808b3d1a38c8795f35675894866d4f90a0140bf5ef87e9ea57c744a6484a5",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 3,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2470,
+        "sequence": 31,
+        "elapsed_seconds": 0.007089853286743164
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee4808b3d1a38c8795f35675894866d4f90a0140bf5ef87e9ea57c744a6484a5",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 3,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2557,
+        "sequence": 39,
+        "elapsed_seconds": 0.009028196334838867
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": "River City"
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "city"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "determined",
+        "sequence": 40,
+        "elapsed_seconds": 0.009114265441894531
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "d7c31789b4c94953fd40d83d836c6a4f8a289067dcc87a50d8688f774f4951d4",
+        "source_aliases": [
+          "s1",
+          "s2",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2807,
+        "audit_complete": true,
+        "sequence": 44,
+        "elapsed_seconds": 0.011619091033935547
+      }
+    ]
+  },
+  "comparison": {
+    "answer": {
+      "status": "ok",
+      "prediction": "true",
+      "semantic_answer": true,
+      "answer_source": "dag_terminal",
+      "final_node_id": "final",
+      "output_identity": "5e23ae7b808414a8a8dbed4a5d187a14f656105a1aacf6767f32e196519f6504",
+      "sources": {
+        "node_versions": {
+          "final": 2
+        },
+        "alternative_ids": {
+          "final": "final.derivation.491173c348e8d642"
+        },
+        "span_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "doc_ids": [
+          "y",
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "y": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "e11dd2927f3320e6d52a06d57796b27f28715dddc9b7dca27c76e1ab7e86974f",
+        "program_identity": "44e855c62f62d5b6ad03bdc9a1bac6aeb8bfdbc4913e8efd5b05bd820f4cd1be",
+        "program_revision": 0,
+        "output": true,
+        "fact_versions": {
+          "x": 1,
+          "y": 1
+        },
+        "fact_identities": {
+          "x": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "y": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        "source_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_lt",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              true
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "x": {
+            "version": 1,
+            "identity": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+            "route_ids": [
+              "fact_ed0a23cebfe675e75d9f6e3c"
+            ]
+          },
+          "y": {
+            "version": 1,
+            "identity": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+            "route_ids": [
+              "fact_7bbcc63082ab5d1b19bfa4ca"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_1574993b22b685749c4de25b",
+        "src_fdaf49dbca8f6b84332c8ebe"
+      ]
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 2,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 2,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "x",
+            "question": "Find x quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "y",
+            "question": "Find y quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "final",
+            "question": "Compare x and y",
+            "inputs": [
+              "x",
+              "y"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "final",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "bool",
+          "entity_scope": "quantities",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "x"
+            },
+            "y": {
+              "type": "number",
+              "demand": "y"
+            }
+          },
+          "expression": {
+            "op": "lt",
+            "args": [
+              {
+                "op": "var",
+                "id": "x"
+              },
+              {
+                "op": "var",
+                "id": "y"
+              }
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0007050037384033203
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "lt",
+          "args": [
+            {
+              "op": "var",
+              "id": "x"
+            },
+            {
+              "op": "var",
+              "id": "y"
+            }
+          ]
+        },
+        "active_demands": [
+          "x",
+          "y"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "x",
+          "y"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0007710456848144531
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee7f70342191b6a1630ab01bad5f8309e1527410b89be7826f8531dbdff6df62",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1961,
+        "sequence": 13,
+        "elapsed_seconds": 0.0024509429931640625
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "lt",
+          "args": [
+            {
+              "op": "const",
+              "value": 0
+            },
+            {
+              "op": "var",
+              "id": "y"
+            }
+          ]
+        },
+        "active_demands": [
+          "y"
+        ],
+        "paused_demands": [
+          "x"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.002527952194213867
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "9f56b1de8288a6e81c330b702bf1c23dae0746fe4d5747dc96d1faa3ea502800",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1961,
+        "sequence": 22,
+        "elapsed_seconds": 0.004221916198730469
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": true
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "y"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_lt",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 23,
+        "elapsed_seconds": 0.004305124282836914
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "491173c348e8d6422110d84df29f242e24f20ec09e554a4ca2af8e8d51af5789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2445,
+        "audit_complete": true,
+        "sequence": 27,
+        "elapsed_seconds": 0.00601506233215332
+      }
+    ]
+  },
+  "record_output": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"x\": 0, \"y\": 2}",
+      "semantic_answer": {
+        "x": 0,
+        "y": 2
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "final",
+      "output_identity": "2b6ff19d02a7322b2110824dcb3cec720e0d0433770587a3a5543e978242eeb7",
+      "sources": {
+        "node_versions": {
+          "final": 2
+        },
+        "alternative_ids": {
+          "final": "final.derivation.3f55f5251115301f"
+        },
+        "span_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "doc_ids": [
+          "y",
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "y": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "03a4c92967995db240d7faf7be5efad9760dc9c44d46dffe26fba8c49a75a849",
+        "program_identity": "fd1532167412ad9d7289d90157106c2a8f6bf6bc4d434d8bb1cc689687d7813a",
+        "program_revision": 0,
+        "output": {
+          "x": 0,
+          "y": 2
+        },
+        "fact_versions": {
+          "x": 1,
+          "y": 1
+        },
+        "fact_identities": {
+          "x": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "y": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        "source_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_record",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              {
+                "x": 0,
+                "y": 2
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "x": {
+            "version": 1,
+            "identity": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+            "route_ids": [
+              "fact_ed0a23cebfe675e75d9f6e3c"
+            ]
+          },
+          "y": {
+            "version": 1,
+            "identity": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+            "route_ids": [
+              "fact_7bbcc63082ab5d1b19bfa4ca"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_1574993b22b685749c4de25b",
+        "src_fdaf49dbca8f6b84332c8ebe"
+      ]
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 2,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 2,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "x",
+            "question": "Find x quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "y",
+            "question": "Find y quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "final",
+            "question": "Compare x and y",
+            "inputs": [
+              "x",
+              "y"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "final",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "record",
+          "entity_scope": "quantities",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "x"
+            },
+            "y": {
+              "type": "number",
+              "demand": "y"
+            }
+          },
+          "expression": {
+            "op": "record",
+            "fields": {
+              "x": {
+                "op": "var",
+                "id": "x"
+              },
+              "y": {
+                "op": "var",
+                "id": "y"
+              }
+            }
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0005941390991210938
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "record",
+          "fields": {
+            "x": {
+              "op": "var",
+              "id": "x"
+            },
+            "y": {
+              "op": "var",
+              "id": "y"
+            }
+          }
+        },
+        "active_demands": [
+          "x",
+          "y"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "x",
+          "y"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0007359981536865234
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "8eda92013ed21ac7ca05f02cea0c15d95e96654381b177759e211c5adef729a7",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1962,
+        "sequence": 13,
+        "elapsed_seconds": 0.0028030872344970703
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "record",
+          "fields": {
+            "x": {
+              "op": "const",
+              "value": 0
+            },
+            "y": {
+              "op": "var",
+              "id": "y"
+            }
+          }
+        },
+        "active_demands": [
+          "y"
+        ],
+        "paused_demands": [
+          "x"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.002924203872680664
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7cf02079ed25a171a6e89965865f30f4fa4123a6ead07e6b5c4171cbe4a088a3",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1962,
+        "sequence": 22,
+        "elapsed_seconds": 0.004927158355712891
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "x": 0,
+            "y": 2
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "y"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_record",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 23,
+        "elapsed_seconds": 0.005018949508666992
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "3f55f5251115301fdf2996cc12a1018ad1febf57451b36c1d6d94ee699deab8a",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2445,
+        "audit_complete": true,
+        "sequence": 27,
+        "elapsed_seconds": 0.00701594352722168
+      }
+    ]
+  },
+  "non_singleton_output": {
+    "answer": {
+      "status": "unresolved_or_exhausted",
+      "prediction": null,
+      "semantic_answer": null,
+      "answer_source": "dag_terminal",
+      "final_node_id": "uncertain",
+      "output_identity": "f5fe88e2e818b8d9f9a3d94f00f55fa46f77f20fcf387626b95e2debf80b9abb",
+      "sources": null,
+      "dependency_versions": {
+        "uncertain": 0
+      },
+      "completion_kind": "incomplete",
+      "certificate": null,
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": []
+    },
+    "cost": {
+      "generation_calls": 2,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 1,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 0,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 1,
+      "set_score_calls": 0,
+      "llm_attempts": 2,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "uncertain",
+            "question": "Find the undecided boolean condition",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          }
+        ],
+        "final_node_id": "uncertain",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "bool",
+          "entity_scope": "undecided condition",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "uncertain": {
+              "type": "bool",
+              "demand": "uncertain"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "uncertain"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0005459785461425781
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "uncertain"
+        },
+        "active_demands": [
+          "uncertain"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "uncertain"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0005848407745361328
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "cab2ad19a2e69781a0ee9690c4c45b9d8e0e041e22c167d44980eec5c4429103",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1933,
+        "sequence": 13,
+        "elapsed_seconds": 0.0017027854919433594
+      }
+    ]
+  },
+  "open_advice": {
+    "answer": {
+      "status": "ok",
+      "prediction": "Choose a quiet visit based on the sourced preference.",
+      "semantic_answer": "Choose a quiet visit based on the sourced preference.",
+      "answer_source": "dag_terminal",
+      "final_node_id": "advice",
+      "output_identity": "b0e8e6bca286de06458779216667d975f777eb245cf87789df7034e5678c1372",
+      "sources": {
+        "node_versions": {
+          "advice": 1
+        },
+        "alternative_ids": {
+          "advice": "advice.route.fact_4eb999fd9e7428702166ab95"
+        },
+        "span_ids": [
+          "src_5590d9b37108ceb8f38e88ed"
+        ],
+        "doc_ids": [
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "advice": 1
+      },
+      "completion_kind": "semantic_assessment",
+      "certificate": null,
+      "program_revision": 0,
+      "terminal_input_doc_ids": [
+        "x"
+      ],
+      "certificate_source_ids": []
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 1,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 1,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 1,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "preference",
+            "question": "Find x preference quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "advice",
+            "question": "Recommend from {preference}",
+            "inputs": [
+              "preference"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "advice",
+        "output_contract": {
+          "mode": "semantic",
+          "result_type": "text",
+          "entity_scope": "visitor",
+          "time_scope": "本次演示",
+          "explanation": "semantic"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "preference"
+            },
+            "advice": {
+              "type": "text",
+              "demand": "advice"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "advice"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0006473064422607422
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "advice"
+        },
+        "active_demands": [
+          "preference",
+          "advice"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "advice",
+          "preference"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0006902217864990234
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e81e3307e8bee8f673393586e784b31057aa2a57a3f4cbedd9dd54ed7c4b7cd1",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1909,
+        "sequence": 13,
+        "elapsed_seconds": 0.002009153366088867
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "advice"
+        },
+        "active_demands": [
+          "advice"
+        ],
+        "paused_demands": [
+          "preference"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.0020782947540283203
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "semantic_compose",
+        "identity": "4d5f2ca2df0bb556b51e2da4397b6201e481ebdef51849cda01112095f96d642",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2125,
+        "sequence": 18,
+        "elapsed_seconds": 0.003255128860473633
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": "Choose a quiet visit based on the sourced preference."
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "advice"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "determined",
+        "sequence": 19,
+        "elapsed_seconds": 0.0033311843872070312
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "da231c6f4efb1729d07cab3b6bd9109c2d54cbe32d68f664ae244a51cc8da05a",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2370,
+        "audit_complete": true,
+        "sequence": 23,
+        "elapsed_seconds": 0.004439115524291992
+      }
+    ]
+  }
+}

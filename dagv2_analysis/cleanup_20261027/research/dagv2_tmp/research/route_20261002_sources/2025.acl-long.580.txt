@@ -1,0 +1,1489 @@
+    HyKGE: A Hypothesis Knowledge Graph Enhanced RAG Framework for
+             Accurate and Reliable Medical LLMs Responses
+                       Xinke Jiang1,2 * , Ruizhe Zhang1,2 * , Yongxin Xu1,2 * , Rihong Qiu1,2 *
+                         Yue Fang1,2 , Zhiyuan Wang1,2 , Jinyi Tang1,2 , Hongxin Ding1,2
+                               Xu Chu1,2,4,6 , Junfeng Zhao1,2,5† , Yasha Wang2,3,6†
+                         1
+                           School of Computer Science, Peking University, Beijing, China
+                        2
+                          Key Lab of HCST (PKU), MOE; SCS, Peking University, China
+        3
+          National Engineering Research Center For Software Engineering, Peking University, China
+                4
+                  Center on Frontiers of Computing Studies, Peking University, Beijing, China
+                   5
+                     Big Data Technology Research Center, Nanhu Laboratory, Jiaxing, China
+                  6
+                    Peking University Information Technology Institute, Tianjin Binhai, China
+                      {xinkejiang, nostradamus, xuyx, rihongqiu}@stu.pku.edu.cn, {zhaojf, wangyasha}@pku.edu.cn
+
+
+                                 Abstract                           a range of downstream tasks (Kaplan et al., 2020). These
+                                                                    achievements underscore the vast potential of LLMs
+             In this paper, we investigate the retrieval-           in understanding and generating natural language (Vu
+             augmented generation (RAG) based on Knowl-             et al., 2024), especially in the medical domain (Kraljevic
+             edge Graphs (KGs) to improve the accuracy              et al., 2022; Yang et al., 2023c; Zhu et al., 2023; Wang
+             and reliability of Large Language Models               et al., 2023c; Xiong et al., 2023; Wang et al., 2023a;
+             (LLMs). Recent approaches suffer from in-              Zhang et al., 2023a; Pal and Sankarasubbu, 2023; Bao
+             sufficient and repetitive knowledge retrieval,         et al., 2023). Despite the advancements of fine-tuning,
+             tedious and time-consuming query parsing,              they still encounter significant challenges, including the
+             and monotonous knowledge utilization. To               difficulty in avoiding factual inaccuracies (i.e., hallu-
+             this end, we develop a Hypothesis Knowledge            cinations and limited explainability) (Ji et al., 2023a;
+             Graph Enhanced (HyKGE) framework, which                Cao et al., 2020; Ji et al., 2023b), data constraints (i.e.
+             leverages LLMs’ powerful reasoning capac-              token resource limit, high training costs, and privacy
+             ity to compensate for the incompleteness of            concerns)2 , catastrophic forgetting (Gao et al., 2024),
+             user queries, optimizes the interaction process        outdated knowledge (He et al., 2022), and a lack of
+             with LLMs, and provides diverse retrieved              expertise in handling specific domains or highly spe-
+             knowledge. Specifically, HyKGE explores the            cialized queries (Kandpal et al., 2023). This under-
+             zero-shot capability and the rich knowledge            mines their reliability in areas where accountability and
+             of LLMs with Hypothesis Outputs to extend              trustworthiness are crucial and infallible in the medical
+             feasible exploration directions in the KGs, as         area (Ji et al., 2023a; Song et al., 2024; Lai et al., 2023;
+             well as the carefully curated prompt to enhance        Xu et al., 2023b, 2024b).
+             the density and efficiency of LLMs’ responses.
+                                                                       Retrieval-Augmented Generation (RAG), enhances
+             Furthermore, we introduce the HO Fragment
+                                                                    content generation by retrieving external information,
+             Granularity-aware Rerank Module to filter out
+                                                                    reduces factual errors in knowledge-intensive tasks with
+             noise while ensuring the balance between di-
+                                                                    the help of external knowledge and is seen as a promis-
+             versity and relevance in retrieved knowledge.
+                                                                    ing solution to address incorrect answers, hallucina-
+             Experiments on medical and general domain
+                                                                    tions, and insufficient interpretability (Izacard et al.,
+             datasets two LLM turbos demonstrate the su-
+                                                                    2022b; Asai et al., 2023b,a; Jiang et al., 2025; Xu
+             periority of HyKGE in terms of accuracy and
+                                                                    et al., 2024a). Among the numerous external infor-
+             explainability. Code is available at 1 .
+                                                                    mation sources (Yang et al., 2024), knowledge graphs
+    1        Introduction                                           (KGs), as a structured data source refined and extracted
+                                                                    through advanced information extraction algorithms,
+    Large Language Models (LLMs), such as Chat-                     can provide higher quality context. Compared to docu-
+    GPT (OpenAI, 2022) and GPT-4 (OpenAI, 2023), have               ments, KGs embody structured knowledge (Zhong et al.,
+    achieved remarkable progress in pivotal areas. By un-           2023; Ji et al., 2022; Xu et al., 2025, 2023a; Yang et al.,
+    dergoing pre-training on massive text corpora and align-        2023b; Ma et al., 2023b), providing succinct content
+    ing fine-tuning to follow human instructions (Ziegler           and facilitating the analysis of intricate relationships
+    et al., 2020; Wang et al., 2023e; Ma et al., 2025; ?), they     among entities, leading to advanced inference capabili-
+    have recently demonstrated exceptional performance in           ties and enabling extrapolation for efficient knowledge
+         * Equal contribution.                                      retrieval. They are considered by many research works
+         †
+             Corresponding author.
+         1                                                             2
+             https://github.com/Artessay/HyKGE                             https://www.youtube.com/watch?v=ahnGLM-RC1Y
+                                                               11836
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 11836–11856
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+to improve the accuracy and reliability of answers pro-       one of the primary challenges in the post-retrieval phase
+vided by LLMs (Pan et al., 2024; Wen et al., 2023;            is to balance the trade-off between relevant knowledge
+Jiang et al., 2024). However, the gap between unstruc-        and diverse ones (Breuer et al., 2023).
+tured user queries of inconsistent quality and structured,        To cope with these challenges, we put forward the
+high-quality KGs (Soman et al., 2023a) poses signif-          Hypothesis Knowledge Graph Enhanced (HyKGE)
+icant challenges on how to properly parse user intent         framework, a novel method based on the hypothesis out-
+for improving the robustness of retrieved knowledge           put module (HOM) (Gao et al., 2022a) to explore, locate,
+(pre-retrieval phase) and how to handle the abundant          and prune search directions for accurate and reliable
+retrieved knowledge (post-retrieval phase), which are         LLMs responses in pre-retrieval phase and greatly pre-
+detailed as:                                                  serve the relevance and diversity of search results at in
+   Challenge I: At the pre-retrieval phase, pre-              post-retrieval phase. i) Specifically, in the pre-retrieval
+vious works suffer from how to parse user in-                 phase, our key idea is that the zero-shot capability and
+tent and retrieve reasonable knowledge based on               rich knowledge of LLMs can compensate for the incom-
+varying-quality user query. Some works are based on           pleteness of user queries, facilitating alignment with
+the Retrieve-Read framework, which initially obtains          high-quality external knowledge. For example, when
+knowledge through dense vector retrieval according to         facing the question “After meals, I feel a bit of stom-
+user queries (Ma et al., 2023a; Qu et al., 2021; Yu et al.,   ach reflux. What medicine should I take? ”, if retrieval
+2022). However, they are stricken with issues such as         is based solely on the key entity “stomach reflux ” as
+unclear expressions and lack of semantic information in       illustrated in Figure 1(a), a large amount of noise will
+the user’s original query. This misalignment between          be introduced due to the broad semantics of the entity.
+the semantic spaces of user queries and high-quality          However, if LLMs are guided to explore how to solve
+structured knowledge leads to the retrieval of knowledge      the problem, they will provide additional clues related to
+that is of insufficient quality and may contain redundant     “stomach acid ”, “H2 receptor antagonists ” and “proton
+information and noise (Barnett et al., 2024). In addition,    pump inhibitors ” as illustrated in Figure 1(b), based on
+the excessive redundant knowledge can lead to a waste         the knowledge acquired during their pre-training and in-
+of token resources, and the response speed of LLMs will       struction fine-tuning phases, offering exploration direc-
+drop sharply, which adversely damages the performance         tions for retrieval on the KGs. ii) Meanwhile, HyKGE
+in real-world applications (Finardi et al., 2024).            utilizes the flexibility of natural language in prompts to
+   Challenge II: At the pre-retrieval phase, how to           set constraints, enabling LLMs to provide as comprehen-
+align user intent with high-quality structured knowl-         sive information as possible when outputting hypothesis
+edge while reducing interactions with LLMs remains            results, thereby reducing the number of interactions and
+an unresolved issue. Some works enable LLMs to step-          improving efficiency. iii) In the post-retrieval stage,
+by-step utilize knowledge to enhance intent parsing and       to further enhance the alignment between user queries
+inference of user queries. They facilitate the acquisition    and external knowledge inference paths, we propose a
+of planning and reflective abilities in LLMs’ interac-        Hypothesis Output-based (HO) Fragment Granularity-
+tions with KGs through multi-round chain-of-thought           aware, which utilizes multiple short snippets from the
+requests (Sun et al., 2023; Li et al., 2023b; Wang et al.,    hypothesis outputs as well as the user query to rerank
+2023b; Asai et al., 2023b; Yu et al., 2023a). However,        and filter the retrieved knowledge, greatly avoiding the
+they are constrained by the expensive time overhead           filtering of diverse knowledge. It ensures fine-grained
+of multiple interactions with LLMs and the cumulative         interaction and filtering while addressing the issue of
+errors in the distributed reasoning process.                  imprecise matching between monotonous and sparse
+   Challenge III: At the post-retrieval phase, previ-         text (user query) with multi-element and dense text (re-
+ous studies often struggle with the dilemma of bal-           trieved knowledge). Through comprehensive experi-
+ancing the diversity and relevance of the retrieved           ments, our main contributions can be summarized as
+knowledge. Recent post-retrieval models typically ap-         follows:
+ply similarity filtering or a reranking approach in re-
+                                                              • At the pre-retrieval phase, we leverage the zero-shot
+sponse to user queries to prune retrieved results (Toro
+                                                                capability of LLMs to obtain an exploratory and hy-
+et al., 2023; Finardi et al., 2024; Cuconasu et al., 2024).
+                                                                pothesis output, transforming the incomplete and non-
+However, user queries often exhibit notably monotonous
+                                                                professional nature of user queries. Corresponding
+properties and sparsely distributed keywords because
+                                                                anchor entities are then identified from the hypothesis
+the prevalence of natural language descriptions will
+                                                                output on the KGs, providing a direction for explo-
+tend to dilute its concentration (Breuer et al., 2023).
+                                                                ration and pruning retrieval space. Simultaneously,
+Conversely, KGs are characterized by their inherently
+                                                                we utilize the knowledge chains to rectify errors and
+structured nature, resulting in a high knowledge den-
+                                                                illogicalities in the hypothesis outputs, mitigating hal-
+sity within retrieved results. As a consequence, pruning
+                                                                lucinations and false knowledge problems.
+knowledge solely based on the user query can lead to a
+misalignment in knowledge density and the final result        • At the post-retrieval stage, we propose a HO Frag-
+is often highly correlated yet excessively repetitive, sig-     ment Granularity-aware rerank module to further en-
+nificantly diminishing the efficacy of RAG. Therefore,          hance the knowledge density alignment between the
+                                                         11837
+           Query After meals, I feel a bit of               Query After meals, I feel a bit of stomach
+           stomach reflux. What medication                  reflux. What medication should I take for it?
+           should I take for it?                   Step 1: Query LM and get hypothesis output
+                                                      Hypothesis Output …Gastroesophageal reflux may
+                            Entities:                 caused by the backward flow of stomach acid into the
+                            1. stomach acid           esophagus … Depending on the evidence, considering the
+                            2. gastro-                use of H2 receptor antagonists or proton pump inhibitors …
+                               esophageal          Step 2: Search KG according to query and hypothesis output
+                               reflux
+    Search KG according              …                                        Reasoning Chain:
+        to query only                                                         ① bile reflux → abdomen ← stomach pain
+                                                                              ② magnesium aluminum carbonate→ heartburn
+            Prompt = Query + Entities                                         → excessive stomach acid → stomach pain
+                                                                                                    …
+                                                             anchor entity
+             Answer: Gastroesophageal reflux
+                                                                             Prompt = Query + Reasoning Chains
+             may be caused by the backward
+             flow of food or stomach acid. You              Answer: Stomach acid backward may be the cause of
+             can consider using Acid-suppressing            gastroesophageal reflux …You may consider omeprazole or
+             medications to relieve symptoms of             esomeprazole to reduce gastric acid secretion, …. Alternatively,
+             gastric reflux and mitigating the              you can use acid-neutralizing medications (antacids) such as
+             development of reflux esophagitis…             magnesium aluminum carbonate. Another option is the use of
+                                                            H2 receptor antagonists such as ranitidine or famotidine …
+
+Figure 1: (a) KGRAG (Left). Basic KGRAG extracts key entities from user queries and searches for corresponding
+entities within KG, which are then fed into LLMs along with the query. (b) HyKGE (Right). HyKGE first queries
+LLMs to obtain hypothesis output and extracts entities from both the hypothesis output and the query. Then HyKGE
+retrieves reasoning chains between any two anchor entities and feeds the reasoning chains and query into LLMs.
+
+
+    retrieved reasoning chains and hypothesis outputs at        user queries which weakens their generalization capabil-
+    a finer granularity, greatly preserving relevant yet        ity (Gao et al., 2022b). Moreover, some researches focus
+    diverse knowledge through the idea of divide-and-           on fine-tuning reader LLMs, applying instruction-tuning
+    conquer.                                                    with retrieved knowledge or RAG API calls (Luo et al.,
+                                                                2023a; Izacard et al., 2022b; Asai et al., 2024; Yoran
+• We validate the superiority of the HyKGE through              et al., 2024; Wang et al., 2024; Zhang et al., 2023b; Lin
+  various observations by experiments on two Chinese            et al., 2024). However, creating such datasets is also
+  medical multiple-choice question datasets and one             challenging due to the need for manual label correction,
+  Chinese medical open-domain Q&A dataset with two              which in turn, may erode LLMs generalization capabili-
+  LLM turbos. This integration of LLMs and KGs                  ties and cause catastrophic forgetting in routine Q&A
+  addresses key challenges in medical LLMs, notably             tasks.
+  in accuracy and explainability, and has potential ap-
+                                                                   Beyond optimizing submodels, HyDE (Gao et al.,
+  plications in improving medical consultation quality,
+                                                                2022b) introduces an innovative method where
+  diagnosis accuracy, and expediting medical research.
+                                                                instruction-following LLMs generate hypothesis docu-
+                                                                ments based on user queries to enhance retriever per-
+2     Related Work
+                                                                formance, particularly in zero-shot scenarios. Other
+Retrieval-Augmented Generation. RAG incorpo-                    methods like CoN (Yu et al., 2023b) and CoK (Li et al.,
+rates the external knowledge retrieval component via            2023c) involve LLMs in note-making and step-wise rea-
+prompt engineering to achieve more factual consistency,         soning verification through customized prompts, and
+enhancing the reliability and interpretability of LLMs’         greatly rely on frequent interactions with LLMs. How-
+responses (Lewis et al., 2021; Xu et al., 2024c). Classic       ever, such an approach is excessively inefficient for
+RAG methods leverage retriever models to source rele-           deployment in real-world Q&A scenarios.
+vant documents from large knowledge corpora (Xu et al.,            Our HyKGE, uses LLM hypothesis output for ex-
+2024a), followed by reranker models that distill contents       ploratory directions in KGs and corrects model errors
+and reader models for further processing (Pan et al.,           using graph reasoning chains during pre-retrieval, and
+2024; Sarthi et al., 2024; Zhang et al., 2024). Despite         applies fine-grained alignment in post-retrieval to main-
+advancements in retriever (Qu et al., 2021; Ma et al.,          tain effective, diverse knowledge, enhancing retrieval
+2023a; Kim et al., 2024) and reranker efficiency (Cheng         efficiently without fine-tuning or excessive interactions.
+et al., 2021; Yu et al., 2022), they still encounter dif-
+ficulty in acquiring high-quality datasets for training         Knowledge Graph Query-Answer.        Compared to
+query-document pair retrievers or limited information in        knowledge stored in document repositories (Izacard
+                                                        11838
+et al., 2022a), the knowledge contained within KGs               • Post-Retrieval Phase utilizes the HO Fragment
+has the advantages of being structured and inferable,              Granularity-aware rerank approach. First, the hypoth-
+rendering it a more suitable source for supplementing              esis output and the user query are segmented into
+LLMs (Luo et al., 2023b; Jiang et al., 2023; Liu et al.,           discrete fragments, and subsequently, we rerank the
+2021; Kang et al., 2023; Sen et al., 2023; Varshney                retrieved reasoning chains based on the fragments.
+et al., 2023). However, how to design a retriever to             • LLM Reader is fed with the user query and the pruned
+extract knowledge from KGs and how to design inter-                retrieved reasoning chains, organized with carefully
+action strategies between LLM and KGs are still in the             designed prompts.
+exploratory stage3 . KGRAG (Soman et al., 2023a)                 Next, we will delineate each phase in detail in the fol-
+and GraphRAG uses the user query as a reference for              lowing subsections.
+retrieval in KGs, which suffers from misalignment be-
+tween high-quality structured knowledge and varying-             4.1 Pre-Retrieval Phase
+quality queries. Semantic parsing methods allow LLMs             Firstly, we let LLMs generate hypothesis outputs (HO)
+to convert the question into a structural query (e.g.,           in response to user query Q, and then use the NER
+SPARQL), which can be executed by a query engine to              model to extract entities from both HO and Q. During
+derive the answers on KGs (Sun et al., 2020; Li et al.,          this process, LLMs utilize inherent medical knowledge
+2023a,c). However, these methods depend heavily on               to explore potential answers. Although HO may con-
+the quality of generated query sentences, displaying sub-        tain factual errors or hallucinations between entities,
+par performance when confronted with intricate queries.          the NER Module focuses solely on the extraction of
+                                                                 entities while disregarding the relations, thus signifi-
+3       Preliminaries                                            cantly isolating the correlation among medical entities.
+Definition 1. (Knowledge Graph) Given a medical                  The subsequent graph retrieval phase (c.f. Section 4.2)
+knowledge graph, denoted by KG = (E, R, T , D, N ),              searches the correct reasoning chains to discern and
+where E = {e1 , . . . , eN } is the set of entities,             reintegrate the relationships between medical entities,
+R = {r1 , . . . , rP } is the set of relations, and T =          avoiding LLMs’ shortages. The combination of HOM
+{(ethead  , rti , ettail ) | 1 ≤ i ≤ T, ethead    , ettail ∈     and NM provides us with a direction for exploration and
+     i              i                        i        i
+E, rti ∈ R} is the set of head-relation-tail triplets (facts).   identifies corresponding anchors in the KGs to guide
+Additionally, di ∈ D represents the entity description           subsequent graph retrieval, ensuring consistency and
+of ei , and Nv = {(r, u) | (v, r, u) ∈ T } stands for the        effectiveness in information processing.
+set of neighboring relations and entities of an entity v.        4.1.1 Hypothesis Output Module
+Definition 2. (Knowledge Graph Retrieval) Knowl-                 To enhance the quality of HO, due to LLMs’ robust
+edge Graph Retrieval (Reinanda et al., 2020) is a mod-           reasoning abilities and potential as knowledge bases,
+ule that focuses on efficiently retrieving relevant infor-       we meticulously design instructions to guide LLMs in a
+mation from KG based on the user query Q. In KGs,                step-by-step exploration and thoughtful consideration
+information is represented as entities, relations, and           of problems. Prompts used in HO can be referred to in
+attributes, forming a structured network. The goal of re-        Appendix A.1. Here, the prompt (a textual instruction)
+trieval is to find entities or relationships that additionally   is denoted as PHO , and Q to HO as:
+supply knowledge for LLMs. Particularly, we retrieve
+knowledge from the matched entities {ej } such as entity                             HO = LLM(Q | PHO ).                (1)
+names, entity types, descriptions {dj } and even triplets
+or subgraphs Gej = (ej , Tj , dj ).                              Thus, in light of the powerful reasoning abilities as well
+                                                                 as the knowledgeable medical cognition, galore medical
+4       Method                                                   knowledge relevant to Q is discovered.
+
+In this section, we detail our proposed HyKGE, and               4.1.2 NER Module
+the overall framework is illustrated in Figure 2. In gen-        Although there still remains a possibility of an inac-
+eral, we will discuss our model from the four pipeline           curate comprehension of relationships within HO (i.e.
+architectures:                                                   hallucinations or misunderstanding between medical
+• Pre-Retrieval Phase includes the Hypothesis Output             entities), training a discriminative model or using other
+  Module (HOM) and the NER Module (NM). HOM lever-               general-domain LLMs for authenticity HO is extremely
+  ages LLMs to obtain hypothesis output by exploring             labor-intensive and will lead to error accumulation. To
+  possible answers. Then NM extracts medical entities            tackle this issue, we extract entities instead of relation-
+  from HO and the user query.                                    ships, and utilize the completely unmistakable triplets
+• Retrieval on Knowledge Graph utilizes the extracted            in KGs for authenticity instead of the relations analyzed
+  entities as anchors to search three distinct types of          in HO. As a consequence, we have trained a medi-
+  reasoning chains interlinking these anchors, providing         cal Named Entity Recognition (NER) model using the
+  relevant and logical knowledge.                                CMEEE dataset4 (Zhang et al., 2022; Hongying et al.,
+    3                                                               4
+        https://siwei.io/talks/graph-rag-with-jerry/1                   https://tianchi.aliyun.com/dataset/144495
+                                                            11839
+                                             HO Fragment Granularity-aware
+  Hypothesis Output Module
+                                                    Rerank Module
+                                                                        Align
+      User Query
+                                                           Data                TopK Chains           Retrieved
+                                  LLM                     Chunker               Reranker            Knowledge
+
+
+                                                                                                   Reader
+                   Hypothesis Output         Knowledge Graph Retrieval Module
+                                                                                                             User Query
+                                                     Reasoning Chains in Knowledge Graph
+        Query and Hypothesis Output
+                                                                                                   Context:
+                                                           Embedding Alignment                      Reasoning Chains
+               Entity Relation
+                                                                                                   Question:
+                                                                                                         User query
+  NER Module
+
+              W2NER Model                                       GTE Encoder
+                                                                                                               LLM
+
+
+                                                                                                            Answer
+            Recognized Entities                           Knowledge Graph       Entities
+
+
+
+Figure 2: Overall framework. HyKGE first feeds user query Q through LLMs and obtains Hypothesis Output HO.
+Then through NER Module, a W2NER model is applied to recognize entities and isolate relations. Through GTE
+Encoder, these recognized entities are then linked with KG entities. After that, HyKGE extracts three types of
+relevant reasoning chains from KGs. Then, due to sparseness of Q, in HO Fragment Granularity-aware Rerank
+Module, HyKGE chunks Q and HO and align with reasoning chains via a TopK Chains Reranker, to eliminate
+noise. Finally, we organize retrieved knowledge with the user query and obtain responses through the LLM Reader.
+
+
+2020). Our NER Module is built upon the W2NER                       Then, the inner product similarity between the em-
+model (Li et al., 2021), the state-of-the-art word-word          beddings of ui and E is then computed. The entity with
+NER model that effectively addresses three primary               the highest similarity, surpassing a predefined threshold
+types of NER situations (flat, overlapped, discontinu-           δ ∈ [0, 1], is considered a match. This linkage process
+ous). This medical NER model can wonderfully extract             can be formulated as follows:
+medical entities from complex medical contexts:
+                                                                 sim(ui , ej ) = enc(ui ), enc(ej ) ,   ui ∈ U, ej ∈ E,
+          U = [u1 , · · · , u|U | ] = NER(Q ⊕ HO),        (2)    ui ↔ ej iff ej = {argmax sim(ui , ek ) | sim(ui , ej ) > δ},
+                                                                                           ek ∈E
+
+where ⊕ is the concatenation function and ui represents
+                                                                 where δ ∈ [0, 1] is the threshold hyper-parameter. We
+the corresponding extracted entity.
+                                                                 utilize the same encoding model enc(·) to embed each
+                                                                 medical entity, and enc(ui ), enc(ej ) denotes the in-
+4.2     Knowledge Graph Retrieval Module
+                                                                 ner product between extracted entities and KGs entities
+4.2.1    Embedding Alignment                                     for achieving graph entity linking. Finally, the matched
+Subsequently, we link the potential entity to KG using           entities set is denoted as EQ .
+dense retrieval methods. This process involves employ-
+                                                            4.2.2 Search Reasoning Chains in KGs
+ing an encoding model, denoted as enc(·), to encode
+the potential entity ui and entities E within KG. To be     Next, using matched entities, we explore reasoning
+specific, we utilize the GTE embedding model (Li et al.,    chains within k hops and consolidate this knowledge
+2023d) "gte_sentence-embedding"5 , which is currently       along with descriptions of the head and tail entities. Con-
+the top-performing model for text vector embedding in       sidering various knowledge graph retrieval methods, we
+the retrieval field. GTE Encoder follows a two-stage        opt for utilizing reasoning chains between entities for
+training process: initially using a large-scale dataset     several reasons: i) Reasoning Chains provide richer log-
+with weak supervision from text pairs, followed by fine-    ical knowledge provided for LLMs to help it digest,
+tuning with high-quality manually labeled data using        compared to entities and entity descriptions alone. ii)
+Contrastive Learning (Le-Khac et al., 2020).                Reasoning chains help LLM Reader understand the re-
+                                                            lationships between different entities, thereby alleviat-
+  5
+    https://www.modelscope.cn/models/damo/nlp_gte_sentence- ing hallucinations and error problems. iii) Reasoning
+embedding                                                   chains act as an efficient pruning mechanism, filtering
+                                                           11840
+out noise more effectively than subgraphs and saving               reranked retrieved chains from set {C}. Acting as a filter,
+token resources.                                                   the reranking model reevaluates the significance of each
+   As a consequence, in light of (Xu et al., 2022), we             chain, considering various factors such as relevance,
+consider three possible reasoning chains from medical              coherence, and informativeness:
+perspective: i) Path (head-to-tail) as pathij , for compre-                                                
+hensively analyzing the triggering and causal relation-                     RC prune = Rerank RC, {C}; topK ,             (4)
+ships between diseases and symptoms (Mas-Ponte and
+Supek, 2020; Otlu et al., 2023). ii) Co-ancestor chain             where |RC prune | = topK.
+(tail-to-tail) as chainCAij , for referring similar physi-
+ological or environmental factors for better analogical            4.4 LLM Reader
+diagnosis (Bergstrom et al., 2022). iii) Co-occurance              Finally, we link RC prune with directed arrows, combined
+chain (head-to-head) as chainCOij , for better capturing           with the description of the head and tail entities, and
+the pathological characteristics and evolution of dis-             feed the retrieved knowledge as well as user query Q
+eases (Dong et al., 2021). In general, the reasoning               to LLM Reader via prompt engineering. The prompt
+chain set RC after the graph retrieval are as:                     format PReader can be referred to in Appendix A.1 and
+                                                                   the LLM’s answer can be expressed as:
+pathij = (ei → r· → e· → · · · → r· → ej , di , dj ),
+          |            {z              }
+                            within k hops                                   Answer = LLM(Q, RC prune | PReader ).         (5)
+chainCAij = (ei → r· → e· ← · · · ← r· ← ej , di , dj ),
+             |            {z              }
+                                  within k hops                    4.5 Overall Algorithm
+chainCOij = (ei ← r· ← e· → · · · → r· → ej , di , dj ),           Algorithm 1 shows the overall RAG process of HyKGE.
+             |            {z              }                        Given the knowledge graph KG, HyKGE first pre-
+                                  within k hops
+                                                                   embed the entity name using enc(·), and saves the vec-
+where ei , ej ∈ EQ , and r. is the relation. For any entity        tor locally (Lines 1-3). Then, we query LLM to obtain
+pair in EQ , we collect reasoning chains within k(k ≥ 2)           HO in response to user query Q (Line 4). After that,
+hops and description of head & tail entity di , dj in KG.          we extract entities from HO and Q (Line 5) and match
+                                                                   them with KG (Line 6). HyKGE then retrieves the rea-
+4.3        Post-Retrieval Phase                                    soning chains from KG (Line 7) while filtering the noise
+Through retrieval, a large amount of reasoning chains              path with HO Fragment Granularity-aware rerank mod-
+will be collected. However, due to the considerable                ule (Line 8). At last, HyKGE organizes the retrieved
+noise and the shortage of token resources (c.f. Chal-              knowledge and query via prompt (Line 9) and queries
+lenge III in Section 1), we employ a reranker model                LLM Reader to get optimized answers (Line 10).
+to prune and eliminate irrelevant noise knowledge by
+reranking reasoning chains, leading to more efficient              Algorithm 1 The RAG process of HyKGE.
+token resource utilization. For the reranker base model,
+                                                                   Require: Knowledge Graph KG = (E, R, T , D, N ),
+we use the "bge_reranker_large"6 (Xiao et al., 2023),
+                                                                       token vocabulary set V, user query Q, trained NER
+trained through large-scale text pairs with asymmetric
+                                                                       model NER(·), trained embedded model enc(·),
+instruction tunning, to map text to a low-dimensional
+                                                                       trained Reranking model Rerank(·), Large Lan-
+dense vector to rerank topK documents.
+                                                                       guage Model LLM(·), hyper-parameters δ, k, topK.
+   Moreover, due to the varying knowledge densities
+                                                                    1: for ei ∈ E do         ▷ Embed Knowledge Graph
+between queries and reasoning chains, traditional re-
+                                                                    2:     Save enc(ei ) locally;
+ranking based solely on Q may filter out valuable knowl-
+                                                                    3: end for
+edge acquired through HOM, resulting in a repetitive and
+                                                                    4: Obtain HO via LLM: HO = LLM(Q | PHO );           ▷
+monotonous situation. As a consequence, we innova-
+                                                                       Hypothesis Output
+tively combine HO and Q, rather than relying solely
+                                                                    5: Extract entities U from HO and Q via Eq.(2); ▷
+on user query, utilizing the richer medical knowledge
+                                                                       NER Module
+contained in HO. Practically, we first remove stop
+                                                                    6: Match U with E via Eq.(4.2.1) and attain EQ ;    ▷
+words from natural language and then we use the chunk
+                                                                       Entity Linking
+method to segment HO and Q:
+                                                                    7: Retrieved reasoning chains between any two anchor
+                     {C} = Chunk(Q ⊕ HO),                   (3)        entities from KG; ▷ Knowledge Graph Retrieval
+                                                                    8: Filter noise reasoning chains with HO Fragment
+where {C} = {c1 , · · · , ci , · · · , c|{C}| } is the segmented       Granularity-aware Rerank Module;           ▷ Prune
+fragments, with carefully selected chunk window size                   knowledge
+lc and overlap size oc. Then, we leverage a rerank-                 9: Organize knowledge RC prune with user query Q
+ing model denoted as Rerank(RC, {C}; topK), which                      into prompt;
+means referring to segment set RC, we select the topK              10: Get optimized answer of LLMs; ▷ LLM Reader
+      6
+          https://huggingface.co/BAAI/bge-reranker-large
+                                                              11841
+5     Experiments                                           Table 1: Analysis Comparison of RAG methods. Aver-
+                                                            age Duration is computed based on GPT 3.5 turbo.
+In this section, we conduct experiments on three datasets
+to answer the following research questions:                   Method
+                                                                          External                LLMs RAG Opt.                      Avg.
+                                                                         Knowledge Finetuning Retriever LLMs Interactions (/times) Time (s)
+                                                               Base          ✗              ✗                      1                 7.42
+• RQ1 (Section 5.2): Does HyKGE outperform the                KGRAG
+                                                                QE
+                                                                             ✓
+                                                                             ✓
+                                                                                            ✗
+                                                                                            ✗
+                                                                                                                   1
+                                                                                                                   2
+                                                                                                                                    13.28
+                                                                                                                                    18.54
+  state-of-the-art Knowledge Graph RAG methods us-             CoN           ✓              ✓                     ≥2                34.33
+                                                               CoK           ✓              ✗                     ≥4                45.84
+  ing the same database source?                               KALMV          ✓              ✗                     ≥4                47.23
+                                                              KG-GPT         ✓              ✗                      5                55.19
+                                                               SuRE          ✓              ✗                     ≥5
+• RQ2 (Appendix A.3, Appendix A.4,Appendix A.5):
+                                                                                                                                    63.08
+                                                            HyKGE (ours)     ✓              ✗                      2                19.76
+  Is the framework we designed effective? What impact
+  does each module have on the overall performance?
+                                                            5.1.1 Baselines
+• RQ3 (Section 5.3, Appendix A.3): Does the retrieved
+                                                            5.2 Performance Comparison (RQ 1)
+  knowledge we provide enhance the interpretability of
+  LLMs answers?                                             To answer RQ1, we conduct experiments and report
+                                                            results of the accuracy on the MMCU-Medical, CMB-
+• RQ4 (Appendix A.6): How sensitive is HyKGE to             Exam and CMB-Clin datasets with two LLM turbos
+  hyper-parameters retrieval hop k and rerank threshold     GPT 3.5 and Baichuan 13B-Chat, as illustrated in Ta-
+  topK?                                                     ble 2 and Table 3. From the reported accuracy, we can
+                                                            find the following observations:
+5.1   Experimental Setup
+                                                               Comparison of RAG methods and Base LLMs.
+Dataset. Our experiments are conducted on two open-         Through comparison, we observe that most RAG ap-
+source query sets: MMCU-Medical (Zeng, 2023) and            proaches do not consistently yield effective outcomes
+CMB-Exam (Wang et al., 2023d) datasets, which are           when integrated with KGs, especially in contrast with
+designed for multi-task Q&A and encompass single            the Base model. For instance, the KGRAG method
+and multiple-choice questions in the medical field, and     extracts triples from KG without engaging in essen-
+one open-domain Q&A dataset CMB-Clin (Wang et al.,          tial post-processing steps like reranking and filtering,
+2023d) which is the inaugural multi-round question-         thereby infusing an overabundance of noise and com-
+answering dataset based on real, complex medical diag-      promising the interpretative performance of LLMs. As
+nosis and treatment records. We use CMeKG (Clinical         for QE tasks, while traditional QE methods typically
+Medicine Knowledge Graph) (BYAMBASUREN et al.,              show efficacy, LLMs demonstrate a notable difficulty
+2020), CPubMed-KG (Large-scale Chinese Open Med-            in comprehending instructions that necessitate the task-
+ical Knowledge Graph) and Disease-KG (Chinese dis-          specific rewriting of multiple-choice questions, which,
+ease Knowledge Graph) as external-knowledge source.         in turn, detrimentally impacts LLMs performance in
+Details of datasets are summarized in Appendix A.2.         such scenarios. Moreover, this effect is particularly pro-
+                                                            nounced in weaker models, such as Baichuan, where
+Baselines To fairly verify whether HyKGE can ef-
+                                                            the repercussions of these deficiencies are significantly
+fectively enhance LLMs, we selected the follow-
+                                                            magnified. However, the improvement in CoN, CoK,
+ing two types of general-domain large models as
+                                                            KG-GPT, SuRe and HyKGE is more remarkable, be-
+the base model and explored the gains brought by
+                                                            cause leveraging LLMs to explore or organize knowl-
+HyKGE: GPT 3.5 and Baichuan13B-chat (Yang et al.,
+                                                            edge can assist in finding more relational knowledge and
+2023a). We compare the HyKGE results against
+                                                            the reranking or filtering methods can highly likely re-
+eight other models: Base Model (Base) include
+                                                            move irrelevant noise knowledge chains, and contribute
+GPT 3.5 and Baichuan13B-chat,Knowledge Graph
+                                                            to accuracy improvement.
+Retrieval-Augmented Generation (KGRAG) (So-
+man et al., 2023b,a; Sen et al., 2023),Query Expan-            Comparison of HyKGE and other RAG methods.
+sion (QE) (Azad and Deepak, 2019),CHAIN-OF-                 Firstly, it is evident that our model, HyKGE, outper-
+NOTE (CoN) (Yu et al., 2023b),Chain-of-Knowledge            forms the baseline models across all metrics. For in-
+(CoK) (Li et al., 2023c),Knowledge-Augmented Lan-           stance, the EM and PCR scores see an improvement of
+guage Model Verification (KALMV) (Baek et al.,              approximately 8.55%-28.15% and 10.45%-33.29% for
+2023),Knowledge Graph Generative Pre-Training               the MMCU-Medical dataset with GPT 3.5 turbo, and the
+(KG-GPT) (Kim et al., 2023) and Summarizing Re-             BLEU-1 and ROUGE-R scores see an improvement of
+trievals (SuRe) (Kim et al., 2024). Detailed description    approximately 40.29%-278.47% and 7.30%-51.69%
+of baselines can be referred in Appendix A.2.               for the CMB-Clin dataset with GPT 3.5 turbo. This
+                                                            highlights the effectiveness of our modules in locating
+Evaluation Metrics. We select EM, PCR to evaluate           valid information and filtering noises in retrieved knowl-
+the multi-task Q&A dataset, and ACJ, PPL, ROUGE-            edge. Although CoK, CoN, KG-GPT and SuRe have
+R, BLEU-1, BLEU-4 to evaluate the open-domain               achieved commendable results, their advancements are
+Q&A dataset. The detailed descriptions of these metrics     constrained in the knowledge search space, due to their
+are in Appendix A.2.2.                                      focus on continuous knowledge understanding rather
+                                                       11842
+Table 2: Performance comparison (in percent) on CMB-Exam and MMCU-Medical for medical Q&A answer. Red
+shading indicates the best-performing model, while blue signifies the second-best in the ablation study, and green
+signifies the second-best in baselines.
+
+        LLM Turbo              LLM                     GPT 3.5                     Baichuan 13B-Chat
+                              Dataset         MMCU-Medical CMB-Exam           MMCU-Medical CMB-Exam
+          Method
+                              Metric           EM   PCR     EM  PCR            EM    PCR      EM     PCR
+                               Base           43.52 50.55 38.40 46.76         42.20 46.09 36.91 40.95
+                             KGRAG            38.74 43.38 38.00 42.26         34.37 38.51 39.92 45.84
+                                QE            40.28 46.79 36.35 41.84         38.25 44.23 34.27 38.79
+                               CoN            45.74 51.15 42.45 45.65         44.98 50.65 41.37 47.58
+          Baselines
+                               CoK            45.15 52.35 42.32 45.98         45.15 51.19 41.87 47.95
+                             KALMV            39.24 43.77 38.24 43.37         36.17 40.85 38.61 43.92
+                             KG-GPT           45.08 52.16 41.49 45.72         44.25 50.97 39.92 45.20
+                               SuRe           44.81 51.49 41.37 44.27         44.77 50.24 39.49 46.22
+            Ours             HyKGE            49.65 57.82 45.94 50.63         49.33 58.12 45.44 51.25
+                          HyKGE (w/o HO)      41.08 49.74 34.40 40.14         39.55 45.28 33.33 35.42
+                        HyKGE (w/o Chains)    48.15 54.53 44.60 48.27         48.65 55.45 43.40 48.81
+          Ablation    HyKGE (w/o Description) 48.30 54.01 44.80 48.56         48.22 55.23 43.77 49.86
+                       HyKGE (w/o Fragment) 47.87 54.34 42.33 47.54           47.95 53.45 44.72 49.29
+                       HyKGE (w/o Reranker) 46.38 52.48 41.44 48.84           43.59 46.88 40.65 46.25
+
+Table 3: RAG relevance and answer performance comparison (mean) on CMB-Exam, MMCU-Medical, and
+CMB-Clin for medical Q&A answer with GPT 3.5 Turbo.
+
+                 Dataset            MMCU-Medical         CMB-Exam             CMB-Clin
+ Method
+                  Metric         ACJ PPL ROUGE-R ACJ PPL ROUGE-R BLEU-1 BLEU-4 PPL ROUGE-R
+                   Base           /    47.42    /    /    62.54   /    4.83  6.51 10.38 23.99
+                 KGRAG          13.38 151.22 5.31  18.40 218.67 11.25 5.34  8.77 61.81 22.15
+                   QE           25.53 28.75  14.05 31.91 29.57  16.64  8.85 18.67 28.32 26.24
+                   CoN          19.14 29.01  16.46 14.89 27.35  17.31 12.48 25.81 17.65 31.37
+ Baselines
+                   CoK          18.45 24.38  18.23 16.77 28.69  19.94 12.35 24.79 21.57 30.86
+                 KALMV          14.42 147.22  7.21 18.77 233.49 12.84  5.72  8.27 80.46 23.16
+                 KG-GPT         32.03 25.76  15.90 38.70 24.01  17.72 13.03 26.14 15.54 28.42
+                  SuRe          20.16 26.49  16.91 22.27 30.81  16.18 10.54 24.82 16.84 29.18
+  Ours           HyKGE          59.57 12.55  26.89 71.28 10.14  32.11 18.28 30.21 8.56  33.66
+             HyKGE (w/o HO)     41.49 15.57  22.30 51.48 11.23  29.01  7.15 11.55 8.96  30.48
+ Ablation
+           HyKGE (w/o Fragment) 38.30 18.95  23.63 41.91 11.26  26.89 11.28 23.09 8.99  31.40
+
+
+than exploration. Moreover, compared to CoK, CoN,          R on CMB-Clin dataset, reflecting the efficacy of the
+KG-GPT and SuRe, HyKGE avoids accumulating er-             LLMs’ inherent knowledge and reasoning abilities as
+rors in the chain of thought while acquiring and re-       well as the importance of removing irrelevant knowl-
+taining more relevant yet diverse knowledge. In sum-       edge. Moreover, the ACJ value of KG-GPT and QE
+mary, the HyKGE exhibits superior performance over         is the second-to-best as they do not alter the seman-
+all baselines with fewer interaction times with LLMs       tics of the user query. Therefore, the knowledge re-
+(c.f. Table 1). Evidenced by comprehension experi-         trieved by KG-GPT and QE have higher relevance with
+ments, HyKGE demonstrates HO Module’s and the HO           ACJ score, compared to CoK and CoN. Furthermore, it
+Fragment Granularity-aware rerank module’s effective-      is noticed that our proposed HyKGE surpasses base-
+ness compared to CoN, CoK, KG-GPT and SuRe.                lines with a performance gain of 84.19%-378.71%
+                                                           and 133.33%-345.22% on MMCU-Medical and CMB-
+5.3   Interpretability Analysis (RQ 3)                     Exam respectively, which demonstrates our superior-
+In this section, we concentrate on evaluating the inter-   ity in solving misaligned knowledge density between
+pretability with three metrics ACJ, BLEU, PPL and          query and retrieved knowledge. The marked decline
+ROUGE-R as shown in Table 3 to find out whether            in ACJ of w/o Fragment also supports HO Fragment
+retrieved knowledge is effective and whether it can help   Granularity-aware reranker’s role in keeping relevant
+LLMs reduce hallucinations. Several observations can       knowledge. The BLEU and ROUGE-R scores on CMB-
+be derived from the results.                               Clin also demonstrate HyKGE’s superiority, indicating
+   The relevance of knowledge retrieval. For meth-         that HyKGE could be more appropriate for and aligned
+ods that interacted with LLMs and applied noise fil-       with real-life doctor consultations, proving the effective-
+tering modules, such as QE, CoK, CoN, SuRE and             ness of HyKGE in information retrieval.
+HyKGE, we notice that they often score higher on              Can LLMs utilize retrieved knowledge to reduce
+ACJ on MMCU-Medical and CMB-Exam, and ROUGE-               hallucinations? As for method KGRAG, it fails to per-
+                                                      11843
+form well on PPL and ROUGE-R, which is attributed           References
+to the provision of overly lengthy retrieved knowledge
+                                                            Zehmakan Ahad N., Out Charlotte, and Khelejan Saj-
+and redundant noise, resulting in the inability of the        jad Hesamipour. 2023. Why rumors spread fast in
+LLMs to extract useful information from the knowledge.        social networks, and how to stop it. In IJCAI.
+The performance test of baselines consistently shows
+that our proposed HyKGE greatly reduces hallucina-          Akari Asai, Sewon Min, Zexuan Zhong, and Danqi
+tions and promotes LLMs to better utilize the retrieved       Chen. 2023a. Retrieval-based language models and
+knowledge, with performance gain of 57.77%-95.36%             applications. In Proceedings of the 61st Annual Meet-
+and 61.03%-185.42% on MMCU for PPL and ROUGE-                 ing of the Association for Computational Linguistics
+                                                             (Volume 6: Tutorial Abstracts), pages 41–46.
+R respectively. We argue the reason that the retrieved
+knowledge is more relevant and diverse because of the       Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+HOM and HO Fragment Granularity-aware Reranker, and           Hannaneh Hajishirzi. 2023b. Self-rag: Learning to
+its chain structure also stimulates the reasoning ability     retrieve, generate, and critique through self-reflection.
+of LLMs. Others, i.e. QE, CoN, and CoK’s have been            arXiv preprint arXiv:2310.11511.
+greatly reduced because their rerankers cannot retain
+                                                            Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+more diverse knowledge, resulting in LLMs’ answers            Hannaneh Hajishirzi. 2024. Self-rag: Learning to
+being too singular and ROUGE-R surely being lower.            retrieve, generate, and critique through self-reflection.
+Notably, our performance on the CMB-Exam test set             In ICLR.
+was superior, due to richer and more detailed descrip-
+tion of medical questions, allowing us to obtain more       Hiteshwar Kumar Azad and Akshay Deepak. 2019.
+diverse and relevant knowledge based on HO & Q.               Query expansion techniques for information retrieval:
+                                                              A survey. Information Processing &amp; Manage-
+6   Conclusion                                                ment, page 1698–1735.
+
+In this paper, we proposed HyKGE, a hypothesis knowl-       Jinheon Baek, Soyeong Jeong, Minki Kang, Jong C.
+edge graph enhanced framework for LLMs to improve              Park, and Sung Ju Hwang. 2023. Knowledge-
+accuracy and reliability. In the pre-retrieval phase, we       augmented language model verification. In EMNLP.
+leverage the zero-shot capability of LLMs to compen-        Zhijie Bao, Wei Chen, Shengze Xiao, Kuang Ren, Jiaao
+sate for the incompleteness of user queries by exploring      Wu, Cheng Zhong, Jiajie Peng, Xuanjing Huang, and
+searching directions through hypothesis outputs. In the       Zhongyu Wei. 2023. Disc-medllm: Bridging gen-
+post-retrieval phase, HyKGE applies a fragment rerank-        eral large language models and real-world medical
+ing module to enhance the knowledge density alignment         consultation. Preprint, arXiv:2308.14346.
+between user queries and retrieved knowledge, preserv-
+                                                            Scott Barnett, Stefanus Kurniawan, Srikanth Thudumu,
+ing relevant and diverse knowledge chains. The compre-        Zach Brannelly, and Mohamed Abdelrazek. 2024.
+hensive experiments conducted on three medical Q&A            Seven failure points when engineering a re-
+tasks with two LLMs turbo demonstrate the effective-          trieval augmented generation system. Preprint,
+ness of HyKGE. Nevertheless, it remains worthwhile            arXiv:2401.05856.
+to contemplate how to dynamically optimize fragment
+granularity in the post-retrieval phase—a direction that    Noam Berger, Christian Borgs, Jennifer T. Chayes, and
+we are committed to exploring actively in the future.        Amin Saberi. 2005. On the spread of viruses on the
+                                                              internet. In SODA.
+In addition, despite the limitations of data sources and
+the high computational cost of LLMs, we will explore        Erik N. Bergstrom, Jens Luebeck, Mia Petljak, Azhar
+other language or domain-specific KGs in the future to        Khandekar, Mark Barnes, Tongwu Zhang, Christo-
+enhance the scalability and generalization of HyKGE.          pher D. Steele, Nischalan Pillay, Maria Teresa Landi,
+                                                              Vineet Bafna, Paul S. Mischel, Reuben S. Harris, and
+Limitations                                                   Ludmil B. Alexandrov. 2022. Mapping clustered
+                                                              mutations in cancer reveals apobec3 mutagenesis of
+We acknowledge two limitations in this work. First,           ecdna. Nature, 602:510–517.
+many knowledge graphs suffer from limited coverage,
+and in the future, we plan to address the challenge of      Timo Breuer, Norbert Fuhr, and Philipp Schaer. 2023.
+handling queries that contain entities not represented in     Validating synthetic usage data in living lab environ-
+the knowledge graph. Second, our current approach is          ments. Journal of Data and Information Quality.
+tailored to knowledge graphs and data sources in a spe-     Odmaa BYAMBASUREN, Yunfei YANG, Zhi-fang
+cific language. Moving forward, we aim to extend our          SUI, Damai DAI, Baobao CHANG, Sujian LI, and
+methodology to support multiple languages and validate        Hongying ZAN. 2020. Preliminary study on the con-
+its effectiveness using more general benchmarks.              struction of chinese medical knowledge graph. Jour-
+                                                              nal of Chinese Information Processing.
+Acknowledgments
+                                                            Meng Cao, Yue Dong, Jiapeng Wu, and Jackie Chi Kit
+This work is supported by the National Natural Science       Cheung. 2020. Factual error correction for abstrac-
+Foundation of China (No.U23A20468).                          tive summarization models. In Proceedings of the
+                                                       11844
+  2020 Conference on Empirical Methods in Natural          Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan
+  Language Processing (EMNLP), pages 6251–6258,              Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea
+  Online. Association for Computational Linguistics.         Madotto, and Pascale Fung. 2023a. Survey of hallu-
+                                                             cination in natural language generation. ACM Com-
+Hao Cheng, Yelong Shen, Xiaodong Liu, Pengcheng He,          puting Surveys, 55(12):1–38.
+  Weizhu Chen, and Jianfeng Gao. 2021. Unitedqa: A
+  hybrid approach for open domain question answering.      Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan
+  Preprint, arXiv:2101.00178.                                Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea
+                                                             Madotto, and Pascale Fung. 2023b. Survey of halluci-
+Florin Cuconasu, Giovanni Trappolini, Federico Sicil-
+                                                             nation in natural language generation. ACM Comput.
+  iano, Simone Filice, Cesare Campagnano, Yoelle
+                                                             Surv., 55(12).
+  Maarek, Nicola Tonellotto, and Fabrizio Silvestri.
+  2024. The power of noise: Redefining retrieval for       Jinhao Jiang, Kun Zhou, Wayne Xin Zhao, Yaliang Li,
+  rag systems. Preprint, arXiv:2401.14887.                    and Ji-Rong Wen. 2023. Reasoninglm: Enabling
+Guiying Dong, Jianfeng Feng, Fengzhu Sun, Jingqi              structural subgraph reasoning in pre-trained language
+  Chen, and Xing-Ming Zhao. 2021. A global overview           models for question answering over knowledge graph.
+  of genetically interpretable multimorbidities among         Preprint, arXiv:2401.00158.
+  common diseases in the uk biobank. Genome
+                                                           Xinke Jiang, Yue Fang, Rihong Qiu, Haoyu Zhang,
+ Medicine, 13(110).
+                                                             Yongxin Xu, Hao Chen, Wentao Zhang, Ruizhe
+Paulo Finardi, Leonardo Avila, Rodrigo Castaldoni, Pe-       Zhang, Yuchen Fang, Xu Chu, et al. 2025. Tc-rag:
+  dro Gengo, Celio Larcher, Marcos Piau, Pablo Costa,        Turing-complete rag’s case study on medical llm sys-
+  and Vinicius Caridá. 2024. The chronicles of rag:          tems. ACL 2025.
+  The retriever, the chunk and the generator. Preprint,
+  arXiv:2401.07883.                                        Xinke Jiang, Rihong Qiu, Yongxin Xu, Wentao Zhang,
+                                                             Yichen Zhu, Ruizhe Zhang, Yuchen Fang, Xu Chu,
+Luyu Gao, Xueguang Ma, Jimmy Lin, and Jamie Callan.          Junfeng Zhao, and Yasha Wang. 2024. Ragraph: A
+  2022a. Precise zero-shot dense retrieval without rele-     general retrieval-augmented graph learning frame-
+  vance labels. Preprint, arXiv:2212.10496.                  work. NeurIPS 2024.
+Luyu Gao, Xueguang Ma, Jimmy Lin, and Jamie Callan.        Nikhil Kandpal, Haikang Deng, Adam Roberts, Eric
+  2022b. Precise zero-shot dense retrieval without rele-     Wallace, and Colin Raffel. 2023. Large language
+  vance labels. Preprint, arXiv:2212.10496.                  models struggle to learn long-tail knowledge. In In-
+                                                             ternational Conference on Machine Learning, pages
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,             15696–15707. PMLR.
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and Haofen
+  Wang. 2024. Retrieval augmented generation for           Minki Kang, Jin Myung Kwak, Jinheon Baek, and
+  large language models: A survey.                          Sung Ju Hwang. 2023. Knowledge graph-augmented
+                                                            language models for knowledge-grounded dialogue
+Hangfeng He, Hongming Zhang, and Dan Roth. 2022.
+                                                            generation. Preprint, arXiv:2305.18846.
+  Rethinking with retrieval: Faithful large language
+  model inference. Preprint, arXiv:2301.00303.             Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B.
+Zan Hongying, Li Wenxin, Zhang Kunli, Ye Yajuan,              Brown, Benjamin Chess, Rewon Child, Scott Gray,
+  Chang Baobao, and Sui Zhifang. 2020. Building a            Alec Radford, Jeffrey Wu, and Dario Amodei. 2020.
+  pediatric medical corpus: Word segmentation and             Scaling laws for neural language models. Preprint,
+  named entity annotation. In Workshop on Chinese             arXiv:2001.08361.
+  Lexical Semantics, pages 652–664.
+                                                           Vladimir Karpukhin, Barlas Oğuz, Sewon Min, Patrick
+Gautier Izacard, Mathilde Caron, Lucas Hosseini, Sebas-      Lewis, Ledell Wu, Sergey Edunov, Danqi Chen,
+  tian Riedel, Piotr Bojanowski, Armand Joulin, and          and Wen tau Yih. 2020. Dense passage retrieval
+  Edouard Grave. 2022a. Unsupervised dense infor-            for open-domain question answering. Preprint,
+  mation retrieval with contrastive learning. Preprint,      arXiv:2004.04906.
+  arXiv:2112.09118.
+                                                           Jaehyung Kim, Sangwoo Mo Jaehyun Nam, Jongjin
+Gautier Izacard, Patrick Lewis, Maria Lomeli, Lu-            Park, Sang-Woo Lee, Minjoon Seo, Jung-Woo Ha,
+  cas Hosseini, Fabio Petroni, Timo Schick, Jane             and Jinwoo Shin. 2024. Sure: Summarizing retrievals
+  Dwivedi-Yu, Armand Joulin, Sebastian Riedel, and           using answer candidates for open-domain qa of llms.
+  Edouard Grave. 2022b. Atlas: Few-shot learning             In ICLR.
+  with retrieval augmented language models. Preprint,
+  arXiv:2208.03299.                                        Jiho Kim, Yeonsu Kwon, Yohan Jo, and Edward Choi.
+                                                              2023. Kg-gpt: A general framework for reasoning on
+Shaoxiong Ji, Shirui Pan, Erik Cambria, Pekka Martti-         knowledge graphs using large language models. In
+  nen, and Philip S. Yu. 2022. A survey on knowledge          ACL.
+  graphs: Representation, acquisition, and applications.
+  IEEE Transactions on Neural Networks and Learning        Diederik P. Kingma and Jimmy Ba. 2015. Adam: A
+  Systems, 33(2):494–514.                                    method for stochastic optimization. In ICLR.
+                                                      11845
+Zeljko Kraljevic, Dan Bean, Anthony Shek, Rebecca        Hongyin Luo, Yung-Sung Chuang, Yuan Gong, Tian-
+  Bendayan, Harry Hemingway, JoshuaAu Yeung,               hua Zhang, Yoon Kim, Xixin Wu, Danny Fox,
+  Alexander Deng, Alfie Baston, Jack Ross, Esther Id-      Helen Meng, and James Glass. 2023a.        Sail:
+  owu, JamesT Teo, and RichardJ Dobson. 2022. Fore-        Search-augmented instruction learning. Preprint,
+  sight – generative pretrained transformer (gpt) for      arXiv:2305.15225.
+  modelling of patient timelines using ehrs.
+                                                         Linhao Luo, Yuan-Fang Li, Gholamreza Haffari, and
+Tuan Manh Lai, ChengXiang Zhai, and Heng Ji.               Shirui Pan. 2023b. Reasoning on graphs: Faithful
+  2023. Keblm: Knowledge-enhanced biomedical lan-          and interpretable large language model reasoning.
+  guage models. Journal of Biomedical Informatics,         Preprint, arXiv:2310.01061.
+  143:104392.
+                                                         Kaixin Ma, Hao Cheng, Yu Zhang, Xiaodong Liu, Eric
+Phuc H. Le-Khac, Graham Healy, and Alan F. Smeaton.        Nyberg, and Jianfeng Gao. 2023a. Chain-of-skills:
+  2020. Contrastive representation learning: A frame-      A configurable model for open-domain question an-
+  work and review. IEEE Access, 8:193907–193934.           swering. Preprint, arXiv:2305.03130.
+                                                         Xinyu Ma, Yasha Wang, Xu Chu, Liantao Ma, Wen
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+                                                           Tang, Junfeng Zhao, Ye Yuan, and Guoren Wang.
+  Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+                                                           2023b. Patient health representation learning via
+  rich Küttler, Mike Lewis, Wen tau Yih, Tim Rock-
+                                                           correlational sparse prior of medical features. IEEE
+  täschel, Sebastian Riedel, and Douwe Kiela. 2021.
+                                                           Transactions on Knowledge and Data Engineering,
+  Retrieval-augmented generation for knowledge-
+                                                           35(11):11769–11783.
+  intensive nlp tasks. Preprint, arXiv:2005.11401.
+                                                         Xinyu Ma, Yifeng Xu, Yang Lin, Tianlong Wang,
+Jingye Li, Hao Fei, Jiang Liu, Shengqiong Wu, Meishan      Xu Chu, Xin Gao, Junfeng Zhao, and Yasha Wang.
+   Zhang, Chong Teng, Donghong Ji, and Fei Li. 2021.       2025.     DRESSing up LLM: Efficient stylized
+   Unified named entity recognition as word-word rela-     question-answering via style subspace editing. In
+   tion classification. Preprint, arXiv:2112.10070.        The Thirteenth International Conference on Learning
+                                                           Representations.
+Tianle Li, Xueguang Ma, Alex Zhuang, Yu Gu, Yu Su,
+  and Wenhu Chen. 2023a. Few-shot in-context learn-      David Mas-Ponte and Fran Supek. 2020. Dna mismatch
+  ing for knowledge base question answering. Preprint,     repair promotes apobec3-mediated diffuse hypermu-
+  arXiv:2305.01750.                                        tation in human cancers. Nature Genetics, 52:958–
+                                                           968.
+Xingxuan Li, Ruochen Zhao, Yew Ken Chia, Bosheng
+  Ding, Shafiq Joty, Soujanya Poria, and Lidong Bing.    OpenAI. 2022. Introducing chatgpt. https://openai.
+  2023b. Chain-of-knowledge: Grounding large lan-          com/blog/chatgpt.
+  guage models via dynamic knowledge adapting over
+  heterogeneous sources. Preprint, arXiv:2305.13269.     OpenAI. 2023. Gpt-4 technical report.           ArXiv,
+                                                           abs/2303.08774.
+Xingxuan Li, Ruochen Zhao, Yew Ken Chia, Bosheng
+  Ding, Shafiq Joty, Soujanya Poria, and Lidong Bing.    Burçak Otlu, Marcos Díaz-Gay, Ian Vermes, Maria
+  2023c. Chain-of-knowledge: Grounding large lan-          Zhivagui, Mark Barnes, and Ludmil B. Alexandrov.
+  guage models via dynamic knowledge adapting over         2023. Topography of mutational signatures in human
+  heterogeneous sources. Preprint, arXiv:2305.13269.       cancer. Cell Reports, 42:112930.
+                                                         Ankit Pal and Malaikannan Sankarasubbu. 2023. Gem-
+Zehan Li, Xin Zhang, Yanzhao Zhang, Dingkun Long,
+                                                           ini goes to med school: Exploring the capabilities of
+  Pengjun Xie, and Meishan Zhang. 2023d. Towards
+                                                           multimodal large language models on medical chal-
+  general text embeddings with multi-stage contrastive
+                                                           lenge problems and hallucinations.
+  learning. Preprint, arXiv:2308.03281.
+                                                         Shirui Pan, Linhao Luo, Yufei Wang, Chen Chen, Ji-
+Xi Victoria Lin, Xilun Chen, Mingda Chen, Weijia           apu Wang, and Xindong Wu. 2024. Unifying large
+  Shi, Maria Lomeli, Rich James, Pedro Rodriguez,          language models and knowledge graphs: A roadmap.
+  Jacob Kahn, Gergely Szilvasy, Mike Lewis, Luke           IEEE Transactions on Knowledge and Data Engi-
+  Zettlemoyer, and Scott Yih. 2024. Ra-dit: Retrieval-     neering.
+  augmented dual instruction tuning. In ICLR.
+                                                         Adam Paszke, Sam Gross, Francisco Massa, Adam
+Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paran-       Lerer, James Bradbury, Gregory Chanan, Trevor
+  jape, Michele Bevilacqua, Fabio Petroni, and Percy       Killeen, Zeming Lin, Natalia Gimelshein, Luca
+  Liang. 2023. Lost in the middle: How language mod-      Antiga, et al. 2019. Pytorch: An imperative style,
+  els use long contexts. Preprint, arXiv:2307.03172.       high-performance deep learning library. In NeurIPS.
+Ye Liu, Yao Wan, Lifang He, Hao Peng, and Philip S.      Thomas Pouplin, Hao Sun, Samuel Holt, and Mihaela
+  Yu. 2021. Kg-bart: Knowledge graph-augmented             van der Schaar. 2024. Retrieval-augmented thought
+  bart for generative commonsense reasoning. Preprint,     process as sequential decision making. Preprint,
+  arXiv:2009.12677.                                        arXiv:2402.07812.
+                                                    11846
+Yingqi Qu, Yuchen Ding, Jing Liu, Kai Liu, Ruiyang           Mungall. 2023. Dynamic retrieval augmented genera-
+  Ren, Wayne Xin Zhao, Daxiang Dong, Hua Wu,                 tion of ontologies using artificial intelligence (dragon-
+  and Haifeng Wang. 2021. Rocketqa: An opti-                 ai). Preprint, arXiv:2312.10904.
+  mized training approach to dense passage retrieval
+  for open-domain question answering. Preprint,           Harsh Trivedi, Niranjan Balasubramanian, Tushar
+  arXiv:2010.08191.                                         Khot, and Ashish Sabharwal. 2023. Interleav-
+                                                            ing retrieval with chain-of-thought reasoning for
+Ridho Reinanda, Edgar Meij, and Maarten de Rijke.           knowledge-intensive multi-step questions. Preprint,
+  2020. IEEE.                                               arXiv:2212.10509.
+
+Parth Sarthi, Salman Abdullah, Aditi Tuli, Shubh          Deeksha Varshney, Aizan Zafar, Niranshu Kumar Be-
+  Khanna, Anna Goldie, and Christopher D. Manning.          hera, and Asif Ekbal. 2023. Knowledge grounded
+  2024. Raptor: Recursive abstractive processing for        medical dialogue generation using augmented graphs.
+  tree-organized retrieval. In ICLR.                        Scientific Reports, 13.
+                                                          Minh Duc Vu, Han Wang, Zhuang Li, Jieshan Chen,
+Priyanka Sen, Sandeep Mavadia, and Amir Saffari. 2023.     Shengdong Zhao, Zhenchang Xing, and Chunyang
+  Knowledge graph-augmented language models for            Chen. 2024. Gptvoicetasker: Llm-powered virtual as-
+  complex question answering. Proceedings of the           sistant for smartphone. Preprint, arXiv:2401.14268.
+  1st Workshop on Natural Language Reasoning and
+  Structured Explanations (NLRSE).                        Haochun Wang, Chi Liu, Nuwa Xi, Zewen Qiang,
+                                                            Sendong Zhao, Bing Qin, and Ting Liu. 2023a. Hu-
+Karthik Soman, Peter W Rose, John H Morris, Ra-             atuo: Tuning llama model with chinese medical
+  bia E Akbas, Brett Smith, Braian Peetoom, Catalina        knowledge.
+  Villouta-Reyes, Gabriel Cerono, Yongmei Shi, An-
+  gela Rizk-Jackson, Sharat Israni, Charlotte A Nelson,   Keheng Wang, Feiyu Duan, Sirui Wang, Peiguang Li,
+  Sui Huang, and Sergio E Baranzini. 2023a. Biomedi-        Yunsen Xian, Chuantao Yin, Wenge Rong, and Zhang
+  cal knowledge graph-enhanced prompt generation for        Xiong. 2023b. Knowledge-driven cot: Exploring
+  large language models. Preprint, arXiv:2311.17330.        faithful reasoning in llms for knowledge-intensive
+                                                            question answering. Preprint, arXiv:2308.13259.
+Karthik Soman, Peter W Rose, John H Morris, Ra-
+                                                          Rongsheng Wang, Yaofei Duan, ChanTong Lam, Jiexi-
+  bia E Akbas, Brett Smith, Braian Peetoom, Catalina
+                                                            ChenandJiangsheng Xu, Haoming Chen, Xiaohong
+  Villouta-Reyes, Gabriel Cerono, Yongmei Shi, An-
+                                                            Liu, PatrickCheong-Iao Pang, and Tao Tan. 2023c.
+  gela Rizk-Jackson, et al. 2023b. Biomedical knowl-
+                                                            Ivygpt: Interactive chinese pathway language model
+  edge graph-enhanced prompt generation for large lan-
+                                                            in medical domain.
+  guage models. arXiv preprint arXiv:2311.17330.
+                                                          Xidong Wang, Guiming Hardy Chen, Dingjie Song,
+Inhwa Song, Sachin R. Pendse, Neha Kumar, and Mun-          Zhiyi Zhang, Zhihong Chen, Qingying Xiao, Feng
+  mun De Choudhury. 2024. The typing cure: Experi-          Jiang, Jianquan Li, Xiang Wan, Benyou Wang, and
+  ences with large language model chatbots for mental       Haizhou Li. 2023d. Cmb: A comprehensive medical
+  health support. Preprint, arXiv:2401.14362.               benchmark in chinese. Preprint, arXiv:2308.08833.
+Russell K. Standish. 2004. Why occam’s razor. Foun-       Yizhong Wang, Yeganeh Kordi, Swaroop Mishra, Alisa
+  dations of Physics Letters, 17(3):255–266.                Liu, Noah A. Smith, Daniel Khashabi, and Hannaneh
+                                                            Hajishirzi. 2023e. Self-instruct: Aligning language
+Jiashuo Sun, Chengjin Xu, Lumingyuan Tang, Saizhuo          models with self-generated instructions. Preprint,
+   Wang, Chen Lin, Yeyun Gong, Lionel M. Ni, Heung-         arXiv:2212.10560.
+   Yeung Shum, and Jian Guo. 2023. Think-on-
+   graph: Deep and responsible reasoning of large         Yuhao Wang, Ruiyang Ren, Junyi Li, Wayne Xin Zhao,
+   language model on knowledge graph. Preprint,             Jing Liu, and JiRong Wen. 2024. Rear: A rele-
+   arXiv:2307.07697.                                        vance aware retrieval augmented framework for open-
+                                                            domain question answering.
+Yawei Sun, Lingling Zhang, Gong Cheng, and Yuzhong
+  Qu. 2020. Sparqa: Skeleton-based semantic pars-         Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+  ing for complex questions over knowledge bases.           Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc Le, and
+  Preprint, arXiv:2003.13956.                               Denny Zhou. 2023. Chain-of-thought prompting elic-
+                                                            its reasoning in large language models. Preprint,
+Sabrina Toro, Anna V Anagnostopoulos, Sue Bello,            arXiv:2201.11903.
+  Kai Blumberg, Rhiannon Cameron, Leigh Carmody,          Yilin Wen, Zifeng Wang, and Jimeng Sun. 2023.
+  Alexander D Diehl, Damion Dooley, William Dun-            Mindmap: Knowledge graph prompting sparks graph
+  can, Petra Fey, Pascale Gaudet, Nomi L Harris,            of thoughts in large language models. Preprint,
+  Marcin Joachimiak, Leila Kiani, Tiago Lubiana, Mon-       arXiv:2308.09729.
+  ica C Munoz-Torres, Shawn O’Neil, David Osumi-
+  Sutherland, Aleix Puig, Justin P Reese, Leonore         Shitao Xiao, Zheng Liu, Peitian Zhang, and Niklas
+  Reiser, Sofia Robb, Troy Ruemping, James Sea-             Muennighoff. 2023. C-pack: Packaged resources
+  ger, Eric Sid, Ray Stefancsik, Magalie Weber, Va-         to advance general chinese embedding. Preprint,
+  lerie Wood, Melissa A Haendel, and Christopher J          arXiv:2309.07597.
+                                                     11847
+Honglin Xiong, Sheng Wang, Yitao Zhu, Zihao Zhao,            Wang, Mickel Liu, MingAn Lin, Nuolan Nie, Peidong
+ Yuxiao Liu, Linlin Huang, Qian Wang, and Dinggang           Guo, Ruiyang Sun, Tao Zhang, Tianpeng Li, Tianyu
+  Shen. 2023. Doctorglm: Fine-tuning your chinese            Li, Wei Cheng, Weipeng Chen, Xiangrong Zeng, Xi-
+  doctor is not a herculean task.                            aochuan Wang, Xiaoxi Chen, Xin Men, Xin Yu, Xue-
+                                                             hai Pan, Yanjun Shen, Yiding Wang, Yiyu Li, Youxin
+Peng Xu, Wei Ping, Xianchao Wu, Lawrence McAfee,             Jiang, Yuchen Gao, Yupeng Zhang, Zenan Zhou, and
+  Chen Zhu, Zihan Liu, Sandeep Subramanian, Evelina          Zhiying Wu. 2023a. Baichuan 2: Open large-scale
+  Bakhturina, Mohammad Shoeybi, and Bryan Catan-             language models. Preprint, arXiv:2309.10305.
+  zaro. 2024a. Retrieval meets long context large lan-
+  guage models. In ICLR.                                  Kai Yang, Yongxin Xu, Peinie Zou, Hongxin Ding,
+                                                            Junfeng Zhao, Yasha Wang, and Bing Xie. 2023b.
+Tianyu Xu, Wen Hua, Jianfeng Qu, Zhixu Li, Jiajie           Kerprint: local-global knowledge graph enhanced di-
+  Xu, An Liu, and Lei Zhao. 2022. Evidence-aware            agnosis prediction for retrospective and prospective
+  document-level relation extraction. In Proceedings        interpretations. In Proceedings of the AAAI Con-
+  of the 31st ACM International Conference on Infor-        ference on Artificial Intelligence, volume 37, pages
+  mation & Knowledge Management, CIKM ’22, page             5357–5365.
+  2311–2320, New York, NY, USA. Association for
+  Computing Machinery.                                    Songhua Yang, Xinke Jiang, Hanjie Zhao, Wenxuan
+Yongxin Xu, Xu Chu, Kai Yang, Zhiyuan Wang, Peinie          Zeng, Hongde Liu, and Yuxiang Jia. 2024. Faima:
+  Zou, Hongxin Ding, Junfeng Zhao, Yasha Wang, and          Feature-aware in-context learning for multi-domain
+  Bing Xie. 2023a. Seqcare: Sequential training with        aspect-based sentiment analysis. In COLING.
+  external medical knowledge graph for diagnosis pre-     Songhua Yang, Hanjia Zhao, Senbin Zhu, Guangyu
+  diction in healthcare data. In Proceedings of the ACM     Zhou, Hongfei Xu, Yuxiang Jia, and Hongying Zan.
+  Web Conference 2023, pages 2819–2830.                     2023c. Zhongjing: Enhancing the chinese medical
+Yongxin Xu, Xinke Jiang, Xu Chu, Rihong Qiu, Yujie          capabilities of large language model through expert
+  Feng, Hongxin Ding, Junfeng Zhao, Yasha Wang, and         feedback and real-world multi-turn dialogue.
+  Bing Xie. 2025. Dearllm: Enhancing personalized
+                                                          Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan
+  healthcare via large language models-deduced feature
+                                                            Berant. 2024. Making retrieval-augmented language
+  correlations. In Proceedings of the AAAI Conference
+                                                            models robust to irrelevant context. In ICLR.
+  on Artificial Intelligence, volume 39, pages 941–949.
+Yongxin Xu, Xinke Jiang, Xu Chu, Yuzhen Xiao,             Donghan Yu, Chenguang Zhu, Yuwei Fang, Wen-
+  Chaohe Zhang, Hongxin Ding, Junfeng Zhao, Yasha           hao Yu, Shuohang Wang, Yichong Xu, Xiang
+  Wang, and Bing Xie. 2024b. Protomix: Augmenting           Ren, Yiming Yang, and Michael Zeng. 2022. Kg-
+  health status representation learning via prototype-      fid: Infusing knowledge graph in fusion-in-decoder
+  based mixup. In Proceedings of the 30th ACM               for open-domain question answering. Preprint,
+  SIGKDD Conference on Knowledge Discovery and              arXiv:2110.04330.
+  Data Mining, pages 3633–3644.
+                                                          Wenhao Yu, Hongming Zhang, Xiaoman Pan, Kaixin
+Yongxin Xu, Kai Yang, Chaohe Zhang, Peinie Zou,            Ma, Hongwei Wang, and Dong Yu. 2023a. Chain-of-
+  Zhiyuan Wang, Hongxin Ding, Junfeng Zhao, Yasha          note: Enhancing robustness in retrieval-augmented
+  Wang, and Bing Xie. 2023b. Vecocare: Visit               language models. Preprint, arXiv:2311.09210.
+  sequences-clinical notes joint learning for diagnosis
+  prediction in healthcare data. In IJCAI, volume 23,     Wenhao Yu, Hongming Zhang, Xiaoman Pan, Kaixin
+  pages 4921–4929.                                         Ma, Hongwei Wang, and Dong Yu. 2023b. Chain-of-
+                                                           note: Enhancing robustness in retrieval-augmented
+Yongxin Xu, Ruizhe Zhang, Xinke Jiang, Yujie Feng,         language models. Preprint, arXiv:2311.09210.
+  Yuzhen Xiao, Xinyu Ma, Runchuan Zhu, Xu Chu,
+  Junfeng Zhao, and Yasha Wang. 2024c. Parent-            Hui Zeng. 2023. Measuring massive multitask chinese
+  ing: Optimizing knowledge selection of retrieval-         understanding. Preprint, arXiv:2304.12986.
+  augmented language models with parameter de-
+  coupling and tailored tuning.    arXiv preprint         Hongbo Zhang, Junying Chen, Feng Jiang, Fei Yu, Zhi-
+  arXiv:2410.10360.                                         hong Chen, Jianquan Li, Guiming Chen, Xiangbo
+                                                           Wu, Zhiyi Zhang, Qingying Xiao, Xiang Wan, and
+Zhichao Xu. 2023. Context-aware decoding reduces hal-       Benyou Wang. 2023a. Huatuogpt, towards taming
+  lucination in query-focused summarization. Preprint,      language model to be a doctor.
+  arXiv:2312.14335.
+                                                          Ningyu Zhang, Mosha Chen, Zhen Bi, Xiaozhuan Liang,
+Aiyuan Yang, Bin Xiao, Bingning Wang, Borong Zhang,         Lei Li, Xin Shang, Kangping Yin, Chuanqi Tan, Jian
+  Ce Bian, Chao Yin, Chenxu Lv, Da Pan, Dian Wang,          Xu, Fei Huang, Luo Si, Yuan Ni, Guotong Xie, Zhi-
+  Dong Yan, Fan Yang, Fei Deng, Feng Wang, Feng             fang Sui, Baobao Chang, Hui Zong, Zheng Yuan,
+  Liu, Guangwei Ai, Guosheng Dong, Haizhou Zhao,            Linfeng Li, Jun Yan, Hongying Zan, Kunli Zhang,
+  Hang Xu, Haoze Sun, Hongda Zhang, Hui Liu, Ji-            Buzhou Tang, and Qingcai Chen. 2022. CBLUE: A
+  aming Ji, Jian Xie, JunTao Dai, Kun Fang, Lei Su,         Chinese biomedical language understanding evalua-
+  Liang Song, Lifeng Liu, Liyun Ru, Luyao Ma, Mang          tion benchmark. In Proceedings of the 60th Annual
+                                                     11848
+  Meeting of the Association for Computational Lin-       A    Appendix
+  guistics (Volume 1: Long Papers), pages 7888–7915,
+  Dublin, Ireland. Association for Computational Lin-     A.1 Design Details
+  guistics.                                               A.1.1   Prompts Design
+Ruizhe Zhang, Yongxin Xu, Yuzhen Xiao, Runchuan           Prompts used in Hypothesis Output Module and LLM
+  Zhu, Xinke Jiang, Xu Chu, Junfeng Zhao, and Yasha       Reader are illustrated in Figure 3.
+  Wang. 2024. Knowpo: Knowledge-aware preference
+  optimization for controllable knowledge selection in    A.2 Experiment Settings
+  retrieval-augmented language models. AAAI 2024.
+                                                          A.2.1   Datasets
+Yichi Zhang, Zhuo Chen, Yin Fang, Lei Cheng, Yanxi        For MMCU-Medical (Zeng, 2023), the questions are
+  Lu, Fangming Li, Wen Zhang, and Huajun Chen.            from the university medical professional examination,
+  2023b. Knowledgeable preference alignment for           covering the three basic medical sciences, pharmacol-
+  llms in domain-specific question answering. Preprint,
+                                                          ogy, nursing, pathology, clinical medicine, infectious
+  arXiv:2311.06503.
+                                                          diseases, surgery, anatomy, etc., with a total of 2,819
+Lingfeng Zhong, Jia Wu, Qian Li, Hao Peng, and Xin-       questions. The CMB-Exam (Wang et al., 2023d) dataset
+  dong Wu. 2023. A comprehensive survey on au-            utilizes qualifying exams as a data source in the four
+  tomatic knowledge graph construction. Preprint,         clinical medicine specialties of physicians, nurses, medi-
+  arXiv:2302.05019.                                       cal technicians, and pharmacists, with a total of 269,359
+Fengbin Zhu, Wenqiang Lei, Chao Wang, Jianming            questions. Given the extensive size of the CMB-Exam
+  Zheng, Soujanya Poria, and Tat-Seng Chua. 2021.         dataset, we randomly sample 4,000 questions for testing.
+  Retrieving and reading: A comprehensive survey          The CMB-Clin (Wang et al., 2023d) dataset contains 74
+  on open-domain question answering. Preprint,            high-quality, complex, and real patient cases with 208
+  arXiv:2101.00774.                                       medical questions.
+                                                             CMeKG (Clinical Medicine Knowledge Graph)7
+He Zhu, Ren Togo, Takahiro Ogawa, and Miki
+                                                          (BYAMBASUREN et al., 2020), CPubMed-KG (Large-
+  Haseyama. 2023. A medical domain visual question
+  generation model via large language model.              scale Chinese Open Medical Knowledge Graph) 8
+                                                          and Disease-KG (Chinese disease Knowledge Graph)9
+Daniel M. Ziegler, Nisan Stiennon, Jeffrey Wu, Tom B.     are open-source medical KGs, which integrates exten-
+  Brown, Alec Radford, Dario Amodei, Paul Chris-          sive medical text data, including diseases, medications,
+  tiano, and Geoffrey Irving. 2020. Fine-tuning lan-      symptoms and diagnostic treatment technologies. The
+  guage models from human preferences. Preprint,          fused KG has 1,288,721 entities and 3,569,427 relations.
+  arXiv:1909.08593.                                       However, due to the lack of medical entity descriptions
+                                                          in its entities, we collect relevant entity knowledge from
+                                                          Wikipedia10 , Baidu Baike11 , and Medical Baike12 , and
+                                                          store them as entity descriptions.
+                                                             (1) Base Model (Base) servers as the model without
+                                                          any external knowledge, used to check the improve-
+                                                          ment effect of different RAG methods. We use GPT
+                                                          3.5 and Baichuan13B-chat (Yang et al., 2023a) as base
+                                                          models. (2) Knowledge Graph Retrieval-Augmented
+                                                          Generation (KGRAG) (Soman et al., 2023b,a; Sen
+                                                          et al., 2023) uses user query as a reference to retrieve
+                                                          in the KGs, which is the base model of RAG on KG
+                                                          and has been widely applied in (Soman et al., 2023b,a;
+                                                          Sen et al., 2023). (3) Query Expansion (QE) (Azad
+                                                          and Deepak, 2019) reformulate the user’s initial query
+                                                          by adding additional terms with a similar meaning with
+                                                          the help of LLMs. (4) CHAIN-OF-NOTE (CoN) (Yu
+                                                          et al., 2023b) generates sequential reading notes for
+                                                          retrieved knowledge, enabling a thorough evaluation
+                                                          of their relevance to the given question and integrating
+                                                             7
+                                                               https://cmekg.pcl.ac.cn/,       https://github.com/king-
+                                                          yyf/CMeKG_tools
+                                                             8
+                                                               https://cpubmed.openi.org.cn/graph/wiki
+                                                             9
+                                                               https://github.com/nuolade/disease-kb
+                                                            10
+                                                               https://www.wikipedia.org/
+                                                            11
+                                                               https://baike.baidu.com/
+                                                            12
+                                                               https://www.yixue.com/
+                                                     11849
+          Figure 3: The prompt formats of (Up.) Hypothesis Output Module and (Down.) LLM Reader.
+
+     The Prompt Format of Hypothesis Output Module (PHO )
+    ### Task Description:
+    You are a medical expert. Please write a passage to answer [User Query] while adhering to [Answer Requirements].
+    ### Answer Requirements:
+    1) Please take time to think slowly, understand step by step, and answer questions. Do not skip key steps.
+    2) Fully analyze the problem through thinking and exploratory analysis.
+    ### {{ User Query }}
+
+
+     The Prompt Format of LLM Reader (PReader )
+    ### Task Description:
+    You are a medical expert. Based on relevant medical [Background Knowledge] and your medical knowledge, provide
+    professional medical advice for [User Query] while adhering to [Answer Requirements].
+    ### Answer Requirements:
+    1) Take time to think slowly, understand step by step, and answer questions.
+    2) Clearly state key information in the answer and provide direct and specific answers to user questions.
+    ### {{ Background Knowledge }}
+    The retrieved knowledge chains are:
+     Kidney stones → Laboratory tests → Serum calcium ← Laboratory tests ← Gastric ulcer... (example)
+    ### {{ User Query }}
+
+
+
+
+these notes to formulate the final answer. (5) Chain-of-         A.2.2    Evaluation Metrics
+Knowledge (CoK) (Li et al., 2023c) utilize the power
+                                                                 As for the evaluation of multi-task medical choice ques-
+of LLMs and consists of reasoning preparation, dynamic
+                                                                 tion performance, we guide LLMs to only answer the
+knowledge adapting, and answer consolidation. (6)
+                                                                 correct answer and employ established metric Exact
+Knowledge-Augmented Language Model Verifica-
+                                                                 Match (EM) as suggested by prior work (Zhu et al.,
+tion (KALMV) (Baek et al., 2023) verifies the output
+                                                                 2021; Karpukhin et al., 2020). For the EM score, an
+and the knowledge of the knowledge-augmented LLMs
+                                                                 answer is deemed acceptable if its form corresponds to
+with a separate verifier. (7) Knowledge Graph Gen-
+                                                                 all correct answers in the provided list. For multiple-
+erative Pre-Training (KG-GPT) (Kim et al., 2023)
+                                                                 choice questions, we also calculate a Partial Correct
+comprises three steps: Sentence Segmentation, Graph
+                                                                 Rate (PCR). In comparison to EM, if there is a miss-
+Retrieval, and Inference, each aimed at partitioning sen-
+                                                                 ing answer without any incorrect ones, PCR classifies
+tences, retrieving relevant graph components, and deriv-
+                                                                 it as correct. In addition, to verify the effectiveness
+ing logical conclusions. (8) Summarizing Retrievals
+                                                                 of the retrieved knowledge, we also let LLMs output
+(SuRe) (Kim et al., 2024) constructs summaries of the
+                                                                 a complete analysis process. Then, we measure Arti-
+retrieved passages for each of the multiple answer can-
+                                                                 ficial Correlation Judgement (ACJ) by inviting 20
+didates and confirms the most plausible answer from
+                                                                 medical experts to rate the retrieved knowledge accord-
+the candidate set by evaluating the validity and rank-
+                                                                 ing to the criteria of (correlation=1, relevant but use-
+ing of the generated summaries. Note that we follow
+                                                                 less=0, irrelevant=-1), and calculate the relevant scores
+the prompts of the baselines as stated strictly. Besides,
+                                                                 for each question by sampling 100 questions from the
+the baselines and running time are summarized in Ta-
+                                                                 two datasets. Moreover, we also objectively evaluated
+ble 1. In RAG Options, CoN requires fine-tuning the
+                                                                 the Perplexity (PPL) of LLMs output. The smaller
+retriever, implying a higher training overhead and the
+                                                                 the PPL, the greater the role of retrieved knowledge in
+prerequisite of preparing a dataset. In addition, it is also
+                                                                 reducing LLMs’ hallucinations. Moreover, we also com-
+difficult to migrate to other domain-specific KGs. In
+                                                                 plement our analysis with ROUGE-Recall (ROUGE-
+terms of LLMs interactions, QE, CoN, CoK, KALMV,
+                                                                 R) (Xu, 2023). ROUGE-R measures the extent to
+KG-GPT, SuRe and HyKGE all necessitate engagement
+                                                                 which the LLMs’ responses cover the retrieved knowl-
+with LLMs. However, CoN, CoK, KALMV, KG-GPT
+                                                                 edge, which is crucial for ensuring comprehensive in-
+and SuRe entail multiple interactions (more than twice),
+                                                                 formation coverage. For open-domain medical Q&A
+significantly escalating the time expenditure.
+                                                                 tasks, we utilize ROUGE-R and Bilingual Evaluation
+                                                                 Understudy (BLEU-1 for answer precision, BLEU-4
+                                                                 for answer fluency) (Xu, 2023) to gauge the similarity
+                                                           11850
+of LLMs responses to the ground-truth doctor analy-          BLEU (Bilingual Evaluation Understudy). BLEU
+sis. Additionally, we employ PPL to assess the quality       assesses the precision of overlapping n-grams between
+of LLMs responses. Next, we provide comprehensive            generated and reference texts, incorporating a brevity
+descriptions and formulas for the metrics used to eval-      penalty (BP) to discourage overly short outputs:
+uate our models. Each metric targets a specific aspect
+of performance, allowing for a thorough and balanced                                 X
+                                                                                      N          
+assessment.                                                           BLEU = BP · exp   wn log Pn ,              (11)
+                                                                                          n=1
+Exact Match (EM). Exact Match measures the per-              where Pn denotes n-gram precision and wn is typically
+centage of predicted answers that exactly align with the     uniform (wn = 1/N ). The brevity penalty is defined as
+ground truth. It is equivalent to Accuracy (ACC).                            (
+                                                                               1,             if c > r,
+                Number of Correct Predictions                          BP =                                   (12)
+        EM =                                           (6)                     exp 1 − rc , if c ≤ r,
+                 Total Number of Questions
+Partial Correct Rate (PCR). For multiple-choice              with c and r representing the lengths of the generated
+questions, partial correctness is permissible. If a subset   and reference texts, respectively.
+of the selected answers matches the ground truth, the     A.2.3 Experimental Implementation.
+prediction is deemed correct.
+                                                          In HyKGE, k = 3, topK = 10, δ = 0.7, lc = 10, oc =
+                                                          4. The prompts for LLMs can refer to Table 3. More-
+         Number of Partially or Fully Correct Predictions over, for all the baselines and HyKGE, we set the maxi-
+PCR =                                                     mum number of returned tokens for LLMs to 500 and
+                    Total Number of Questions
+                                                     (7)  the temperature to 0.6. In all baselines and HyKGE,
+                                                          we first use the Jieba library in Python to perform
+Artificial Correlation Judgment (ACJ). ACJ evalu-         word segmentation, and then use filtered text to filter
+ates the relevance of retrieved knowledge using expert    out tone words and invalid characters following “chi-
+annotation. Twenty medical experts score 100 sampled      nese_word_cut.txt”13 to avoid errors in knowledge ex-
+questions from each dataset under three criteria:         traction. For a fair comparison, we apply the same
+                                                          W2NER, GTE and FlagEmbedding models for all base-
+   • Correlation = 1: Retrieved knowledge is relevant
+                                                          lines. Moreover, the parameters of W2NER are opti-
+      and useful.
+                                                          mized with Adam optimizer (Kingma and Ba, 2015)
+   • Relevant but Useless = 0: Knowledge is relevant      with  L2 regularization and dropout on high-quality med-
+      but does not help answer the question.              ical  dataset (Zhang et al., 2022; Hongying et al., 2020),
+                                                          the learning rate is set to 1e-3, the hidden unit is set
+   • Irrelevant = –1: Knowledge is not relevant.          to 1024 and weight decay is 1e-4. Similar to previous
+                                                          work (Soman et al., 2023a), because of the randomness
+The final ACJ score is the mean of the expert ratings:    of LLMs’ outputs, we repeat experiments with differ-
+                                                          ent random seeds five times and report the average and
+                     Sum of Expert Ratings                standard deviation results. Experimental results are sta-
+             ACJ =                                   (8)
+                     Number of Questions                  tistically significant with p < 0.05. Implementations are
+Perplexity (PPL). Perplexity quantifies the fluency       done using the PyTorch 1.9.0 framework (Paszke et al.,
+of the language model’s output by exponentiating the      2019) in Python 3.9, on an Ubuntu server equipped with
+average negative log-likelihood of the predicted token    8 A100 GPU and an Intel(R) Xeon(R) CPU.
+sequence.                                                 A.3 Case Study (RQ2 and RQ3)
+                         1
+                             PN                              This case study presents a representative sample that
+              PPL = 2− N      i=1 log2 P (wi )   ,     (9)
+                                                             illustrates the effectiveness of our HyKGE model using
+where P (wi ) is the probability assigned to token wi and    GPT-3.5 Turbo as shown in Figure 5. The color cod-
+N is the total number of tokens.                             ing within the table is key to understanding the source
+                                                             and validity of the information and we have these ob-
+ROUGE (Recall-Oriented Understudy for Gisting                servations: i) Compared to a brief user query, seman-
+Evaluation). We employ ROUGE-R (recall) to mea-              tic spaces of HO are more abundant and have a clear
+sure the overlap between generated text and reference        direction for answering, helping us better understand
+text in terms of n-grams, longest common subsequences,       user intention and extract more effective entity infor-
+or skip-bigrams.                                             mation. Ultimately, HyKGE extracted 23 entities from
+                                                             HO compared to only 1 from Q. ii) Comparing the RC
+                     # Overlapping n-grams
+   ROUGE-R =                                         (10)    with RC prune , it can be observed that the pre-filtered
+                   Total #n-grams in Reference
+                                                                13
+                                                                   https://github.com/Robust-
+where # denotes the number.                                  Jay/NLP_Chinese_WordCut/blob/master/stopwords.txt
+                                                        11851
+Table 4: Performance and computation time comparison             and summarization modules (to summarize the retrieved
+(in mean ± standard deviation) on MMCU-Medical for               knowledge) (Kim et al., 2024), as shown in Table 4.
+medical Q&A answer with GPT 3.5 Turbo.                           However, our findings underscored that leveraging such
+     Method / Metric           EM        PCR     Avg. Time (s)   large-parameter models for tasks amenable to smaller
+         HyKGE             49.65±1.39 57.82±1.54    19.76        counterparts incurs substantial time costs with marginal
+  HyKGE(+ LLM for NER) 48.17±1.13 56.77±1.02        26.61
+ HyKGE(+ LLM for Reranker) 42.72±2.06 48.24±1.17    32.51        benefits. For instance, incorporating LLMs into NER,
+ HyKGE(+ LLM for Summary) 43.02±3.11 46.54±2.08     28.51        aimed at enhancing entity extraction, a task that could
+                                                                 be efficiently handled by specialized pre-trained medi-
+chains contain a large amount of irrelevant or repeti-           cal NER models, not only doubling interaction time but
+tive knowledge, marked in black. After reranking, re-            also introducing complexities such as misinterpretation
+trieved knowledge is highly non-redundant and relevant           of instructions, thus impeding subsequent processing.
+to HO and Q, demonstrating the effectiveness of our              Similarly, the utilization of LLMs in Reranker consid-
+fragment-based reranker. Ultimately, out of 125 reason-          erably strained token resources. For instance, upon
+ing chains, HyKGE selected topK = 10 of the most                 retrieving the query “I feel stomach reflux after eating.
+valuable chains. iii) Note that retrieved knowledge ef-          What medicine should I take?” it generated a whopping
+fectively assisted LLMs in correcting errors, mitigating         125 reasoning chains. However, employing LLMs to
+the issue of hallucinations. In HO, LLMs posited that            eliminate noisy knowledge from these chains resulted in
+“calcium carbonate could not treat GERD”; however,               decreased effectiveness. We argue that this was primar-
+with the supplemental knowledge about “calcium car-              ily due to the inundation of tokens, causing LLMs to
+bonate” in our retrieved reasoning chains, marked in             lose in the middle (Liu et al., 2023), thereby impeding
+green. LLMs corrected this error in its final response. In       their ability to discern genuinely relevant knowledge
+general, this case study demonstrates HyKGE’s strong             from the retrieved chains and even ignore LLMs’ tasks.
+ability to generate hypotheses and validate them against         Consequently, LLMs employed for Reranker inadver-
+a structured KG, effectively leveraging HO for explor-           tently filtered out valuable knowledge, yielding nega-
+ing and reasoning chains for error correction. In general,       tive outcomes and exacerbating computational overhead.
+the integration of these components ensures that the             Likewise, employing LLMs for knowledge summariza-
+RAG’s outputs are not only contextually relevant but             tion encountered challenges akin to those encountered
+also accurate, showcasing the interpretability and poten-        in Reranker. Although LLMs are quite effective, accord-
+tial for AI-assisted decision-making in healthcare.              ing to Occam’s razor principle (Standish, 2004), it is
+                                                                 not always beneficial to use LLMs in every RAG step.
+A.4    Efficiency Analysis (RQ2)
+                                                                 Excessive reliance on LLMs can only lead to wasted
+To illustrate the effectiveness of our HyKGE module, we          time costs. In summary, because RAG involves a pro-
+conducted a comparative analysis of the time overhead            cess of continuous trial and error (Barnett et al., 2024),
+between HyKGE and other knowledge graph-enhanced                 we experimented with many strategies and ultimately
+LLM approaches, as presented in Table 1. The KGRAG               arrived at HyKGE.
+method demonstrates the shortest time overhead among
+RAG methods, as it solely necessitates conveying the re-         A.5   Ablation Study (RQ 2)
+trieved knowledge to the LLM Reader. However, when               To answer RQ2, we perform ablation studies to verify
+juxtaposed with QE and HyKGE, KGRAG’s perfor-                    the effectiveness of the critical components of HyKGE,
+mance notably lags behind, even resulting in a nega-             as illustrated in Table 2. Our observation can be sum-
+tive gain because of the huge noise. In contrast to QE,          marized as follows:
+HyKGE incurs slightly higher time primarily due to                  In pre-retrieval phase. When we remove the Hy-
+the noise filtering process, which consumes some time.           pothesis Output Module, results are even deteriorating
+Nonetheless, the performance enhancement achieved                than base model. This is attributed to the fact that re-
+by HyKGE outweighs this marginal increase in time                trieved knowledge simply based on user queries is ei-
+overhead. Furthermore, CoN and CoK, which adopt                  ther insufficient or futile because of lacking direction
+the chain-of-thought strategy (Wei et al., 2023), en-            for exploration. Nevertheless, the results of w/o HO
+tail multiple interactions with LLMs, which proves to            are still better than KGRAG and we argue the reason is
+be considerably restrictive, particularly in real-world          the reranking of reasoning chains effectively filters out
+medical Q&A scenarios where time is a critical con-              noise during the post-retrieval phase.
+sideration. Therefore, striking a balance between time              In post-retrieval phase. The removal of the Reranker
+overhead and model accuracy becomes imperative, in               leads to a noticeable decline in performance compared
+which regard HyKGE emerges as the most efficient and             to HyKGE, which indicates that Reranker effectively
+high-performing framework.                                       eliminates excessive noise introduced by the retrieved
+   Moreover, inspired by these Chain-of-thought                  knowledge, retaining only the most pertinent parts for
+works (Pouplin et al., 2024; Trivedi et al., 2023), which        answering the question. When we use entire HO and Q
+respectively employ LLMs in different processes of               instead of chunk (Q ⊕ HO) to perform reranking with
+RAG, we embarked on similar endeavors. Specifically,             reasoning chains, a decline in performance is also ob-
+we integrated LLMs into the modules of NER, Reranker,            served. This is attributable to the misalignment between
+                                                             11852
+dense retrieved knowledge and sparsely distributed key-                                                                  an increased number of tokens. Concurrently, EM ex-
+words in HO and Q, inducing a tendency to select more                                                                    hibits a trend of initial increase followed by a decrease
+general or lengthier knowledge, thereby diminishing the                                                                  as k increases. This phenomenon can be attributed to the
+HOM’s capability to supplement diverse knowledge.                                                                        fact that at lower values of k, the retrieved knowledge
+   Moreover, results of w/o Chains and w/o                                                                               predominantly consists of isolated snippets of informa-
+Description demonstrate that even when KG lacks                                                                          tion, offering minimal utility. Conversely, with larger
+certain knowledge, descriptive information or relevant                                                                   k, the LLMs encounter limitations in comprehending
+knowledge chains can still enhance the answering ca-                                                                     extensive reasoning chains, thereby rendering them inca-
+pabilities of LLMs, which is believed to be associated                                                                   pable of effectively utilizing the complex and abundant
+with the inherent implicit knowledge within the LLMs                                                                     retrieved information, with the performance even worse
+themselves.                                                                                                              than the base model. Besides, we notice removing the
+                                                                                                                         HO will result in a substantial reduction in the quantity
+A.6          Hyper-parameter Study (RQ4)                                                                                 of knowledge retrieved, because of the limited diversity
+                                                                                                                         of knowledge obtained based solely on user query.
+                                                                                            107
+                                                                                                                            Figure 4 (Right.) depicts EM with different rerank-
+                     60        w/ HO (CMB)               w/ HO (MMCU)
+                               w/o HO (CMB)              w/o HO (MMCU)                                                   ing thresholds. Similar to Figure 4 (Left.), as topK
+                     50                                                                     106                          increases, the trends demonstrate that overwhelming
+
+
+
+
+                                                                                             Retrieval Chains Count
+                                                                              Base(MMCU)
+                                                                                                                         reasoning chains will hamper LLMs’ ability for com-
+                                                                                            105
+                     40                                                                                                  prehension. Meanwhile, it is obvious that HyKGE w/o
+
+
+      EM Score (%)
+                                                                                Base(CMB)
+
+
+                                                                                            104                          Fragment always underperforms on EM as analyzed in
+                     30                                                                                                  Section A.5.
+                                                                                            103
+                     20                                                                                                  A.7 Quantifying Knowledge Density
+                                                                                            102
+                                                                                                                         Quantifying the knowledge density of user queries poses
+                     10                                                                          1                       significant challenges in natural language processing
+                                                                                            10
+                                                                                                                         and understanding. Knowledge density refers to the
+                      0
+                                  1            2           3        4            5                                       amount of useful information conveyed in a given state-
+                                                           k                                                             ment, which can vary widely depending on how the
+                                                                                                                         information is presented.
+                         50                                                                                                 For example, consider the following two statements:
+                                                                                                                            1. “Doctor, my name is Jack. Recently, after having
+                         45 Base(MMCU)                                                                                   breakfast, I often experience stomach pain.” 2. “Having
+
+
+          EM Score (%)
+                                                                                                                         breakfast causes stomach pain.”
+                         40                                                                                                 The first statement exhibits a lower knowledge den-
+                              Base(CMB)
+                                                                                                                         sity, as it includes extraneous information that does not
+                         35
+                                                                                                                         directly contribute to the understanding of the medi-
+                                                                                                                         cal issue at hand. In contrast, the second statement is
+                         30
+                                      w/ Fragment (CMB)        w/ Fragment (MMCU)
+                                                                                                                         concise and directly conveys the relationship between
+                                      w/o Fragment (CMB)       w/o Fragment (MMCU)                                       breakfast and stomach pain, demonstrating a higher
+                         25
+                              5            7        10         15        30           50                                 knowledge density.
+                                                         topK                                                               This disparity illustrates the challenges involved in
+Figure 4: (Left.) Hyper-parameter study with the KG                                                                      quantifying knowledge density. The lack of fine-grained
+hop k on MMCU-Medical and CMB-Exam with GPT                                                                              annotations in many datasets complicates efforts to de-
+3.5 turbo, from 1 to 5. (Right.) Hyper-parameter study                                                                   velop reliable metrics for measuring knowledge density.
+with the reranker topK on MMCU-Medical and CMB-                                                                          While it is possible to qualitatively assess the informa-
+Exam with GPT 3.5 turbo, from 5 to 50.                                                                                   tion content of various statements, the absence of stan-
+                                                                                                                         dardized methods or clear benchmarks makes it difficult
+   In this part, we concentrate on evaluating the influ-                                                                 to achieve accurate and consistent quantification.
+ence of different hyper-parameters on HyKGE for RQ4.                                                                        Consequently, addressing the misalignment between
+Specifically, we perform a series analysis of KG hop k                                                                   the knowledge density of user queries and reasoning
+from the list [1, 2, 3, 4, 5] and reranker topK from the                                                                 chains remains an area of active research. Future work
+list [5, 7, 10, 15, 30, 50] to verify the sensitive:                                                                     may involve exploring new annotation strategies or de-
+   Figure 4 (Left.) depicts EM and the number of re-                                                                     veloping automated methods to evaluate and quantify
+trieved knowledge before pruning. We observe that as k                                                                   knowledge density effectively.
+increases, the amount of knowledge retrieved explodes
+exponentially following a power-law distribution(Berger                                                                  A.8 Explanation and Ablation Results for the
+et al., 2005; Ahad N. et al., 2023), exceeding 103 when                                                                      Proposed Reasoning Chains
+k = 5. However, an excessive amount of knowledge not                                                                     Biomedical knowledge graphs are characterized by
+only fails to improve EM, but also burdens LLMs with                                                                     dense adjacency relationships, which often result in sub-
+                                                                                                                      11853
+Figure 5: Case study. We demonstrate the User Query Q, Hypothesis Output HO, Retrieved Reasoning Chains RC
+and Pruned Reasoning chains RC prune of HyKGE using GPT-3.5 Turbo to verify the interpretability and effectiveness
+of HyKGE. Red shed signifies that the knowledge or answer is derived from evidence in Q, blue shed indicates
+that the evidence originates from HO, and green shed represents a corrected answer with the help of KG, despite
+initially being false in HO.
+
+    A case study of HyKGE pipeline
+    ### User Query Q:
+    I feel stomach reflux after eating. What medicine should I take?
+    ### Hypothesis Output HO:
+     Stomach reflux can be a symptom caused by gastroesophageal reflux . 1. Do you have symptoms related to
+     indigestion , excess stomach acid , gastric ulcers , bile reflux , or stomach pain ? . . . When experiencing mild
+    gastroesophageal reflux, the following plans can be considered:- Avoid overeating - Avoid spicy, stimulating foods, and
+    alcohol - Maintain a light diet, eat more vegetables. Under appropriate evidence, consider taking
+     H2 receptor antagonists or proton pump inhibitors . It is not recommended to take calcium carbonate or
+    aluminum hydroxide medications,
+    as calcium carbonate can lead to kidney stones, and the aluminum element in aluminum hydroxide
+    is toxic and may cause allergic reactions or discomfort.
+    ### Retrieved Reasoning Chains RC:
+    Kidney stones → Laboratory tests → Serum calcium ← Laboratory tests ← Gastric ulcer. Kidney stones → Clinical
+    symptoms and signs → Fever ← Complications ← Esophageal cancer.
+     Excess gastric acid → Affected area → Abdomen ← Affected area ← Stomach pain. Niflumic acid → Adverse
+    reaction → Discomfort ← Adverse reaction ← Calcium carbonate. Gastrointestinal bleeding → Related diseases →
+    Gastric ulcer. Gastric ulcer → Treatment → Aluminum hydroxide.
+    Calcium carbonate → Indication → Excess gastric acid. Aluminum hydroxide → Indication → Gastric reflux.
+    Niflumic acid → Third level classification → Others ← Affected area ← Postprandial food reflux.
+     Duodenogastric reflux and bile reflux gastritis → Treatment → Calcium carbonate. More else . . . [125 reasoning
+    chains in total.]
+    ### Pruned Reasoning chains RC prune :
+     Gastric ulcer → Treatment → Aluminum hydroxide. Calcium carbonate → Indication → Excess gastric acid.
+    Aluminum hydroxide → Indication → Gastric reflux.
+    Niflumic acid → Third level classification → Others ← Affected area ← Postprandial food reflux.
+    Duodenogastric reflux and bile reflux gastritis → Treatment → Calcium carbonate.
+    Stomach reflux → Related disease → Excess gastric acid. Caved-S → Indication → Excess gastric acid.
+    Weile tablets → Indication → Excess gastric acid. More else. . .[10 reasoning chains in total.]
+    ### Answer:
+     Stomach reflux can be a symptom caused by gastroesophageal reflux disease (GERD) , and this condition could
+    potentially lead to reflux esophagitis. Consider the following medical recommendations:
+     Acid-suppressing medications (Proton Pump Inhibitors) : You may consider using omeprazole or esomeprazole to
+    effectively reduce gastric acid secretion, aiding in relieving symptoms of gastric reflux and mitigating the development
+    of reflux esophagitis. Alternatively, you can use
+     acid-neutralizing medications (antacids) such as magnesium aluminum carbonate (Rennie), calcium
+    carbonate, and aluminum hydroxide. Another option is the use of H2 receptor antagonists such as
+     ranitidine or famotidine. Additionally, medications like Caved-S or Weile tablets are also suitable for mild to
+    moderate symptoms of gastric reflux. Gastric protective medications: For short-term relief of stomach pain,
+     you may also consider using gastric mucosal protectants such as sucralfate. It helps form a protective mucous layer,
+    reducing irritation to the stomach mucosa. Diet and lifestyle adjustments: First, . . . it is advisable to consult a healthcare
+    professional for evaluation and diagnosis as soon as possible.
+
+
+
+
+                                                               11854
+graphs that contain a significant number of noisy and          By incorporating these reasoning chains, our method
+irrelevant entities. These noisy subgraphs can degrade      effectively addresses the inherent challenges of biomed-
+the performance of downstream tasks by introducing          ical knowledge graphs while ensuring more precise and
+unnecessary complexity and distracting from relevant        semantically meaningful knowledge retrieval for down-
+information. The results presented in Table 1 (HyKGE        stream tasks.
+w/o Chains) validate this observation, underscoring the
+necessity of incorporating reasoning chains to reduce       A.9 Evaluation of Relevance, Coherence, and
+noise and enhance retrieval quality.                            Informativeness by the Reranking Model
+
+Rationale Behind the Selection of the Three Rea-            We clarify the design and rationale behind the HO Frag-
+soning Chains. The inclusion of the three reason-           ment Granularity-aware Rerank Module and explain
+ing chains—Path, Co-ancestor, and Co-occurrence—is          how it achieves a balance between diversity and rele-
+driven by their unique ability to address the challenges    vance in retrieval.
+associated with biomedical reasoning tasks. Each chain
+                                                            Core Objective of the Module. The HO Fragment
+pattern offers specific advantages that collectively en-
+                                                            Granularity-aware Rerank Module is specifically de-
+hance the retrieval process:
+                                                            signed to address the challenges of semantic misalign-
+• Path (head-to-tail): This reasoning chain captures        ment and noise interference in knowledge retrieval while
+  direct causal or triggering relationships between dis-    balancing relevance and diversity. This is accomplished
+  eases and symptoms. For instance, it identifies con-      through two primary steps:
+  nections such as "infection" leading to "fever," pro-
+                                                            1. Chunk Splitting: Enhancing Relevance and Re-
+  viding clear and logical insights into causal medical
+                                                            ducing Noise. Traditional retrieval methods often
+  phenomena.
+                                                            treat the user query Q as a single entity and match it
+                                                            directly with reasoning chains (RCs) in the knowledge
+• Co-ancestor Chain (tail-to-tail): This chain iden-
+                                                            graph. However, user queries frequently contain am-
+  tifies shared physiological or environmental factors
+                                                            biguous semantics or irrelevant information, leading to
+  between entities, facilitating analogical reasoning and
+                                                            semantic misalignment and the introduction of noise or
+  supporting diagnostic processes. For example, "high
+                                                            redundancy. To mitigate this, we implement chunk split-
+  blood pressure" and "diabetes" might share a common
+                                                            ting for both the user query Q and the hypothesis output
+  factor like "obesity," revealing underlying relation-
+                                                            (HO): - Each query Q and HO is divided into K mean-
+  ships that aid in understanding co-morbidities.
+                                                            ingful chunks, which allows us to remove redundant or
+• Co-occurrence Chain (head-to-head): This reason-          low-information parts (for example, phrases like “My
+  ing chain captures pathological characteristics and       name is. . . ” or overly descriptive background details). -
+  disease progression by linking entities that frequently   This chunking process ensures that each segment of the
+  co-occur in similar contexts. For instance, it estab-     query aligns more precisely with the reasoning chains in
+  lishes connections between "tumor" and "metastasis,"      the knowledge graph, significantly enhancing relevance
+  providing insights into disease progression and asso-     and coherence while filtering out noise.
+  ciations.
+                                                            2. Similarity Matrix: Ensuring Diversity and Infor-
+Benefits of the Selected Reasoning Chains. These            mation Completeness. During the reranking process,
+reasoning chains collectively serve as a structured and     we construct a similarity comparison matrix to balance
+semantically rich mechanism for organizing biomedical       diversity and relevance. This matrix compares the K
+knowledge. Specifically, they provide several benefits:     chunks with M reasoning chains (RCs): - The similarity
+- They facilitate easier interpretation and inference by    matrix, with dimensions K×M , represents the semantic
+large language models (LLMs), enabling more accu-           similarity between each query chunk and each reasoning
+rate and relevant retrievals. - By focusing on logical      chain. - Each value in the matrix quantifies how well a
+and contextual relationships, they function as an effi-     specific chunk aligns with a particular reasoning chain.
+cient pruning mechanism, significantly reducing noise          We utilize this similarity information to rank all rea-
+in subgraphs and improving the quality of the retrieved     soning chains and select the top K chains as the final
+knowledge.                                                  retrieval results. This approach offers several benefits:
+                                                            1. Enhancing Diversity: By incorporating similarity
+Experimental Validation. To further support our             scores from multiple chunks, the method avoids over-
+choice of reasoning chains, we conducted an ablation        reliance on a single chunk, ensuring that the selected
+study comparing the effectiveness of each reasoning         reasoning chains cover a broader semantic scope. 2.
+chain pattern (Path, Co-ancestor, Co-occurrence) both       Preserving Information Completeness: The selection
+individually and in combination. The ablation results,      of the top K reasoning chains not only guarantees high-
+along with those detailed in Table 1, confirm that the      quality outputs but also retains important task-relevant
+integration of these three chains yields the best perfor-   information, thus preventing the loss of valuable knowl-
+mance by leveraging their complementary strengths.          edge due to excessive simplification.
+                                                       11855
+   In summary, the HO Fragment Granularity-aware               A.11 Training LLMs with Knowledge from
+Rerank Module effectively evaluates the relevance, co-              Knowledge Graphs
+herence, and informativeness of each retrieved reason-         Indeed, in the medical domain, the performance of the
+ing chain through a structured process that emphasizes         base model significantly impacts the quality of the hy-
+meaningful segmentation of queries and robust similar-         pothesis outputs (HO). Our experiments consistently
+ity analysis.                                                  demonstrate that larger models with stronger compre-
+A.10    Retrieving Reasonable Knowledge Based on               hension abilities produce higher-quality HOs. This find-
+        Varying Quality User Queries                           ing provides a solid basis to believe that training LLMs
+                                                               on medical knowledge—particularly high-quality med-
+The quality of user queries can vary significantly, and        ical KGs—could greatly enhance the effectiveness of
+retrieving reasonable knowledge accounts for two main          the pre-retrieval phase.
+scenarios:                                                        Incorporating KG knowledge directly into an LLM’s
+1. Incomplete or Implicit Semantics in User Queries.           parametric memory has the potential to bypass certain
+User queries often contain implicit meanings that can          challenges encountered during the retrieval stage, such
+lead to incomplete understanding. For example, a query         as noise and misalignment when interacting with knowl-
+like “I have a fever and my throat is uncomfortable”           edge graphs. As you suggested, this approach could of-
+implicitly suggests potential causes such as "viral infec-     fer a promising alternative, especially in domains where
+tion" or "bacterial infection," which are not explicitly       the growth of high-quality KGs is relatively slow or
+mentioned. When performing retrieval-augmented gen-            static.
+eration (RAG) directly on such queries without leverag-           To explore this idea further, we propose leveraging
+ing hypothesis outputs, the retrieved entities and knowl-      our high-quality KG to fine-tune or train LLMs, en-
+edge may be insufficient to address the underlying med-        abling the models to internalize this structured medical
+ical context.                                                  knowledge. By doing so, we can potentially enhance
+   To overcome this challenge, we utilize the powerful         the model’s ability to generate contextually relevant and
+contextual understanding capabilities of large language        accurate outputs based on the internalized knowledge.
+models (LLMs) to generate hypothesis outputs that fill
+in the missing semantics. For instance, the model can
+explicitly identify the possibility of infections based on
+the symptoms provided. This strategy ensures that the
+retrieval process is both comprehensive and aligned with
+the intended meaning of the user’s query.
+2. Noisy User Queries with Redundant Medical En-
+tities. Consider a user query such as “I am Jack; after
+having breakfast this morning, I felt nausea, stomach
+pain, dizziness, and weakness, and then I decided to rest
+but later developed a headache.” This query contains
+multiple medical entities—“nausea,” “stomach pain,”
+“dizziness,” “weakness,” and “headache”—which, while
+all related to medical conditions, may include irrelevant
+or redundant information that distracts from the main
+concern: the "stomach pain" following breakfast.
+   Directly retrieving knowledge from the knowledge
+graph (KG) based on such a query would likely in-
+clude unnecessary entities like “headache” or “weak-
+ness,” leading to an overabundance of noisy or irrelevant
+knowledge. To address this, we again leverage hypoth-
+esis outputs from LLMs to refine the query, focusing
+on the most critical medical entities that directly relate
+to the task. In this example, entities such as "break-
+fast" and "stomach pain" would be emphasized, while
+irrelevant or less pertinent entities would be filtered out.
+This refinement enhances the precision of the KG re-
+trieval process, ensuring that the retrieved knowledge is
+relevant and useful.
+   By applying these strategies, we ensure that our ap-
+proach is robust to varying query quality and capable
+of retrieving meaningful knowledge while minimizing
+redundancy and noise in the results.
+                                                          11856
+

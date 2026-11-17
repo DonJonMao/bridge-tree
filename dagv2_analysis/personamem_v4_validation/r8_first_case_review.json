@@ -1,0 +1,717 @@
+{
+  "run": "v4_validation_r8",
+  "commit": "ada3261a6a725711ee52c3e291a2817a8f403c9e",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only structural review; no labels, predictions, source text, credentials or model calls.",
+  "answer_status": "unresolved_or_exhausted",
+  "budget_used": {
+    "llm": 12,
+    "http_attempts": 15,
+    "ann": 3,
+    "embedding_http": 3,
+    "json_repairs": 6
+  },
+  "plan_nodes": [
+    {
+      "id": "attended_events",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "music_preferences",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "cultural_interests",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "history_summary",
+      "execution": "compose",
+      "inputs": [
+        "attended_events",
+        "music_preferences",
+        "cultural_interests"
+      ]
+    },
+    {
+      "id": "response",
+      "execution": "compose",
+      "inputs": [
+        "history_summary"
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "id": "attended_events",
+      "type": "text",
+      "demand": "attended_events",
+      "evidence_semantics": null
+    },
+    {
+      "id": "music_preferences",
+      "type": "text",
+      "demand": "music_preferences",
+      "evidence_semantics": null
+    },
+    {
+      "id": "cultural_interests",
+      "type": "text",
+      "demand": "cultural_interests",
+      "evidence_semantics": null
+    },
+    {
+      "id": "history_summary",
+      "type": "text",
+      "demand": "history_summary",
+      "evidence_semantics": "personal_history_summary"
+    },
+    {
+      "id": "response",
+      "type": "text",
+      "demand": "response",
+      "evidence_semantics": null
+    }
+  ],
+  "requests": [
+    {
+      "stage": [
+        "joint_read",
+        "2"
+      ],
+      "request_sha256": "4fa61112c729d1d6b90678b3f2ae2a1bc82ef48a6bbe5141d8ed3281abaaa3c6",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "obs_attended_events_1",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "3"
+      ],
+      "request_sha256": "9d94c209033c88a8b0f1a55bb6218edef63ce1146a2eb5bd40a7bd4787dd645c",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "4"
+      ],
+      "request_sha256": "b22380cd7681e69a1d8ca8d221b9fb908879cb28b9eb37ab8e4f6da5626dc6d6",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "5"
+      ],
+      "request_sha256": "8edb77050344b6ce0430a903c811e0d6fc87813aaca50037610b3d5e464a3e17",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 1,
+      "evidence_obligations": 1,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 1,
+          "resolved_obligations": 1,
+          "resolved_failed_batches": 1,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "6"
+      ],
+      "request_sha256": "9efe73e93430fe71b4059dac379f720d7026d85bac15d678ece70a3cd5b5fd1d",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 1,
+      "evidence_obligations": 2,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 2,
+          "resolved_failed_batches": 1,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "7"
+      ],
+      "request_sha256": "bb116ca78edcf55409c8b4e9c2590048f1dcc88aa9587e93917fd6a1502bfa8b",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 1,
+      "evidence_obligations": 2,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "8"
+      ],
+      "request_sha256": "80c0e9c458eb3db25b26c9468c46b9f6edacd7eb674327e9df123fabf272001e",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "attended_events"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 1,
+      "evidence_obligations": 2,
+      "slots": [
+        {
+          "variable": "attended_events",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "fact_b855080757cb2e1700b1978e",
+              "stance": "support",
+              "value_sha256": "a5a8c27d13a57dfb59baaceb83035e177fe826bff7ff30df67573e8f62e23546",
+              "value_characters": 153,
+              "source_count": 3,
+              "source_alias_set_sha256": "f9fd672bb9b0b8e6ad7a20a330a0aa38f3199b2f663b5824c864cff3b749c19d",
+              "explicit_summary_revision": false
+            },
+            {
+              "id": "obs_attended_events_001",
+              "stance": "support",
+              "value_sha256": "489de6066511827326a3a817372feda2a4569d091131e40ce97467adeea9d2bd",
+              "value_characters": 73,
+              "source_count": 4,
+              "source_alias_set_sha256": "056eaeb0eb0b18c9cce95f062aa33568104c5313970f92ee29ee38752d557e10",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "9"
+      ],
+      "request_sha256": "0feb0c2532f8c3ffc08ef6f6829f3a13466fc16db33b840456717bb65b29a496",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_preferences"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "music_preferences",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "obs_music_pref_1",
+              "stance": "support",
+              "value_sha256": "a7c47116d9c2237b0cebe63f6826f0128834b7a13453cf909b950f7ec7423dfb",
+              "value_characters": 296,
+              "source_count": 8,
+              "source_alias_set_sha256": "83de1a3debfe1835cd699ae9dc1ca70d17814fb609758b857c995351f1ff9b7a",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "10"
+      ],
+      "request_sha256": "848dd3f88acf4922b83f1bef0337d88824a5313df65e4034e96f741422d15b8b",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_preferences"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "music_preferences",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "obs_music_pref_1",
+              "stance": "support",
+              "value_sha256": "a7c47116d9c2237b0cebe63f6826f0128834b7a13453cf909b950f7ec7423dfb",
+              "value_characters": 296,
+              "source_count": 8,
+              "source_alias_set_sha256": "83de1a3debfe1835cd699ae9dc1ca70d17814fb609758b857c995351f1ff9b7a",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "11"
+      ],
+      "request_sha256": "c6c4cd39c6c67ca0ed797bd2c080c1e46b37e6b8165934b257f40010e1a0175c",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_preferences"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 1,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "music_preferences",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 1,
+          "observations": [
+            {
+              "id": "obs_music_pref_1",
+              "stance": "support",
+              "value_sha256": "a7c47116d9c2237b0cebe63f6826f0128834b7a13453cf909b950f7ec7423dfb",
+              "value_characters": 296,
+              "source_count": 8,
+              "source_alias_set_sha256": "83de1a3debfe1835cd699ae9dc1ca70d17814fb609758b857c995351f1ff9b7a",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "12"
+      ],
+      "request_sha256": "b55938b9c9a5d99a7a8be7a5a1151c15248b957912839e8c870a48421e53a0f4",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "cultural_interests"
+      ],
+      "summary_revision_contracts_present": false,
+      "failed_batch_reviews": 0,
+      "evidence_obligations": 0,
+      "slots": [
+        {
+          "variable": "cultural_interests",
+          "unresolved_count": 0,
+          "resolved_obligations": 0,
+          "resolved_failed_batches": 0,
+          "observations": [
+            {
+              "id": "obs1",
+              "stance": "support",
+              "value_sha256": "8422344ac6e3c7b2840212e354765ab49026c7421a95480ab139e70ae85cedae",
+              "value_characters": 649,
+              "source_count": 42,
+              "source_alias_set_sha256": "3d9127057a52d40d3cb8583465f5a44715af43436cd8416a02d94c9eb5362f2d",
+              "explicit_summary_revision": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reading_outcomes": [
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "attended_events",
+          "id": "*",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "fact_b855080757cb2e1700b1978e",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "obs_attended_events_001",
+          "error_code": "whole_value_disagreement"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "attended_events",
+          "id": "*",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "fact_b855080757cb2e1700b1978e",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "obs_attended_events_001",
+          "error_code": "whole_value_disagreement"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "attended_events",
+          "id": "*",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "fact_b855080757cb2e1700b1978e",
+          "error_code": "whole_value_disagreement"
+        },
+        {
+          "variable": "attended_events",
+          "id": "obs_attended_events_001",
+          "error_code": "whole_value_disagreement"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "music_preferences",
+          "id": "obs_music_pref_1",
+          "error_code": "citation_capacity",
+          "mandatory_operation": "joint_read",
+          "mandatory_node": "history_summary"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "music_preferences",
+          "id": "obs_music_pref_1",
+          "error_code": "citation_capacity",
+          "mandatory_operation": "joint_read",
+          "mandatory_node": "history_summary"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "cultural_interests",
+          "id": "obs1",
+          "error_code": "citation_capacity",
+          "mandatory_operation": "joint_read",
+          "mandatory_node": "history_summary"
+        }
+      ]
+    }
+  ],
+  "terminal_request_seen": false,
+  "findings": [
+    "Planner marked only the downstream history_summary as personal_history_summary; the three retrieval text variables were ordinary whole values.",
+    "attended_events repeatedly returned the same two distinct compatible support values rather than one complete value, creating whole_value_disagreement. No summary revision contract was offered for this variable.",
+    "The history_summary handoff includes attended_events unresolved failed-record and obligation originals: its valid proof has 3 sources but unresolved closure has 65. This exactly explains source-count inflation from 11 to 72 for music and 42 to 92 for culture. Actual admission totals are 18780 and 20966 against 16384. No counterfactual tokenization was performed, so fitting after resolving obligations is not established.",
+    "The unchanged-summary revision and provenance fix was not exercised by this first unit."
+  ],
+  "attended_parent_closure": {
+    "accepted_sources": 3,
+    "failed_record_sources": 65,
+    "obligation_sources": 65,
+    "full_union": 65,
+    "accepted_and_obligations_subset_of_failed": true
+  },
+  "capacity_evidence": [
+    {
+      "event_sequence": 195,
+      "variable": "music_preferences",
+      "draft_id": "obs_music_pref_1",
+      "mandatory_node": "history_summary",
+      "mandatory_operation": "joint_read",
+      "recorded_source_spans": 72,
+      "draft_source_count": 8,
+      "draft_plus_accepted_parent_sources": 11,
+      "draft_plus_unresolved_parent_closure": 72,
+      "extra_sources_from_unresolved_parent": 61,
+      "source_union_matches_capacity_event": true,
+      "actual_input_tokens": 14236,
+      "actual_repair_input_tokens": 14420,
+      "output_reserve": 4096,
+      "input_margin": 256,
+      "fixed_extra_tokens": 8,
+      "actual_admission_total": 18780,
+      "context_tokens": 16384,
+      "counterfactual_without_obligations_tokenized": false,
+      "tokenization_wire_sha256s": [
+        "f45eb0b84de3c98783df07fa8351dae89ebcdd4c43f99de6cd034f8186b7a45b",
+        "10cf1d1eb304ff6fabcaca30db3faf8d0e0ac9cfac16408f4176bb85ebfb46b8"
+      ]
+    },
+    {
+      "event_sequence": 209,
+      "variable": "music_preferences",
+      "draft_id": "obs_music_pref_1",
+      "mandatory_node": "history_summary",
+      "mandatory_operation": "joint_read",
+      "recorded_source_spans": 72,
+      "draft_source_count": 8,
+      "draft_plus_accepted_parent_sources": 11,
+      "draft_plus_unresolved_parent_closure": 72,
+      "extra_sources_from_unresolved_parent": 61,
+      "source_union_matches_capacity_event": true,
+      "actual_input_tokens": 14236,
+      "actual_repair_input_tokens": 14420,
+      "output_reserve": 4096,
+      "input_margin": 256,
+      "fixed_extra_tokens": 8,
+      "actual_admission_total": 18780,
+      "context_tokens": 16384,
+      "counterfactual_without_obligations_tokenized": false,
+      "tokenization_wire_sha256s": [
+        "f45eb0b84de3c98783df07fa8351dae89ebcdd4c43f99de6cd034f8186b7a45b",
+        "10cf1d1eb304ff6fabcaca30db3faf8d0e0ac9cfac16408f4176bb85ebfb46b8"
+      ]
+    },
+    {
+      "event_sequence": 226,
+      "variable": "music_preferences",
+      "draft_id": "obs_music_pref_1",
+      "mandatory_node": "history_summary",
+      "mandatory_operation": "joint_read",
+      "recorded_source_spans": 72,
+      "draft_source_count": 8,
+      "draft_plus_accepted_parent_sources": 11,
+      "draft_plus_unresolved_parent_closure": 72,
+      "extra_sources_from_unresolved_parent": 61,
+      "source_union_matches_capacity_event": true,
+      "actual_input_tokens": 14236,
+      "actual_repair_input_tokens": 14420,
+      "output_reserve": 4096,
+      "input_margin": 256,
+      "fixed_extra_tokens": 8,
+      "actual_admission_total": 18780,
+      "context_tokens": 16384,
+      "counterfactual_without_obligations_tokenized": false,
+      "tokenization_wire_sha256s": [
+        "f45eb0b84de3c98783df07fa8351dae89ebcdd4c43f99de6cd034f8186b7a45b",
+        "10cf1d1eb304ff6fabcaca30db3faf8d0e0ac9cfac16408f4176bb85ebfb46b8"
+      ]
+    },
+    {
+      "event_sequence": 248,
+      "variable": "cultural_interests",
+      "draft_id": "obs1",
+      "mandatory_node": "history_summary",
+      "mandatory_operation": "joint_read",
+      "recorded_source_spans": 92,
+      "draft_source_count": 42,
+      "draft_plus_accepted_parent_sources": 42,
+      "draft_plus_unresolved_parent_closure": 92,
+      "extra_sources_from_unresolved_parent": 50,
+      "source_union_matches_capacity_event": true,
+      "actual_input_tokens": 16422,
+      "actual_repair_input_tokens": 16606,
+      "output_reserve": 4096,
+      "input_margin": 256,
+      "fixed_extra_tokens": 8,
+      "actual_admission_total": 20966,
+      "context_tokens": 16384,
+      "counterfactual_without_obligations_tokenized": false,
+      "tokenization_wire_sha256s": [
+        "d8152b2c4e71193d279b65047a5d9a950db3bffd4f16fd3d08510d025a1eb5c1",
+        "0668e32c5deb8780231735c33389d8792ba881d0cbd48615a23360cfbc85e002"
+      ]
+    }
+  ],
+  "planner_contract_assessment": "Require an explicit personal_history_summary or personal_atomic_fact choice for PersonaMem unrestricted nonterminal text without deterministic binding. Missing metadata must trigger planner correction; never silently mark a summary. Atomic remains ordinary whole-value semantics and cannot revise. This prevents missing declarations but cannot guarantee semantic classification or fit."
+}

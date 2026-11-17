@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017.\n\n[Passage {\"doc_id\": \"hotpotqa:8202\", \"source_id\": \"hotpotqa:8202\"}]\nDaniel Franzese\nDaniel Franzese (born May 9, 1978) is an American actor, writer, director, comedian and activist best known for his roles in director Larry Clark’s \"Bully\" and as Damien in Tina Fey's 2004 feature film \"Mean Girls\". Franzese is the creator of several live comedy shows including the 2011 rock opera \"Jersey Shoresical: A Frickin' Rock Opera!\" and his one man stand-up performance \"I’ve Never Really Made the Kind of Money to Become a Mess\" in 2013."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "307",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599355.033476,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599355.905144
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00137303803527751
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 816,
+      "completion_tokens": 2,
+      "total_tokens": 818
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

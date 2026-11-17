@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:474\", \"source_id\": \"hotpotqa:474\"}]\nThe Year Of Spectacular Men\nThe Year Of Spectacular Men is an upcoming drama-comedy film which is directorial debut of actress Lea Thompson and stars her daughters, Madelyn Deutch (who also wrote the screenplay) and Zoey Deutch. The film had its world premiere in June 2017, under the \"LA Muse\" section in Los Angeles Film Festival 2017."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "316",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599362.9852211,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599363.7920609
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0013471735885827228
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 584,
+      "completion_tokens": 2,
+      "total_tokens": 586
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

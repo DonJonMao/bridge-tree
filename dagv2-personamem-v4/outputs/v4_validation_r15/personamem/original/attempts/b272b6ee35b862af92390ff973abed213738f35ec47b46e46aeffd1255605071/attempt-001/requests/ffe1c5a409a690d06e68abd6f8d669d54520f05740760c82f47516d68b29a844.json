@@ -1,0 +1,78 @@
+{
+  "unit_id": "6142fba4-a233-405a-a4fe-a5b2e27374a7",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "User: I found that my reviews were often criticized for not being objective, which made me less engaged in the process. It felt like I was constantly under the microscope, where every word I wrote was scrutinized by people who often missed the nuance of my opinion. This external pressure led me to second-guess not only my thoughts but also my emotional connection to the music I was discussing. In the end, I realized that the joy I once found in sharing my perspective on albums was overshadowed by the fear of backlash, and that’s a heavy burden for anyone. It became clearer to me that my passion for music needed to be expressed in a more personal, less public way, which is something I’m finally starting to embrace."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 2048
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": "planner",
+  "attempts": [
+    {
+      "started_unix": 1791909218.614848,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791909227.903428
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-b5861b6722c4989e",
+    "object": "chat.completion",
+    "created": 1791909218,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What is the name of the person who wrote this text?\",\n      \"output_slot\": \"author\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What is the name of the music-related activity that {author} was engaged in?\",\n      \"output_slot\": \"activity\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"author\"]\n    },\n    {\n      \"question\": \"What is the name of the entity that {author} was writing about?\",\n      \"output_slot\": \"entity\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"author\"]\n    },\n    {\n      \"question\": \"What is the name of the feeling that {author} experienced due to external pressure?\",\n      \"output_slot\": \"feeling\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"author\"]\n    },\n    {\n      \"question\": \"What is the name of the action that {author} took as a result of the feeling?\",\n      \"output_slot\": \"action\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"author\", \"feeling\"]\n    },\n    {\n      \"question\": \"What is the name of the new approach that {author} is embracing for expressing passion?\",\n      \"output_slot\": \"new_approach\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"author\", \"action\"]\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 416,
+      "total_tokens": 736,
+      "completion_tokens": 320,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 416,
+    "observed_prompt_tokens": 416,
+    "tokenization_request_sha256": "9c0c6ab12dcdb627bc9890db02f8d6e35073fa0c83f598a765ab3ee83358af7c"
+  }
+}

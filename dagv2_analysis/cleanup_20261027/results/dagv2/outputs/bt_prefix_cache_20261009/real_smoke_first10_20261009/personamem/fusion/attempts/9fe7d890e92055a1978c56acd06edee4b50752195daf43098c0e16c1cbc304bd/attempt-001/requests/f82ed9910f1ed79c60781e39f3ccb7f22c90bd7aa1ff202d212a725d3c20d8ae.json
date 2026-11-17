@@ -1,0 +1,46 @@
+{
+  "unit_id": "4afc48ca-e6a7-4467-abd2-911915199315",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\nThis task is a personalized reply. Plan retrieval of relevant personal history, not a questionnaire for missing external facts. Keep independent history needs independent; do not block them on guessed names.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"I found that my reviews were often criticized for not being objective, which made me less engaged in the process. It felt like I was constantly under the microscope, where every word I wrote was scrutinized by people who often missed the nuance of my opinion. This external pressure led me to second-guess not only my thoughts but also my emotional connection to the music I was discussing. In the end, I realized that the joy I once found in sharing my perspective on albums was overshadowed by the fear of backlash, and that’s a heavy burden for anyone. It became clearer to me that my passion for music needed to be expressed in a more personal, less public way, which is something I’m finally starting to embrace.\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791547611.923427,
+      "retry_index": 1,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    },
+    {
+      "started_unix": 1791547618.9345422,
+      "retry_index": 2,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    },
+    {
+      "started_unix": 1791547627.948265,
+      "retry_index": 3,
+      "kind": "llm",
+      "error_type": "RemoteDisconnected",
+      "retryable": true
+    }
+  ]
+}

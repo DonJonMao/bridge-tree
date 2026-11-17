@@ -1,0 +1,1110 @@
+                FaithfulRAG: Fact-Level Conflict Modeling for Context-Faithful
+                              Retrieval-Augmented Generation
+                Qinggang Zhang1 * , Zhishang Xiang2 * , Yilin Xiao3 , Le Wang4 , Junhui Li5 ,
+                                       Xinrun Wang6 , Jinsong Su1,7†
+                                 1
+                                   School of Informatics, Xiamen University
+                          2
+                            Institute of Artificial Intelligence, Xiamen University
+        3
+          The Hong Kong Polytechnic University 4 Migu Meland Co., Ltd 5 Soochow University
+             6
+               Singapore Management University 7 Shanghai Artificial Intelligence Laboratory
+                       {zqg.zhang, xzs.xiang}@hotmail.com jssu@xmu.edu.cn
+
+                                 Abstract
+             Large language models (LLMs) augmented
+             with retrieval systems have demonstrated signif-
+             icant potential in handling knowledge-intensive
+             tasks. However, these models often struggle
+             with unfaithfulness issues, generating outputs
+             that either ignore the retrieved context or incon-
+             sistently blend it with the LLM’s parametric
+             knowledge. This issue is particularly severe
+             in cases of knowledge conflict, where the re-
+             trieved context conflicts with the model’s para-        Figure 1: The running example of knowledge conflict
+             metric knowledge. While existing faithful RAG           and the performance comparison of different LLMs in
+             approaches enforce strict context adherence             scenarios with and without knowledge conflicts.
+             through well-designed prompts or modified de-
+             coding strategies, our analysis reveals a critical      their limited ability to handle knowledge-intensive
+             limitation: they achieve faithfulness by forcibly       tasks (Huang et al., 2023; Chen et al., 2024), es-
+             suppressing the model’s parametric knowledge,           pecially when faced with questions requiring pro-
+             which undermines the model’s internal knowl-            fessional or private knowledge not covered in their
+             edge structure and increases the risk of misinter-      training corpus (Zhang et al., 2024). Retrieval-
+             preting the context. To this end, this paper pro-       augmented generation (RAG) (Zhang et al., 2025;
+             poses FaithfulRAG, a novel framework that re-
+                                                                     Gao et al., 2023; Cao et al., 2024; Liu et al., 2024b)
+             solves knowledge conflicts by explicitly model-
+             ing discrepancies between the model’s paramet-          offers a promising solution to customize LLMs for
+             ric knowledge and retrieved context. Specifi-           specific domains. Rather than retraining LLMs to
+             cally, FaithfulRAG identifies conflicting knowl-        incorporate new knowledge (Zhang et al., 2023)
+             edge at the fact level and designs a self-thinking      and updates (Wang et al., 2024), RAG enhances
+             process, allowing LLMs to reason about and              language models by leveraging external knowledge
+             integrate conflicting facts before generating re-       without modifying the model architecture or pa-
+             sponses. Extensive experiments demonstrate
+                                                                     rameters. This approach enables LLMs to generate
+             that our method outperforms state-of-the-art
+             methods. The code is available at https://              responses by leveraging not only their paramet-
+             github.com/DeepLearnXMU/Faithful-RAG.                   ric knowledge (i.e., the knowledge embedded in
+                                                                     its parameters from training) but also real-time re-
+    1        Introduction                                            trieved domain-specific information, thereby pro-
+                                                                     viding more accurate and reliable answers.
+    Large language models (LLMs), like GPT (Ope-                        Despite recent advances, empirical stud-
+    nAI, 2023), Claude (Anthropic, 2024) and                         ies (Ming et al., 2025; Yuan et al., 2024) have
+    DeepSeek series (Liu et al., 2024a), have sur-                   revealed that RAG systems struggle significantly
+    prised the world with superior performance in many               in knowledge conflict scenarios (Xu et al., 2024b)
+    real-world applications (Hong et al., 2024; Yuan                 where the retrieved context contradicts the paramet-
+    et al., 2025; Zhou et al., 2024, 2025). Despite                  ric knowledge that the model has learned during
+    their effectiveness, LLMs are always criticized for              pre-training. Such conflicts can lead to severe un-
+         * Equal contribution.                                       faithfulness issues (Wu et al., 2024), where the
+         †
+             Corresponding author.                                   model either generates a response that contradicts
+                                                                  21863
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 21863–21882
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+the context or fails to incorporate crucial details          • We identify the key limitation of existing
+from the retrieved contexts. The results in Fig-               context-faithful methods and propose Faith-
+ure 1 provide clear evidence of this issue that LLMs           fulRAG to improve the faithfulness of RAG
+struggle to maintain faithfulness and correctness              systems without sacrificing accuracy.
+when faced with conflicting information.
+   Recently, a few studies (Ying et al., 2024; Yuan          • FaithfulRAG adopts a novel self-fact mining
+et al., 2024) have been explored to improve the                module to externalize the LLM’s understand-
+faithfulness of RAG systems. These works can                   ing of the question, obtaining fine-grained
+be roughly categorized into two main directions:               knowledge at the fact level.
+(i) Prompting-based methods that explore various
+                                                             • FaithfulRAG identifies conflicting knowledge
+prompting strategies to guide RAG systems to gen-
+                                                               by aligning self-fact with contexts and designs
+erate contextually faithful responses. By providing
+                                                               a self-thinking module, allowing LLMs to rea-
+explicit instructions or few-shot examples, models
+                                                               son about and integrate conflicting facts be-
+can be directed to prioritize retrieved information
+                                                               fore generating responses.
+over parametric knowledge (Zhou et al., 2023; Ying
+et al., 2024). (ii) Decoding-based models achieve
+                                                             • Experiments show that FaithfulRAG outper-
+faithfulness by forcing LLMs to align closely with
+                                                               forms state-of-the-art models, achieving more
+the provided context during the decoding process
+                                                               accurate and faithful generation.
+by modifying the underlying generation mecha-
+nism through entropy-based constraints (Yuan et al.,
+2024) or contrastive decoding (Shi et al., 2023).        2    Problem Statement
+   However, we identified a critical limitation in ex-   Retrieval-augmented generation (RAG) systems
+isting faithful methods through a thorough analysis:     consist of two key stages (Lewis et al., 2020): (i)
+while they can achieve context faithfulness, they        Knowldge Retrieval, in which the model identi-
+often do so at the cost of increased risk of misin-      fies and extracts semantically relevant documents
+terpreting the context. As evidenced by our experi-      from external knowledge sources based on the user
+mental results in Figure 2, state-of-the-art context-    query, which serves as the contextual foundation
+faithful methods reduce unfaithful errors by 6.65%       for subsequent processing. (ii) Generation Stage:
+but simultaneously cause a 6.42% rise in incorrect       The retrieved context is synthesized with the user
+match errors on average. This occurs because exist-      query to construct an augmented prompt, which
+ing methods (Zhou et al., 2023; Ying et al., 2024)       LLMs process to generate a contextually grounded
+attempt to achieve faithfulness by forcibly suppress-    and factually consistent output.
+ing the model’s confidence in its parametric knowl-         In our work, we focus on the generation stage
+edge without properly understanding and analyzing        and guide LLM to generate more faithful responses
+the differences between contextual information and       by accurately interpreting the context with the
+the model’s inherent knowledge. Such suppres-            model’s parametric knowledge.
+sion compromises the model’s ability to critically
+evaluate and reconcile discrepancies, leading to de-                            T
+                                                                                Y
+graded comprehension, logical incoherence, and a               P (a | Q, C) =         P (at | a<t , Q, C; θ)   (1)
+higher likelihood of aligning with incorrect contex-                            t=1
+tual information.
+                                                         While Q represents the user query, C represents the
+   In this paper, we propose a novel RAG model           context, and a is the target answer. t denotes the
+(FaithfulRAG) that achieves context faithfulness         position of the currently generated token, T refers
+while maintaining accurate knowledge integration.        to the total number of tokens in the a, θ represents
+Our research aims to address two fundamental re-         the parameters of the generator model.
+search questions: (i) how to precisely locate con-
+flicting knowledge between the model’s parametric        3    Preliminary Study
+knowledge and the retrieved context, and (ii) how
+we could guide the language model to pay more at-        Before going into the technique details of Faith-
+tention to these critical segments during generation.    fulRAG, we first conduct a preliminary study to
+Our major contribution is listed as follows:             identify the primary limitation of existing methods.
+                                                    21864
+                                                          models that they improve faithfulness at the cost of
+                                                          increasing the risk of misinterpreting the context.
+                                                          Specifically, we have the following observations:
+                                                          Obs. 1. The vanilla RAG model (origin) exhibits
+                                                          a high proportion of Case 1 errors, with 13.6% on
+                                                          MuSiQue and 16.4% on SQuAD, while Case 2
+                                                          errors remain relatively low at 5.2% and 7.1%, re-
+                                                          spectively. This suggests that the model primarily
+                                                          suffers from LLMs’ inherent bias toward their para-
+                                                          metric knowledge. Such a tendency aligns with
+                                                          prior findings (Xie et al., 2024) that LLMs tend to
+                                                          prioritize pre-trained knowledge over contextual
+Figure 2: The cases of errors and their distribution on   evidence when faced with conflicting information.
+MuSiQue and SQuAD datasets. The detailed experi-          Obs. 2. The prompting-based faithful RAG model
+mental setup is introduced in Section A.4 of Appendix.    (prompting) reduces Case 1 errors significantly,
+Performance Degradation in Knowledge Con-                 from 13.6% to 9% in MuSiQue and from 16.4%
+flict Scenarios. RAG systems often struggle               to 9% in SQuAD. However, this comes at the cost
+with severe unfaithfulness issues, especially in          of a substantial increase in Case 2 errors, which
+knowledge conflict scenarios where retrieved con-         rise from 5.2% to 6.4% in MuSiQue and from 7.1%
+texts contradict the model’s parametric knowl-            to 14.1% in SQuAD, reflecting an overcorrection
+edge (Longpre et al., 2021; Zhou et al., 2023; Xu         where the model prioritizes context faithfulness
+et al., 2024b). As shown in Figure 1, our experi-         without adequately validating the relevance or ac-
+ments on two real-world datasets reveal that LLMs         curacy of the retrieved information.
+always illustrate a significant performance gap be-       Obs. 3. The decoding-based faithful RAG model
+tween scenarios with and without knowledge con-           (decoding) further decreases Case 1 errors, reduc-
+flicts. Specifically, we evaluate the performance         ing them to 7.3% in MuSiQue and 9% in SQuAD.
+of Llama3.1-8b-instruct, Qwen2.5-7b-instruct, and         Compared to prompting-based approaches, it is
+Mistral-7b-instruct on the MuSiQue and SQuAD              more effective at mitigating over-confidence issues.
+datasets (Ying et al., 2024). Without knowledge           However, this improvement comes with an even
+conflicts, Qwen2.5-7b-instruct achieves the highest       greater rise in Case 2 errors, which jump to 14.3%
+factual accuracy, followed by Llama3-8b-instruct,         in MuSiQue and 16.4% in SQuAD. This suggests
+while Mistral-7b-instruct has the lowest scores.          that the decoding-based model imposes stronger
+However, when knowledge conflict is introduced,           constraints on faithfulness but at the expense of a
+all models experience a significant drop in perfor-       heightened risk of misinterpreting context.
+mance, with drops ranging from 9.7% to 29.9%.
+                                                          Discussion. Existing faithful RAG models (Zhou
+Error Analysis. Through an in-depth analysis of           et al., 2023; Yuan et al., 2024) reduce over-
+the erroneous outputs in knowledge conflict scenar-       confidence errors but simultaneously cause a sig-
+ios, we found that the performance degradation is         nificant rise in incorrect match errors. This occurs
+attributed to two dominant failure modes:                 because existing methods attempt to achieve faith-
+Case 1: Over-confidence Error. The LLM insists            fulness by forcibly suppressing the model’s confi-
+on its inherent parametric knowledge while ignor-         dence in its parametric knowledge without properly
+ing the facts in the context, leading to unfaithful       understanding and analyzing the discrepancies be-
+responses (Ying et al., 2024; Xie et al., 2024).          tween context and the model’s inherent knowledge.
+Case 2: Incorrect-match Error. The LLM up-                Such suppression weakens the model’s ability to
+dates its parametric knowledge but incorrectly            critically evaluate interactions between paramet-
+learns from the misleading context.                       ric knowledge and contextual evidence, leading
+To explore the underlying reasons, we evalu-              to either rigid adherence to outdated parametric
+ate state-of-the-art faithful RAG methods on the          knowledge or severe contextual overfitting, where
+MuSiQue and SQuAD benchmarks (Ying et al.,                the model passively adopts retrieved claims without
+2024) and present the error distribution in Figure 2.     critically evaluating their correctness.
+The results reveal a critical limitation of existing         Achieving true faithfulness requires identifying
+                                                     21865
+Figure 3: The overall pipeline of our FaithfulRAG framework. FaithfulRAG first designs a self-fact mining module
+to externalize the LLM’s understanding of the question, obtaining fine-grained knowledge at the fact level. Then it
+identifies conflicting knowledge by aligning self-fact with the retrieved contexts and adopts a self-thinking module,
+allowing LLMs to reason about and integrate conflicting facts before generating responses.
+
+specific conflicting facts rather than broadly sup-            Specifically, for a given question Q, our objec-
+pressing knowledge. By prioritizing why conflicts           tive is to extract the essential factual and concep-
+occur and how to resolve them at the fine-grained           tual information required to answer Q while fil-
+fact level, FaithfulRAG advances beyond brute-              tering out unnecessary details. We achieve this
+force suppression, enabling LLMs to act as crit-            through the following three sequential stages: Self-
+ical, context-aware reasoners rather than passive           Knowledge Extraction, Self-Context Generation
+knowledge retrievers, ensuring outputs are both             and Self-Fact Extraction.
+contextually aligned and logically consistent.
+                                                            Self-Knowledge Extraction. It surfaces the
+4   Methodology                                             LLM’s implicit logical structure by identifying re-
+                                                            quired knowledge domains and their interdepen-
+In this section, we introduce our FaithfulRAG in            dencies. Specifically, we prompt the LLM to iden-
+detail. As shown in Figure 3, FaithfulRAG consists          tify the conceptual and factual prerequisites for
+of three main components: (i) Self-Fact Mining,             answering Q, yielding a set of abstract, high-level
+which is used to extract self-facts (query-related          knowledge:
+knowledge) by externalizing the LLM’s parametric
+knowledge. (ii) Contextual Knowledge Align-                             Kself (Q) = {k1 , k2 , . . . , kn },     (2)
+ment, that leverages self-facts to identify the most
+relevant information from the provided context.             where Kself (Q) represents the extracted self-
+and (iii) Self-Think, enables the model to handle           knowledge and where ki represents abstract claims.
+discrepancies between the context and its paramet-          Self-Context Generation. Then, we translate ab-
+ric knowledge at the fact level.                            stract conceptual mappings into concrete narratives,
+                                                            ensuring alignment between high-level reasoning
+4.1 Self-Fact Mining
+                                                            and specific factual claims. Specifically, the model
+To identify conflicts between a model’s stored              synthesizes the abstract claims into a coherent nar-
+knowledge and the contextual information it re-             rative that contextualizes the target question. In
+ceives, we need a clear representation of the LLM’s         contrast to previous works (Tan et al., 2024; Yu
+internal understanding of the problem at hand. This         et al., 2023), which often generate context without
+involves not only capturing the factual content the         any grounding, we explicitly condition the con-
+model possesses but also revealing the logical struc-       text generation on {k1 , k2 , . . . , kn }. This allows
+ture it uses to organize these facts. Our approach          for more coherent and logically consistent con-
+addresses both aspects by employing a hierarchical,         text, while ensuring relevance. Formally, the self-
+three-stage process that externalizes the model’s           context is generated via a generator G1 as follows:
+internal knowledge into distinct logical and fine-
+grained factual representations.                                        Cself (Q) = G1 (Q, Kself (Q)).           (3)
+                                                       21866
+Self-Fact Extraction. The self-context is dis-             comparing and merging relevant information from
+tilled into concrete factual assertions using the          both contexts. Let the answer be generated as:
+LLM as a fact extractor:                                                                          
+                                                                   Answer = RSTR Caligned , Corig .       (7)
+         Fself (Cself ) = {f1 , f2 , . . . , fm }.   (4)
+                                                              Specifically, this process can be divided into two
+                                                           parts: thinking and reasoning. In the thinking stage,
+These self-facts serve as anchors for aligning with
+                                                           LLM first produces an initial answer from Caligned .
+context while preserving logical constraints. By
+                                                           It subsequently evaluates the reliability of this an-
+decoupling what the model knows from how it
+                                                           swer and ascertains whether Caligned provides suf-
+organizes knowledge, the framework supports dif-
+                                                           ficient information. If the answer is found to be
+ferentiated error diagnosis and targeted corrections.
+                                                           unreliable or incomplete, the model selectively in-
+4.2 Contextual Knowledge Alignment                         corporates relevant elements from Corig to enrich
+                                                           the aligned context, thereby creating a fused con-
+To resolve knowledge conflicts while preserving
+                                                           text, Cfused . This operation is defined as:
+logical coherence, in this section, FaithfulRAG
+aligns the model’s externalized self-facts with the
+                                                                       Cfused = G2 (Caligned , Corig ),     (8)
+retrieved context through a structured, interpretable
+process. The alignment is structured as follows:           where G2 represents the context fusion function. In
+Context Chunking: The original context Corig               the reasoning module, the final answer is regener-
+is divided into a set of chunks Corigi , where i =         ated from Cfused through a step-by-step reasoning
+1, 2, . . . , m. Smaller chunks allow granular com-        procedure, ensuring that the answer is both coher-
+parison with self-facts, reducing noise from irrele-       ent and adequately supported by the evidence.
+vant text spans. Formally:                                    To make it more clear, the prompt templates
+                                                           applied in FaithfulRAG for self-knowledge extrac-
+                             m
+                             [
+                                    i                      tion, self-context generation, self-fact extraction,
+                  Corig =          Corig .           (5)   and self-think are shown in Figure 6 of Appendix.
+                             i=1
+                                                           5     Experiment
+Similarity Matching: We first embed self-facts fi
+extracted from the LLM’s parametric knowledge              In this section, we conduct comprehensive experi-
+and the chunks Cj divided from the context into            ments to verify the effectiveness of FaithfulRAG.
+a shared semantic space, and then measure their            Specifically, we aim to answer the following ques-
+semantic distance by using cosine similarity:              tions. Q1 (Effectiveness): How does FaithfulRAG
+                                                           perform compared with SOTA competitors? Q2
+            Sim(fi , cj ) = cos(fi , cj ).           (6)   (Error analysis): How effective is FaithfulRAG in
+                                                           alleviating different types of errors? Q3 (Ablation
+Then, we select the chunks Caligned based on simi-         study:) How does each component of FaithfulRAG
+larity scores, where Caligned represents the chunks        contribute to the performance? Q4 (Case study):
+that are highly semantically aligned with self-facts       How does it works in real-world scenarios? (Note
+that extracted from LLM’s parametric knowledge.            that Q4 is studied in Appendix B.1, while the first
+                                                           three questions are explored in the main content.)
+4.3 Self-Think
+To resolve knowledge conflicts while ensuring              5.1    Experiment Settings
+contextual faithfulness, FaithfulRAG employs a             Datasets: We evaluate FaithfulRAG on four bench-
+Self-Think module that dynamically synthesizes in-         mark datasets. MuSiQue (Trivedi et al., 2022)
+sights from two sources: (i) the self-aligned context      and SQuAD (Rajpurkar et al., 2016) are from
+Caligned (context segments conflicting or aligning         KRE (Ying et al., 2024) which introduce fact-level
+with parametric knowledge) and (ii) the original           knowledge conflicts, where only contradictory fac-
+context Corig . This iterative workflow ensures the        tual statements appear in the context. In contrast,
+model critically evaluates discrepancies, mitigates        FaithEval (Ming et al., 2025) introduces logical-
+overconfidence, and integrates evidence transpar-          level conflicts, where inconsistencies arise not from
+ently. We formalize this procedure as a cognitive          direct factual contradictions but from reasoning
+function RSTR , which synthesizes key insights by          chains that lead to conflicting conclusions. We also
+                                                      21867
+Table 1: The comparison of performance between our model and SOTA baselines on four datasets. The best result
+for each dataset is highlighted in bold, while the best result for each backbone model is indicated with an underline.
+
+                                                                                      Dataset
+                     Model                   Backbone LLM
+                                                                   FaithEval   RealtimeQA    MuSiQue      SQuAD
+                                                Group 1: Default Methods
+                                           llama3.1-8b-instruct       7.6         28.3          11.2       11.2
+          Origin model without context     qwen2.5-7b-instruct        4.2         40.7          19.6       11.1
+                                            mistral-7b-instruct       6.3         29.2          13.8       11.5
+                                           llama3.1-8b-instruct      63.3         67.3          67.8       69.5
+         Origin model with full context    qwen2.5-7b-instruct       53.1         78.7          75.2       68.3
+                                            mistral-7b-instruct      61.9         52.2          67.6       67.2
+                                             Group 2: Specific RAG Models
+          Self-RAG (Asai et al., 2023)          Llama2-7B            37.4         55.8          54.1       62.0
+         ChatQA-1.5 (Liu et al., 2024d)        Llama3.1-8B           56.2         56.7          75.0       77.0
+         ChatQA-2.0 (Xu et al., 2024a)         Llama3.1-8B           65.2         57.5          77.2       75.4
+                                           Group 3: Context-faithful Prompting
+                                           llama3.1-8b-instruct      68.1         75.2          70.3       73.4
+         Opin(Instr) (Zhou et al., 2023)   qwen2.5-7b-instruct       56.7         81.4          76.9       70.5
+                                            mistral-7b-instruct      62.5         51.3          68.1       69.3
+                                           llama3.1-8b-instruct      63.8         76.9          62.8       69.5
+            ATTR (Zhou et al., 2023)       qwen2.5-7b-instruct       58.1         83.0          78.7       72.9
+                                            mistral-7b-instruct      63.6         52.2          66.1       70.2
+                                           llama3.1-8b-instruct      51.6        48.6∗          35.9∗      66.1
+            KRE (Ying et al., 2024)        qwen2.5-7b-instruct       59.6        86.7           70.7       73.7
+                                            mistral-7b-instruct      73.2        76.9           50.6∗      74.6
+                                           Group 4: Context-faithful Decoding
+                                           llama3.1-8b-instruct      66.2         61.9          72.6       71.2
+             CAD (Shi et al., 2023)        qwen2.5-7b-instruct       60.5         77.0          78.6       73.4
+                                            mistral-7b-instruct      60.2         55.8          63.6       66.9
+                                           llama3.1-8b-instruct      67.7         62.8          70.5       71.8
+          COIECD (Yuan et al., 2024)       qwen2.5-7b-instruct       62.3         78.8          69.7       70.8
+                                            mistral-7b-instruct      62.8         58.4          66.8       65.4
+                                           llama3.1-8b-instruct     79.8          81.4           79.9      86.3
+              FaithfulRAG (Ours)           qwen2.5-7b-instruct      71.8          84.1           78.0      78.3
+                                            mistral-7b-instruct     81.7          77.0           78.5      85.7
+                  ∗
+                    There is a sharp decline in performance as the model refuses to generate responses.
+
+
+include RealtimeQA (Kasai et al., 2024) dataset to                tion C.2 of the Appendix. Additionally, we did not
+test the model performance in extreme cases where                 include SFR-RAG (Nguyen et al., 2024) as a base-
+some contexts are irrelevant to the question. More                line since its parameters have not been released.
+details of datasets can be found in Appendix C.1.
+
+Baselines: We carefully select baselines from four                Evaluation Metrics and Implementation Details:
+categories for a comprehensive evaluation. De-                    Following previous studies, we evaluate all models
+fault Methods: origin model without context, ori-                 using accuracy (ACC), where a model’s response
+gin model with full context; RAG models: Self-                    is considered correct only if it contains the ground
+RAG (Asai et al., 2023), ChatQA-1.5 (Liu et al.,                  truth answer. For the MuSiQue and SQuAD, we
+2024d), ChatQA-2.0 (Xu et al., 2024a); Context-                   add MR (Memorization Ratio) (Longpre et al.,
+faithful Prompting: Opin (Zhou et al., 2023),                     2021) to measure context faithfulness. To ensure
+KRE (Ying et al., 2024); and Context-faithful De-                 reproducibility, all models were evaluated using
+coding: CAD (Shi et al., 2023), COIECD (Yuan                      deterministic decoding (temperature = 0). Further
+et al., 2024). More details are described in Sec-                 metrics and details are in the Appendix C.3.
+                                                          21868
+Table 2: The experimental results for non-knowledge-conflict scenarios on LLaMA 3.1-8B-Instruct. The numbers in
+parentheses (e.g., -3.5) indicates the accuracy change compared to the full method and the best result is underlined
+
+                                                                 Methods
+                                  Context-faithful Prompting         Context-faithful Decoding
+    Dataset       Origin                                                                           FaithfulRAG (Ours)
+                             Opin (Instr)     ATTR         KRE          CAD          COIECD
+ MuSiQue-golden     84         83(-1)       80.4(-3.6)     38.3∗     81.9(-3.1)      83.3(-0.7)         85.3 (+1.3)
+ SQuAD-golden      95.2       96(+0.8)       94.2(-1) 81.4(-13.8) 91.1(-4.1)         95.1(-0.1)         96.6 (+1.4)
+                ∗
+                  There is a sharp decline in performance as the model refuses to generate responses.
+
+5.2 Main Results (Q1)                                        5.3   Error Analysis (Q2)
+                                                             As discussed in Section 3, current faithful methods
+To address Q1, we evaluate FaithfulRAG by com-               enhance faithfulness at the expense of an increased
+paring it to state-of-the-art baselines on four bench-       risk of context misinterpretation. In this section, we
+mark datasets, with main results shown in Tables 1           systematically analyze how effective FaithfulRAG
+and 2, while MR results in the Appendix B.3. We              is in alleviating different types of errors. As shown
+summarize the observations as follows.                       in Figure 5, we have the following observations.
+                                                             Obs. 4. Existing faithful models achieve desir-
+Obs. 1. FaithfulRAG consistently outperforms                 able performance in alleviating Case 1 errors but at
+baseline models on four benchmark datasets. On               the cost of amplifying Case 2 errors. Specifically,
+FaithEval, FaithfulRAG with the Mistral-7B back-             COIECD achieved the best performance for Case
+bone achieves the highest score (81.7%), surpass-            1 optimization, reducing Case 1 errors by an aver-
+ing the strongest baseline (73.2% from KRE)                  age of 8.6%. However, this improvement came at
+by 8.5%. Similarly, on SQuAD, FaithfulRAG                    the cost of a sharp increase in Case 2 errors, with
+(Llama3.1-8B) scores 86.3%, exceeding the closest            the highest observed rise reaching 12.8%. While
+competitor (ChatQA-2.0 at 77.0%) by 9.3%. Be-                Opin( Instr) demonstrated a more balanced perfor-
+sides, FaithfulRAG dominates MuSiQue and Real-               mance, reducing Case 1 errors by an average of
+timeQA with scores of 79.9% and 84.1%, demon-                6.0%, while Case 2 errors only increased by 2.8%.
+strating its robustness across diverse scenarios.            This trade-off stems from their inability to dynami-
+                                                             cally reconcile discrepancies between parametric
+Obs. 2. FaithfulRAG demonstrates consistent
+                                                             and contextual knowledge.
+and robust performance across diverse backbone
+                                                             Obs. 5. FaithfulRAG achieves balanced mitigation
+LLMs. When evaluated on Llama3.1-8B, Qwen2.5-
+                                                             of both Case 1 and Case 2 errors, reducing them
+7B, and Mistral-7B, FaithfulRAG achieves state-
+                                                             by 6.8% and 1.6%, respectively. This improvement
+of-the-art results while maintaining minimal per-
+                                                             stems from our well-designed framework, which
+formance variance, unlike methods such as KRE
+                                                             enables LLMs to dynamically reconcile parametric
+or CAD, which exhibit severe instability across
+                                                             knowledge with contextual evidence. By isolating
+different LLMs. This backbone-agnostic efficacy
+                                                             discrepancies at the fact level and applying a self-
+highlights its ability to harmonize parametric and
+                                                             think module, FaithfulRAG preserves high-quality
+contextual knowledge dynamically, regardless of
+                                                             parametric knowledge while systematically reject-
+model architecture and context complexity.
+                                                             ing contexts that introduce logical inconsistencies
+Obs. 3. FaithfulRAG achieves consistent perfor-              or semantic divergence.
+mance in both knowledge conflict and non-conflict
+                                                             5.4   Alation Study (Q3)
+scenarios. As shown in Table 2, FaithfulRAG also
+achieves the highest accuracy in non-conflict sce-           To evaluate the contributions of FaithfulRAG’s core
+narios compared to all competitors. On MuSiQue-              components, we systematically ablate three key
+golden, FaithfulRAG achieves 85.3%, outperform-              components: (i) Self-Fact Mining, (ii) Self-Think
+ing strongest competitors like ATTR (80.4%) and              module, and (iii) Chain-of-Thought (CoT), gener-
+CAD (81.9%). On SQuAD-golden, it scores 96.6%,               ating 7 variants as shown in Table 3. Each variant
+surpassing KRE (81.4%) and COIECD (95.1%).                   was tested under knowledge-conflict scenarios to
+This aligns with the requirement for faithful sys-           isolate its impact on performance. We have the
+tems to avoid performance degradation in non-                following findings.
+conflict scenario (Yuan et al., 2024).                       Obs. 6. The ablation of Self-Knowledge Extraction
+                                                       21869
+Figure 4: The error distribution on MuSiQue and SQuAD datasets with Llama3.1-8b-instruct as the backbone LLM.
+Table 3: Ablation study. Numbers in parentheses (e.g., -1.9) represent the change in accuracy relative to full model.
+                                                                          Dataset
+  Module/Aspect               Variant                                                                     Average
+                                                     Faitheval RealtimeQA MuSiQue SQuAD
+   Knowledge         w/o Self-Context Generation         77.2         77.9         79.9        85.1     80.0 (-1.90)
+  Externalization   w/o Self-Knowledge Extraction        77.9         80.6         79.3        85.2     80.8 (-1.10)
+                           w/o whole Module              50.3         67.2         63.7        57.8     59.8 (-22.2)
+    Self-Think                 w/o Think                 79.7         69.0         73.7        78.5     75.2 (-6.70)
+                            w/o Reasoning                79.6         73.5         72.2        78.7     76.0 (-5.90)
+                               Only CoT                  70.2         64.6         52.7        71.8     64.8 (-17.1)
+   CoT Influence
+                               w/o CoT                   82.1         79.6         78.7        78.9     79.8 (-2.10)
+    Full model                      -                    79.8         81.4         79.9        86.3        81.9
+
+
+and Self-Context Generation reveals that both mod-          ing, mitigating distrust. Notably, even without CoT,
+ules are critical for precise knowledge alignment.          FaithfulRAG’s accuracy decreases by only 2.1%,
+Removing Self-Knowledge Extraction degrades the             demonstrating its robustness. This highlights that
+model’s ability to analyze questions comprehen-             CoT must be tailored to handle knowledge conflicts,
+sively, leading to a 1.1% average accuracy drop,            and FaithfulRAG’s structured reasoning framework
+as the LLM fails to identify relevant parametric            achieves this adaptation.
+facts. Conversely, removing Self-Context Genera-               To summarize, the combined ablation results
+tion—which converts abstract self-knowledge into            reveal that FaithfulRAG’s components operate syn-
+actionable context—causes a larger 1.9% accuracy            ergistically. Self-Fact Mining provides the founda-
+decline, demonstrating that raw parametric claims           tion for precise fact alignment, while Self-Think
+lack utility without contextual grounding.                  enables dynamic conflict resolution. Without either,
+Obs. 7. Ablating the full Self-Think module re-             the model reverts to the limitations of suppression-
+sults in a 22.2% average accuracy drop, as simply           based methods (e.g., over-reliance on context or
+prepending self-aligned context to the original con-        parametric knowledge). This interdependence vali-
+text fails to resolve conflicts dynamically. Replac-        dates the framework’s design hypothesis: diagnos-
+ing Think stage with Special Annotation (explicitly         tic reconciliation of conflicts instead of suppression
+marking key facts) reduces accuracy by 6.7%, prov-          is key to balancing faithfulness and accuracy.
+ing that passive highlighting cannot replicate active
+reasoning. Similarly, substituting structured reason-       6    Related Work
+ing with naive Chain-of-Thought (CoT) decreases             Knowledge Conflict. When encountering an ex-
+accuracy by 5.9%, confirming that explicit guid-            ternal context with conflicting knowledge, an LLM
+ance (e.g., conflict anticipation steps) is essential.      tends to ignore such context (Bi et al., 2024a; Long-
+These results validate that Self-Think’s diagnostic         pre et al., 2021; Bi et al., 2024b; Jiang et al., 2025;
+workflow (not just attention mechanisms or generic          Fang et al., 2025). A study indicates that the greater
+reasoning) drives reliable conflict resolution.             the divergence between retrieved information and
+Obs. 8. While CoT enhances reasoning in some do-            the model’s prior knowledge, the more likely the
+mains, naive application under knowledge conflicts          model is to ignore the retrieved information. (Wu
+causes a 17.1% accuracy drop, as the LLM grows              et al., 2024). Another study (Xie et al., 2024) fur-
+distrustful of conflicting contexts. FaithfulRAG            ther points out that when provided with both sup-
+addresses this by integrating CoT with conflict an-         porting and opposing evidence against their para-
+ticipation: the LLM first identifies potential dis-         metric memory, LLMs exhibit strong confirmation
+crepancies in self-aligned contexts before reason-          bias, tending to adhere to their parametric knowl-
+                                                       21870
+edge. Additionally, the study (Ming et al., 2025)         terpreting the context. To address these challenges,
+proposes the FaithEval framework to assess the            we propose a novel faithful framework (Faithful-
+faithfulness of LLMs across different contextual          RAG) that explicitly identifies and resolves knowl-
+scenarios, revealing that even state-of-the-art mod-      edge conflicts at the fact level. FaithfulRAG first
+els still struggle with the counterfactual context.       concretizes the model’s parametric knowledge at
+Context-Faithful Method. Some methods en-                 the fact level and then identifies conflicting knowl-
+hance context faithfulness through fine-tuning.           edge by aligning self-fact with contexts. After that,
+KAFT (Li et al., 2023) fine-tune small parameter          FaithfulRAG designs a self-think module, allow-
+models like T5 using counterfactual contexts, SFR-        ing LLMs to reason about and integrate conflicting
+RAG (Nguyen et al., 2024)is a 9B models trained           facts before generation. Experiments show that
+with various RAG-domain datasets. However, such           FaithfulRAG outperforms the strongest competi-
+fine-tuning approaches require substantial computa-       tors, generating accurate and faithful responses.
+tional resources and are often difficult to transfer to
+other models. Among non-fine-tuning approaches,           Limitations
+one category focuses on carefully designed prompt         While FaithfulRAG advances error mitigation in
+templates. For example, One method reconstruct            text-based retrieval-augmented generation, its cur-
+the context as the narrator’s statement and then          rent scope is limited to textual inputs and does not
+inquire about the narrator’s viewpoint, encourag-         yet support multimodal information (e.g., images,
+ing the model to seek external perspectives (Zhou         audio, or structured data). Extending the frame-
+et al., 2023). Another method employs "Role               work to incorporate multimodal input would enable
+Play" interventions to alter LLMs’ decision-making        a more comprehensive assessment of how models
+styles when facing knowledge conflicts. (Ying et al.,     navigate and resolve conflicts between heteroge-
+2024) However, these methods heavily rely on the          neous knowledge sources. Given that real-world
+model’s inherent reasoning abilities and often suf-       information is often multimodal, such an extension
+fer from limited generalizability. Another category       could improve FaithfulRAG’s ability to detect and
+of non-fine-tuning approaches modifies the model’s        reconcile inconsistencies that arise from modality-
+decoding strategy to improve its reliance on context.     specific biases or divergent contextual signals.
+CAD(Shi et al., 2023)contrasts output probabilities
+                                                             In addition, multimodal integration would en-
+with and without context to enhance contrastive de-
+                                                          hance the applicability of the framework to do-
+coding, amplifying the contextual probability distri-
+                                                          mains where information synthesis from multiple
+bution without accounting for conflicting contexts.
+                                                          sources is crucial, such as medical diagnosis (where
+In contrast, COIECD(Yuan et al., 2024) detects
+                                                          textual reports, imaging data and patient history
+knowledge conflicts by measuring entropy changes
+                                                          must be jointly considered), autonomous systems
+during generation and dynamically adjusts the de-
+                                                          (which rely on the integration of visual, auditory,
+coding strategy accordingly.
+                                                          and textual signals for decision making), and in-
+                                                          teractive AI (where understanding user intent of-
+7   Conclusions                                           ten involves processing speech, gestures, and tex-
+                                                          tual input). Addressing these challenges would not
+Large language models (LLMs) often generate
+                                                          only improve FaithfulRAG’s robustness but also
+hallucinations (factually inconsistent or unfaithful
+                                                          contribute to broader advancements in multimodal
+contents). While retrieval-augmented generation
+                                                          retrieval-augmented generation, cross-modal rea-
+(RAG) has shown promise in enhancing language
+                                                          soning, and trustworthy AI.
+models’ capabilities through external knowledge in-
+tegration, maintaining faithfulness to retrieved con-     Ethics Statement
+texts remains a significant challenge. This paper
+identifies and analyzes critical unfaithfulness issues    We confirm that we have fully complied with the
+that emerge during RAG’s generation phase, par-           ACL Ethics Policy in this study. Our research
+ticularly when the model’s parametric knowledge           utilizes four publicly available datasets:FaithEval,
+contradicts retrieved information. Existing faith-        MuSiQue, SQuAD, and RealtimeQA.FaithEval is
+ful RAG methods enforce alignment with the re-            designed to evaluate LLM and RAG faithfulness
+trieved context by suppressing the model’s paramet-       across Unanswerable, Inconsistent, and Counterfac-
+ric knowledge, but often increase the risk of misin-      tual contexts. MuSiQue and SQuAD, sourced from
+                                                     21871
+KRE, assess LLM robustness against knowledge                  Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,
+conflicts in modified MRC and commonsense rea-                  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and Haofen
+                                                                Wang. 2023. Retrieval-augmented generation for
+soning tasks. RealtimeQA is a dynamic QA dataset
+                                                                large language models: A survey. arXiv preprint
+for evaluating models’ ability to handle real-time in-          arXiv:2312.10997.
+formation. All datasets used in this study have been
+extensively employed in retrieval-augmented gener-            Zijin Hong, Zheng Yuan, Hao Chen, Qinggang Zhang,
+                                                                 Feiran Huang, and Xiao Huang. 2024. Knowledge-
+ation research and do not contain private, sensitive,            to-sql: Enhancing sql generation with data expert llm.
+or personally identifiable information. We carefully             arXiv preprint arXiv:2402.11517.
+select these datasets to ensure ethical compliance
+                                                              Cheng-Yu Hsieh, Yung-Sung Chuang, Chun-Liang Li,
+and to mitigate potential biases. Our study does                Zifeng Wang, Long T Le, Abhishek Kumar, James
+not involve the collection or modification of user-             Glass, Alexander Ratner, Chen-Yu Lee, Ranjay Kr-
+generated content, nor does it introduce synthetic              ishna, et al. 2024. Found in the middle: Calibrating
+data that could lead to unintended misinformation.              positional attention bias improves long context uti-
+                                                                lization. arXiv preprint arXiv:2406.16008.
+Acknowledgements                                              Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong,
+The project was supported by National Key                       Zhangyin Feng, Haotian Wang, Qianglong Chen,
+                                                                Weihua Peng, Xiaocheng Feng, Bing Qin, et al. 2023.
+R&D Program of China (No. 2022ZD0160501),                       A survey on hallucination in large language models:
+Natural Science Foundation of Fujian Province                   Principles, taxonomy, challenges, and open questions.
+of China (No. 2024J011001), and the Public                      arXiv preprint arXiv:2311.05232.
+Technology Service Platform Project of Xiamen                 Houcheng Jiang, Junfeng Fang, Ningyu Zhang, Guojun
+(No.3502Z20231043). We also thank the reviewers                 Ma, Mingyang Wan, Xiang Wang, Xiangnan He, and
+for their insightful comments.                                  Tat-seng Chua. 2025. Anyedit: Edit any knowledge
+                                                                encoded in language models. ICML.
+                                                              Jungo Kasai, Keisuke Sakaguchi, Ronan Le Bras, Akari
+References                                                      Asai, Xinyan Yu, Dragomir Radev, Noah A Smith,
+AI Anthropic. 2024. The claude 3 model family: Opus,            Yejin Choi, Kentaro Inui, et al. 2024. Realtime qa:
+  sonnet, haiku. Claude-3 Model Card.                           what’s the answer right now? Advances in Neural
+                                                                Information Processing Systems, 36.
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+  Hannaneh Hajishirzi. 2023. Self-rag: Learning to            Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying
+  retrieve, generate, and critique through self-reflection.    Sheng, Lianmin Zheng, Cody Hao Yu, Joseph Gon-
+  Preprint, arXiv:2310.11511.                                  zalez, Hao Zhang, and Ion Stoica. 2023. Efficient
+                                                               memory management for large language model serv-
+Baolong Bi, Shaohan Huang, Yiwei Wang, Tianchi                 ing with pagedattention. In Proceedings of the 29th
+  Yang, Zihan Zhang, Haizhen Huang, Lingrui Mei,               Symposium on Operating Systems Principles, pages
+  Junfeng Fang, Zehao Li, Furu Wei, et al. 2024a.              611–626.
+  Context-dpo: Aligning language models for context-
+  faithfulness. arXiv preprint arXiv:2412.15280.              Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+                                                                Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+Baolong Bi, Shenghua Liu, Yiwei Wang, Lingrui Mei,
+                                                                rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  Junfeng Fang, Hongcheng Gao, Shiyu Ni, and Xueqi
+                                                                täschel, Sebastian Riedel, and Douwe Kiela. 2020.
+  Cheng. 2024b. Is factuality enhancement a free lunch
+                                                                Retrieval-augmented generation for knowledge-
+  for llms? better factuality can lead to worse context-
+                                                                intensive nlp tasks. In Advances in Neural Infor-
+  faithfulness. arXiv preprint arXiv:2404.00216.
+                                                                mation Processing Systems, volume 33, pages 9459–
+Zhiwei Cao, Qian Cao, Yu Lu, Ningxin Peng, Luyang               9474. Curran Associates, Inc.
+  Huang, Shanbo Cheng, and Jinsong Su. 2024. Re-
+  taining key information under high compression ra-          Daliang Li, Ankit Singh Rawat, Manzil Zaheer, Xin
+  tios: Query-guided compressor for llms. Preprint,             Wang, Michal Lukasik, Andreas Veit, Felix Yu, and
+  arXiv:2406.02376.                                             Sanjiv Kumar. 2023. Large language models with
+                                                                controllable working memory. In Findings of the As-
+Shengyuan Chen, Qinggang Zhang, Junnan Dong, Wen                sociation for Computational Linguistics: ACL 2023,
+  Hua, Qing Li, and Xiao Huang. 2024. Entity align-             pages 1774–1793, Toronto, Canada. Association for
+  ment with noisy annotations from large language               Computational Linguistics.
+  models. arXiv preprint arXiv:2405.16806.
+                                                              Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang,
+Junfeng Fang, Houcheng Jiang, Kun Wang, Yunshan                 Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi
+  Ma, Shi Jie, Xiang Wang, Xiangnan He, and Tat-                Deng, Chenyu Zhang, Chong Ruan, et al. 2024a.
+  Seng Chua. 2025. Alphaedit: Null-space constrained            Deepseek-v3 technical report.   arXiv preprint
+  knowledge editing for language models. ICLR.                  arXiv:2412.19437.
+                                                         21872
+Bingshuai Liu, Chenyang Lyu, Zijun Min, Zhanyu           Song Wang, Yaochen Zhu, Haochen Liu, Zaiyi Zheng,
+  Wang, Jinsong Su, and Longyue Wang. 2024b.               Chen Chen, and Jundong Li. 2024. Knowledge edit-
+  Retrieval-augmented multi-modal chain-of-thoughts        ing for large language models: A survey. ACM Com-
+  reasoning for large language models. Preprint,           puting Surveys, 57(3):1–37.
+  arXiv:2312.01714.
+                                                         Kevin Wu, Eric Wu, and James Zou. 2024. How faithful
+Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paran-       are rag models? quantifying the tug-of-war between
+  jape, Michele Bevilacqua, Fabio Petroni, and Percy       rag and llms’ internal prior. arXiv e-prints, pages
+  Liang. 2024c. Lost in the middle: How language           arXiv–2404.
+  models use long contexts. Transactions of the Asso-
+  ciation for Computational Linguistics, 12:157–173.     Jian Xie, Kai Zhang, Jiangjie Chen, Renze Lou, and
+                                                            Yu Su. 2024. Adaptive chameleon or stubborn sloth:
+Zihan Liu, Wei Ping, Rajarshi Roy, Peng Xu, Chankyu         Revealing the behavior of large language models in
+  Lee, Mohammad Shoeybi, and Bryan Catanzaro.               knowledge conflicts. In The Twelfth International
+  2024d. Chatqa: Surpassing gpt-4 on conversational         Conference on Learning Representations.
+  qa and rag. In The Thirty-eighth Annual Conference
+  on Neural Information Processing Systems.              Peng Xu, Wei Ping, Xianchao Wu, Chejian Xu, Zi-
+                                                           han Liu, Mohammad Shoeybi, and Bryan Catanzaro.
+Shayne Longpre, Kartik Perisetla, Anthony Chen,            2024a. Chatqa 2: Bridging the gap to proprietary
+  Nikhil Ramesh, Chris DuBois, and Sameer Singh.           llms in long context and rag capabilities. arXiv
+  2021. Entity-based knowledge conflicts in question       preprint arXiv:2407.14482.
+  answering. In Proceedings of the 2021 Conference
+  on Empirical Methods in Natural Language Process-      Rongwu Xu, Zehan Qi, Zhijiang Guo, Cunxiang Wang,
+  ing, pages 7052–7063, Online and Punta Cana, Do-         Hongru Wang, Yue Zhang, and Wei Xu. 2024b.
+  minican Republic. Association for Computational          Knowledge conflicts for LLMs: A survey. In Pro-
+  Linguistics.                                             ceedings of the 2024 Conference on Empirical Meth-
+                                                           ods in Natural Language Processing, pages 8541–
+Yifei Ming, Senthil Purushwalkam, Shrey Pandit, Zix-       8565, Miami, Florida, USA. Association for Compu-
+  uan Ke, Xuan-Phi Nguyen, Caiming Xiong, and              tational Linguistics.
+  Shafiq Joty. 2025. Faitheval: Can your language
+  model stay faithful to context, even if ”the moon is   Jiahao Ying, Yixin Cao, Kai Xiong, Long Cui, Yidong
+  made of marshmallows”. In The Thirteenth Interna-         He, and Yongbin Liu. 2024. Intuitive or dependent?
+  tional Conference on Learning Representations.            investigating LLMs’ behavior style to conflicting
+                                                            prompts. In Proceedings of the 62nd Annual Meeting
+Xuan-Phi Nguyen, Shrey Pandit, Senthil Purushwalkam,        of the Association for Computational Linguistics (Vol-
+  Austin Xu, Hailin Chen, Yifei Ming, Zixuan Ke, Sil-       ume 1: Long Papers), pages 4221–4246, Bangkok,
+  vio Savarese, Caiming Xong, and Shafiq Joty. 2024.        Thailand. Association for Computational Linguistics.
+  Sfr-rag: Towards contextually faithful llms. arXiv
+  preprint arXiv:2409.09916.                             Wenhao Yu, Dan Iter, Shuohang Wang, Yichong Xu,
+                                                          Mingxuan Ju, Soumya Sanyal, Chenguang Zhu,
+OpenAI. 2023. Gpt-4 technical report.       Preprint,
+                                                          Michael Zeng, and Meng Jiang. 2023. Generate
+  arXiv:2303.08774.
+                                                          rather than retrieve: Large language models are
+Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev,         strong context generators. In The Eleventh Inter-
+  and Percy Liang. 2016. Squad: 100,000+ ques-            national Conference on Learning Representations.
+  tions for machine comprehension of text. Preprint,
+  arXiv:1606.05250.                                      Xiaowei Yuan, Zhao Yang, Yequan Wang, Shengping
+                                                           Liu, Jun Zhao, and Kang Liu. 2024. Discerning
+Weijia Shi, Xiaochuang Han, Mike Lewis, Yulia              and resolving knowledge conflicts through adaptive
+ Tsvetkov, Luke Zettlemoyer, and Scott Wen-tau             decoding with contextual information-entropy con-
+ Yih. 2023. Trusting your evidence: Hallucinate            straint. In Findings of the Association for Compu-
+ less with context-aware decoding. arXiv preprint          tational Linguistics: ACL 2024, pages 3903–3922,
+ arXiv:2305.14739.                                         Bangkok, Thailand. Association for Computational
+                                                           Linguistics.
+Hexiang Tan, Fei Sun, Wanli Yang, Yuanzhuo Wang,
+  Qi Cao, and Xueqi Cheng. 2024. Blinded by gen-         Zheng Yuan, Hao Chen, Zijin Hong, Qinggang Zhang,
+  erated contexts: How language models merge gen-          Feiran Huang, and Xiao Huang. 2025. Knapsack
+  erated and retrieved contexts when knowledge con-        optimization-based schema linking for llm-based text-
+  flicts? In Proceedings of the 62nd Annual Meeting of     to-sql generation. arXiv preprint arXiv:2502.12911.
+  the Association for Computational Linguistics (Vol-
+  ume 1: Long Papers), pages 6207–6227.                  Qinggang Zhang, Shengyuan Chen, Yuanchen Bei,
+                                                           Zheng Yuan, Huachi Zhou, Zijin Hong, Junnan Dong,
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,      Hao Chen, Yi Chang, and Xiao Huang. 2025. A
+  and Ashish Sabharwal. 2022. Musique: Multi-              survey of graph retrieval-augmented generation for
+  hop questions via single-hop question composition.       customized large language models. arXiv preprint
+  Preprint, arXiv:2108.00573.                              arXiv:2501.13958.
+                                                    21873
+Qinggang Zhang, Junnan Dong, Hao Chen, Daochen
+  Zha, Zailiang Yu, and Xiao Huang. 2024. Knowgpt:
+  Knowledge graph based prompting for large language
+  models. Advances in Neural Information Processing
+  Systems, 37:6052–6080.
+Shengyu Zhang, Linfeng Dong, Xiaoya Li, Sen Zhang,
+  Xiaofei Sun, Shuhe Wang, Jiwei Li, Runyi Hu, Tian-
+  wei Zhang, Fei Wu, et al. 2023. Instruction tuning
+  for large language models: A survey. arXiv preprint
+  arXiv:2308.10792.
+Chuang Zhou, Jiahe Du, Huachi Zhou, Hao Chen,
+  Feiran Huang, and Xiao Huang. 2025. Text-
+  attributed graph learning with coupled augmentations.
+  In Proceedings of the 31st International Conference
+  on Computational Linguistics, pages 10865–10876.
+Huachi Zhou, Shuang Zhou, Hao Chen, Ninghao Liu,
+  Fan Yang, and Xiao Huang. 2024. Enhancing ex-
+  plainable rating prediction through annotated macro
+  concepts. In Proceedings of the 62nd Annual Meet-
+  ing of the Association for Computational Linguistics
+  (Volume 1: Long Papers), pages 11736–11748.
+
+Wenxuan Zhou, Sheng Zhang, Hoifung Poon, and
+ Muhao Chen. 2023. Context-faithful prompting
+ for large language models. In Findings of the As-
+ sociation for Computational Linguistics: EMNLP
+ 2023, pages 14544–14556, Singapore. Association
+ for Computational Linguistics.
+
+
+
+
+                                                     21874
+A    Frequently Asked Questions (FAQs)                   Algorithm 1 The Workflow of FaithfulRAG.
+                                                         Input: Question Q, Original context Corig .
+A.1 Code and Dataset Availability
+                                                         Output: Answer a.
+To promote transparency and reproducibility, we
+have uploaded our code into the Anonymous                 1: Self-Fact Mining
+GitHub at https://github.com/DeepLearnXMU/                2: Extract a set of high-level knowledge from Q;
+Faithful-RAG.. The repository includes the                   Kself (Q) = {k1 , k2 , . . . , kn }
+source code of FaithfulRAG and scripts for data           3: Generate       context Cself (Q) grounded in
+preprocessing, model training, and evaluation. Ad-           Kself (Q);
+ditionally, all datasets used in our experiments are         Cself (Q) = G1 (Q, Kself (Q))
+also provided or linked within the repository, ensur-     4: Extract facts Fself (Q) from Cself (Q);
+ing that researchers have full access to the resources       Fself (Cself ) = {f1 , f2 , . . . , fm }
+required to reproduce and extend our work.                5: Contextual Knowledge Alignment
+                                                          6: Divide the original context Corig into fixed-size
+A.2 What are advantages of FaithfulRAG?                                 j
+                                                             chunks Corig   ;
+FaithfulRAG introduces several key advancements                        Sm i
+                                                             Corig = i=1 Corig .
+over existing RAG systems and tailored designed
+                                                          7: for each fact f in Fself (Q) do
+faithful methods, addressing fundamental limita-
+                                                          8:    for each context chunk c in Corig do
+tions while maintaining practical applicability:
+                                                          9:        Compute similarity between f and c
+Superior performance on knowledge conflict sce-
+                                                                    Sim(f, c) = cos(f, c).
+narios. Unlike existing faithful methods that re-
+                                                         10:    end for
+duce unfaithful errors (rigid adherence to paramet-
+                                                         11: end for
+ric knowledge) at the cost of increasing incorrect
+                                                         12: Select top-k chunks as Caligned
+match errors (blind acceptance of flawed contexts),
+                                                         13: Self-Think
+FaithfulRAG resolves both error types simultane-
+                                                         14: if Caligned is reliable then
+ously. Specifically, it reduces Case 1 errors by
+                                                         15:    Generate a based on Caligned
+6.8% while simultaneously decreasing Case 2 er-
+                                                         16: else
+rors by 1.6% on average as shown in Figure 4. This                                                     
+                                                         17:    Generate a using RSTR Caligned , Corig
+improvement arises from its fact-level conflict reso-
+                                                         18: end if
+lution and self-think mechanisms that enable LLMs
+                                                         19: return a.
+to preserve high-quality parametric knowledge and
+reject semantically divergent contexts.
+Robustness in Non-Conflict Scenarios. A good             like ChatQA-2.0 by 9.3% as shown in Table 1. This
+faithful model should improve performance in             consistency ensures reliable deployment across het-
+knowledge-conflict scenarios while maintaining           erogeneous environments in practice.
+desirable performance in non-conflict scenarios.
+While most existing methods suffer in non-conflict       A.3   Why focusing on the generation stage of
+settings (e.g., KRE’s 13.8% drop on SQuAD-                     RAG, and why is it crucial to maintain
+golden), our FaithfulRAG achieves the best per-                the faithfulness of outputs?
+formance on both SQuAD-golden and MuSiQue-               Despite recent advances in retrieval mechanisms,
+golden. It gets 96.6% on SQuAD-golden (+1.4%             a persistent challenge remains: a significant gap
+over origin) and 85.3 on MuSiQue-golden (+1.3%),         exists between the quality of the retrieved context
+proving its robustness and capability to avoid over-     and the factual accuracy of the generated output.
+fitting to either LLM’s parametric knowledge or          While the context retrieved by the model may be
+incorrect contextual information.                        highly relevant, the generative models often strug-
+Backbone-Agnostic Consistency. FaithfulRAG               gle to faithfully incorporate this context, resulting
+achieves stable performance across diverse back-         in generated text that may diverge from factual cor-
+bone LLMs (e.g., Llama3.1-8B, Qwen2.5-7B,                rectness. Recent empirical evidence reveals the crit-
+Mistral-7B), with minimal variance in accuracy.          ical gap between retrieval quality and generation
+For instance, on the SQuAD dataset, it attains           faithfulness. The generation stage determines how
+86.3% accuracy with Llama3.1-8B and 85.7% with           this context is interpreted and integrated with the
+Mistral-7B, outperforming task-specific models           model’s parametric knowledge. Existing methods
+                                                    21875
+ Query             An astronomer observes that a planet rotates faster after a meteorite impact. Which is the most likely
+                   effect of this increase in rotation?
+ Context           Observing planetary changes post-meteorite impacts has always been a critical aspect of studying
+                   celestial mechanics. When a substantial meteorite strikes a planet, it can significantly alter the planet’s
+                   rotation speed. This phenomenon was notably observed with the planet Tranus-4 in a neighboring
+                   galaxy. . .
+ Self-Knowledge    Planetary rotation and angular momentum: Understanding how a planet’s rotation is affected by its
+ Extraction        angular momentum, which is a measure of an object’s tendency to continue rotating. This knowledge is
+                   necessary to explain how the meteorite impact could cause the planet to rotate faster.
+                   Conservation of angular momentum: Recognizing that the conservation of angular momentum is
+                   a fundamental principle in physics, which states that the total angular momentum of a closed system
+                   remains constant over time. This principle is crucial in understanding how the planet’s rotation speed
+                   changes after the meteorite impact
+                   ...
+ Self-Context      A meteorite impact can transfer momentum to a planet, potentially increasing its rotation speed. This
+ Generation        effect is due to the conservation of angular momentum, a fundamental principle in physics that states
+                   the total angular momentum of a closed system remains constant over time. As the meteorite impacts
+                   the planet, its momentum is transferred, causing the planet’s rotation to accelerate...
+ Self-Fact         1.A meteorite impact can transfer momentum to a planet, potentially increasing its rotation speed.
+ Extraction        2.The conservation of angular momentum is a fundamental principle in physics that states the total
+                   angular momentum of a closed system remains constant over time.
+                   3.The momentum of a meteorite is transferred to a planet upon impact, causing its rotation to accelerate.
+                   ...
+ Contextual        ...Normally, an increase in rotational speed would be closely associated with geophysical implications
+ Alignment         such as changes in atmospheric dynamics and magnetic field intensities. Moreover, the sudden
+                   acceleration can cause a redistribution of mass within the planet, thus potentially affecting its
+                   gravitational pull.Researchers from the Galactic Federation Science Division have recently published a
+                   detailed analysis demonstrating a correlation between rotation speed and gravitational strength...
+ Self-Think        1. [Fact Analysis]: Facts explicitly state They observed that as Tranus-4’s rotation speed increased, the
+                   equatorial bulge became more pronounced, effectively increasing the planet’s gravitational pull at the
+                   equator.
+                   2. [Option Matching]: Option D directly matches the factual declaration
+                   3. [Context Check]: No contextual supplementation needed - Facts provide conclusive evidence
+                   4. [Final Verification]: No conflicting information.
+ Output            Answer: Planetary gravity will become stronger.
+
+ Table 4: A complete pipeline of our method on FaithEval using Llama3.1-8B-Instruct as the backbone model.
+
+
+often fail at this stage due to (i) Over-confidence:           which remains unaltered and serves as an approxi-
+many RAG systems rigidly prioritize the retrieved              mation of a non-knowledge conflict scenario. It is
+context by suppressing parametric knowledge, lead-             important to note that while the golden context may
+ing to blind acceptance of flawed or conflicting               still contain some degree of knowledge conflict, its
+information. (ii) Logical incoherence: Without crit-           occurrence rate is significantly lower, allowing us
+ical reasoning, models struggle to resolve contra-             to approximate it as a non-conflict dataset.
+dictions, resulting in inconsistent or unsafe outputs.
+By targeting generation, in this paper, we address              A.5    How do we calculate the distribution of
+the root cause of unfaithfulness and guide the LLM                     different error cases?
+to dynamically reconcile knowledge conflicts.                  To measure the error distribution, we follow a step-
+                                                               by-step approach to compute the frequency of dif-
+A.4 How do we get the datasets in scenarios                    ferent error cases. (i) Parametric prediction: We
+    with and without knowledge conflicts?                      first generate a prediction from the LLM without
+                                                               providing any context, relying solely on its para-
+We use the MuSiQue and SQuAD datasets from the
+                                                               metric knowledge. (ii) Contextual prediction: We
+KRE (Ying et al., 2024) to evaluate LLM perfor-
+                                                               then provide the corresponding context and gener-
+mance in both knowledge conflict and non-conflict
+                                                               ate a new prediction based on the context from the
+scenarios. These datasets contain two types of
+                                                               LLM. (iii) Case classification: We classify errors
+contexts: (i) Negative context, where correct enti-
+                                                               by comparing the two predictions:
+ties are replaced with incorrect ones, simulating a
+knowledge conflict scenario. (ii) Golden context,                  • Over-confidence Error (Case 1): If the para-
+                                                         21876
+     Table 5: The experiment results of error analysis on LLaMA 3.1-8B-Instruct. The best result is underlined.
+
+                                                   MuSiQue                                            SQuAD
+              Method             Case 1       Case 2     Case 3         All        Case 1       Case 2     Case 3         All
+                                Error rate   Error rate Error rate   Error rate   Error rate   Error rate Error rate   Error rate
+     Origin            -          13.6          5.2       13.3         32.1         16.4          7.1         7          30.5
+                 Opin (instr)      8.1          7.8       13.7         29.6         12.2         12.5        5.5         26.6
+ Prompting          ATTR           9.8          4.9       22.4         37.1          10          10.1        6.5         30.2
+                     KRE           3.1         18.3       49.3∗        70.7∗          9          14.1       14.9          38
+                   Average         9.0          6.4       18.1           -          11.1         11.3        6.0           -
+                     CAD           8.8         10.8        7.8         27.4         10.7         12.5        5.5         28.7
+    Decoding      COIECD           5.7         17.7       10.7         34.1          7.2         20.2        7.6         35.0
+                   Average         7.3         14.3        9.3           -            9          16.4        6.6           -
+     RAGs        ChatQA-2.0       21.9          1.6        9.8         33.3         23.3           2         9.7         35.0
+     Ours        FaithfulRAG       7.4           6          8          21.4           9           3.1        3.4         15.5
+
+
+
+
+Figure 5: The error distribution on MuSiQue and SQuAD datasets with Llama3.1-8b-instruct as the backbone LLM.
+Case 1 and Case 2 are consistent with Section 3, while Case 3 represents all other scenarios beyond these two cases.
+
+
+       metric prediction and contextual prediction                   Step 2: Self-Context Generation. The model
+       are identical, the model is considered to have                synthesizes its self-knowledge into a complete
+       ignored the retrieved context and relied on its               context that reflects the LLM’s "self-perception"
+       internal parametric knowledge.                                about the query-related facts. This bridges abstract
+                                                                     knowledge with task-specific reasoning, enabling
+     • Incorrect-match Error (Case 2): If the con-                   downstream conflict resolution.
+       textual prediction differs from the parametric
+       prediction, and the prediction appears in the                 Step 3: Self-Fact Extraction. The model dis-
+       provided context but is incorrect, the model is               tills self-context into fine-grained self-facts. These
+       considered to have been misled by the context.                self-facts serve as anchors for aligning with the re-
+                                                                     trieved context while preserving logical constraints.
+B     Additional Experiments
+                                                                     Step 4: Contextual Alignment The model first
+B.1     Case Study (Q4)                                              converts self-facts and segmented retrieved con-
+To empirically validate the contribution of each                     text into embeddings, then computes the similarity
+component in FaithfulRAG, we conduct a granular                      between these embeddings. Finally, it selects the
+case study using a representative instance from the                  top-k chunks to form a self-aligned context that
+FaithEval dataset, with Llama3.1-8B-Instruct as                      closely aligns with self-facts.
+the backbone model. The intermediate outputs at
+each stage are detailed in Table 4, illustrating how                 Step 5: Self-Think. Finally, the model recon-
+our framework progressively resolves knowledge                       ciles self-aligned context with the whole context
+conflicts while maintaining logical coherence.                       through iterative reasoning, including (i) Flag the
+                                                                     contradiction between guidelines and the prescrip-
+Step 1: Self-Knowledge Extraction. In this                           tion. (ii) Probes for missing data in the context.
+phase, the model extracts abstract parametric                        (iii) Verify specialist approval and monitor renal
+knowledge relevant to the query.                                     function.
+                                                             21877
+Table 6: The MR metric results of our method and the                             Table 7: Model Analysis. The comparison of perfor-
+SOTA baseline across four datasets. Lower MR values                              mance between our model and SOTA baselines by inte-
+indicate higher context faithfulness.                                            grating different sizes of LLMs.
+                                                      Dataset                                                                            Dataset
+   Model         Backbone LLM                                                         Model       Backbone LLM
+                                            MR                 ACC                                                     FaithEval   RealtimeQA   MuSiQue   SQuAD
+                                      MuSiQue SQuAD       MuSiQue SQuAD
+                                                                                                              Group 1: Without Context
+                         Group 1: With Full Context
+                                                                                                llama3.2-3b-instruct     15.3         41.6          7.6     7.7
+               llama3.1-8b-instruct    17.6     20.7            67.8   69.5           Origin    llama2-13b-instruct      17.5         15.9         18.7    14.2
+   Origin      qwen2.5-7b-instruct     17.3     27.6            75.2   68.3                      deepseek-moe-16b        14.1         8.9          7.3     10.7
+                mistral-7b-instruct    15.9      25             67.6   67.2
+                                                                                                             Group 2: With Full Context
+                       Group 2: Specific RAG Models
+                                                                                                llama3.2-3b-instruct     67.1         80.5         66.1    79.2
+  Self-RAG         Llama2-7B           18.8     30.1            54.1   62.0           Origin    llama2-13b-instruct      75.6         55.7         80.5    78.4
+ ChatQA-1.5       Llama3.1-8B          17.7     19.1            75.0   77.0                      deepseek-moe-16b        60.3         51.3         67.4    73.9
+ ChatQA-2.0       Llama3.1-8B          15.5     20.8            77.2   75.4                             Group 3: Context-faithful Prompting
+                    Group 3: Context-faithful Prompting                                         llama3.2-3b-instruct     65.7         84.9         69.2    75.2
+               llama3.1-8b-instruct    11.3     13.8            70.3   73.4       Opin(Instr)   llama2-13b-instruct      67.9         60.2         81.5    79.1
+ Opin(Instr)   qwen2.5-7b-instruct     15.3     25.5            76.9   70.5                      deepseek-moe-16b        62.8         60.2          72      72
+                mistral-7b-instruct    13.1     22.9            68.1   69.3                     llama3.2-3b-instruct     70.6         77.9         66.6    79.2
+               llama3.1-8b-instruct    14.7     16.8            62.8   69.5           ATTR      llama2-13b-instruct      76.2         61.1         81.5    78.9
+               qwen2.5-7b-instruct      14      22.2            78.7   72.9                      deepseek-moe-16b        59.2         53.1         67.1    73.1
+   ATTR
+                mistral-7b-instruct    12.7     20.6            66.1   70.2                              Group 4: Context-faithful Decoding
+               llama3.1-8b-instruct    14.0     14.5        35.9∗      66.1                     llama3.2-3b-instruct     60.9         65.5         76.3    76.8
+    KRE        qwen2.5-7b-instruct     18.6     22.7        70.7       73.7            CAD      llama2-13b-instruct      78.1         51.3         80.4    75.6
+                mistral-7b-instruct    16.3     16.8        50.6       74.6                      deepseek-moe-16b        60.2         49.6         52.8    72.9
+                     Group 4: Context-faithful Decoding                                         llama3.2-3b-instruct     59.5         63.7         70.6    66.4
+                                                                                      COIECD    llama2-13b-instruct      78.1         50.4         80.0    75.4
+               llama3.1-8b-instruct    12.8     14.6            72.6   71.2
+                                                                                                 deepseek-moe-16b        68.9         51.3         69.2    76.0
+    CAD        qwen2.5-7b-instruct     12.4     21.7            78.6   73.4
+                mistral-7b-instruct    11.8      18             63.6   66.9                     llama3.2-3b-instruct     70.1         79.6         78.4    79.8
+                                                                                       Ours     llama2-13b-instruct      80.0         53.1         83.9    86.3
+               llama3.1-8b-instruct    9.2      10.7            70.5   71.8                      deepseek-moe-16b        79.2         61.9         76.1    82.1
+  COIECD       qwen2.5-7b-instruct     9.8      15.5            69.7   70.8
+                mistral-7b-instruct    10.3     16.1            66.8   65.4
+               llama3.1-8b-instruct    11.8     13.5            79.9   86.3
+    Ours       qwen2.5-7b-instruct     13.8     15.7            78.0   78.3      B.3 MR Result
+                mistral-7b-instruct    7.7       9.7            78.5   85.7
+                                                                                 Following previous work (Longpre et al., 2021), we
+B.2     Error Analysis                                                           calculate the context faithfulness metric (MR ) on
+Current faithful methods enhance faithfulness at                                 entity-level knowledge conflict datasets, MuSiQue
+the expense of an increased risk of context mis-                                 and SQuAD. The result is shown in Table 6.
+interpretation. In this section, we systematically                               Among all methods, our approach achieves the best
+analyze how effective FaithfulRAG is in alleviating                              performance on Mistral, with 7.7% on MuSiQue
+different types of errors. Specifically, we consider                             and 9.7% on SQuAD. COIECD performs best
+3 different types of errors, where Case 1 and Case                               across different backbone models, as its modified
+2 are over-confidence and incorrect-match errors,                                decoding strategy enforces stronger context align-
+respectively, consistent with Section 3, and Case                                ment, leading to higher context faithfulness. How-
+3 represents all other scenarios beyond these two                                ever, our method outperforms COIECD by up to
+cases. As shown in Table 5 and Figure 5, we have                                 10% in ACC, demonstrating that our approach not
+the following findings. FaithfulRAG achieves bal-                                only improves context faithfulness but also main-
+anced mitigation of both Case 1 and Case 2 errors.                               tains strong downstream task performance (ACC).
+Specifically, it reduces Case 1 errors by 6.8% while
+                                                                                 B.4          Model Analysis
+simultaneously decreasing Case 2 errors by 1.6%
+on average. This improvement stems from our                                      To comprehensively demonstrate the generalizabil-
+well-designed framework, which enables LLMs to                                   ity of our method, we conduct experiments on mod-
+dynamically reconcile parametric knowledge with                                  els of different sizes and architectures with the re-
+contextual evidence. By isolating discrepancies                                  sults shown in Table 7. Our method significantly
+at the fact level and applying a self-think mod-                                 improves performance across models of different
+ule, FaithfulRAG preserves high-quality parametric                               scales, from smaller 3B models to larger 16B mod-
+knowledge while systematically rejecting contexts                                els. This demonstrates the strong generalizabil-
+that introduce logical inconsistencies or semantic                               ity and adaptability of our approach, making it
+divergence. FaithfulRAG aslo demonstrates supe-                                  effective across a wide range of LLM architectures.
+rior performance in Case 3, maintaining the lowest                               Note that the KRE method shows a high rate of
+error rate (5.7% ) compared to baselines, demon-                                 refusal responses. Therefore, we do not include it
+strating its robustness in handling edge cases.                                  as a baseline in our additional experiments.
+                                                                              21878
+Table 8: Performance Comparison of Different Embed-                           irrelevant to the question, we follow the (Zhou
+ding Models Using Llama3.1-8B-Instruct as the Back-                           et al., 2023) and construct the RealTime QA-22
+bone Model.
+                                                                              dataset. This dataset selects six questions from the
+ Embedding Model       Params   Faitheval   RealtimeQA   MuSiQue   SQuAD
+                                                                              first week of 2022 as the test set, with an equal pro-
+  all-MiniLM-L6-v2     22.7M      79.8         81.4        79.9     86.3
+   TinyBERT-L6-v2       67M       78.3         84.1        80.1     85.1      portion of answerable and unanswerable questions.
+      contriever-
+ sentencetransformer
+                       110M       76.9         83.2        79.9     86.3         MuSiQue (Trivedi et al., 2022) and
+   sentence-t5-base    110M       78.3         80.5        80.0     86.2      SQuAD (Rajpurkar et al., 2016): These
+B.5      Impact of Different Embedding Models                                 two datasets are from the previous research (Ying
+                                                                              et al., 2024) designed to study the behavior of
+In the main experimental setup, we employ all-
+                                                                              LLMs when confronted with contexts that conflict
+MiniLM-L6-v21 to embed self-facts. To further
+                                                                              with their internal memory. It encompasses tasks
+assess the effect of different embedding models,
+                                                                              involving both factual knowledge and common-
+we conducted additional experiments by replacing
+                                                                              sense reasoning and is constructed by modifying
+it with alternative models. As shown in Table 8,
+                                                                              existing machine reading comprehension and
+all-MiniLM-L6-v2 achieves the best performance
+                                                                              commonsense reasoning datasets. Each entry in the
+on FaithEval and SQuAD, while TinyBERT-L6-v2
+                                                                              dataset contains a negative context with knowledge
+performs optimally on RealtimeQA and MuSiQue.
+                                                                              conflicts and an unmodified golden context. In the
+We selected all-MiniLM-L6-v2 as the default em-
+                                                                              main experiment, we use the negative-context as
+bedding model in our main setup due to its smaller
+                                                                              the context to construct MuSiQue and SQuAD.
+parameter size and balanced overall performance
+                                                                              While when evaluating performance in standard
+across benchmarks.
+                                                                              scenarios, the golden-context is used as the
+C       Implementation Details                                                context.2 To better align with real-world RAG
+                                                                              scenarios, we use the subset with longer context
+C.1 Benchmark Dataset                                                         lengths.
+We evaluate FaithfulRAG on four benchmark
+datasets, including FaithEval (Ming et al.,                                   C.2      Baseline Selection
+2025), RealtimeQA (Kasai et al., 2024), and                                   We carefully select baselines from four categories
+MuSiQue (Trivedi et al., 2022), SQuAD (Rajpurkar                              for a comprehensive evaluation.
+et al., 2016) from KRE(knowledge robustness eval-                             Oringin Model: This model serves as a standard
+uation) (Ying et al., 2024).                                                  baseline in existing RAG systems. It employs an
+FaithEval (Ming et al., 2025): A novel bench-                                 instruction-following model, such as llama3.1-8b-
+mark dataset designed to evaluate the faithfulness                            instruct, as its base model. Given a question and its
+of LLM and RAG systems across various contex-                                 related context, the model generates accurate and
+tual scenarios. This dataset consists of 4,900 high-                          contextually appropriate answers
+quality questions covering three task types: Unan-                            Specific RAG Systems: This group of meth-
+swerable, Inconsistent, and Counterfactual con-                               ods (Asai et al., 2023; Xu et al., 2024a; Liu et al.,
+texts. The Counterfactual Context is constructed                              2024d) provides solutions for various RAG appli-
+based on ARC-Challenge, a multiple-choice sci-                                cation scenarios, aiming to enhance the general
+ence QA dataset at the elementary school level.                               ability of RAG systems across multiple bench-
+Its knowledge conflict extends beyond the entity                              marks. By carefully selecting instruction-following
+level, involving more complex logical relationships.                          datasets and designing tailored Supervised Fine-
+We selected the Counterfactual subset as it aligns                            tuning (SFT) strategies, they improve the perfor-
+closely with our motivation.                                                  mance of LLMs in retrieval-augmented tasks.
+RealtimeQA (Kasai et al., 2024): A dynamic                                    Context-faithful Prompting: This category of
+question-answering dataset designed to evaluate                               methods (Zhou et al., 2023; Ying et al., 2024)
+the ability of QA systems to handle real-time infor-                          enhance context faithfulness in LLMs by design-
+mation, challenging the assumptions of traditional                            ing specialized prompting strategies. It addresses
+static QA datasets and targeting more immediate                               knowledge conflict issues by strengthening the re-
+application scenarios. To test the model perfor-                              liance of LLMs on the provided context while re-
+mance in extreme cases where some contexts are                                ducing their dependence on parametric knowledge.
+    1                                                                              2
+   https://huggingface.co/sentence-transformers/all-                               Unless otherwise specified, MuSiQue and SQuAD refer
+MiniLM-L6-v2                                                                  to the corresponding datasets using negative context.
+
+                                                                           21879
+Figure 6: Prompts for self-knowledge extraction, self-context generation, self-fact extraction, and the self-think.
+
+
+                                                      21880
+Context-faithful Decoding: These models (Shi             ages the Position Bias of the LLM’s internal atten-
+et al., 2023; Yuan et al., 2024) modify the orig-        tion, which prioritizes earlier positions in the con-
+inal inference strategy during model inference.          text (Hsieh et al., 2024; Liu et al., 2024c), thereby
+Techniques such as contrastive decoding and con-         implicitly emphasizing the self-aligned context.
+strained decoding are employed to guide the model        The prompt is as follows:
+to focus more on the given context rather than rely-
+ing on parametric knowledge, thereby enhancing              Variant 1: w/o whole Module
+the model’s context faithfulness.
+                                                            Context: {self-aligned context}
+C.3 Evaluation Metrics and Implementation                   {origin context}
+Our primary evaluation metric across all tasks is ac-       Question: {question}
+curacy (ACC). We first normalize predictions and            Answer:
+answers by removing stop words and punctuation,
+then determine whether the prediction and answer            Next, we conduct an ablation study on Think
+are identical. For the Memorization Ratio (MR ),         stage. Instead of the original Think stage, we in-
+following the approach (Longpre et al., 2021), we        troduce a Special Annotation approach, where we
+first compute the Exact Match (EM) between pre-          use special annotation to highlight the self-aligned
+dictions and original answers, denoted as po . Then,     context within the original context and employ
+we compute the EM between predictions and sub-           instruction-based prompting to explicitly guide the
+stituted answers, denoted as ps . Finally, we use the    LLM to focus on the self-aligned context enclosed
+formula MR = pop+p  o
+                      s
+                        .                                by these markers. This modification prevents the
+   During inference (except for context-faithful de-     LLM from actively thinking through and under-
+coding strategies), we deploy vLLM (Kwon et al.,         standing the self-aligned facts, thereby hindering
+2023), a high-performance LLM designed to ac-            their effective fusion with the original context. The
+celerate LLM inference. We standardized the sam-         prompt is as follows:
+pling arguments across all methods and set the tem-
+perature to 0 to ensure reproducibility of results. To      Variant 2: w/o Think
+help the model better understand the task’s patterns
+and requirements, all the baselines in our compari-         - Instructions
+son adopt a few-shot format.                                1. Analyze the Context and identify the sen-
+   In the Contextual Knowledge Alignment mod-               tences wrapped in ’[important chunk: xxx]’.
+ule, we use the conventional Fixed-size Chunking            These sentences contain key information.
+Strategy to chunk the original context. Specifically,       2. Focus on the important chunks to ex-
+we divided the text into multiple segments based            tract the most relevant facts related to the
+on the predefined fixed size, which facilitates the         **Question**.
+segmentation of the context for further processing.         3. If the facts from the important chunks are
+We set the default chunk size to 20. When selecting         not sufficient to answer the question, refer
+the top-k self-aligned context, we set K=5. In our          to the full Context for additional informa-
+paper, we did not report parameter analysis on K            tion.
+and chunk size, as our model is not particularly            4. Please use the format of: Reason: (rea-
+sensitive to this hyperparameter, and the default           son) Answer:(answer)
+settings already demonstrate the effectiveness of           Context: {context}
+our approach.                                               Question: {question}
+                                                            Answer:
+C.4 Implementation Details of Ablation Study
+To verify the effect of the Self-Think module,             Finally, we conduct an ablation study on Reason-
+we conducted three separate ablation experiments.        ing stage. We substituted the structured reasoning
+First, we conduct an ablation study on the over-         with a naive Chain-of-Thought (CoT) approach,
+all module. Specifically, we directly prepend the        which does not provide explicit structured guid-
+self-aligned context to the original context to form     ance for the LLM’s reasoning. This modification
+a new combined context and instruct the LLM to           makes the model rely solely on its implicit infer-
+answer based on it. This approach primarily lever-       ence capabilities. The prompt is as follows:
+                                                    21881
+    Variant 3: w/o Reasoning
+
+    - Instructions
+    You are an expert in retrieval QA and Chain
+    of Thought reasoning. Provide your reason-
+    ing steps followed by a precise and direct
+    answer.Avoiding any unnecessary explana-
+    tions or verbosity. Please use the format of:
+    Reason: (reason) Answer:(answer)
+    Context: {context}
+    Question: {question}
+    Answer:
+
+
+D    Prompt Design
+The prompt templates applied in FaithfulRAG for
+self-knowledge extraction, self-context generation,
+self-fact extraction, and self-think are shown in the
+figure 6.
+
+
+
+
+                                                    21882
+

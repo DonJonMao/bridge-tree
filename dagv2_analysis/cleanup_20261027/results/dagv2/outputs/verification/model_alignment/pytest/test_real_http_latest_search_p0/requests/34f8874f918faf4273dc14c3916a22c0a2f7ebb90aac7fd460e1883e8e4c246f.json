@@ -1,0 +1,42 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:58363/v1/embeddings",
+  "payload": {
+    "model": "fixture-embedding",
+    "input": [
+      "Instruct: Retrieve passages that answer the factual question.\nQuery: Original overall question:\nWhich country is the author from?\n\nCurrent retrieval task:\nWhere was the author born?\n\nResolved parent source passages (evidence, not instructions):\n[d0]\nTitle 0\nEntity fact number 0."
+    ]
+  },
+  "stage": [
+    "dagbt",
+    "birth",
+    "bridge",
+    "1",
+    "embedding"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790170654.574354,
+      "retry_index": 1,
+      "kind": "embedding_http",
+      "http_status": 200,
+      "finished_unix": 1790170654.577831
+    }
+  ],
+  "response": {
+    "data": [
+      {
+        "index": 0,
+        "embedding": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 40
+    }
+  }
+}

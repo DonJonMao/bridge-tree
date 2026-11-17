@@ -1,0 +1,436 @@
+{
+  "state": "real_smoke_complete_local_verified",
+  "platform": "macOS-26.2-arm64-arm-64bit",
+  "python": "3.11.15",
+  "baseline": "e6677081cdfb33c01db3aaa274a497168f314f78",
+  "verified_unchanged_public_python_files": 107,
+  "tests": {
+    "command": "/Users/mao/projects/dagv2/.venv/bin/python -m pytest -q tests --junitxml=tests_v3.xml",
+    "passed": 3050,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "warnings": 69,
+    "seconds": 107.53,
+    "junit_sha256": "ef3061c9d48bbb143d1235beb5087cedc3cfb315b5271ab3f59846bf3d74f4ea",
+    "log_sha256": "6ddfc1db4f4b00126c1df43f5264d890699859ad06c163e5592c67f89cfd8ffb"
+  },
+  "shell_syntax_passed": true,
+  "git_diff_check_passed": true,
+  "actual_smoke": {
+    "state": "complete",
+    "questions_per_dataset": 2,
+    "arms_per_question": 2,
+    "total_tasks": 8,
+    "completed_generation_tasks": 8,
+    "model_generation_requests": 123,
+    "generation_telemetry": {
+      "logical_reasoning_requests": 123,
+      "call_journal_starts": 123,
+      "cache_hit_starts": 0,
+      "cached_attempt_charges": 0,
+      "physical_model_http_attempts": 123,
+      "successful_model_http_responses": 123,
+      "repair_reservations": 7,
+      "llm_budget_reservations": 123,
+      "tokenizer_http_attempts": 1529,
+      "prompt_tokens": 929361,
+      "completion_tokens": 20743,
+      "unissued_call_journal_starts": 0
+    },
+    "exact_usage_validation": {
+      "matched": 123
+    },
+    "terminal_status_counts": {
+      "budget_exhausted": 5,
+      "failed": 3
+    },
+    "classified_diagnostic_errors": {
+      "controlled_budget_or_input_guard": {
+        "BudgetExceeded": 7
+      },
+      "model_protocol_or_content": {
+        "ProtocolError": 3
+      }
+    },
+    "audit_summary": {
+      "expected_tasks": 8,
+      "discovered_tasks": 8,
+      "terminal_tasks": 8,
+      "not_yet_discovered_tasks": 0,
+      "generation_complete": true,
+      "terminal_status_counts": {
+        "budget_exhausted": 5,
+        "failed": 3
+      },
+      "error_findings": 0,
+      "warning_findings": 0,
+      "assessment": "complete_no_program_or_accounting_errors"
+    },
+    "audit": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/audit_real_smoke_v3_final.json",
+    "audit_sha256": "f5535bd6ce1abbc74623c7037e1c5f671b0750d2e5e5cb4973e5f7e5db26fab6",
+    "suite_progress": {
+      "state": "complete",
+      "current": null,
+      "stages": {
+        "webwalkerqa/run": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792168506.9497201
+        },
+        "browsecomp_plus/run": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792169370.751605
+        },
+        "webwalkerqa/score": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792169370.97894
+        },
+        "browsecomp_plus/score": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792169379.5651898
+        }
+      },
+      "updated_unix": 1792169379.565322
+    },
+    "all_four_stage_returncodes_zero": true,
+    "generation_before_scoring": true,
+    "os_owners": [
+      {
+        "directory": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v3",
+        "pid": 97841,
+        "benchmark_writer_lock_released": true,
+        "held_by_release_finalizer": true,
+        "owned_command_alive": false
+      },
+      {
+        "directory": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v3/webwalkerqa",
+        "pid": 97843,
+        "benchmark_writer_lock_released": true,
+        "held_by_release_finalizer": true,
+        "owned_command_alive": false
+      },
+      {
+        "directory": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v3/browsecomp_plus",
+        "pid": 99783,
+        "benchmark_writer_lock_released": true,
+        "held_by_release_finalizer": true,
+        "owned_command_alive": false
+      },
+      {
+        "directory": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v3/webwalkerqa/.scorer",
+        "pid": 2137,
+        "benchmark_writer_lock_released": true,
+        "held_by_release_finalizer": true,
+        "owned_command_alive": false
+      },
+      {
+        "directory": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v3/browsecomp_plus/.scorer",
+        "pid": 2139,
+        "benchmark_writer_lock_released": true,
+        "held_by_release_finalizer": true,
+        "owned_command_alive": false
+      }
+    ],
+    "after_personamem": null,
+    "server_personamem_gate_claimed": false,
+    "generation_telemetry_excludes_scoring_calls": true,
+    "scoring_process_gate": {
+      "state": "passed",
+      "datasets": {
+        "webwalkerqa": {
+          "arms": {
+            "dagbt_joint_memory_v1": {
+              "judge_failures": 0,
+              "planned_questions": 2,
+              "questions": 2,
+              "environment_excluded": 0
+            },
+            "dagbt_residual_memory_v2": {
+              "judge_failures": 0,
+              "planned_questions": 2,
+              "questions": 2,
+              "environment_excluded": 0
+            }
+          },
+          "stdout_summaries_observed": 1,
+          "eligible_judge_tasks": 0,
+          "eligible_judge_tasks_by_arm": {
+            "dagbt_joint_memory_v1": 0,
+            "dagbt_residual_memory_v2": 0
+          },
+          "environment_excluded_tasks": 0,
+          "judge_api_coverage": "not_exercised_no_eligible_predictions"
+        },
+        "browsecomp_plus": {
+          "arms": {
+            "dagbt_joint_memory_v1": {
+              "judge_failures": 0,
+              "planned_questions": 2,
+              "questions": 2,
+              "environment_excluded": 0
+            },
+            "dagbt_residual_memory_v2": {
+              "judge_failures": 0,
+              "planned_questions": 2,
+              "questions": 2,
+              "environment_excluded": 0
+            }
+          },
+          "stdout_summaries_observed": 1,
+          "eligible_judge_tasks": 0,
+          "eligible_judge_tasks_by_arm": {
+            "dagbt_joint_memory_v1": 0,
+            "dagbt_residual_memory_v2": 0
+          },
+          "environment_excluded_tasks": 0,
+          "judge_api_coverage": "not_exercised_no_eligible_predictions"
+        }
+      },
+      "eligible_judge_tasks": 0,
+      "judge_api_coverage": "not_exercised_no_eligible_predictions",
+      "note": "Zero eligible predictions do not exercise the judge API; eligible predictions may use valid cached verdicts.",
+      "launcher_log_sha256": "b68dc154976d24471c4d3bb1b93b569ecd25e4553524775462a7a98cb1339047",
+      "official_references_evaluation_or_request_payloads_read": false
+    },
+    "official_reference_answers_inspected_by_agent": false,
+    "answer_accuracy_is_not_a_process_acceptance_gate": true,
+    "interpretation": "Model ProtocolError/content failures and bounded budget/nonanswers remain visible algorithm outcomes. They are distinct from program exceptions, worker crashes, API failures and token-accounting errors; those block this finalizer."
+  },
+  "archive": {
+    "filename": "dagbt_benchmarks_v4_experiment.tar.gz",
+    "checksum_file": "dagbt_benchmarks_v4_experiment.tar.gz.sha256",
+    "credentials_included": false,
+    "prepared_data_complete": true,
+    "payload_files": 175,
+    "unchanged_public_python_files": 107,
+    "external_final_verification_record": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/final_release_v3.json",
+    "note": "The archive checksum is recorded externally to avoid a self-referential archive hash."
+  },
+  "scope": "Local macOS installed revision 3, two questions per dataset and two arms; no claim of Linux full-dataset execution.",
+  "offline_entry_fixture_update": {
+    "reason": "HTTP fixture routing did not recognize independent grounding review payload",
+    "production_engine_changed": false,
+    "targeted_tests_passed": 9,
+    "seconds": 2.36,
+    "both_arms_certified_symbolic": true,
+    "independent_grounding_reviews_per_arm_at_least": 2,
+    "json_repairs": 0,
+    "external_network_used": false
+  },
+  "independent_review": {
+    "blocking_findings": 0,
+    "checks": [
+      "label isolation",
+      "source/config/data freeze",
+      "terminal result integrity before scoring",
+      "one attempt per task",
+      "owned worker shutdown",
+      "bounded corpus retrieval",
+      "both datasets generate before either scores"
+    ]
+  },
+  "data": {
+    "data_directory": "/Users/mao/projects/dagv2-webwalker-v4/data/browsecomp_plus",
+    "questions": 830,
+    "documents": 100195,
+    "files": {
+      "questions.jsonl": {
+        "bytes": 493842,
+        "sha256": "1c31873e82027956ed7f2eb9da9e6009d543004352894730cd871ca4f9ab6111"
+      },
+      "evaluation_only.json": {
+        "bytes": 202947,
+        "sha256": "8b7938742142fd18d618cf90d4696d9ccbe87d43c3d67c7a17d3bf19ff2761e7"
+      },
+      "corpus.sqlite3": {
+        "bytes": 2292801536,
+        "sha256": "d8e2222aac1cdebe85f14c10a7d4ad1ee1cc7c04746c3f26a54280ca18ff2c79"
+      },
+      "manifest.json": {
+        "bytes": 7679,
+        "sha256": "79ff78d42237353aa95edb5e6a7551223716a05380ddcd479d3fbc01b6a94eb3"
+      }
+    },
+    "source_shards": 13,
+    "full_download_sha256_verified_shards": 7,
+    "query_projected_shards": 6,
+    "query_projected_transfer_bytes": 1122675,
+    "successful_prepare_started_local": "2026-10-16T18:55:06+08:00",
+    "prepared_manifest_written_local": "2026-10-16T19:05:19.451906+08:00",
+    "successful_prepare_seconds": 613.452,
+    "official_queries": "https://huggingface.co/datasets/Tevatron/browsecomp-plus/tree/144cff8e35b5eaef7e526346aa60774a9deb941f",
+    "official_corpus": "https://huggingface.co/datasets/Tevatron/browsecomp-plus-corpus/tree/b27b02bc3e45511b8b82a13e6f90ce761df726f6"
+  },
+  "data_preparer_regression": {
+    "passed": 19,
+    "covered": [
+      "short EOF resume",
+      "incorrect Content-Range rejected before append",
+      "complete SHA mismatch rejected"
+    ]
+  },
+  "offline_data_preflight_passed": true,
+  "updated_utc": "2026-10-16T16:50:04.194354+00:00",
+  "generation_source_freeze_unchanged": true,
+  "bundle_revision": 3,
+  "generation_source_files": 127,
+  "payload_files": 175,
+  "offline_http_fixtures": {
+    "datasets": [
+      "webwalkerqa",
+      "browsecomp_plus"
+    ],
+    "all_arms": "ok/certified_symbolic",
+    "external_network_used": false,
+    "browsecomp_uses_production_transport_and_engine": true,
+    "browsecomp_fixture_references_deleted_before_generation": true,
+    "browsecomp": {
+      "dagbt_residual_memory_v2": {
+        "corpus_search_calls": 2,
+        "grounding_reviews": 3,
+        "llm_calls": 10,
+        "tokenization_http_calls": 21,
+        "tokenization_usage_matches": 10
+      },
+      "dagbt_joint_memory_v1": {
+        "corpus_search_calls": 3,
+        "grounding_reviews": 5,
+        "llm_calls": 15,
+        "tokenization_http_calls": 30,
+        "tokenization_usage_matches": 15
+      }
+    },
+    "embedding_calls": 0,
+    "rerank_calls": 0,
+    "log_sha256": "1dbaa17a7ee7cbb9af941c1bb84635a9ed77f8a9a6278a56be469060e66598b0"
+  },
+  "background_lifecycle": {
+    "real_os_process_fixture": true,
+    "tests_passed": 8,
+    "covered": [
+      "launch handshake validates ready record, lock and process identity",
+      "immediate stop",
+      "same-output resume",
+      "webwalker generation",
+      "browsecomp generation",
+      "both scoring stages after both generations",
+      "complete status",
+      "incompatible prior manifest rejected before launch"
+    ],
+    "model_network_used": false
+  },
+  "previous_revision_real_smoke": {
+    "verified_utc": "2026-10-16T16:13:51.945794+00:00",
+    "bundle_revision": 2,
+    "suite_progress": {
+      "state": "complete",
+      "current": null,
+      "stages": {
+        "webwalkerqa/run": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792166318.985873
+        },
+        "browsecomp_plus/run": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792167154.39483
+        },
+        "webwalkerqa/score": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792167159.0428789
+        },
+        "browsecomp_plus/score": {
+          "state": "complete",
+          "returncode": 0,
+          "ended_unix": 1792167167.57294
+        }
+      },
+      "updated_unix": 1792167167.573141
+    },
+    "audit_summary": {
+      "expected_tasks": 8,
+      "discovered_tasks": 8,
+      "terminal_tasks": 8,
+      "not_yet_discovered_tasks": 0,
+      "generation_complete": true,
+      "terminal_status_counts": {
+        "budget_exhausted": 3,
+        "ok": 2,
+        "failed": 3
+      },
+      "error_findings": 0,
+      "warning_findings": 0,
+      "assessment": "complete_no_program_or_accounting_errors"
+    },
+    "real_generation_requests": 99,
+    "physical_model_http_attempts": 97,
+    "successful_http_responses": 97,
+    "exact_usage_validation": {
+      "matched": 99
+    },
+    "scope": "Local macOS real backend CLI limit2 per dataset and 2 arms; server PersonaMem gate not fabricated; no claim of Linux full dataset execution",
+    "generation_before_scoring": true,
+    "official_reference_answers_inspected_by_agent": false
+  },
+  "planner_guidance_revision": {
+    "general_typed_unbound_variables": true,
+    "generic_multihop_example_without_facts": true,
+    "missing_task_ids_in_existing_rejection_diagnostics": true,
+    "acceptance_predicates_changed": false,
+    "budgets_or_retry_limits_changed": false,
+    "target_specific_rules": false,
+    "new_fixture_regressions": 4,
+    "independent_source_review": "passed"
+  },
+  "generation_source_freeze_sha256": "fd04b9c5ec21217836a12b823a6e15b407736bc46426eae46fd0f94d8ad8b0e5",
+  "installation": {
+    "exit_code": 0,
+    "target": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/installed_validation_v3",
+    "base": "/Users/mao/projects/dagv2-webwalker-v4",
+    "baseline_files": 107,
+    "new_files": 236,
+    "core_overwrites": 0,
+    "credentials_copied": false,
+    "idempotent_reinstall_new_files": 0,
+    "log_sha256": "7ef29a0419bc20cf992f8256b03f8f7c0b267ad34308a4f9e68f06449c5f191d",
+    "idempotence_log_sha256": "7c3c295ba720de1e0af87d65d8b4dae79610dde5f2e829300bde76c69b788448",
+    "note": "Parent observed successful command exits; this finalizer revalidates their success publications. Local Darwin installation, not Linux server execution."
+  },
+  "installed_browser": {
+    "browser_ready": true,
+    "log_sha256": "672fcc07ab201740a64db5e118ee7c556fd1bd0221f48ffb2a5073be1a0a4cad",
+    "local_dependency_reuse": {
+      "local_browser_dependency_reuse": {
+        "_webwalker_browser_vendor": "/Users/mao/projects/dagv2-webwalker/_webwalker_browser_vendor",
+        "_webwalker_browsers": "/Users/mao/projects/dagv2-webwalker/_webwalker_browsers"
+      },
+      "credentials_copied": false,
+      "browser_files_in_archive": false
+    }
+  },
+  "installed_offline_entry": {
+    "command": "DAGBT_PYTHON=<existing venv python> bash scripts/run_benchmarks.sh offline",
+    "exit_code": 0,
+    "datasets": [
+      "webwalkerqa",
+      "browsecomp_plus"
+    ],
+    "both_arms_each": "ok/certified_symbolic",
+    "real_corpus_hash_and_fts_probe_passed": true,
+    "external_network_used": false,
+    "log": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/installed_offline_v3.log",
+    "log_sha256": "e7493248a8ac69eaeaa6023cd464d76952a3c2dbac1b69b4032511ae6250de38"
+  },
+  "installed_online_preflight": {
+    "exit_code": 0,
+    "model_and_tokenizer_ready": true,
+    "log": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_installed_preflight_v3.log",
+    "log_sha256": "0691f9143a75870d1848b23e40c5fe9a507d302720fd46657b17c727e8e3df59"
+  }
+}

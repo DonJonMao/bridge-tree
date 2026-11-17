@@ -1,0 +1,21 @@
+Command: /Users/mao/projects/dagv2/.venv/bin/python -B -m pytest -q tests/test_v4_discovery_frontier_review.py -k 'alias_permutation or reordered_mapper'
+Working directory: /Users/mao/projects/dagv2-personamem-v4-reconcile
+Exit code: 1
+
+FAILED test_checkpoint_alias_permutation_rebinds_stable_sources_without_rewriting_history[None]
+  JointReader.restore_obligations(checkpoint)
+  ProtocolError: Discovery exposure history changed an original source
+
+FAILED test_actual_controller_restore_with_reordered_mapper_never_rereads_already_exposed_sources
+  fresh.resume(checkpoint) -> ResidualControl.restore -> JointReader.restore_obligations
+  ProtocolError: Discovery exposure history changed an original source
+
+2 failed, 3 passed, 30 deselected in 1.45s
+
+Both failures preserve exact stable source IDs, text, authoritative metadata and
+source hashes. Only temporary aliases are permuted, including collisions with
+previous alias names. The first checkpoint has real exposure, required promotion
+and two ordered unoffered sources. The second uses a real fresh Engine with its
+mapper pre-registered in reverse document order, to cover the outer execution-state
+restore boundary. Mutation variants for exposed text, promoted source role and
+frontier source time metadata are rejected as required.

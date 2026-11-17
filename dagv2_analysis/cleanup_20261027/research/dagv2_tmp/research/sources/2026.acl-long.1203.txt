@@ -1,0 +1,1152 @@
+     CIRAG: Construction-Integration Retrieval and Adaptive Generation for
+                       Multi-hop Question Answering
+
+                                 Zili Wei, Yilin Wang, Xiaocui Yang* , Shi Feng* ,
+                              Weidong Bao, Daling Wang, Zihan Wang, Yifei Zhang
+        1
+            School of Computer Science and Engineering, Northeastern University, Shenyang 110819, China
+                   weizl2@mails.neu.edu.cn {fengshi,yangxiaocui}@cse.neu.edu.cn
+
+
+
+                             Abstract
+                                                                                                         、
+                                                                       Greedy Single-       Retrieval
+            Triple-based Iterative Retrieval-Augmented                Path Expansion:
+                                                                                        Query
+                                                                                                      Triple Based Generate
+                                                                                                    Cumulated Errors
+            Generation (iRAG) mitigates document-level
+            noise for multi-hop question answering. How-              Granularity           Retrieval
+            ever, existing methods still face limitations:         Demand Mismatch:
+                                                                                        Query           Granularity
+                                                                                                                        Generate
+                                                                                                         Preference
+            (i) greedy single-path expansion, which
+            propagates early errors and fails to capture                  CIRAG:
+                                                                                                                         、
+                                                                                            Retrieval
+            parallel evidence from different reasoning                                  Query           Multi-grained
+                                                                                                                        Generate
+
+            branches, and (ii) granularity-demand mis-                                                    Knowledge
+
+            match, where a single evidence representation
+            struggles to balance noise control with contex-             Figure 1: Challenges in Triple-based Retrieval.
+            tual sufﬁciency. In this paper, we propose the
+            Construction-Integration Retrieval and Adap-
+            tive Generation model, CIRAG1 . It introduces          2023; Asai et al., 2024; Yao et al., 2025) is intro-
+            an Iterative Construction-Integration module           duced by retrieving information in multiple steps.
+            that constructs candidate triples and history-         However, existing iRAG methods, whether retriev-
+            conditionally integrates them to distill core          ing full documents (Zhao et al., 2021) or generat-
+            triples and generate the next-hop query. This          ing chain-of-thoughts (Trivedi et al., 2023), often
+            module mitigates the greedy trap by pre-               accumulate irrelevant noise (Yoran et al., 2024)
+            serving multiple plausible evidence chains.            or factual hallucinations during iterations (Wang
+            Besides, we propose an Adaptive Cascaded
+            Multi-Granularity Generation module that pro-
+                                                                   et al., 2023; Luo et al., 2024), which ultimately de-
+            gressively expands contextual evidence based           grades reasoning reliability.
+            on the problem requirements, from triples                 To mitigate this issue, recent research has piv-
+            to supporting sentences and full passages.             oted towards triple-based retrieval (Fang et al.,
+            Moreover, we introduce Trajectory Distilla-            2025, 2024; Zhang et al., 2025). By using struc-
+            tion, which distills the teacher model’s inte-
+                                                                   tured knowledge triples as retrieval units, these
+            gration policy into a lightweight student, en-
+            abling efﬁcient and reliable long-horizon rea-         methods aim to achieve a more focused and reli-
+            soning. Extensive experiments demonstrate              able retrieval process. Despite these advances, cur-
+            that CIRAG achieves superior performance               rent triple-based paradigms face two critical limita-
+            compared to existing iRAG methods.                     tions, as illustrated in Figure 1. The ﬁrst challenge
+                                                                   is the Greedy Single-Path Expansion in retrieval.
+    1       Introduction                                           Existing methods predominantly select only the
+    Retrieval-Augmented Generation (RAG) excels in                 single best triple at each step (Fang et al., 2024,
+    simple queries (Lewis et al., 2020; Lin et al., 2024;          2025). This linear strategy is inherently fragile:
+    Ram et al., 2023) but struggles with multi-hop                 minor errors in early decisions can rapidly propa-
+    reasoning (Trivedi et al., 2023; Fan et al., 2024;             gate and compound (Jiapeng et al., 2024; Shi et al.,
+    Mallen et al., 2023), as single-step retrieval of-             2023; Lee et al., 2022). Moreover, by committing
+    ten fails to gather interconnected evidence (Shao              to a single path, it overlooks parallel evidence that
+    et al., 2023). Iterative RAG (iRAG) (Trivedi et al.,           is often essential for answering complex queries,
+                                                                   resulting in incomplete or fragmented reasoning
+        *Corresponding author..
+        1
+        Our code can be found via https://github.com/              chains (Zhang et al., 2024). The second challenge
+    52566rz/CIRAG.                                                 is the Granularity-Demand Mismatch. Current
+                                                              26181
+Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 26181–26197
+                                 July 2-7, 2026 ©2026 Association for Computational Linguistics
+paradigms typically adopt a static evidence repre-      summarized as follows:
+sentation, failing to account for the heterogeneous
+information needs of different questions (Fang          • Inspired by the CI model, we propose CIRAG,
+et al., 2024, 2025). For simple, relation-centric         which effectively addresses the challenges of
+queries, retrieving full documents introduces sub-        greedy retrieval bias and mismatched granular-
+stantial noise compared to concise triples. Con-          ity requirements in multi-hop reasoning by syn-
+versely, for complex reasoning tasks that require         ergistically combining ICI and ACMG modules.
+rich contextual information, structured triples of-     • We propose Trajectory Distillation to transfer in-
+ten discard crucial context (Wang and Han, 2025),         tegration trajectories from a teacher to an efﬁ-
+omitting linguistic nuances that are naturally pre-       cient student model, ensuring reasoning capabil-
+served in passages. As a result, a ﬁxed retrieval         ities with reduced computational overhead.
+granularity is insufﬁcient to meet the diverse rea-     • Extensive experiments on multiple multi-hop
+soning requirements posed by different queries.           and single-hop QA benchmarks validate the ef-
+   To address these challenges, we draw inspi-            fectiveness of CIRAG.
+ration from Construction-Integration (CI) model         2 Related Works
+in cognitive psychology (Kintsch and Van Dijk,
+1978; Wharton and Kintsch, 1991). CI charac-            2.1 Text-based iRAG
+terizes human comprehension as a two-stage pro-         The current iRAG methods primarily retrieve rele-
+cess. In Construction, semantic units are broadly       vant text passages from the corpus at each retrieval,
+activated, and in the Integration stage, contextual     providing context for LLM generation. IRCoT
+constraints suppress irrelevant activations to yield    (Trivedi et al., 2023) and Iter-RetGen (Shao et al.,
+a coherent semantic network. Grounded in CI,            2023) dynamically generate sub-queries, retrieve
+we propose the Construction-Integration Retrieval       relevant documents, and iteratively reﬁne the rea-
+and Adaptive Generation model, CIRAG, con-              soning trajectory throughout the generation pro-
+sisting of the Iterative Construction-Integration       cess. FLARE (Jiang et al., 2023) focuses on adap-
+(ICI) Retrieval module and the Adaptive Cascaded        tively retrieving documents when low-probability
+Multi-Granularity Knowledge-Enhanced Genera-            tokens are generated. MetaRAG (Zhou et al.,
+tion (ACMG) module.                                     2024) ﬁrst generates heuristic answers based on
+   Speciﬁcally, ICI instantiates CI for iterative re-   the question and the retrieved documents, and then
+trieval to mitigate greedy single-path expansion.       reﬁnes them through retrieval. DualRAG (Cheng
+At each iteration, the construction phase activates     et al., 2025) guides retrieval through reason-driven
+candidate triples extracted from retrieved docu-        query generation and integrates multi-round re-
+ments, while the Integration phase enforces global      trieval documents with an entity-centric approach.
+constraints from the accumulated history to sup-        These models perform iterative retrieval by pro-
+press noisy or off-path candidates, yielding a core     gressively augmenting the query with previously
+triple set. Based on the uncovered knowledge            retrieved documents (Zhao et al., 2021; Trivedi
+gap, the integrator further synthesizes the next-       et al., 2023). However, retrieved documents of-
+hop query to continue the CI loop. By repeat-           ten include noise or irrelevant information (Yoran
+edly alternating between construction and integra-      et al., 2024). The propagation of these distract-
+tion, ICI retains the coherent evidence network         ing contexts can degrade retrieval quality and ulti-
+and reduces single-path bias. ACMG tackles the          mately hinder overall RAG performance.
+granularity-demand mismatch via dynamically ex-
+panding context, beginning with compact triples         2.2 Triple-based iRAG
+and escalating to supporting sentences or passages      To reduce the impact of noise in documents, the
+only when required, balancing noise control with        triple-based iterative RAG method improves re-
+contextual completeness. To ensure the core ad-         trieval granularity by using knowledge triples dur-
+vantages of CIRAG are preserved even in smaller-        ing the retrieval process (Gutiérrez et al., 2024,
+scale models, we introduce Trajectory Distilla-         2025; Li et al., 2025). KiRAG (Fang et al., 2025)
+tion, which transfers integration trajectories from a   decomposes documents into structured triples and
+strong teacher model to a lightweight student, en-      gradually expands the knowledge chain composed
+abling robust multi-step integration with reduced       of triples during iterative retrieval, thereby ac-
+computational overhead. Our contributions can be        curately locating the key information missing in
+                                                   26182
+multi-hop question answering. TeaRAG (Zhang                       triple set T̂t = {τti }Q
+                                                                                         i=1 . To facilitate efﬁcient con-
+et al., 2025) employs a triple-enhanced itera-                    text mapping, we explicitly record the provenance
+tive retrieval strategy, simultaneously retrieving                of each triple by constructing two mapping sets:
+text blocks and pre-built triples in each itera-                  MD                             S
+                                                                      t : [Q] → [K] and Mt : [Q] → [M ], where
+tion. However, existing methods face two chal-                    MtD (i) = j and MSt (i) = k indicate that triple τti
+lenges: the Greedy Single-Path Expansion and the                  is extracted from document djt and sentence skt .
+Granularity-Demand Mismatch. Unlike existing
+                                                                  Integration Phase. In the integration phase of
+methods, our approach addresses these challenges
+                                                                  iteration t (see 1.2 in Figure 2), we employ a dis-
+by obtaining a core set of triples through integra-
+                                                                  criminative model KD to ﬁlter candidate triples
+tion based on historical information in each itera-
+                                                                  and generate the next query. In this phase, the
+tion, and then cascadingly expanding the context
+                                                                  model assesses the alignment of candidates with
+to match the most appropriate granularity of infor-
+                                                                  the current query at , while strictly anchoring to
+mation for each question.
+                                                                  the original question x to maintain global consis-
+3       CIRAG                                                     tency. Simultaneously, it synthesizes the historical
+                                                                  context to identify information gaps to formulate a
+3.1 Problem Formulation                                           targeted query for the next iteration. To empower
+We formally deﬁne the RAG task: given a user                      KD with the capability to execute this complex dy-
+question x and a large-scale document corpus                      namic reasoning, we optimize it via Trajectory
+D = {di }N i=1 , the objective of a RAG system is
+                                                                  Distillation (detailed in Sec. 4.3). Given the orig-
+to generate an accurate answer â by retrieving and               inal question x, the initial candidate set T̂1 , an in-
+leveraging relevant documents from D.                             struction prompt I provided in Appendix A.2, and
+                                                                  the historical context H<t , KD produces (i) a rea-
+3.2 Overview                                                      soning trace rt , (ii) a ﬁltered core triple set T̃t , and
+As illustrated in Figure 2, we propose CIRAG,                     (iii) the next-round query at+1 :
+a two-module framework comprising Iterative
+                                                                          (rt , T̃t , at+1 ) = KD (x, T̂1 , I, H<t ).   (1)
+Construction-Integration (ICI) and Adaptive Cas-
+caded Multi-Granularity Knowledge-Enhanced                           The historical context H<t encapsulates the rea-
+Generation (ACMG). ICI retrieval module, re-                      soning trajectory of previous iterations, includ-
+trieves the core triples set through two iterative                ing the model output of each round and the cor-
+phases: construction phase and integration phase.                 responding candidate triples. Speciﬁcally, for
+ACMG module generates the ﬁnal answer by se-                      H<1 = ∅, for t > 1, it is deﬁned as:
+lecting the most appropriate information for the                                   {                      }t−1
+question through an adaptive cascading method.                            H<t = (ri , T̃i , ai+1 , T̂i+1 ) i=1 .  (2)
+
+3.3 Iterative Construction-Integration                              The core triple set T̃t retains only salient infor-
+Construction Phase. In the t iteration of ICI                     mation pertinent to the query. To facilitate multi-
+(see 1.1 in Figure 2), the retriever R retrieves                  granularity reasoning, we project these triples
+the top-K documents most relevant to the current                  back to their source contexts via the provenance
+query at , forming a document set Dt = {djt }K                    mappings, deriving the core sentence set S̃t and
+                                                 j=1 .
+These documents constitute the discourse context                  document set D̃t :
+and are segmented into a uniﬁed sentence set St =                     S̃t = {sk ∈ St | (i, k) ∈ MSt , τi ∈ T̃t },       (3)
+      k=1 . Leveraging a prompt-based approach,
+{skt }M
+for each document in Dt , we employ LLM to iden-                      D̃t = {dj ∈ Dt | (i, j) ∈ MD
+                                                                                                 t , τi ∈ T̃t }.        (4)
+tify entities as intermediate anchors, directly guid-
+                                                                    Finally, we update the cumulative triple set C,
+ing the extraction of relational triples(Edge et al.,
+                                                                  cumulative sentence set S, and cumulative doc-
+2024; Fang et al., 2024). The prompt is provided
+                                                                  ument set D via the incremental updates C ←
+in Appendix A.1. The retriever R as the reranker
+                                                                  C ∪ T̃t , S ← S ∪ S̃t , and D ← D ∪ D̃t . Together,
+ﬁrst ranks the triples by calculating their seman-
+                                                                  these accumulated sets {C, S, D} constitute the
+tic similarity to the current query at . The top-N
+2 ranked triples are selected to form the candidate               multi-granularity context for cascaded generation.
+                                                                    This iterative process terminates when at+1 =
+    2
+        We provide analysis of the effect of N in Appendix C.2.   ∅ or the maximum iteration step L is reached.
+                                                              26183
+                      1.1 Construction                  Sentence Splitting                                              Cascading
+                            Phase
+                                                            Lothair II (835 –)
+                                                                                                                                            Multi-grained Knowledge
+                                                                                             Sentence 1
+    Question:                                           was the king of Lothar- Split           .......
+    When did Lothair                                    ingia from 855 until
+    II's mother die？                                           .......                                                        𝒊 -th Candidate
+                                                                                            Sentence 𝒏                                                   ......
+                                                                                                                                 Documents
+
+                                                         Triples Extraction
+                                                                                        𝒊 -th Candidate
+                                                              Entities                      Triples                        𝒊 -th Splited                     ......
+                                                                                                                             Sentences
+                 Retrieval                                     Lothair II
+                                                  LLM                                (Lothair II ,born in, 835)
+                                                                   835         LLM
+                                 Candidate                                                   .......
+                                                                                                                               𝒊 -th
+   𝒊 -th Query                                                  Teutberga
+                                 Documents                .      .......     Rank                                            Candidate                        ......
+                                                          .
+                                                                  875                (Teutberga ,died in, 875)                Triples
+
+                                    Iterative
+                                    Construction-
+                                    Integration                                                                            Adaptive Cascaded Multi-Granularity
+     1.2 Integration                                                        Question:
+                                                                                                                              Knowledge Enhanced Generation
+          Phase                                                             Who's Lothair                         Triple
+                                                              𝒊 + 𝟏 -th     II's mother？                           Level
+                                                                Query
+                                                                                                                                         Initial
+                                         ......                                                                                           Query
+                                                                                                                       Cumulative
+        Initial Query                                                                                                  Triple set                      LLM        Answer 1
+                                 Initial Triples
+                                                                            Response:
+                                                                            There is no                           Sentence
+                                                              𝒊 + 𝟏 -th     more question.                          Level
+     Histrical                                                  Query                                                                       Initial
+      Context                                                                                                                                Query
+                                                                                     𝒊 -th Core                         Cumulative
+                                                                                                                       Sentence Set                    LLM        Answer 2
+                                                                                       Triples
+                                             ......
+                                                                                                                   Document
+   Reasoning     𝒊 − 𝟏 th Core   𝒊 -th       𝒊 -th                                     ......                        Level
+     Trace       Triples sets    Query     Candidate                                                                                         Initial
+                                            Triples                                                                                           Query
+                                                                 Knowledge                                                    Cumulative                           Answer 3
+                                                               Discriminator                                                 Document Set              LLM        (Default)
+
+
+
+Figure 2: Overview of CIRAG. At each iteration, it employs an Iterative Construction-Integration (ICI) Retrieval
+module to retrieve a core triple set and record provenance links to their supporting sentences and documents,
+including two iterative phases: construction phase and integration phase. The core triple set is used to produce the
+ﬁnal answer via the Adaptive Cascaded Multi-Granularity Knowledge-Enhanced Generation (ACMG) module.
+
+Otherwise, at+1 triggers the retriever to initiate                                     sequence G = (gC , gS , gD ), where the precedence
+the construction phase at round t+1. Through                                           relation ≺, i.e., gC ≺ gS ≺ gD , denotes an increas-
+this cycle, the system progressively narrows the re-                                   ing order of both semantic coverage and potential
+trieval space while integrating veriﬁed knowledge                                      noise. This ordering allows the framework to pri-
+for multi-hop reasoning.                                                               oritize high-precision, low-noise evidence and es-
+                                                                                       calate to more exhaustive contexts only when the
+3.4 Adaptive Cascaded Multi-Granularity                                                current level is insufﬁcient.
+    Knowledge Augmented Generation                                                        Formally, for each granularity g ∈ G, the model
+To fully leverage the complementary advantages                                         generates a response a(g) based on the question x,
+of different granularities of knowledge in multi-                                      the corresponding context C (g) , and a sufﬁciency
+hop question answering, we analyze their trade-                                        instruction I (g) provided in Appendix A.3. This
+offs in semantic expressiveness and noise control.                                     instruction directs the model MR to evaluate the
+Triples have clear structures and minimal noise,                                       adequacy of C (g) relative to x. It produces a valid
+but often lack contextual information. Sentences                                       answer if the information is sufﬁcient, or a prede-
+enrich these triples through local context, thereby                                    ﬁned refusal response (e.g., Unanswerable) other-
+improving semantic integrity, but inevitably intro-                                    wise:                   (              )
+ducing some irrelevant information. Documents                                                      a(g) = MR x, C (g) , I (g)           (5)
+provide the most comprehensive global context,
+but have the most background noise. Existing ap-                                       where C (g) is the granularity-speciﬁc context se-
+proaches typically rely on a single granularity of                                     lected from the accumulated pools {C, S, D} ac-
+evidence, making it difﬁcult to balance semantic                                       cording to g ∈ G.
+completeness and noise control.                                                           To identify the minimal sufﬁcient granularity,
+   To address this, we propose the Adaptive Cas-                                       we deﬁne a sufﬁciency indicator Suf(a) ∈ {0, 1}
+caded Multi-Granularity Augmented Generation                                           that checks whether the model answer a is a re-
+(ACMG) module (see 2 in Figure 2). We deﬁne                                            fusal. Speciﬁcally, Suf(a) = 0 if a matches a
+the hierarchy of context granularities as an ordered                                   predeﬁned refusal template, and Suf(a) = 1 oth-
+                                                                               26184
+erwise. The system executes a cascaded search            Student supervision. Following prior works
+strictly following the precedence deﬁned in G, se-       (Chen et al., 2023; Gou et al., 2023; Kang et al.,
+lecting the most concise yet sufﬁcient granularity:      2025), we ﬁne-tune the student to predict the
+                {                    }                   teacher’s integration decisions, while treating re-
+                            (    )
+       g ⋆ = min g ∈ G | Suf a(g) = 1 .           (6)    trieval observations as context rather than supervi-
+              ≺
+                                                         sion targets:
+                                    ⋆
+The ﬁnal output is the answer a(g ) from the ﬁrst                               L
+                                                                                ∑             (                        )
+level that satisﬁes the sufﬁciency condition. If no       min −E     x∼Dtrain        log KD       yt | x, I, τ<t ; θ
+                                                            θ
+level provides a sufﬁcient answer, the system de-                  τ ∼πT (·|x,I) t=1
+faults to a(gDOC ) to maximize answerability.                                                                (8)
+                                                         where τ<t =      {(yi , oi )}t−1
+                                                                                      i=1 . Dtrain denotes the
+3.5 Trajectory Distillation                              training set, πT (· | x, I) is the teacher trajectory
+                                                         distribution conditioned on input x and prompt I,
+CIRAG is compatible with LLMs of different pa-
+                                                         KD (·; θ) is the student model parameterized by θ,
+rameter scales. However, the Integration Phase is
+                                                         and Lτ is the length of trajectory τ . At each step t,
+non-trivial: at each iteration, the model must (i) ﬁl-
+                                                         the student predicts the reasoning trace rt , the ﬁl-
+ter noisy candidate triples (T̂t → T̃t ) and (ii) syn-
+                                                         tered triples tt , and the next query at , conditioned
+thesize a strategic next-hop query (at+1 ), both con-
+                                                         on x and the trajectory history τ<t .
+ditioned on the accumulated history from previous
+iterations. Large LLMs are generally more reli-             After distillation, KD can execute the same
+able at maintaining such long-horizon consistency,       integration loop by consistently selecting salient
+but invoking them in an interactive loop incurs          triples (T̃t ) and synthesizing next-hop queries
+substantial computational overhead. In contrast,         (at+1 ) across iterations, while remaining substan-
+lightweight models are more efﬁcient but often fail      tially more efﬁcient than the teacher.
+to produce stable ﬁltering and query-planning de-
+                                                         4 Experimental Setup
+cisions. To achieve an efﬁcient yet reliable integra-
+tor, we propose Trajectory Distillation. The core        4.1 Datasets and Metrics
+idea is to distill interactive trajectories produced     We evaluate our method on three multi-hop QA
+by a strong teacher model into a lightweight stu-        benchmarks: HotpotQA (Yang et al., 2018),
+dent model KD (Eq. (1)), so that the student can         2WikiMultiHopQA(2WikiMQA) (Ho et al.,
+reproduce the teacher’s stepwise integration deci-       2020), and MuSiQue (Trivedi et al., 2022). For
+sions at a lower cost.                                   each dataset, we randomly selected 1000 multi-
+Teacher trajectory generation. A trajectory ξ            hop questions for evaluation in the validation set
+records a sequence of interaction steps. Given a         as done in previous work (Trivedi et al., 2023). To
+question x, an initial candidate triple set T̂1 , and    create a more rigorous and realistic retrieval set-
+an instruction prompt I, the teacher generates:          ting, we followed the IRCoT (Trivedi et al., 2023)
+                                                         settings and merged all supported and unsupported
+       {            }L ξ                                 paragraphs from the selected questions in each
+    ξ = (yt , ot+1 ) t=1 ∼ πT (· | x, T̂1 , I),   (7)
+                                                         dataset to build the retrieval database.
+where at step t the teacher produces an integration         We evaluate the retrieval performance using
+decision:                                                Recall@{3, 5} (R@{3, 5}) as the metrics, follow-
+                                                         ing prior works (Trivedi et al., 2023; Gutiérrez
+                 yt = (rt , T̃t , at+1 ),
+                                                         et al., 2024). For QA performance, We use Exact
+consisting of an integration rationale rt , the ﬁl-      Match (EM) and F1 as evaluation metrics. More
+tered core triple set T̃t , and the next-hop query       details can be found in Appendix B.
+at+1 . The retriever then returns the subsequent ob-
+                                                         4.2 Baselines
+servation:
+                                                         We propose a simple and efﬁcient Iterative
+             ot+1 = T̂t+1 = R(at+1 ),                    Retrieval-Augmented Generation framework,
+                                                         which we mainly compare with the iterative
+which serves as a candidate set for the next itera-      RAG method. Speciﬁcally, it mainly includes
+tion.                                                    the following categories of RAG methods: (i)
+                                                    26185
+                                      Qwen2.5-7B                                     Qwen2.5-max
+       Method
+                       2WikiMQA        HotpotQA         MuSiQue      2WikiMQA          HotpotQA         MuSiQue
+                        F1     EM       F1     EM       F1    EM     F1       EM       F1       EM      F1      EM
+       NativeRAG       31.5    28.2    50.2    34.5    16.8    9.9   47.1     39.2     66.9     52.4    27.6    18.2
+       IRCOT           45.7    36.4    56.8    42.4    23.5   13.4   65.7     55.3     72.8     58.1    34.2    22.1
+       FLARE           43.1    35.2    56.4    41.9    23.8   13.5    -        -        -        -       -       -
+       MetaRAG         50.4    44.7    63.3    49.6    31.9   21.2   58.7     52.4     74.6     60.8    43.8    32.4
+       KiRAG           52.7    36.9    62.1    49.0    31.7   20.2   59.4     52.1     73.2     59.0    45.0    32.7
+       DualRAG         62.3    51.7    58.7    44.8    33.7   22.1   75.6     65.8     73.3     57.8    50.2    36.6
+       DualRAG-FT      65.6    53.8    62.6    47.1    35.8   25.1    -        -        -        -       -       -
+       Ours            69.5    59.0    67.1    52.5    40.9   29.3   76.4     67.1     74.9     60.9    56.0    44.9
+
+Table 1: Results on three MHQA benchmarks with Qwen2.5-7B-Instruct and Qwen2.5-max as base LLMs. Bold
+marks the best and underline the second-best.
+
+
+               2WikiMQA       HotpotQA        MuSiQue                     default                  default             triple
+Method                                                                     6.9%                    10.7%
+                                                                 passage                                               57.3%
+               F1     EM      F1      EM      F1      EM           6.6%
+                                                              sentence                        passage
+CIRAG          68.1   58.9    67.1    52.5    40.9    29.3      10.2%                           12.8%
+w/o TD         59.7   49.8    62.5    48.8    33.1    22.2
+w/o reranker   66.3   57.3    64.7    50.6    38.3    27.2
+                                                                                           sentence
+                                                                                              19.2%
+                                                                                        triple
+Table 2: Ablation Study on trajectory distillation and
+                                                                                       76.3%
+reranker for CIRAG Using Qwen2.5-7B-Instruct.                               2WikiMQA                         MuSiQue
+
+
+                                                              Figure 3:      Context granularity distribution across
+NativeRAG (Lewis et al., 2020), which follows                 datasets
+a retrieval-generation paradigm and generates
+answers based on documents retrieved once. (ii)
+Text-based iterative RAG methods, which itera-                for each question for model inference.
+tively retrieve relevant documents to gather the key          Trajectory Distillation. Using Qwen-max-
+information needed for multi-hop reasoning, such              2025-01-25 as the teacher model, we apply
+as IRCoT (Trivedi et al., 2023), FLARE (Jiang                 CIRAG to generate 3,000 complete reasoning tra-
+et al., 2023), MetaRAG (Zhou et al., 2024),                   jectories from the training sets of HotpotQA (Yang
+DualRAG and its variant DualRAG-FT (Cheng                     et al., 2018), 2WikiMQA (Ho et al., 2020), and
+et al., 2025). (iii) Triple-based iterative RAG               MuSiQue (Trivedi et al., 2022). We ﬁne-tune
+method, which efﬁciently supplies the knowledge               Qwen-2.5-7B-Instruct as the student model
+needed for multi-hop reasoning, using triples as              utilizing Low-Rank Adaptation (Hu et al., 2022).
+retrieval units, such as KiRAG (Fang et al., 2025).              Further training conﬁgurations and implementa-
+More details can be found in Appendix B.3                     tion details are provided in Appendix B.4.
+4.3 Implementation and Training Details                       5 Results and Analysis
+Backbone. We use Qwen-2.5-7B-Instruct and                     5.1 Main Results
+Qwen-max-2025-01-25 (Yang et al., 2024) as the
+backbone of our framework and all baselines.                  Table 1 reports the main experimental results
+                                                              on three standard MHQA benchmarks. Over-
+Retrieval Setup. We use two different retrieval               all, CIRAG consistently outperforms all baselines
+models to validate the compatibility of our ap-               across varying model scales. We make the fol-
+proach, including bge-Small-env1.5 (Xiao et al.,              lowing key observations: (1) Compared with text-
+2024) and nvidia/NVEmbed-v2 (Lee et al., 2024).               based iRAG methods, CIRAG improves perfor-
+In the main experiment, all iterative RAG methods             mance by an average of 4.3% (F1) and 4.9% (EM)
+are set to a maximum of 4 iteration steps, and the            on Qwen2.5-7B-Instruct. Notably, KiRAG, de-
+retriever was used to retrieve the top 10 documents           spite optimizing only the triple-retrieval compo-
+                                                         26186
+                Triple   Sentence   Passage   Default                                  Triple   Sentence            Passage           Default
+                           Single   Cascade                                      100
+
+         75                                                                       80
+
+F1 (%)
+                                                                Proportion (%)
+         50
+                                                                                  60
+         25
+          0                                                                       40
+              2WikiMQA        HotpotQA        MuSiQue
+                                                                                  20
+         60
+EM (%)
+         40                                                                        0
+                                                                                        w/ TD w/o TD w/ TD w/o TD w/ TD w/o TD
+         20                                                                               2WikiMQA          HotpotQA          MuSiQue
+          0
+              2WikiMQA        HotpotQA        MuSiQue      Figure 5: Effect of Trajectory Distillation on context
+                                                           granularity distribution
+Figure 4: Comparison of single-granularity and cas-
+caded performance
+                                                                                                     2WikiMQA          HotpotQA         MuSiQue
+                                                            Method
+                                                                                                     F1      EM        F1      EM       F1      EM
+nent, remains competitive with stronger text-based          CIRAG (Full)                             68.1    58.9      67.0    52.6     40.9    29.5
+approaches, e.g., MetaRAG and DualRAG. These                w/o Passage                              67.4    57.5      65.5    51.1     40.8    28.9
+results suggest that triples serve as ﬁner-grained re-      w/o Triple                               67.5    58.8      64.9    51.0     38.7    26.9
+trieval units than full passages, enabling more ac-         w/o Sentence + Passage                   64.1    54.7      59.1    45.4     37.1    24.5
+curate, stable iterative retrieval, which ultimately        w/o Triple + Passage                     64.7    56.5      59.7    46.1     36.7    24.2
+                                                            w/o Triple + Sentence                    61.9    53.2      61.1    46.5     34.1    21.1
+beneﬁts QA performance. (2) Compared with
+triple-based iRAG methods, CIRAG achieves an               Table 3:    Ablation Study on Cascaded Multi-
+average gains of 10.3% (F1) and 11.6%(EM) with             Granularity Knowledge Augmented strategies for
+Qwen2.5-7B-Instruct. These improvements vali-              CIRAG Using Qwen2.5-7B-Instruct.
+date our design, yielding a better balance between
+structured precision and semantic completeness.
+                                                           ent evidence granularities and cascade variants
+The history-conditioned integration step mitigates
+                                                           on Qwen2.5-7B-Instruct. We observe strong task
+the single-path bias of greedy linear expansion,
+                                                           dependency for single-granularity settings. On
+while matching the context granularity to the ques-
+                                                           2WikiMQA and MuSiQue, w/o Triple + Sentence
+tion requirements. (3) Figure 3 reports the Gran-
+                                                           underperform the others, suggesting that longer
+ularity Distribution on 2WikiMQA and MuSiQue.
+                                                           contexts introduce distracting noise; in contrast,
+We observe that triples dominate the cascade, ac-
+                                                           passages are more effective on HotpotQA, indicat-
+counting for 76.3% on 2WikiMQA and 57.3%
+                                                           ing a higher need for paragraph-level context to re-
+on MuSiQue. This indicates that most multi-
+                                                           cover bridging evidence. This contrast highlights
+hop questions can be resolved with compact rela-
+                                                           heterogeneous granularity demands in multi-hop
+tional triples, allowing to avoid unnecessary noise.
+                                                           QA. Across all datasets, two-level cascades con-
+Meanwhile, the distribution shifts with dataset dif-
+                                                           sistently outperform single-granularity baselines,
+ﬁculty: in the more challenging MuSiQue dataset,
+                                                           showing that cascading can expand context when
+the usage of coarser granularities is higher com-
+                                                           necessary while avoiding redundant context injec-
+pared to 2WikiMQA. This contrast highlights the
+                                                           tion. CIRAG achieves the best overall F1/EM,
+heterogeneous granularity demanded by different
+                                                           conﬁrming the beneﬁt of full cascaded expansion.
+questions. Overall, these two observations con-
+                                                           We further compare performance at each cascade
+ﬁrm the rationale of our method, which can remain
+                                                           stage with its single-granularity counterpart in Fig-
+at low-noise triples when sufﬁcient, yet reliably
+                                                           ure 4 . The cascade improves F1/EM consistently
+escalate to sentences or passages when additional
+                                                           at every granularity, indicating that on-demand ex-
+context is required. (4) To verify the effectiveness
+                                                           pansion selects more suitable evidence for differ-
+of CIRAG, we report additional results under dif-
+                                                           ent questions and yields reliable QA performance.
+ferent retrievers and backbones in Appendix C.1.
+                                                           Effect of Trajectory Distillation To assess the
+5.2 Ablation Study                                         impact of Trajectory Distillation (TD) on the Inte-
+Effect of Evidence Granularity and Cascaded                gration Phase, we implement a variant, w/o TD,
+Context Expansion Table 3 compares differ-                 where the distilled model KD is replaced by a
+                                                        26187
+           70                    CIRAG    CIRAG (Online)                                          NQ              WebQ
+                                                                           Method
+                                               Dualrag-FT
+           65                                                                               F1     EM        F1      EM
+           60                                                              NativeRAG       59.6    43.7     42.1    27.8
+  F1 (%)
+                                                                           IRCOT           56.7    41.0     41.6    25.0
+           55                KiRAG          KiRAG (Online)                 FLARE           56.3    43.0     42.3    26.0
+           50                                                              MetaRAG         61.1    47.8     48.2    33.8
+                                           MetaRAG
+                  IRCoT                                                    KiRAG           57.1    41.7     44.6    27.5
+           45                                                              DualRAG         58.2    44.2     45.1    29.5
+                FLARE                                                      DualRAG-FT      60.2    45.7     47.4    31.2
+           40
+                        10           15       20             25            CIRAG           61.4    46.0     48.3    34.0
+                     Latency (s)
+Figure 6: Latency vs. F1 on 2WikiMQA Using                           Table 4: Additional results on single-hop QA datasets
+Qwen2.5-7B-Instruct.                                                 using Qwen2.5-7B-Instruct.
+
+
+frozen Qwen-2.5-7B base model. As shown in Ta-                       Method
+                                                                                      Triple           Sentence      Passage
+ble 2, removing TD results in a signiﬁcant degrada-                                 R@3 R@5 R@3 R@5 R@3 R@5
+tion in QA performance. The decline is further elu-                  NVEmbed-v2     38.3   49.5    54.5     63.3    69.5   75.0
+cidated by the granularity distribution in Figure 5.                 KiRAG          66.3   71.3    72.5     81.5    77.5   84.0
+The utilization ratio of triples in the cascaded pro-                CIRAG          71.5   82.3    78.3     89.0    84.5   91.5
+cess markedly decreases, while the incidence of
+                                                                     Table 5: Comparison of retrieval effectiveness across
+passages and default (where no matching granu-
+                                                                     multiple granularities.
+larity is found) surges. This implies a substantial
+deterioration in the quality of the core triple set
+retrieved by the ICI loop, which directly impairs
+                                                                     the initial retrieval stages, and it consistently out-
+downstream generation. These ﬁndings substanti-
+                                                                     performs the baseline across all values of L. Over-
+ate the critical role of TD in endowing the model
+                                                                     all, these results demonstrate the effectiveness of
+with the capability to discriminate core triples and
+                                                                     the ICI module, highlighting both its stable con-
+orchestrate multi-hop queries.
+                                                                     vergence behavior and its efﬁciency.
+Effect of Reranker To assess the impact of the
+reranker, we introduce a variant, w/o reranker,                      5.4 Retrieval Performance of ICI module
+which treats all triples extracted from retrieved
+documents as candidate triples. As shown in Ta-                      To evaluate the retrieval effectiveness of the ICI
+ble 2, this variant achieves comparable perfor-                      module, we randomly sample 100 questions from
+mance across all datasets, validating the effective-                 the 2WikiMQA test set and manually annotate
+ness of the Integration Phase in identifying rele-                   the essential knowledge triples required to answer
+vant triples.                                                        each question, establishing them as the ground-
+                                                                     truth triples. Utilizing these annotations alongside
+5.3 Effect of the number of Iterations                               the gold passages and supporting sentences pro-
+Figure 7 shows the QA results of CIRAG and the                       vided by the benchmark, we employ R@K to as-
+iRAG baseline on the 2WikiMQA test set across                        sess retrieval performance comprehensively across
+varying maximum iteration steps L. CIRAG ex-                         multiple granularities.
+hibits consistent gains from L = 2 to L = 4,                            We compare the ICI module against NV-Embed-
+demonstrating its ability to effectively accumu-                     v2 and KiRAG. As shown in Table 5, ICI consis-
+late multi-hop evidence. Notably, as L increases,                    tently outperforms KiRAG across all granularities.
+baseline methods exhibit performance instability                     Notably, it yields substantial improvements at the
+due to noise accumulation; in contrast, the per-                     triple level (+5.2% in R@3 and +11.0% in R@5),
+formance of CIRAG smoothly plateaus beyond                           directly enhancing the model’s capacity for struc-
+L = 4. This suggests that the ICI module ef-                         tured reasoning. Coupled with the observed gains
+fectively distills salient evidence without being af-                in downstream QA performance, these results sug-
+fected by over-expansion. Furthermore, CIRAG                         gest that the overall superiority of CIRAG is pri-
+achieves strong performance as early as L = 2, in-                   marily driven by the ICI modules enhanced evi-
+dicating that high-quality evidence is acquired in                   dence acquisition and integration capabilities.
+                                                                  26188
+5.5 Efﬁciency Analysis                                                                  IRCOT
+                                                                                        Kirag
+                                                                                                    FLARE
+                                                                                                    Dualrag-FT
+                                                                                                                      MetaRAG
+                                                                                                                      CIRAG
+
+We evaluate the efﬁciency of CIRAG compared                      70                                          60
+
+to baseline methods. To ensure a fair compar-
+ison, both CIRAG and the baselines utilize the                   60                                          50
+identical retriever for document retrieval and em-
+                                                        F1 (%)                                      EM (%)
+ploy the same underlying model as the reason-
+                                                                 50
+ing component. Drawing inspiration from prior                                                                40
+
+
+work (Fang et al., 2025), CIRAG extracts and
+caches knowledge triples ofﬂine to minimize on-                  40
+                                                                                                             30
+
+line computational overhead. To quantify the im-
+                                                                      2    4           6        8                 2    4           6    8
+                                                                          Iterative Steps                             Iterative Steps
+
+pact of these pre-computed triples, we introduce a
+variant named CIRAG (Online), which performs            Figure 7: The effect of the number of iterative steps L
+                                                        for different models on the 2WikiMQA test set.
+dynamic triple extraction during the iterative re-
+trieval process. Hardware conﬁgurations.
+   Figure 6 illustrates the average inference latency   tences and passages as needed. We further intro-
+versus F1 score on the 2WikiMQA test set. The           duce Trajectory Distillation to enhance the inte-
+results indicate that: (1) Compared to CIRAG            gration capability of lightweight models. Experi-
+(Online), the ofﬂine pre-computation signiﬁcantly       ments on MHQA benchmarks demonstrate consis-
+reduces inference latency with negligible perfor-       tent improvements over iRAG baselines. In the
+mance degradation, validating the efﬁciency ben-        future, we will explore lightweight routing for ef-
+eﬁts of our caching strategy. (2) CIRAG achieves        ﬁcient granularity selection.
+higher F1 scores while maintaining relatively low
+latency, demonstrating that our approach enhances       Limitations
+QA accuracy without introducing substantial com-        Our framework has two main limitations. First,
+putational costs. (3) Overall, CIRAG strikes a          the Construction Phase depends on prompt-based
+superior balance between effectiveness and efﬁ-         open IE; in specialized domains or when rela-
+ciency, characterized by lower latency and higher       tions are highly implicit, the extractor may miss
+F1 scores compared to baselines.                        key triples, limiting downstream integration. Fu-
+                                                        ture work could improve extraction via domain-
+5.6 Other QA Tasks
+                                                        adaptive training or prompt optimization. Sec-
+To evaluate generalization, we conducted addi-          ond, the cascaded generation incurs extra latency
+tional experiments on a multi-hop QA dataset, We-       due to sequential granularity checks. While Tra-
+bQA (Berant et al., 2013), and a single-hop QA          jectory Distillation reduces integration cost, gen-
+dataset, NQ (Kwiatkowski et al., 2019). As shown        eration overhead remains. A potential improve-
+in Table 4, CIRAG outperforms all baselines on          ment is to develop a lightweight granularity router
+WebQA and NQ, demonstrating strong generaliza-          that directly selects the appropriate context level,
+tion across QA settings.                                which could further accelerate inference.
+
+5.7 Case Study                                          Acknowledgments
+We conduct a case study in Appendix D to verify         The work is supported by the National Natural
+the effectiveness of our method.                        Science Foundation of China (Nos. 62272092,
+                                                        62172086), and the Fundamental Research
+6   Conclusion                                          Funds for the Central Universities under Grants
+We propose CIRAG, a two-module iRAG frame-              (N25XQD004).
+work for multi-hop QA that integrates triple-based
+retrieval with adaptive multi-granularity genera-
+                                                        References
+tion. An Iterative Construction-Integration mod-
+ule distills core triples and plans next-hop queries    Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil,
+                                                          and Hannaneh Hajishirzi. 2024. Self-RAG: Learn-
+to mitigate greedy reasoning and retrieval noise,         ing to retrieve, generate, and critique through self-
+while an Adaptive Cascaded Generation module              reﬂection. In The Twelfth International Conference
+dynamically expands context from triples to sen-          on Learning Representations.
+                                                   26189
+Jonathan Berant, Andrew Chou, Roy Frostig, and Percy      Bernal Jiménez Gutiérrez, Yiheng Shu, Weijian Qi,
+  Liang. 2013. Semantic parsing on freebase from            Sizhe Zhou, and Yu Su. 2025. From rag to mem-
+  question-answer pairs. In Proceedings of the 2013         ory: Non-parametric continual learning for large lan-
+  Conference on Empirical Methods in Natural Lan-           guage models. arXiv preprint arXiv:2502.14802.
+  guage Processing, pages 1533–1544.
+                                                          Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,
+Baian Chen, Chang Shu, Ehsan Shareghi, Nigel Col-           and Akiko Aizawa. 2020. Constructing A multi-
+  lier, Karthik Narasimhan, and Shunyu Yao. 2023.           hop QA dataset for comprehensive evaluation of
+  Fireact: Toward language agent ﬁne-tuning. arXiv          reasoning steps. In Proceedings of the 28th Inter-
+  preprint arXiv:2310.05915.                                national Conference on Computational Linguistics,
+                                                            pages 6609–6625.
+Rong Cheng, Jinyi Liu, Yan Zheng, Fei Ni, Jiazhen Du,
+  Hangyu Mao, Fuzheng Zhang, Bo Wang, and Jianye          Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan
+  Hao. 2025. Dualrag: A dual-process approach to            Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang,
+  integrate reasoning and retrieval for multi-hop ques-     Weizhu Chen, and 1 others. 2022. Lora: Low-rank
+  tion answering. In Proceedings of the 63rd Annual         adaptation of large language models. ICLR, 1(2):3.
+  Meeting of the Association for Computational Lin-
+  guistics (Volume 1: Long Papers), pages 31877–          Zhengbao Jiang, Frank F. Xu, Luyu Gao, Zhiqing Sun,
+  31899.                                                    Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie
+                                                            Callan, and Graham Neubig. 2023. Active retrieval
+Darren Edge, Ha Trinh, Newman Cheng, Joshua                 augmented generation. In Proceedings of the 2023
+  Bradley, Alex Chao, Apurva Mody, Steven Truitt,           Conference on Empirical Methods in Natural Lan-
+  and Jonathan Larson. 2024. From local to global: A        guage Processing, pages 7969–7992.
+  graph RAG approach to query-focused summariza-
+                                                          Li Jiapeng, Liu Runze, Li Yabo, Zhou Tong, Li Min-
+  tion. arXiv preprint arXiv:2404.16130.
+                                                             gling, and Chen Xiang. 2024. Tree of reviews:
+Wenqi Fan, Yujuan Ding, Liangbo Ning, Shijie Wang,          A tree-based dynamic iterative retrieval framework
+  Hengyun Li, Dawei Yin, Tat-Seng Chua, and Qing             for multi-hop question answering. arXiv preprint
+  Li. 2024. A survey on rag meeting llms: Towards            arXiv:2404.14464.
+  retrieval-augmented large language models. In Pro-      Minki Kang, Jongwon Jeong, Seanie Lee, Jaewoong
+  ceedings of the 30th ACM SIGKDD conference on             Cho, and Sung Ju Hwang. 2025. Distilling llm
+  knowledge discovery and data mining, pages 6491–          agent into small models with retrieval and code tools.
+  6501.                                                     arXiv preprint arXiv:2505.17612.
+Jinyuan Fang, Zaiqiao Meng, and Craig MacDon-             Walter Kintsch and Teun A Van Dijk. 1978. Toward a
+   ald. 2024. TRACE the evidence: Constructing              model of text comprehension and production. Psy-
+   knowledge-grounded reasoning chains for retrieval-       chological review, 85(5):363.
+   augmented generation. In Findings of the Associa-
+   tion for Computational Linguistics: EMNLP, pages       Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+   8472–8494.                                               ﬁeld, Michael Collins, Ankur Parikh, Chris Alberti,
+                                                            Danielle Epstein, Illia Polosukhin, Jacob Devlin,
+Jinyuan Fang, Zaiqiao Meng, and Craig Macdonald.            Kenton Lee, and 1 others. 2019. Natural ques-
+   2025. Kirag: Knowledge-driven iterative retriever        tions: a benchmark for question answering research.
+   for enhancing retrieval-augmented generation. In         Transactions of the Association for Computational
+   Proceedings of the 63rd Annual Meeting of the As-        Linguistics, 7:453–466.
+   sociation for Computational Linguistics (Volume 1:
+   Long Papers), pages 18969–18985.                       Chankyu Lee, Rajarshi Roy, Mengyao Xu, Jonathan
+                                                            Raiman, Mohammad Shoeybi, Bryan Catanzaro,
+Zhibin Gou, Zhihong Shao, Yeyun Gong, Yelong Shen,          and Wei Ping. 2024. Nv-embed: Improved tech-
+  Yujiu Yang, Minlie Huang, Nan Duan, and Weizhu            niques for training llms as generalist embedding
+  Chen. 2023. Tora: A tool-integrated reasoning agent       models. arXiv preprint arXiv:2405.17428.
+  for mathematical problem solving. arXiv preprint
+  arXiv:2309.17452.                                       Hyunji Lee, Sohee Yang, Hanseok Oh, and Minjoon
+                                                            Seo. 2022. Generative multi-hop retrieval. In Pro-
+Aaron Grattaﬁori, Abhimanyu Dubey, Abhinav Jauhri,          ceedings of the 2022 Conference on Empirical Meth-
+  Abhinav Pandey, Abhishek Kadian, Ahmad Al-                ods in Natural Language Processing, pages 1417–
+  Dahle, Aiesha Letman, Akhil Mathur, Alan Schel-           1436.
+  ten, Alex Vaughan, and 1 others. 2024. The llama 3
+  herd of models. arXiv preprint arXiv:2407.21783.        Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+                                                            Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+Bernal J Gutiérrez, Yiheng Shu, Yu Gu, Michihiro Ya-        rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  sunaga, and Yu Su. 2024. Hipporag: Neurobiologi-          täschel, and 1 others. 2020. Retrieval-augmented
+  cally inspired long-term memory for large language        generation for knowledge-intensive NLP tasks. Ad-
+  models. Advances in neural information processing         vances in Neural Information Processing Systems,
+  systems, 37:59532–59569.                                  33:9459–9474.
+                                                     26190
+Rui Li, Quanyu Dai, Zeyu Zhang, Xu Chen, Zhen-            Cunxiang Wang, Xiaoze Liu, Yuanhao Yue, Xiangru
+  hua Dong, and Ji-Rong Wen. 2025. Knowtrace:               Tang, Tianhang Zhang, Cheng Jiayang, Yunzhi Yao,
+  Bootstrapping iterative retrieval-augmented genera-       Wenyang Gao, Xuming Hu, Zehan Qi, and 1 others.
+  tion with structured knowledge tracing. In Pro-           2023. Survey on factuality in large language models:
+  ceedings of the 31st ACM SIGKDD Conference on             Knowledge, retrieval and domain-speciﬁcity. arXiv
+  Knowledge Discovery and Data Mining V. 2, pages           preprint arXiv:2310.07521.
+  1470–1480.
+                                                          Jingjin Wang and Jiawei Han. 2025. Proprag: Guiding
+Xi Victoria Lin, Xilun Chen, Mingda Chen, Weijia Shi,        retrieval with beam search over proposition paths.
+  Maria Lomeli, Rich James, Pedro Rodriguez, Jacob           In Proceedings of the 2025 Conference on Empiri-
+  Kahn, Gergely Szilvasy, Mike Lewis, and 1 others.          cal Methods in Natural Language Processing, pages
+  2024. RA-DIT: Retrieval-augmented dual instruc-            6223–6238.
+  tion tuning. In International Conference on Learn-
+  ing Representations.                                    Cathleen Wharton and Walter Kintsch. 1991. An
+                                                            overview of construction-integration model: a the-
+Linhao Luo, Yuan-Fang Li, Gholamreza Haffari, and           ory of comprehension as a foundation for a new cog-
+  Shirui Pan. 2024. Reasoning on graphs: Faithful and       nitive architecture. ACM Sigart Bulletin, 2(4):169–
+  interpretable large language model reasoning. In          173.
+  The Twelfth International Conference on Learning
+  Representations.                                        Shitao Xiao, Zheng Liu, Peitian Zhang, Niklas Muen-
+                                                            nighoff, Defu Lian, and Jian-Yun Nie. 2024. C-pack:
+Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,        Packed resources for general chinese embeddings.
+  Daniel Khashabi, and Hannaneh Hajishirzi. 2023.           In Proceedings of the 47th international ACM SIGIR
+  When not to trust language models: Investigating ef-      conference on research and development in informa-
+  fectiveness of parametric and non-parametric mem-         tion retrieval, pages 641–649.
+  ories. In Proceedings of the 61st Annual Meeting of
+  the Association for Computational Linguistics (Vol-     An Yang, Baosong Yang, Beichen Zhang, Binyuan
+  ume 1: Long Papers), pages 9802–9822.                     Hui, Bo Zheng, Bowen Yu, Chengyuan Li, Dayi-
+                                                            heng Liu, Fei Huang, Haoran Wei, and 1 others.
+Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,         2024. Qwen2. 5 technical report. arXiv preprint
+  Amnon Shashua, Kevin Leyton-Brown, and Yoav               arXiv:2412.15115.
+  Shoham. 2023. In-context retrieval-augmented lan-
+  guage models. Transactions of the Association for       Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  Computational Linguistics, 11:1316–1331.                  gio, William W. Cohen, Ruslan Salakhutdinov, and
+                                                            Christopher D. Manning. 2018. HotpotQA: A
+Matthew Renze. 2024. The effect of sampling temper-         dataset for diverse, explainable multi-hop question
+ ature on problem solving in large language models.         answering. In Proceedings of the 2018 Conference
+ In Findings of the association for computational lin-      on Empirical Methods in Natural Language Process-
+ guistics: EMNLP 2024, pages 7346–7356.                     ing, pages 2369–2380.
+Zhihong Shao, Yeyun Gong, Yelong Shen, Minlie             Zijun Yao, Weijian Qi, Liangming Pan, Shulin Cao,
+  Huang, Nan Duan, and Weizhu Chen. 2023. En-                Linmei Hu, Liu Weichuan, Lei Hou, and Juanzi Li.
+  hancing retrieval-augmented large language models          2025. Seakr: Self-aware knowledge retrieval for
+  with iterative retrieval-generation synergy. In Find-      adaptive retrieval augmented generation. In Pro-
+  ings of the Association for Computational Linguis-         ceedings of the 63rd Annual Meeting of the Associa-
+  tics: EMNLP, pages 9248–9274.                              tion for Computational Linguistics (Volume 1: Long
+                                                             Papers), pages 27022–27043.
+Freda Shi, Xinyun Chen, Kanishka Misra, Nathan
+  Scales, David Dohan, Ed H Chi, Nathanael Schärli,       Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan Be-
+  and Denny Zhou. 2023. Large language models can           rant. 2024. Making retrieval-augmented language
+  be easily distracted by irrelevant context. In Inter-     models robust to irrelevant context. In International
+  national Conference on Machine Learning, pages            Conference on Learning Representations.
+  31210–31227. PMLR.
+                                                          Chao Zhang, Yuhao Wang, Derong Xu, Haoxin Zhang,
+Harsh Trivedi, Niranjan Balasubramanian, Tushar             Yuanjie Lyu, Yuhao Chen, Shuochen Liu, Tong Xu,
+  Khot, and Ashish Sabharwal. 2022. MuSiQue: Mul-           Xiangyu Zhao, Yan Gao, and 1 others. 2025. Tearag:
+  tihop questions via single-hop question composition.      A token-efﬁcient agentic retrieval-augmented gener-
+  Trans. Assoc. Comput. Linguistics, 10:539–554.            ation framework. arXiv preprint arXiv:2511.05385.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar           Jiahao Zhang, Haiyang Zhang, Dongmei Zhang, Liu
+  Khot, and Ashish Sabharwal. 2023. Interleav-               Yong, and Shen Huang. 2024. End-to-end beam re-
+  ing retrieval with chain-of-thought reasoning for          trieval for multi-hop question answering. In Pro-
+  knowledge-intensive multi-step questions. In Pro-          ceedings of the 2024 Conference of the North Amer-
+  ceedings of the 61st Annual Meeting of the Associa-        ican Chapter of the Association for Computational
+  tion for Computational Linguistics (Volume 1: Long         Linguistics: Human Language Technologies (Vol-
+  Papers), pages 10014–10037.                                ume 1: Long Papers), pages 1718–1731.
+                                                     26191
+Chen Zhao, Chenyan Xiong, Jordan L. Boyd-Graber,         are also used for training, we further randomly
+  and Hal Daumé III. 2021. Multi-step reasoning over     sample 1,000 questions from each original train-
+  unstructured text with beam dense retrieval. In Pro-
+                                                         ing set to form the training split used in our exper-
+  ceedings of the 2021 Conference of the North Amer-
+  ican Chapter of the Association for Computational      iments.
+  Linguistics: Human Language Technologies, pages
+  4635–4641.                                             B.2 Metrics Details
+Yujia Zhou, Zheng Liu, Jiajie Jin, Jian-Yun Nie,         Exact Match (EM) provides the strictest criterion,
+  and Zhicheng Dou. 2024. Metacognitive retrieval-       assigning a score of 1 only when the predicted an-
+  augmented large language models. In Proceedings        swer exactly matches the ground truth and 0 other-
+  of the ACM Web Conference 2024, pages 1453–
+                                                         wise.
+  1463.
+                                                            The F1 score measures token-level similarity by
+A     Prompts                                            computing the harmonic mean of Precision and
+A.1 Prompt for Knowledge Triple Extraction               Recall, where Precision reﬂects the proportion of
+                                                         predicted tokens that are correct, and Recall de-
+The prompt used for NER from a document is il-           notes the proportion of reference tokens success-
+lustrated in Figure 9. The prompt used for ex-           fully retrieved. We follow evaluation metrics from
+tracting knowledge triples from a document is il-        MuSiQue (Trivedi et al., 2022) to calculate F1
+lustrated in Figure 10.                                  scores for the ﬁnal answer.
+A.2 Prompt for Integration Phase
+                                                         B.3 Baselines
+The prompt used for distilling a core triple set and
+                                                         For IRCoT and FLARE, we use the implementa-
+synthesizing the next-hop query in the integration
+                                                         tions provided by DualRAG (Cheng et al., 2025).
+phase is illustrated in Figure 11.
+                                                         For other models, we adapt the ofﬁcial implemen-
+A.3 Prompt for ACMG                                      tations released by the authors to match our experi-
+Figure 12 illustrates the prompting method at the        mental setting. For a fair comparison, CIRAG and
+ACMG triplet level. The sentence and article lev-        all baselines use the same retriever to access the
+els differ from the triplet level only in the exam-      same corpus and share the same backbone LLM
+ples used.                                               for reasoning and answer generation. For meth-
+                                                         ods that require training but do not provide pub-
+B     Experimental Details                               lic checkpoints, we reproduce training by follow-
+                                                         ing the authors’ released data-generation pipelines
+B.1    Datasets
+                                                         to construct the training set, and we use the same
+In our experiments, we employ four multi-                initial training split as CIRAG. When applicable,
+hop QA datasets:          HotpotQA, 2WikiMulti-          we align the training recipe (e.g., optimization set-
+HopQA, MuSiQue, WebQuestions (WebQA), and                tings and hyperparameters) with the original pa-
+one single-hop QA dataset: Natural Questions             pers as closely as possible under our hardware con-
+(NQ). For HotpotQA, 2WikiMultiHopQA, and                 straints.
+MuSiQue, we construct the retrieval corpus by
+following exactly the same procedure as (Trivedi         B.4 Training and Hyperparameter Details
+et al., 2023). For WebQA and NQ, we use the cor-
+                                                         Training Details. We ﬁne-tune student models
+pus version released with DPR. To control evalua-
+                                                         using parameter-efﬁcient tuning with LoRA (rank
+tion cost, for each question in WebQA and NQ, we
+                                                         64) (Hu et al., 2022). models are ﬁne-tuned for 2
+include all annotated supporting documents and
+                                                         epochs using a batch size of 2 and a learning rate
+additionally sample up to 10 non-supporting docu-
+                                                         of 2 * 10−4 . Experiments are conducted using four
+ments.
+                                                         NVIDIA A6000 48GB GPUs,with a total training
+   For datasets with public test sets (WebQA and
+                                                         time of approximately 3 hours.
+NQ), we randomly sample 500 test questions for
+evaluation. For datasets without public test sets        Implementation and Hyperparameter Details.
+(HotpotQA, 2WikiMultiHopQA, and MuSiQue),                Throughout the experiments, we set the maxi-
+we randomly sample 1,000 questions from the de-          mum number of iterative steps L to 4. The de-
+velopment set as our test split and report perfor-       tails of each component in our CIRAG are out-
+mance on this subset. Since these three datasets         lined as follows: For the Retriever model, we
+                                                    26192
+use either bge-Small-env1.5 (Xiao et al., 2024)                                                WIKI              Hotpot                 MuSiQue
+
+
+or nvidia/NVEmbed-v2 (Lee et al., 2024) to re-                                                                            60
+                                                               70
+trieve documents and rerank triples. The num-                                                                             58
+
+
+ber of retrieved documents per iteration (i.e., K)             68                                                         56
+
+                                                                                                                          54
+is 10. The number of candidate triples per itera-     F1 (%)
+                                                               66
+                                                                                                                 EM (%)   52
+
+tion (i.e., N ) is 30. For the Backbone model, we              64
+                                                                                                                          50
+
+
+try different LLMs, including Llama3 (Grattaﬁori               41
+                                                                                                                          30
+
+et al., 2024), Qwen-2.5-7B-Instruct, and Qwen-                 40
+                                                                                                                          28
+
+max-2025-01-25 (Yang et al., 2024) as the back-                     10       30      50        70
+                                                                         Number of Candidate Triples (N)
+                                                                                                           100                 10       30      50      70
+                                                                                                                                    Number of Candidate Triples (N)
+                                                                                                                                                                      100
+
+
+bone of our framework and all baselines. We
+set the temperature to 0 when calling the API
+                                                      Figure 8: QA performance (%) of CIRAG under differ-
+of Qwen-max and use greedy decoding for other         ent values of N on three multi-hop QA datasets.
+models to avoid random sampling (Renze, 2024).
+We mainly report the performance of using Qwen-         Method
+                                                                                      2WikiMQA                     HotpotQA                       MuSiQue
+2.5-7B-Instruct and Qwen-max-2025-01-25 (Yang                                             F1        EM               F1              EM           F1         EM
+et al., 2024) as the Backbone. Hardware conﬁg-          IRCOT                         41.1          23.1           56.7              41.3       23.1         13.6
+urations: All experiments are conducted on the          FLARE                         40.5          24.8           56.8              41.2       24.5         14.0
+same hardware environment equipped with an In-          MetaRAG                       44.9          30.6           62.5              48.5       31.7         20.8
+tel Xeon Gold 6326 CPU (2.90GHz, 32 cores) and          Kirag                         47.2          20.2           60.5              46.2       30.9         19.6
+an NVIDIA RTX A6000 GPU.                                Dualrag                       56.8          37.6           57.5              43.6       32.4         21.1
+                                                        Dualrag-FT                    60.1          39.7           61.9              46.0       34.6         24.7
+C   Additional Experimental Results and                 Ours                          64.0          44.9           66.7              51.4       40.7         28.2
+    Analysis
+                                                      Table 6: QA performance (%) using nvidia/NVEmbed-
+C.1 Using Different Retrievers and Readers            v2 as the Retriever and Llama-3-8B-Instruct as Back-
+To validate the effectiveness of CIRAG, we pro-       bone. The best and second-best performances are high-
+                                                      lighted in bold and underlined, respectively.
+vide additional results using different retrievers
+and a backbone model. Speciﬁcally, we re-
+place the nvidia/NVEmbed-v2 Retriever with bge-       we vary N from 10 to 100. Figure 8 reports the
+Small-env1.5 Retriever for retrieving documents       QA performance under different N values, over
+from the corpus and the other components re-          3,000 questions sampled from three multi-hop QA
+main unchanged. The corresponding QA perfor-          datasets (the same as in the main experiment).
+mance is presented in Table 7, respectively. The      Overall, CIRAG exhibits low sensitivity to N :
+results are consistent with those obtained using      both F1 and EM remain largely stable, with ﬂuc-
+thenvidia/NVEmbed-v2 Retriever, demonstrating         tuations below 2% across the tested range. This
+the adaptability and effectiveness of our CIRAG       robustness is consistent with our integration mod-
+across different retriever models.                    ule, which reﬁnes the candidate set into a compact
+   To verify the applicability of our approach        core triple set by leveraging the accumulated his-
+across different LLM architectures, we also con-      tory, thereby mitigating the effect of noisy candi-
+ducted experiments on other open-source models        dates. Considering cost and efﬁciency, we chose
+(Llama-3-8B-Instruct). The results are shown in       N = 30.
+Table 6. These experimental results indicate that
+our method is also applicable to other LLM archi-     C.3 Sensitivity to Trajectory Quantity in KD
+tectures, demonstrating robust performance across     To assess the sensitivity of KD to the number of
+different models.                                     training trajectories, we train KD models with 1k,
+                                                      2k, 3k, and 4k trajectories under identical settings,
+C.2 Effect of the Number of Candidate                 following the trajectory construction procedure de-
+    Triples                                           scribed in Sec. 4.3, and evaluate them on 100
+During the construction phase of CIRAG, the           randomly sampled instances from the test splits
+reranker retrieves the top-N triples most relevant    of HotpotQA, 2WikiMultiHopQA (2WikiMQA),
+to the current query, which are treated as the can-   and MuSiQue. We use Qwen-2.5-7B-Instruct as
+didate triple set. To study the sensitivity to N ,    the backbone and nvidia/NVEmbed-v2 as the re-
+                                                 26193
+               2WikiMQA           HotpotQA      MuSiQue          D Case Study
+ Method
+                   F1     EM       F1    EM     F1     EM        We conducted several case studies to analyze the
+ IRCOT         44.8       35.9    55.1   41.2   21.8   12.2      effectiveness of our method. The results show
+ FLARE         41.2       34.4    54.1   39.6   21.3   11.8      that DualRAG can dynamically retrieve informa-
+ MetaRAG       48.6       42.8    60.3   47.6   29.2   18.8
+                                                                 tion when additional knowledge is required, en-
+ Kirag         51.9       36.9    61.5   48.1   30.7   19.5
+ Dualrag       61.2       51.1    57.6   44.5   32.9   21.0
+                                                                 abling efﬁcient multi-hop reasoning with minimal
+ Dualrag-FT    64.5       52.3    61.7   46.7   35.2   24.8      iterations. Detailed case study examples are illus-
+                                                                 trated in Table 9.
+ Ours          66.8       57.3    65.6   51.8   39.9   27.8
+
+Table 7: QA performance (%) using bge-Small-env1.5
+as the Retriever and Qwen2.5-7B-Instruct as Backbone.
+The best and second-best performances are highlighted
+in bold and underlined, respectively.
+
+
+              2WikiMQA           HotpotQA        MuSiQue
+Quantity
+              F1        EM       F1      EM     F1     EM
+1000       63.2         53.8     64.2    49.6   40.5   28.8
+2000       65.9         55.8     65.5    50.4   41.7   30.4
+3000       67.6         57.4     66.9    51.1   42.3   31.2
+4000       68.4         57.5     67.5    51.6   42.8   31.0
+
+Table 8: Effect of Training Trajectory Quantity on KD
+Performance.
+
+
+trieval model. The QA results are shown in Ta-
+ble 8. The results indicate that even with only
+1k trajectories, the model achieves strong perfor-
+mance, reaching F1 = 63.2 on 2WikiMultiHopQA,
+thereby demonstrating high sample efﬁciency. Per-
+formance improves consistently as the number of
+trajectories increases but exhibits diminishing re-
+turns beyond 3k. The gain from 3k to 4k trajec-
+tories amounts to only 0.8 F1 points on 2Wiki-
+MultiHopQA. Similar trends are observed across
+datasets.
+   These ﬁndings indicate that KD is not overly
+sensitive to trajectory quantity and that a moder-
+ate number of trajectories is sufﬁcient to learn an
+effective integration policy.
+
+C.4 Latency Analysis of the ACMG Module
+Statistical results indicate that the ACMG module
+requires an average of only 1.3, 1.2, and 1.6 LLM
+calls per question on 2WikiMultiHopQA, Hot-
+potQA, and MuSiQue, respectively. This demon-
+strates that ACMG entails few generation steps
+and infrequently resorts to document-level back-
+tracking for inference. Owing to its efﬁcient
+triplet-level reasoning mechanism, this cascaded
+architecture incurs negligible latency overhead.
+                                                              26194
+                                                        Case Study
+Question: Which ﬁlm has the director who is older, God’S Gift To Women or Aldri Annet Enn Bråk?
+Gold Answers: [ God’S Gift To Women ]
+Iterative Construction-Integration (ICI) Retrieval module
+Step 1
+Construction Phase
+Retrieved Documents
+(1) God’s Gift to Women: El extraño viaje is a 1964 Spanish black drama ﬁlm directed by Fernando Fernán Gómez...
+(2) Aldri annet enn bråk: Aldri annet enn bråk is a 1954 Norwegian comedy- drama ﬁlm...
+(3) Dan Milne: Dan Milne is a British actor/ director who is possibly best known for his role...
+(4) ...
+
+Candidate Triples
+( "god s gift to women", "directed by", "michael curtiz" ), ( "aldri annet enn br k", "directed by", "edith carlmar" ), ( "god
+s gift to women", "is a", "romantic musical comedy ﬁlm" )...
+
+Integration Phase
+Thought
+The query asks: Which ﬁlm has the director who is older, God’s Gift to Women or Aldri Annét Enn Bråk? From the facts
+provided, we know that God’s Gift to Women was directed by Michael Curtiz and Aldri Annét Enn Bråk was directed by
+Edith Carlmar. To determine which director is older, we need their birth years. The next step is to ﬁnd out the birth years
+of Michael Curtiz and Edith Carlmar.
+
+Core Triples
+( "god s gift to women", "directed by", "michael curtiz" ), ( "aldri annet enn br k", "directed by", "edith carlmar" )
+
+Next-hop query
+What are the birth years of Michael Curtiz and Edith Carlmar?
+Step 2
+Construction Phase
+Retrieved Documents
+(1) Edith Carlmar: Edith Carlmar (Edith Mary Johanne Mathiesen) (15 November 1911 - 17 May 2003)...
+(2) Michael Curtiz: Michael Curtiz (born Manó Kaminer(1886-1905) Mihály Kertész ...
+(3) ...
+
+Candidate Triples
+( "edith carlmar", "started", "carlmar ﬁlm a s" ), ( "edith carlmar", "is also known as", "edith mary johanne mathiesen" ),
+( "edith carlmar", "born on", "15 november 1911" ), ( "michael curtiz", "born on", "december 24 1886" ),...
+
+Integration Phase
+Thought
+The question is: Which ﬁlm has the director who is older, God’s Gift to Women or Aldri Annét Enn Bråk? From the
+previous step, we identiﬁed that Michael Curtiz directed God’s Gift to Women and Edith Carlmar directed Aldri Annét
+Enn Bråk. The current facts provide their birth dates: Michael Curtiz was born on December 24, 1886 and Edith Carlmar
+was born on November 15, 1911. Since Michael Curtiz is older than Edith Carlmar. Therefore, the ﬁlm God’s Gift to
+Women has the older director.
+
+Core Triples
+( "edith carlmar", "born on", "15 november 1911" ), ( "michael curtiz", "born on", "december 24 1886" )
+
+Next-hop query
+<no question>
+Adaptive Cascaded Multi-Granularity Knowledge-Enhanced Generation (ACMG) module
+Cumulative Triple Set
+( "god s gift to women", "directed by", "michael curtiz" ), ( "aldri annet enn br k", "directed by", "edith carlmar" ), (
+"edith carlmar", "born on", "15 november 1911" ), ( "michael curtiz", "born on", "december 24 1886" )
+
+Thought
+Michael Curtiz (born Dec 24, 1886) is older than Edith Carlmar (born Nov 15, 1911). Therefore, the ﬁlm with the older
+director is God’S Gift To Women.
+Answer: God’S Gift To Women
+
+                                                   Table 9: Case Study
+
+
+                                                           26195
+Prompt Used for NER
+
+Instruction: Your task is to extract named entities from the given paragraph. Respond with a JSON
+list of entities.
+Examples:
+Paragraph: Radio City Radio City is India’s ﬁrst private FM radio station and was started on 3 July 2001. It
+plays Hindi, English and regional songs. Radio City recently forayed into New Media in May 2008 with the
+launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other music-
+related features.
+Entity lists: {"named entities": ["Radio City", "India", "3 July 2001", "Hindi", "English", "May 2008", "Plane-
+tRadiocity.com"] }
+Inputs:
+Passage: {document text}
+Outputs:
+Entity lists:
+
+                                        Figure 9: Prompt used for NER.
+
+
+
+
+Prompt Used for Knowledge Triple Extraction
+
+Instruction: Your task is to construct an RDF (Resource Description Framework) graph from the given
+passages and named entity lists. Respond with a JSON list of triples, with each triple representing a
+relationship in the RDF graph. Pay attention to the following requirements: - Each triple should contain
+at least one, but preferably two, of the named entities in the list for each passage. - Clearly resolve
+pronouns to their speciﬁc names to maintain clarity.
+Examples: Paragraph: Radio City Radio City is India’s ﬁrst private FM radio station and was started on 3
+July 2001. It plays Hindi, English and regional songs. Radio City recently forayed into New Media in May 2008
+with the launch of a music portal - PlanetRadiocity.com that offers music related news, videos, songs, and other
+music-related features.
+Entity lists: {"named entities": ["Radio City", "India", "3 July 2001", "Hindi", "English", "May 2008", "Plane-
+tRadiocity.com"] }
+Knowledge Triples: {"triples": [ ["Radio City", "located in", "India"], ["Radio City", "is", "private FM radio
+station"], ["Radio City", "started on", "3 July 2001"], ["Radio City", "plays songs in", "Hindi"], ["Radio City",
+"plays songs in", "English"], ["Radio City", "forayed into", "New Media"], ["Radio City", "launched", "Plan-
+etRadiocity.com"], ["PlanetRadiocity.com", "launched in", "May 2008"], ["PlanetRadiocity.com", "is", "music
+portal"], ["PlanetRadiocity.com", "offers", "news"], ["PlanetRadiocity.com", "offers", "videos"], ["PlanetRa-
+diocity.com", "offers", "songs"] ] }
+Inputs:
+Title: {document title}
+Text: {document text}
+Outputs:
+Knowledge Triples:
+
+                           Figure 10: Prompt used for extracting knowledge triples.
+
+
+
+                                                     26196
+Prompt Used for Integration Phase
+
+Instruction: Your task is to loop through collecting facts to solve the query until enough facts are
+collected. You must plan to continue in a series of steps, looping as follows:[[ ## fact_before_ﬁlter ##
+]]{fact_before_ﬁlter}[[ ## thought ## ]]{thought}[[ ## fact_after_ﬁlter ## ]]{fact_after_ﬁlter} [[ ##
+question ## ]] {question} sequence. In each step, in the [[ ## fact_before_ﬁlter ## ]] section, this is
+the collection of facts that need to be ﬁltered to solve the previous problem. In the [[ ## thought ##
+]] section, only use the information from the facts before ﬁltering, brieﬂy analyze the contribution of
+the facts to the problem, and list useful facts. Based on the analysis, determine whether the original
+problem can be solved. If it cannot be solved, analyze what additional information is needed and raise
+new questions. In the [[ ## fact_after_ﬁlter ## ]] section, if there are no relevant facts, return an empty
+list:{ "fact": [] }.In the [[ ## question ## ]] section, you need to use the ﬁltered facts to propose the
+next problem that still needs to be solved. If the facts collected in the previous rounds are sufﬁcient to
+answer the original query, output <no question> as the end to terminate the loop.
+i-th Inputs:
+[[ ## Original Query ## ]]: {query}
+[[ ## fact_before_ﬁlter ## ]]: {fact_before_ﬁlter}
+[[ ## historical_context ## ]]: {historical context}
+i-th Outputs:
+[[ ## thought ## ]]:
+[[ ## fact_after_ﬁlter ## ]]:
+[[ ## question ## ]]:
+
+                                  Figure 11: Prompt used for Integration Phase.
+
+
+
+
+Prompt Used for triple level in ACMG.
+
+Instruction: As an advanced reading comprehension assistant, your task is to carefully analyze triples
+and extract useful information from them to answer corresponding questions. Your response start after
+"Thought: ", where you will methodically break down the reasoning process, illustrating how you
+arrive at conclusions. If the provided information cannot answer the question, output Unanswerable.
+Conclude with "Answer: " to present a concise, deﬁnitive response, devoid of additional elaborations.
+ Examples: Triples: triples: (’erik hort’, ’born in’, ’montebello’), (’erik hort’, ’is’, ’american’), (’montebello’,
+’is located in’, ’rockland county’)
+ Query: What county is Erik Hort’s birthplace a part of?
+ Thought: The triplet (’erik hort’, ’born in’, ’montebello’) tells us that Erik Hort was born in Montebello. The
+ triplet (’montebello’, ’is located in’, ’rockland county’) tells us that Montebello is located in Rockland County.
+ Therefore, since Erik Hort was born in Montebello and Montebello is in Rockland County, Erik Hort’s birthplace
+ is part of Rockland County.
+ Answer: Rockland County.
+Inputs:
+Triples: {triples}
+Query: {query}
+Outputs:
+Thought:
+
+                                Figure 12: Prompt used for triple level in ACMG.
+
+
+                                                       26197
+

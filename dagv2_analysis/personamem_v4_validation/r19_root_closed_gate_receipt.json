@@ -1,0 +1,45 @@
+{
+  "created_utc": "2026-10-13T22:15:02.805720+00:00",
+  "source_commit": "0cc2cc78498bcd215252fb8e82d2168868a71b3f",
+  "root_executed": true,
+  "cwd": "/Users/mao/projects/dagv2-personamem-v4",
+  "python": "/Users/mao/projects/dagv2/.venv/bin/python",
+  "status_command": [
+    "bash",
+    "scripts/personamem_v4.sh",
+    "status",
+    "--output",
+    "outputs/v4_validation_r19"
+  ],
+  "status": {
+    "live_writer": false,
+    "pid": {
+      "pid": 21059,
+      "pgid": 21059,
+      "started_unix": 1791927967.95196,
+      "output": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r19",
+      "process_command": "/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python -m dagbt.runner run --config /Users/mao/projects/dagv2-personamem-v4/configs/personamem-v4.json --output /Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r19 --datasets personamem --arms original dagbt_residual_memory_v2 --question-ids-file /Users/mao/projects/dagv2-personamem-v4/configs/personamem-v4-smoke-ids.json"
+    },
+    "progress": {
+      "state": "complete_with_failures",
+      "failed_arm_tasks": 27,
+      "updated_unix": 1791929572.5446248
+    },
+    "log": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r19/launcher.log"
+  },
+  "gate_command": [
+    "bash",
+    "scripts/personamem_v4.sh",
+    "check",
+    "--output",
+    "outputs/v4_validation_r19"
+  ],
+  "gate_exit_code": 1,
+  "gate_stdout": "",
+  "gate_stderr": "{\"error_type\": \"ValueError\", \"error\": \"Smoke 尚未全部成功结束；查看 status / launcher.log，不要启动全量。\"}\n",
+  "passed": false,
+  "source_clean": true,
+  "analysis_labels_read": false,
+  "analysis_scores_read": false,
+  "note": "Actual gate after natural completion. No model request, source or result changes."
+}

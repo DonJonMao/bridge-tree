@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator.\n\n[Passage {\"doc_id\": \"hotpotqa:9515\", \"source_id\": \"hotpotqa:9515\"}]\nVaniusha The Newcomer\nVaniusha The Newcomer (Russian: Пришелец Ванюша ) is a 1990 Soviet Russian stop-motion animation film by Vladimir Danilevich and Olga Panokina. It was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> It is the second film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The other three films are \"The Newcomer in The Cabbage\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9588\", \"source_id\": \"hotpotqa:9588\"}]\nThe Steamroller and the Violin\nThe Steamroller and the Violin (Russian: Каток и скрипка , translit. \"Katok i skripka\"), is a 1961 featurette directed by Andrei Tarkovsky and from a screenplay written by Andrei Konchalovsky and Andrei Tarkovsky. The film tells the story of the unlikely friendship of Sasha (Igor Fomchenko), a little boy, and Sergey (Vladimir Zamansky), the operator of a steamroller. The film was Tarkovsky's diploma film at the State Institute of Cinematography (VGIK), but was made at the Mosfilm studio.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator.\n\n[Passage {\"doc_id\": \"hotpotqa:9514\", \"source_id\": \"hotpotqa:9514\"}]\nThe Newcomer in The Cabbage\nThe Newcomer in The Cabbage (Russian: Пришелец в капусте ) is a 1989 short Soviet Russian stop-motion animation film by Vladimir Danilevich. It is the first film of a tetralogy about the adventures of The Newcomer Vaniusha and his friends. It was followed by \"Vaniusha The Newcomer\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9515\", \"source_id\": \"hotpotqa:9515\"}]\nVaniusha The Newcomer\nVaniusha The Newcomer (Russian: Пришелец Ванюша ) is a 1990 Soviet Russian stop-motion animation film by Vladimir Danilevich and Olga Panokina. It was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> It is the second film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The other three films are \"The Newcomer in The Cabbage\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\".\n\n[Passage {\"doc_id\": \"hotpotqa:9588\", \"source_id\": \"hotpotqa:9588\"}]\nThe Steamroller and the Violin\nThe Steamroller and the Violin (Russian: Каток и скрипка , translit. \"Katok i skripka\"), is a 1961 featurette directed by Andrei Tarkovsky and from a screenplay written by Andrei Konchalovsky and Andrei Tarkovsky. The film tells the story of the unlikely friendship of Sasha (Igor Fomchenko), a little boy, and Sergey (Vladimir Zamansky), the operator of a steamroller. The film was Tarkovsky's diploma film at the State Institute of Cinematography (VGIK), but was made at the Mosfilm studio."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "147",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599177.280169,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599179.4191139
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.028652669309593447
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.016914917231341593
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2480,
+      "completion_tokens": 4,
+      "total_tokens": 2484
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

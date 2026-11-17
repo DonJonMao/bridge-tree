@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "176",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600574.24441,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600575.138595
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00011660047243816468
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 876,
+      "completion_tokens": 2,
+      "total_tokens": 878
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

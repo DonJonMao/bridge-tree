@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:6666\", \"source_id\": \"hotpotqa:6666\"}]\nCaitlin Stasey\nCaitlin Jean Stasey (born 1 May 1990) is an Australian actress. She is known for her role as Rachel Kinski in \"Neighbours\". Previously she played Francesca Thomas in \"The Sleepover Club\", although her breakthrough movie role came in \"Tomorrow, When the War Began\", a 2010 movie adaption of the teen novel of the same name in which she played lead protagonist Ellie Linton. She also played Lady Kenna in the American series \"Reign\" from 2013 to 2015 and had a recurring role in the ABC2 series \"Please Like Me\" from 2013 to 2016. In 2017 Stasey starred as Ada on the Fox television drama \"APB\", which was cancelled after one season in May 2017.\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "194",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599246.076858,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599246.889232
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.000327904255705838
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 834,
+      "completion_tokens": 2,
+      "total_tokens": 836
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

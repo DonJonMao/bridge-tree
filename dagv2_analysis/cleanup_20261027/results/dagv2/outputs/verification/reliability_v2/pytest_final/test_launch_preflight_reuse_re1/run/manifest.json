@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "config": {
+    "llm_base_url": "http://protocol.invalid/v1",
+    "embedding_base_url": "http://111.19.156.74:8001/v1",
+    "llm_model": "deepseek-v4-flash",
+    "embedding_model": "qwen3-embedding-8b",
+    "request_timeout_seconds": 600,
+    "max_identical_attempts": 3,
+    "reranker": {
+      "url": "http://111.19.156.74:8002/rerank",
+      "model": "",
+      "score_space": "unit_interval",
+      "score_contract": "pointwise",
+      "max_input_tokens": 8192,
+      "batch_size": 4,
+      "max_batch_documents": 4,
+      "required_max_model_len": 8192,
+      "timeout_seconds": 180,
+      "deployment_identity": {
+        "model_id": "Qwen3-Reranker-8B",
+        "tokenizer_id": "Qwen2Tokenizer",
+        "serving_engine": "vllm-ascend",
+        "serving_version": "v0.20.2rc1-310p",
+        "deployment_revision": "proxy-ef5da1dd44485cd5-start-9150f425de611613-len8192-fp16-seqs4",
+        "identity_source": "operator_declared",
+        "verification_evidence_id": "validation_20260917_145455_9de6b2a8"
+      }
+    },
+    "fusion": {
+      "ann_calls": 36,
+      "set_score_calls": 512,
+      "llm_calls": 24,
+      "reader_calls": 1,
+      "context_tokens": 16384,
+      "reader_output_tokens": 1024,
+      "json_repairs": 6,
+      "max_repairs_per_request": 2,
+      "response_format": "plain",
+      "input_margin": 256
+    },
+    "experiment": {
+      "question_timeout_seconds": 3600,
+      "worker_startup_timeout_seconds": 300,
+      "max_question_attempts": 3
+    },
+    "model_profile": "bridgetree",
+    "llm_provider_request_params": {},
+    "credentials_file": "configs/credentials.local.json",
+    "embedding_batch_size": 32,
+    "deployment_identity": {
+      "source_profile": "bridgetree_preference_rag/configs/evidence_bridge.yaml",
+      "source_chain": [
+        "evidence_bridge.yaml",
+        "chain_service_fixed.yaml",
+        "chain_full.yaml",
+        "default.yaml"
+      ],
+      "identity_source": "configuration_snapshot_20260923",
+      "note": "Model names and deployment metadata are not independently verified weight hashes."
+    }
+  },
+  "datasets": [],
+  "arms": [
+    "original",
+    "fusion"
+  ],
+  "question_ids": {},
+  "questions_digest": {},
+  "source_hashes": {},
+  "original_hash_manifest": "9d3280858f5ab56936ac7d55f9b6086efc2627a591661f78f96f0d2bf000dd6a",
+  "scope": "first_1_per_dataset",
+  "dataset_manifests": {},
+  "baseline": "native make_plan/native.solve; original archive algorithm with query-dimension guard tied to new index; shared BT model/resource adapter replaces backend protocol, token accounting and corpus vectors",
+  "generation": "all configured dataset/arm tasks terminal before first label load",
+  "kind": "inference_evaluation_not_parameter_training"
+}

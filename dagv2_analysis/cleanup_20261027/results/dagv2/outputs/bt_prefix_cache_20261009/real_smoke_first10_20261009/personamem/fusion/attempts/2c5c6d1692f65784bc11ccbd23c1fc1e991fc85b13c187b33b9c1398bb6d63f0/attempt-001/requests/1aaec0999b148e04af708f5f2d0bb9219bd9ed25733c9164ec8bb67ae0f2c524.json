@@ -1,0 +1,51 @@
+{
+  "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "I'm planning a weekend getaway and want to try something creatively fulfilling. What would you suggest?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:beb4fc579bd0d2690ee40fcc01a9e975e595cfd611b7ede8f1c11ddc776baa0b\", \"source_id\": \"personamem:memory:beb4fc579bd0d2690ee40fcc01a9e975e595cfd611b7ede8f1c11ddc776baa0b\"}]\nConversation message indices 58–60 (zero-based chronological observation order; not calendar time)\nUser:\nUser: Yes! I launched a podcast discussing the fusion of traditional and electronic music. This platform has allowed me to reach a wider audience and share my experiences authentically. By interviewing artists and enthusiasts, I can dive deep into their creative processes and discover how they incorporate various elements into their music. The feedback I’ve received has been overwhelmingly positive, with listeners appreciating the insights and stories shared. I also love being able to explore not just the music itself, but the cultural contexts that shape these genres and influence artists worldwide.\n\nUser: I realized that sharing my experiences could inspire others and even reignite my own creativity. The process of putting my thoughts into words has helped clarify my own perspective. It’s surprising how reflecting on past experiences can lead to deeper insights about one’s journey. Additionally, I’ve noticed that when I articulate my thoughts, it motivates me to think critically about my creative process. This paradigm shift has not only invigorated my passion for music but also allowed me to connect with others who share similar sentiments.\n\nAssistant:\nAssistant: That’s a fantastic motivation! It's also a great way to connect with like-minded people. The exchange of ideas can often be a powerful catalyst for both personal and communal growth. Sharing your experiences could very well resonate with someone who needs encouragement on their own creative path. How have you found the experience so far? Have others reached out to you with their thoughts or experiences, potentially creating a vibrant dialogue? Engaging in such conversations can foster a supportive community that uplifts and inspires each member within it. It would be fascinating to hear about any discussions that have emerged from your reflections, as they can serve as a stepping stone to even more profound insights. Connecting with others in this manner can broaden your perspective significantly, offering new avenues for exploration.\n\n[Passage {\"doc_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\", \"source_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\"}]\nConversation message indices 146–147 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I went on a hiking date recently but found it tiring and, quite frankly, not enjoyable at all. The trek was supposed to be a fun way to connect with someone special, surrounded by nature and fresh air. However, instead of feeling invigorated by the outdoors, I felt overwhelmed and exhausted. It's surprising how strenuous a hike can be, especially when you're trying to navigate both the terrain and the expectations of a date. Perhaps it was the elevation or the length that caught me off guard, but it really put a damper on what was meant to be a joyful experience.\n\nAssistant:\nAssistant: Physical dates can be challenging, particularly when they involve outdoor activities that demand a certain level of physical fitness and stamina. It's definitely important to consider the various aspects that might influence your enjoyment, such as the location, your current physical health, and even the weather conditions on that day. If the setting is too strenuous, it can hinder what could have been a wonderful opportunity to get to know someone. What kind of setting do you think would suit you better? For example, maybe an active date indoors, such as a cooking class, could allow for more engaging conversation without the physical toll that hiking often brings. Alternatively, a leisurely stroll in a local park or a visit to a cozy cafe might provide a relaxed atmosphere for both of you to connect without the stress of difficult terrain."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "118",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537307.0904891,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537308.505194
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0020072429637198056
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2130,
+      "completion_tokens": 2,
+      "total_tokens": 2132
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

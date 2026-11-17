@@ -1,0 +1,1924 @@
+                      D2 P LAN: Dual-Agent Dynamic Global Planning for
+                           Complex Retrieval-Augmented Reasoning
+
+                       Kangcheng Luo, Tinglang Wu and Yansong Feng*
+                                  WICT, Peking University
+            {luokangcheng, wutinglang}@stu.pku.edu.cn, fengyansong@pku.edu.cn
+
+
+
+                           Abstract
+        Recent search-augmented LLMs trained with
+        reinforcement learning (RL) can interleave
+        searching and reasoning for multi-hop rea-
+        soning tasks. However, they face two criti-
+        cal failure modes as the accumulating context
+        becomes flooded with both crucial evidence
+        and irrelevant information: (1) ineffective
+        search chain construction that produces incor-
+        rect queries or omits retrieval of critical infor-
+        mation, and (2) reasoning hijacking by periph-            Figure 1: Two typical error types in search-augmented
+        eral evidence that causes models to misidentify           LLMs. E1: Flawed query generation causes retrieval
+        distractors as valid evidence. To address these           target drift. E2: Failure to distinguish valid evidence
+        challenges, we propose D2 P LAN, a Dual-agent             from distractors leads to erroneous conclusions.
+        Dynamic global Planning paradigm for com-
+        plex retrieval-augmented reasoning. D2 P LAN
+        operates through the collaboration of a Rea-              et al., 2023), these models are no longer passive
+        soner and a Purifier: the Reasoner constructs             consumers of retrieved documents. Instead, they
+        explicit global plans during reasoning and dy-            actively determine when, what, and how to search,
+        namically adapts them based on retrieval feed-            subsequently integrating the retrieved information
+        back; the Purifier assesses retrieval relevance
+                                                                  into their reasoning processes (Lin et al., 2025),
+        and condenses key information for the Rea-
+        soner. We further introduce a two-stage train-            thereby enhancing performance on knowledge-
+        ing framework consisting of supervised fine-              intensive multi-hop reasoning tasks.
+        tuning (SFT) cold-start on synthesized trajecto-             However, we observe that as LLMs iteratively
+        ries and RL with plan-oriented rewards to teach           invoke retrievers to gather evidence for complex
+        LLMs to master the D2 P LAN paradigm. Ex-                 questions, the context becomes inundated with doc-
+        tensive experiments demonstrate that D2 P LAN             uments retrieved at various steps. This lengthy
+        enables more coherent multi-step reasoning
+                                                                  context, containing both key evidence and substan-
+        and stronger resilience to irrelevant informa-
+        tion, thereby achieving superior performance              tial irrelevant information, dilutes the model’s at-
+        on challenging QA benchmarks.                             tention to the cues in the original question and
+                                                                  retrieved critical evidence (Hsieh et al., 2024; Fang
+   1    Introduction                                              et al., 2025). As shown in Figure 1 (Left), the
+                                                                  model loses track of temporal constraints in the
+   Recent advancements in reinforcement learning                  original question, leading to a newly constructed
+   (RL) have empowered Large Language Models                      query that lacks global context and causes a drift
+   (LLMs) with the capability to perform autonomous               in retrieval targets. In other scenarios (Figure 1,
+   retrieval during reasoning (Song et al., 2025; Jin             Right), when faced with a lengthy context flooded
+   et al., 2025b; Chen et al., 2025; Sun et al., 2025;            with all retrieved information, the model struggles
+   Zheng et al., 2025; Zhang et al., 2025). Transcend-            to discriminate between valid evidence and distrac-
+   ing the traditional Retrieval-Augmented Genera-                tors, leading to erroneous conclusions derived from
+   tion (RAG) paradigm (Lewis et al., 2020; Gao                   irrelevant information. We categorize these perva-
+       * Corresponding author.                                    sive failure modes into two primary types: (E1) In-
+                                                             4722
+Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 4722–4754
+                                July 2-7, 2026 ©2026 Association for Computational Linguistics
+effective Search Chain Construction: The query           ment the workflow of D2 P LAN and synthesize data
+sequences iteratively generated by models often          using a powerful teacher model to fine-tune both
+contain incorrect queries, causing divergence from       the Reasoner and Purifier. This cold-start stage
+the original reasoning objective, or lack necessary      enables the Reasoner to acquire preliminary rea-
+queries, omitting retrieval of essential knowledge       soning capabilities with dynamic global planning,
+points. (E2) Reasoning Hijacking by Peripheral           and enables the Purifier to learn accurate relevance
+Evidence: Models tend to misidentify irrelevant          assessment and information condensation. In the
+information in retrieved results as valid evidence,      second phase, we introduce SP LAN RL, which uti-
+and fail to re-retrieve when retrieval yields entirely   lizes plan-oriented rewards to enhance the Rea-
+irrelevant results.                                      soner’s reasoning capability by guiding it to cor-
+   After analyzing the results of state-of-the-art       rectly formulate and adapt global plans. To validate
+methods, we find that both E1 and E2 are prevalent       the effectiveness of D2 P LAN, we conducted exten-
+and account for 29% and 63% of total failures, re-       sive experiments on challenging QA benchmarks.
+spectively (§4.6). These analyzes suggest that to        Notably, our method achieves an average absolute
+better deal with complex multi-hop reasoning tasks,      performance improvement of 3.8% over the state-
+models need precise perception and control over          of-the-art baseline across six datasets.
+the retrieval-augmented reasoning process. Specifi-         Our contributions are as follows: (1) We iden-
+cally, two core capabilities are essential: (C1) Dy-     tify two prevalent failure modes of existing LLMs
+namic Global Planning: The model must be ca-             when handling lengthy retrieval-augmented reason-
+pable of formulating an explicit global plan and         ing contexts: Ineffective Search Chain Construc-
+maintaining the awareness of this plan throughout        tion and Reasoning Hijacking by Peripheral Ev-
+the reasoning process. Furthermore, it should be         idence. (2) We propose D2 P LAN, a dual-agent
+able to dynamically adapt this plan based on re-         dynamic planning paradigm supported by a two-
+trieval feedback, including revising sub-questions       stage training framework, to enhance the global
+and rewriting queries when needed. This ability          planning and resistance to peripheral evidence of
+prevents drift in retrieval targets and the omission     search-augmented LLMs, thereby mitigating these
+of critical reasoning or retrieval steps, while en-      failure modes. (3) Extensive experiments demon-
+abling recovery from retrieval failures. (C2) Ro-        strate that D2 P LAN enables more coherent query
+bust Resistance to Peripheral Evidence: The              formulation and stronger resilience to peripheral
+model should be able accurately distinguish key ev-      evidence during reasoning, achieving superior per-
+idence from irrelevant information in retrieved re-      formance on challenging QA benchmarks.
+sults. This capability ensures reasoning is grounded
+in reliable evidence and enables the model to rec-       2       Methodology
+ognize retrieval failures, thereby performing self-
+                                                         In this section, we present our D2 P LAN paradigm
+correction by triggering plan adaptation in C1.
+                                                         and the corresponding training framework. First,
+   To equip models with such capabilities, we
+                                                         we provide an overview of the D2 P LAN workflow1 ,
+propose D2 P LAN, a Dual-agent Dynamic global
+                                                         introducing how its dual-agent architecture and dy-
+Planning paradigm supported by a two-stage train-
+                                                         namic global planning mechanism operate when
+ing framework. D2 P LAN operates through the col-
+                                                         solving challenging problems (§2.1). Then, we de-
+laboration of two agents: a Reasoner and a Puri-
+                                                         tail how we teach LLMs to master this paradigm
+fier. The Reasoner performs retrieval-augmented
+                                                         through a two-stage training framework comprising
+reasoning with explicit dynamic global planning,
+                                                         SFT cold-start (§2.2) and SP LAN RL (§2.3).
+while the Purifier evaluates retrieval relevance and
+distills key information for the Reasoner. For a         2.1       Overview of D2 P LAN
+given question, the Reasoner autonomously con-
+                                                         Dual-Agent Architecture As shown in Figure 3,
+structs a global plan (i.e., an ordered sequence of
+                                                         D2 P LAN comprises two agents: a Reasoner and a
+sub-questions), sequentially addresses each sub-
+                                                         Purifier. The Reasoner is responsible for executing
+question, and dynamically adapts the plan based
+                                                         core planning, reasoning, and invoking search tools.
+on feedback from the Purifier.
+                                                         When invoking search tools, the Reasoner gener-
+   The training process of D2 P LAN consists of two
+                                                         ates a query and specifies the target sub-question to
+phases: SFT Cold-Start and SP LAN RL. In the first
+phase, we design a pipeline to manually imple-               1
+                                                                 See Appendix A for pseudocode of the workflow.
+
+                                                     4723
+Figure 2: Overview of the D2 P LAN paradigm. Given a multi-hop question, the Reasoner decomposes it into an
+ordered sequence of sub-questions (initial plan), iteratively retrieves and reasons over evidence refined by the
+Purifier, and dynamically adapts the plan based on retrieval feedback. During RL training, the model is rewarded
+for producing the correct number of sub-questions in the initial plan (Rp ) and for effective plan adaptation (Ra ).
+
+
+                                                            a global problem-solving plan. Single-hop ques-
+                                                            tions require no decomposition, whereas multi-hop
+                                                            questions are decomposed into an ordered sequence
+                                                            of sub-questions to form an initial plan. In this
+                                                            sequence, each sub-question depends only on pre-
+                                                            ceding ones and can reference their answers us-
+                                                            ing placeholders like #A_j (denoting the answer to
+Figure 3: The dual-agent architecture of D2 P LAN. The
+Reasoner performs planning, reasoning, and retrieval.       the j-th sub-question), which allows the Reasoner
+The Purifier assesses document relevance and extracts       to solve them sequentially. When solving each
+key information, feeding purified results back to the       sub-question, the Reasoner can iteratively gener-
+Reasoner.                                                   ate queries and invoke search tools based on feed-
+                                                            back from the Purifier, continuing until relevant
+                                                            evidence is obtained or the maximum number of
+be solved. A retriever returns candidate documents          attempts K is reached. Upon successfully solving a
+based on the query. These documents are not di-             sub-question, the Reasoner refines the subsequent
+rectly passed to the Reasoner, but first analyzed           sub-question based on the resolved context, mak-
+by the Purifier. The Purifier focuses on assessing          ing it more specific and self-contained to facilitate
+whether the candidate documents contain key in-             effective retrieval and prevent divergence from the
+formation for solving the target sub-question. If           original reasoning objective. Conversely, if a sub-
+relevant information exists, the Purifier extracts it       question remains unsolved after reaching the max-
+precisely; otherwise, it provides a brief summary of        imum retrieval attempts, the Reasoner revises the
+the retrieved documents. The purified information           remaining sub-questions, including the current un-
+and relevance judgment are then fed back to the             solved one, to explore alternative problem-solving
+Reasoner, enabling it to adapt the global plan and          paths for self-correction.
+continue reasoning.
+                                                            2.2   SFT Cold-Start
+Dynamic Global Planning As shown in Fig-
+ure 2, given an input question, the Reasoner au-            We use SFT to train the dual agents, guiding Rea-
+tonomously assesses its complexity and constructs           soner to acquire preliminary retrieval-augmented
+                                                       4724
+reasoning capabilities with dynamic global plan-                Initial Planning Reward This reward incen-
+ning, and enabling Purifier to master relevance                 tivizes the model to identify the required number
+assessment and information condensation.                        of reasoning steps and construct high-quality initial
+                                                                plans. Specifically, for single-hop questions, we as-
+2.2.1 Synthesizing Trajectories
+                                                                sign Rp = 1 if the model does not perform question
+To obtain high-quality SFT training data, we design             decomposition, and Rp = 0 otherwise. For multi-
+a pipeline that guides a powerful teacher LLM to                hop questions, we assign Rp = 1 if the model
+play the roles of Reasoner and Purifier.2 Specifi-              performs question decomposition and the number
+cally, we employ a series of curated prompts (see               of generated sub-questions matches the hop count
+Appendix N) to step-by-step guide the teacher                   annotated in the dataset, and Rp = 0 otherwise. We
+model to simulate the workflow described in §2.1,               use count-based rather than semantic constraints
+executing a series of operations including question             for two reasons. First, count-based constraints do
+decomposition, query rewriting, plan refinement,                not require annotations of sub-questions and sub-
+and plan revision, etc. Through this process, we                answers, making them more practical to implement.
+obtain a set of reasoning trajectories synthesized ac-          Second, count-based constraints effectively prevent
+cording to the D2 P LAN workflow. Each trajectory               the model from generating redundant sub-questions
+is also accompanied by the corresponding input-                 or missing necessary ones, thereby improving the
+output pairs of the Purifier for relevance judgment             conciseness and effectiveness of planning (§4.4).
+and information purification at each retrieval step.            Plan Adaptation Reward This reward aims to
+2.2.2 Constructing SFT Data                                     reinforce the model’s capability of dynamically
+                                                                adjusting plans throughout the reasoning process,
+To construct high-quality SFT training data, we first
+                                                                encompassing two complementary mechanisms:
+filter the synthesized reasoning trajectories based
+                                                                plan refinement and plan revision.
+on two criteria: (1) the final answer exactly matches
+                                                                    Plan Refinement Reward. For each sub-question
+the gold answer; (2) the trajectory contains at least
+                                                                that depends on the preceding ones, we use the
+one retrieval call. The second criterion ensures that
+                                                                Plan Refinement Reward Rref ine to encourage the
+the model prioritizes learning to leverage retrieval
+                                                                model to refine it after solving those dependencies—
+tools for problem-solving rather than relying on po-
+                                                                filling in placeholders and making subsequent sub-
+tentially erroneous internal parametric knowledge.
+                                                                questions more specific and self-contained. A suc-
+Based on this filtered set of high-quality trajec-
+                                                                cessful refinement requires that the refined sub-
+tories, we construct corresponding training data
+                                                                question exists in the reasoning trajectory and con-
+for both agents. For the Reasoner, we further use
+                                                                tains no placeholders, which we verify using regu-
+the teacher LLM to reformat the filtered reasoning
+                                                                lar expression matching. If all such sub-questions
+trajectories, integrating the segmented reasoning
+                                                                are successfully refined, the reward Rref ine = 1,
+steps synthesized via multiple prompts into a co-
+                                                                and Rref ine = 0 otherwise. This reward not only
+herent and fluent reasoning chain that serves as
+                                                                encourages the model to improve sub-question
+the training target. For the Purifier, we extract the
+                                                                quality, but also effectively prevents the drift in
+input-output pairs corresponding to each retrieval
+                                                                retrieval targets during multi-hop reasoning.
+step from the filtered reasoning trajectories as its
+                                                                    Plan Revision Reward. We design a revision re-
+training data.
+                                                                ward to encourage the model to globally revise the
+2.3      SP LAN RL                                              remaining sub-questions when iterative retrieval
+                                                                reaches the maximum number of attempts with-
+After the SFT stage, we freeze the Purifier and
+                                                                out finding relevant information. Such failures are
+introduce SP LAN RL to further enhance the Rea-
+                                                                often caused by poorly formulated sub-questions,
+soner’s reasoning capability by strengthening its
+                                                                such as those that are overly vague or lack neces-
+dynamic planning proficiency. In addition to the
+                                                                sary constraints. This reward is jointly determined
+commonly used format and answer rewards in gen-
+                                                                by timing reward Rt and quality reward Rq . Rt = 1
+eral RL, we design plan-oriented rewards to effec-
+                                                                if the model triggers revision only after retrieval
+tively guide the model’s dynamic planning behav-
+                                                                reaches the maximum number of failures, prevent-
+ior, incentivizing both the quality of plan construc-
+                                                                ing premature abandonment; otherwise Rt = 0.
+tion and the effectiveness of plan adjustments.
+                                                                Rq = 1 if the first revised sub-question (i.e., the
+   2
+       See Appendix B for detailed algorithms and pseudocode.   current unsolved sub-question after revision) suc-
+                                                            4725
+cessfully retrieves relevant information; otherwise       employ Exact Match (EM) and LLM-as-a-Judge
+Rq = 0. We use the relevance judgment from                (LasJ). For LasJ, we utilize qwen-plus (Qwen
+the Purifier to determine whether the retrieval is        et al., 2025) to assess the correctness of predicted
+successful. Specifically, let c ∈ {0, 1} denote an-       answers (see Appendix N for the prompt).
+swer correctness and r ∈ {0, 1} indicate whether          Baselines We compare D2 P LAN with represen-
+revision was triggered, then:                             tative RL-based methods: Search-R1 (Jin et al.,
+                                                         2025b), ReSearch (Chen et al., 2025), AutoRe-
+             
+             1                if c = 1
+    Rrevise = λ · (Rt + Rq )   if c = 0 ∧ r = 1    (1)    fine (Shi et al., 2025), ZeroSearch (Sun et al.,
+             
+                                                         2025), R1-Searcher (Song et al., 2025), and
+              0                otherwise
+                                                          StepSearch (Zheng et al., 2025). We reproduce
+By introducing a discount factor λ, Rrevise pro-          the inference results of all baseline methods under
+vides partial process rewards for trajectories that an-   the same environment to ensure fair comparison.
+swer incorrectly but attempt revision. This design        Implementation Details We employ Qwen2.5-
+effectively guides the model to revise its plan in the    3B/7B-Instruct (Qwen et al., 2025) as the back-
+right direction and acquire the "failure-reflection-      bone models. For retrieval, we utilize E5 (Wang
+correction" reasoning pattern.                            et al., 2022) as the embedding model and the
+   Combining the two terms, our Plan Adaptation           2018 Wikipedia dump (Karpukhin et al., 2020) as
+Reward is defined as Ra = Rref ine + Rrevise .            the retrieval corpus, retrieving the top-5 passages.
+Answer Reward Following recent work (Zheng                For SFT cold-start, we use qwen-max-latest as
+et al., 2025; Zhang et al., 2025), we adopt the word-     the teacher model to synthesize 4,000 training in-
+level F1 score between the predicted answer and the       stances for the Reasoner and 11,255 for the Puri-
+ground truth to measure answer correctness. The           fier from the training sets of NQ, HotpotQA, and
+answer reward is defined as Rans = F1(apred , agt ),      MuSiQue. For RL training, we sample 29,762
+where F1(apred , agt ) denotes the F1 score between       instances from the same training sets and adopt
+the predicted answer apred and the golden answer          GRPO (Shao et al., 2024) as the learning algorithm,
+agt .                                                     implemented on verl (Sheng et al., 2025). More im-
+Format Reward We treat the format reward                  plementation details are provided in Appendix C.
+as a prerequisite constraint, aiming to ensure the
+model to generate parsable reasoning paths, which         4     Results and Analysis
+is essential for computing the Initial Planning Re-
+ward Rp and Plan Adaptation Reward Ra . For               In this section, we aim to answer the following
+example, the model must wrap the initial plan             Research Questions (RQs): RQ1: How effectively
+with <plan></plan> tags, the revised plan with            does D2 P LAN and each of its components enhance
+<replan></replan> tags, and the final answer              performance in retrieval-augmented question an-
+with <answer></answer> tags (see Appendix F               swering? (§4.1, §4.2) RQ2: Can Dynamic Global
+for detailed constraints). When all constraints are       Planning improve the quality of query formula-
+satisfied, Rf = 1, otherwise 0.                           tion? (§4.3) RQ3: Can SP LAN RL enable LLMs
+Total Reward The final total reward function is           to generate and adapt higher-quality plans? (§4.4)
+defined as: Rtotal = Rf · (αRp + βRa + Rans ),            RQ4: Can Dual-Agent Architecture enhance ac-
+where α and β are scaling factors that control the        curacy and efficiency? (§4.5) RQ5: Can D2 P LAN
+contribution of each reward component.                    reduce these errors: (E1) Ineffective Search Chain
+                                                          Construction and (E2) Reasoning Hijacking by Pe-
+3   Experimental Setup                                    ripheral Evidence? (§4.6)
+Datasets and Evaluation Metrics To compre-
+                                                          4.1    Main Results (RQ1)
+hensively evaluate the capabilities of D2 P LAN, we
+conduct experiments on widely used open-domain            As shown in Table 1, D2 P LAN consistently out-
+QA benchmarks, including Natural Questions                performs all baselines at both 3B and 7B scales,
+(NQ) (Kwiatkowski et al., 2019), SimpleQA (Wei            demonstrating strong performance and generaliza-
+et al., 2024), HotpotQA (Yang et al., 2018), 2Wiki-       tion across in-domain and out-of-domain bench-
+MultihopQA (2Wiki) (Ho et al., 2020), MuSiQue             marks. On average, D2 P LAN-3B achieves a 1.34%
+(MSQ) (Trivedi et al., 2022b), and FRAMES (Kr-            LasJ gain over the strongest baseline AutoRefine,
+ishna et al., 2025). For evaluation metrics, we           while D2 P LAN-7B yields a 3.83% LasJ improve-
+                                                      4726
+                   NQ†         SimpleQA‡         HotpotQA†         2Wiki‡          MuSiQue†      FRAMES‡           AVG
+ Method
+               LasJ      EM    LasJ    EM       LasJ    EM      LasJ    EM      LasJ    EM      LasJ    EM      LasJ    EM
+ Base LLM                                                    Qwen2.5-3B-Instruct
+ AutoRefine    57.01   41.05   36.20   24.90    57.41   41.12   48.08   38.05   28.26   19.49   23.79   11.17   41.79   29.30
+ Search-R1     44.21   28.70   17.70   8.20     33.49   18.07   33.06   20.92   16.01    6.25   18.20   4.85    27.11   14.50
+ StepSearch    45.60   32.91   28.20   20.40    37.31   26.64   33.33   28.78   13.24    8.52   13.83   6.55    28.59   20.63
+ ZeroSearch    51.36   38.42   31.50   22.80    40.61   29.44   30.51   26.42   10.30    6.00   10.32   4.00    29.10   21.18
+ D2 P LAN-3B   55.60   41.30   34.10   25.50    57.93   43.58   52.53   45.90   33.14   23.13   25.97   14.68   43.13   32.35
+ Base LLM                                                    Qwen2.5-7B-Instruct
+ R1-Searcher   53.43   40.00   34.60   25.60    59.03   44.32   52.04   46.13   29.83   21.93   25.61   14.32   42.38   32.05
+ ReSearch      53.85   39.81   36.20   27.30    57.62   42.50   47.34   41.01   29.83   21.43   24.27   14.32   41.52   31.06
+ Search-R1     55.96   42.11   34.40   23.10    51.67   37.31   39.36   33.13   21.51   15.27   19.78   10.19   37.11   26.85
+ StepSearch    53.07   38.64   34.80   24.90    52.78   38.93   49.57   42.89   28.55   20.31   23.18   13.23   40.32   29.82
+ ZeroSearch    54.02   41.00   33.10   24.10    45.25   33.48   36.70   31.76   14.23   9.39    18.33   10.07   33.61   24.97
+ D2 P LAN-7B   58.03   39.78   36.50   27.50    61.59   46.17   56.32   50.02   33.47   24.41   31.31   18.08   46.21   34.33
+
+Table 1: Main results comparing D2 P LAN against search-augmented LLM baselines on six QA benchmarks. We
+report LLM-as-a-Judge (LasJ) and Exact Match (EM) accuracy (%). † /‡ denotes in-domain/out-of-domain datasets.
+The best result per block is in bold and the second best is underlined.
+
+
+     Method               2Wiki   MSQ     FRAMES                 sub-questions, and Adapt refers to the plan adapta-
+                         Only SFT                                tion mechanism for plan refinement and revision.
+     D2 P LAN-3B          48.64 26.23          25.00             Detailed implementations of each ablation variant
+       w/o Plan&Adapt     41.40 22.37          18.45
+                                                                 are provided in Appendix E.
+       w/o Adapt          46.40 23.42          21.24
+                                                                    Results show that under the Only SFT setting, re-
+                         SFT+RL
+     D2 P LAN-3B          52.53   33.14        25.97             moving the planning components (w/o Plan&Adapt
+       w/o Plan&Adapt     49.98   28.13        21.84             or w/o Adapt) significantly degrades performance
+       w/o Adapt          50.37   29.38        23.30             compared to D2 P LAN. Despite being trained on
+       w/o Rp             50.59   30.45        24.88
+       w/o Ra             51.65   30.16        24.76
+                                                                 reasoning trajectories synthesized from the same
+                                                                 question set, the lack of dynamic planning mech-
+Table 2: Ablation study of D2 P LAN-3B on three multi-           anism prevents these variants from effectively or-
+hop benchmarks (LLM-as-a-Judge %). Plan: global                  ganizing reasoning paths for complex multi-hop
+sub-question decomposition (initial plan); Adapt: dy-            problems. This confirms that D2 P LAN’s gains stem
+namic plan adaptation; Rp /Ra : planning/adaptation re-          from learned dynamic planning capabilities rather
+wards in RL.
+                                                                 than mere knowledge distillation from the teacher
+                                                                 model. Comparing SFT+RL with Only SFT, RL
+ment over strongest baseline R1-Searcher.                        consistently improves all variants; however, even
+   Furthermore, D2 P LAN’s advantage widens as                   with RL optimization, w/o Plan&Adapt still lags
+reasoning complexity increases, with relative im-                behind D2 P LAN, demonstrating that the dynamic
+provements over Search-R1 scaling from 19.2%                     planning paradigm provides irreplaceable advan-
+on the simpler HotpotQA to 58.3% on the more                     tages for structuring complex multi-hop reasoning.
+challenging FRAMES benchmark. These results                      Furthermore, the performance drop caused by ex-
+demonstrate the efficacy of our dual-agent dynamic               cluding the initial planning reward Rp (w/o Rp )
+global planning paradigm in managing complex                     or the plan adaptation reward Ra (w/o Ra ) under-
+retrieval-augmented reasoning process.                           scores the necessity of these rewards in guiding the
+                                                                 model to internalize robust plan construction and
+4.2 Ablation Study (RQ1)                                         adaptation capabilities.
+To investigate the contributions of each core com-
+                                                                 4.3    Retrieval Quality (RQ2)
+ponent to model performance, we conduct ablation
+studies on D2 P LAN-3B and report the results in                 To assess the quality of model-generated queries,
+Table 2. Here, Plan refers to the initial global plan-           we count valid and invalid retrieval calls on
+ning mechanism for decomposing the question into                 MuSiQue, as it provides annotated sub-questions
+                                                            4727
+     Method              VRC     IRC     TRC      SAC                      Method          First VR (%)         LasJ (%)
+                        Only SFT                                           D2 P LAN-3B           47.11               17.63
+     D2 P LAN-3B         2.48 1.98       4.45     1.44                         w/o Ra            44.79               14.49
+       w/o Plan&Adapt    1.26 1.02       2.28     1.11
+       w/o Adapt         1.57 1.08       2.65     1.22      Table 5: Impact of Plan Adaptation Reward Ra on
+                                                            MuSiQue. First VR: proportion of valid retrieval on
+Table 3: Retrieval quality on MuSiQue (SFT-only).           the first query after revision .
+A retrieval is valid if it contains a gold sub-answer.
+VRC/IRC/TRC: valid/invalid/total retrieval calls; SAC:
+                                                                                                             Hop Count
+distinct sub-answers covered.                                   Purifier          Metric
+                                                                                             2           3       4       5+      All
+                                                                                  LasJ     35.16    26.39      20.15    13.04   27.18
+                                      Hop Count                 w/o Purifier      SC        4.22    5.00       5.57     5.77     4.89
+     Method         Metric
+                               2-hop    3-hop   4-hop                             Len      4451     5305       5921     6164    5180
+
+                   Pred. Hop   2.03     2.70      3.20                            LasJ     36.77    27.78      22.39    20.65   29.49
+     D2 P LAN-3B                                                Qwen-7B-SFT       SC        4.03    4.84       5.07     4.99     4.59
+                   LasJ (%)    44.4     25.4      13.8
+                                                                                  Len      1635     1976       2093     2124    1883
+                   Pred. Hop   2.26     2.98      3.45
+     w/o Rp
+                   LasJ (%)    39.7     24.1      12.8
+                                                            Table 6: Impact of Purifier across different hop counts
+                                                            on FRAMES. LasJ: LLM-as-a-Judge (%); SC: Average
+Table 4: Impact of Initial Planning Reward Rp on ques-
+                                                            search calls; Len: Average context length (tokens).
+tion decomposition and final accuracy.
+
+                                                            ate extraneous sub-questions unrelated to the core
+and corresponding sub-answers. Specifically, we
+                                                            problem. For instance, given “Where is Ulrich
+define a valid retrieval as a retrieval call where
+                                                            Walter’s employer headquartered?”, w/o Rp de-
+the returned results contain the sub-answer to any
+                                                            composes it into sub-questions including “Who
+of the sub-questions. We also report sub-answer
+                                                            is Ulrich Walter?”, which, while tangentially re-
+coverage, which measures the average number of
+                                                            lated, does not directly contribute to answering the
+sub-answers covered by all retrieval results. As
+                                                            original question. We sample 600 questions and
+shown in Table 3, w/o Adapt yields more valid
+                                                            employ gemini-3-flash-preview to detect such
+retrieval calls than w/o Plan&Adapt while main-
+                                                            redundancies (see Appendix N for the prompt), fol-
+taining a comparable number of invalid retrieval
+                                                            lowed by manual verification. D2 P LAN exhibits
+calls, demonstrating that global planning assists
+                                                            only 5 such cases, compared to 25 for w/o Rp .
+the model in generating higher-quality query
+                                                            These findings confirm that Rp guides the model
+sequences by providing explicit sub-question
+                                                            toward concise decomposition strategies, thereby
+decomposition that effectively guides each re-
+                                                            enhancing multi-hop reasoning performance.
+trieval step. Furthermore, although D2 P LAN in-
+curs more retrieval calls than w/o Adapt due to             Plan Adaptation Reward Steers Correct Plan
+plan adaptation, both valid retrieval calls and sub-        Revisions. To investigate the effect of Plan Adap-
+answer coverage improve substantially, demonstrat-          tation Reward Ra , we compare D2 P LAN with w/o
+ing that the dynamic adaptation mechanism ef-               Ra on MuSiQue. We filter samples where plan
+fectively enables robust self-correction, allowing          revision occurred and report the valid retrieval rate
+the model to recover from retrieval failures and            (defined in §4.3) of the first generated query after
+identifying additional key evidence.                        the revision (First VR), along with the final LasJ
+                                                            accuracy (Table 5). Results show that D2 P LAN sig-
+4.4 Effect of SP LAN RL (RQ3)                               nificantly outperforms w/o Ra in both First VR and
+Initial Planning Reward Guides Concise and                  LasJ. This indicates that Ra enables the model to
+Focused Decomposition.        To assess the im-             effectively adapt the plan for self-correction when
+pact of Initial Planning Reward Rp , we compare             retrieval fails, leading to improved query reformu-
+D2 P LAN with w/o Rp on subsets of MuSiQue                  lation and more accurate reasoning outcomes.
+with different hop counts (Table 4). Results in-
+dicate that w/o Rp consistently predicts higher             4.5       Effect of Dual-Agent Architecture (RQ4)
+hop counts than D2 P LAN, yet yields lower LasJ             To validate the effectiveness of the dual-agent ar-
+scores. This suggests that removing Rp induces              chitecture, we train a Reasoner baseline on trajec-
+over-decomposition, causing the model to gener-             tories synthesized from the same question set, but
+                                                         4728
+                     100                    Error Types            Methods          ing by Peripheral Evidence into two subtypes:
+                                           E1           E2.2        Search-R1
+                     80                    E2.1         E3          StepSearch      (E2.1) the model reasons with irrelevant retrieval
+
+
+   Error Ratio (%)
+                                                                    D2Plan
+                           13%                           9%                         results without attempting remediation; (E2.2) the
+                     60
+                                  57%     36%                            18%        model recognizes that the initial retrieval result
+                     40    38%                          36%      50%                is irrelevant and attempts query rewriting several
+                     20                   22%                            29%        times but still fails to obtain key evidence, result-
+                           24%    22%                   25%
+                      0
+                                          11%                    14%     9%         ing in an incorrect answer. 3 Errors beyond E1
+                                 FRAMES                        MuSiQue              and E2 are categorized as (E3) Other Errors. We
+                                                                                    sample 200 questions each from FRAMES and
+Figure 4: Error type distribution on FRAMES and
+MuSiQue. Percentages are calculated relative to the                                 MuSiQue, using gemini-3-pro-preview (Team
+total number of questions, including correct predictions.                           et al., 2025) to identify the type of the first error in
+                                                                                    the reasoning trajectory. We manually annotated
+                                                                                    100 samples, achieving a Cohen’s Kappa of 0.72,
+with raw retrieval results instead of Purifier-refined                              confirming Gemini’s reliability. As shown in Fig-
+outputs. This ensures the Reasoner is not biased                                    ure 4, D2 P LAN achieves the lowest error rates by
+toward refined inputs, enabling a fair comparison.                                  substantially reducing E1 and E2.1, validating the
+We then evaluate the impact of adding the Purifier                                  efficacy of dynamic global planning and robust re-
+(trained in §2.2) on the FRAMES dataset.                                            sistance to peripheral evidence. The relative rise
+Greater Performance Gains on Harder Ques-                                           in E2.2 suggests that as planning and peripheral
+tions. As shown in Table 6, incorporating the                                       evidence handling improve, failures shift toward
+Purifier significantly improves performance across                                  inherent retrieval limitations and the constrained
+different hop counts while substantially reducing                                   reasoning capabilities of the 7B model. Manual
+context length. The advantage of the Purifier is                                    verification of sampled E2.2 cases further confirms
+particularly pronounced on questions with 5 or                                      this: 14 out of 20 are caused by retrieval system
+more hops, where LasJ improves by 7.61% and                                         limitations where gold documents are structurally
+context length decreases by 65.5%. We attribute                                     absent from the corpus, rather than reasoning defi-
+the substantially worse performance of w/o Purifier                                 ciencies of the model (see Appendix K for details).
+to the accumulation of redundant information in
+raw retrieval results as question difficulty increases,                             5    Related Work
+which distracts the Reasoner from focusing on crit-                                 Planning in Retrieval-Augmented Generation.
+ical information both within the current retrieval                                  Planning is crucial for RAG systems to handle
+results and from prior reasoning steps. The Purifier                                complex multi-hop questions. Iterative RAG meth-
+effectively mitigates this issue by refining retrieval                              ods (Shao et al., 2023; Yao et al., 2023; Trivedi
+results and assessing their relevance.                                              et al., 2022a; Liu et al., 2024; Jiang et al., 2025;
+Dual-Agent Architecture Improves Inference Ef-                                      Li et al., 2025) interleave reasoning and retrieval
+ficiency.     Although the Purifier introduces ad-                                  but typically perform local planning, leading to in-
+ditional inference steps, the end-to-end inference                                  tent drift in lengthy histories. PlanRAG (Lee et al.,
+time is reduced. Under the same computational                                       2024) introduces a structured approach that gener-
+budget, experiments show that using Qwen2.5-                                        ates plans and adjusts them via iterative re-planning.
+7B-SFT as the Purifier reduces total inference                                      However, it relies on zero-shot prompting of mod-
+time from 432s to 381s (∼12% reduction) on the                                      els without parameter optimization.
+FRAMES dataset. This efficiency gain is attributed                                  Reinforcement Learning for Search-Augmented
+to delegating the processing of lengthy retrieval re-                               LLMs. Recently, RL has become the dominant
+sults to the Purifier, which substantially reduces the                              paradigm for training search-augmented LLMs (Jin
+context length for the Reasoner, thereby mitigating                                 et al., 2025b; Song et al., 2025; Chen et al., 2025;
+the quadratic computational cost of self-attention.                                 Sun et al., 2025; Shi et al., 2025), as it encourages
+                                                                                    autonomous exploration and better generalization
+4.6 Error Analysis (RQ5)
+                                                                                    than SFT (Chu et al., 2025). Further research intro-
+To understand how D2 P LAN mitigates errors,                                        duces step-wise process supervision (Zheng et al.,
+we analyze error type distributions on FRAMES                                          3
+                                                                                         E2.2 errors often stem from inherent retrieval system
+and MuSiQue, comparing it with Search-R1 and                                        limitations, e.g., the corpus lacks relevant information entirely.
+StepSearch. We divide (E2) Reasoning Hijack-                                        See Appendix M for a case study.
+
+                                                                                 4729
+2025; Zhang et al., 2025; Luo et al., 2025a), reward     Acknowledgements
+density optimization (Luo et al., 2025b), and self-
+                                                         This work is supported by Beijing Natural Science
+correction mechanisms (Wang et al., 2025) to en-
+                                                         Foundation (L253001) and Natural Science Foun-
+hance fine-grained reasoning and retrieval capabili-
+                                                         dation of China (92570207). We thank the anony-
+ties. Despite these advances, current methods strug-
+                                                         mous reviewers for their valuable feedback. For
+gle with noisy and lengthy retrieval-augmented rea-
+                                                         any correspondence, please contact Yansong Feng.
+soning contexts. Our method addresses these chal-
+lenges by introducing a dual-agent dynamic global
+planning paradigm, optimized via a two-stage train-      References
+ing framework.
+                                                         Mingyang Chen, Tianpeng Li, Haoze Sun, Yijie Zhou,
+                                                           Chenzheng Zhu, Haofen Wang, Jeff Z Pan, Wen
+6   Conclusion                                             Zhang, Huajun Chen, Fan Yang, and 1 others. 2025.
+                                                           Learning to reason with search for llms via reinforce-
+We identify two prevalent failure modes of search-         ment learning. arXiv preprint arXiv:2503.19470.
+augmented LLMs in complex retrieval-augmented            Tianzhe Chu, Yuexiang Zhai, Jihan Yang, Sheng-
+reasoning: Ineffective Search Chain Construction           bang Tong, Saining Xie, Dale Schuurmans, Quoc V
+and Reasoning Hijacking by Peripheral Evidence.            Le, Sergey Levine, and Yi Ma. 2025. Sft mem-
+                                                           orizes, rl generalizes: A comparative study of
+To address these issues, we introduce D2 P LAN,
+                                                           foundation model post-training. arXiv preprint
+a dual-agent dynamic planning paradigm where               arXiv:2501.17161.
+the Reasoner performs reasoning with explicit dy-
+namic planning and the Purifier evaluates retrieval      Yixiong Fang, Tianran Sun, Yuling Shi, and Xiaodong
+                                                           Gu. 2025. Attentionrag: Attention-guided context
+relevance and distills key information. A two-             pruning in retrieval-augmented generation. arXiv
+stage training framework comprising SFT cold-              preprint arXiv:2503.10720.
+start and planning-oriented RL equips LLMs with
+                                                         Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,
+the D2 P LAN paradigm. Extensive experiments               Jinliu Pan, Yuxi Bi, Yixin Dai, Jiawei Sun, Haofen
+demonstrate that D2 P LAN enables more coher-              Wang, and Haofen Wang. 2023. Retrieval-augmented
+ent query formulation and stronger resilience to           generation for large language models: A survey.
+peripheral evidence, achieving superior retrieval-         arXiv preprint arXiv:2312.10997, 2(1).
+augmented reasoning abilities.                           Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,
+                                                           and Akiko Aizawa. 2020. Constructing a multi-hop
+7   Limitations                                            qa dataset for comprehensive evaluation of reasoning
+                                                           steps. arXiv preprint arXiv:2011.01060.
+While D2 P LAN demonstrates strong performance           Cheng-Yu Hsieh, Yung-Sung Chuang, Chun-Liang Li,
+on open-domain QA benchmarks, several limita-              Zifeng Wang, Long Le, Abhishek Kumar, James
+tions remain. First, although we achieve significant       Glass, Alexander Ratner, Chen-Yu Lee, Ranjay Kr-
+                                                           ishna, and 1 others. 2024. Found in the middle: Cali-
+improvements on Qwen2.5-3B and Qwen2.5-7B                  brating positional attention bias improves long con-
+models, due to computational cost constraints, we          text utilization. In Findings of the Association for
+are unable to validate our method on larger lan-           Computational Linguistics: ACL 2024, pages 14982–
+guage models. Second, due to cost limitations,             14995.
+we employ a local dense retriever with a static          Zhouyu Jiang, Mengshu Sun, Lei Liang, and Zhiqiang
+Wikipedia corpus rather than more powerful re-             Zhang. 2025. Retrieve, summarize, plan: Advanc-
+trieval systems such as commercial search engines          ing multi-hop question answering with an iterative
+(e.g., Google). As revealed in our error analysis, a       approach. In Companion Proceedings of the ACM on
+                                                           Web Conference 2025, pages 1677–1686.
+notable portion of failures (E2.2) may stem from
+retriever or corpus limitations. Integrating stronger    Bowen Jin, Jinsung Yoon, Priyanka Kargupta, Sercan O
+retrieval infrastructure could potentially further en-     Arik, and Jiawei Han. 2025a. An empirical study
+                                                           on reinforcement learning for reasoning-search inter-
+hance the performance of D2 P LAN. Third, our              leaved llm agents. arXiv preprint arXiv:2505.15117.
+approach relies on a powerful teacher model to gen-
+erate high-quality reasoning trajectories for super-     Bowen Jin, Hansi Zeng, Zhenrui Yue, Jinsung Yoon,
+                                                           Sercan Arik, Dong Wang, Hamed Zamani, and Jiawei
+vised fine-tuning. This dependency may limit the           Han. 2025b. Search-r1: Training llms to reason and
+applicability of our method in scenarios where ac-         leverage search engines with reinforcement learning.
+cess to such teacher models is restricted or costly.       arXiv preprint arXiv:2503.09516.
+                                                     4730
+Jiajie Jin, Yutao Zhu, Xinyu Yang, Chenghao Zhang,         Jinchang Luo, Mingquan Cheng, Fan Wan, Ni Li, Xiaol-
+   and Zhicheng Dou. 2024. Flashrag: A modular                ing Xia, Shuangshuang Tian, Tingcheng Bian, Hai-
+   toolkit for efficient retrieval-augmented generation       wei Wang, Haohuan Fu, and Yan Tao. 2025a. Glob-
+   research. CoRR, abs/2405.13576.                            alrag: Enhancing global reasoning in multi-hop ques-
+                                                              tion answering via reinforcement learning. arXiv
+Vladimir Karpukhin, Barlas Oguz, Sewon Min,                   preprint arXiv:2510.20548.
+  Patrick SH Lewis, Ledell Wu, Sergey Edunov, Danqi
+                                                           Kun Luo, Hongjin Qian, Zheng Liu, Ziyi Xia, Shitao
+  Chen, and Wen-tau Yih. 2020. Dense passage re-
+                                                             Xiao, Siqi Bao, Jun Zhao, and Kang Liu. 2025b. In-
+  trieval for open-domain question answering. In
+                                                             foflow: Reinforcing search agent via reward density
+  EMNLP (1), pages 6769–6781.
+                                                             optimization. arXiv preprint arXiv:2510.26575.
+Satyapriya Krishna, Kalpesh Krishna, Anhad Mo-             Qwen, :, An Yang, Baosong Yang, Beichen Zhang,
+  hananey, Steven Schwarcz, Adam Stambler, Shyam            Binyuan Hui, Bo Zheng, Bowen Yu, Chengyuan
+  Upadhyay, and Manaal Faruqui. 2025. Fact, fetch,          Li, Dayiheng Liu, Fei Huang, Haoran Wei, Huan
+  and reason: A unified evaluation of retrieval-            Lin, Jian Yang, Jianhong Tu, Jianwei Zhang, Jianxin
+  augmented generation. In Proceedings of the 2025          Yang, Jiaxi Yang, Jingren Zhou, and 25 oth-
+  Conference of the Nations of the Americas Chap-           ers. 2025. Qwen2.5 technical report. Preprint,
+  ter of the Association for Computational Linguistics:     arXiv:2412.15115.
+  Human Language Technologies (Volume 1: Long Pa-
+  pers), pages 4745–4759.                                  Zhihong Shao, Yeyun Gong, Yelong Shen, Minlie
+                                                             Huang, Nan Duan, and Weizhu Chen. 2023. En-
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-            hancing retrieval-augmented large language models
+  field, Michael Collins, Ankur Parikh, Chris Alberti,       with iterative retrieval-generation synergy. Preprint,
+  Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-     arXiv:2305.15294.
+  ton Lee, and 1 others. 2019. Natural questions: a        Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu,
+  benchmark for question answering research. Trans-          Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan
+  actions of the Association for Computational Linguis-      Zhang, YK Li, Yang Wu, and 1 others. 2024.
+  tics, 7:453–466.                                           Deepseekmath: Pushing the limits of mathematical
+                                                             reasoning in open language models. arXiv preprint
+Myeonghwa Lee, Seonho An, and Min-Soo Kim. 2024.             arXiv:2402.03300.
+ Planrag: A plan-then-retrieval augmented genera-
+ tion for generative large language models as decision     Guangming Sheng, Chi Zhang, Zilingfeng Ye, Xibin
+ makers. In Proceedings of the 2024 Conference of            Wu, Wang Zhang, Ru Zhang, Yanghua Peng, Haibin
+ the North American Chapter of the Association for           Lin, and Chuan Wu. 2025. Hybridflow: A flexible
+ Computational Linguistics: Human Language Tech-             and efficient rlhf framework. In Proceedings of the
+ nologies (Volume 1: Long Papers), pages 6537–6555.          Twentieth European Conference on Computer Sys-
+                                                             tems, pages 1279–1297.
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio       Yaorui Shi, Shihan Li, Chang Wu, Zhiyuan Liu, Junfeng
+  Petroni, Vladimir Karpukhin, Naman Goyal, Hein-            Fang, Hengxing Cai, An Zhang, and Xiang Wang.
+  rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-           2025. Search and refine during think: Autonomous
+  täschel, and 1 others. 2020. Retrieval-augmented gen-      retrieval-augmented reasoning of llms. arXiv e-
+  eration for knowledge-intensive nlp tasks. Advances        prints, pages arXiv–2505.
+  in neural information processing systems, 33:9459–
+  9474.                                                    Huatong Song, Jinhao Jiang, Yingqian Min, Jie Chen,
+                                                             Zhipeng Chen, Wayne Xin Zhao, Lei Fang, and Ji-
+Xiaoxi Li, Guanting Dong, Jiajie Jin, Yuyao Zhang,           Rong Wen. 2025. R1-searcher: Incentivizing the
+  Yujia Zhou, Yutao Zhu, Peitian Zhang, and                  search capability in llms via reinforcement learning.
+  Zhicheng Dou. 2025. Search-o1: Agentic search-             arXiv preprint arXiv:2503.05592.
+  enhanced large reasoning models. arXiv preprint
+  arXiv:2501.05366.                                        Hao Sun, Zile Qiao, Jiayan Guo, Xuanbo Fan, Yingyan
+                                                             Hou, Yong Jiang, Pengjun Xie, Yan Zhang, Fei
+                                                             Huang, and Jingren Zhou. 2025. Zerosearch: Incen-
+Minhua Lin, Zongyu Wu, Zhichao Xu, Hui Liu, Xian-
+                                                             tivize the search capability of llms without searching.
+  feng Tang, Qi He, Charu Aggarwal, Xiang Zhang,
+                                                             Preprint, arXiv:2505.04588.
+  and Suhang Wang. 2025. A comprehensive survey on
+  reinforcement learning-based agentic search: Foun-       Gemini Team, Rohan Anil, Sebastian Borgeaud, Jean-
+  dations, roles, optimizations, evaluations, and appli-     Baptiste Alayrac, Jiahui Yu, Radu Soricut, Johan
+  cations. arXiv preprint arXiv:2510.16724.                  Schalkwyk, Andrew M. Dai, Anja Hauth, Katie
+                                                             Millican, David Silver, Melvin Johnson, Ioannis
+Yanming Liu, Xinyue Peng, Xuhong Zhang, Weihao               Antonoglou, Julian Schrittwieser, Amelia Glaese,
+  Liu, Jianwei Yin, Jiannan Cao, and Tianyu Du. 2024.        Jilin Chen, Emily Pitler, Timothy Lillicrap, Angeliki
+  Ra-isf: Learning to answer and understand from             Lazaridou, and 1332 others. 2025. Gemini: A fam-
+  retrieval augmentation via iterative self-feedback.        ily of highly capable multimodal models. Preprint,
+  arXiv preprint arXiv:2403.06840.                           arXiv:2312.11805.
+                                                       4731
+Harsh Trivedi, Niranjan Balasubramanian, Tushar                 62nd Annual Meeting of the Association for Compu-
+  Khot, and Ashish Sabharwal. 2022a. Interleav-                 tational Linguistics (Volume 3: System Demonstra-
+  ing retrieval with chain-of-thought reasoning for             tions), Bangkok, Thailand. Association for Computa-
+  knowledge-intensive multi-step questions. arXiv               tional Linguistics.
+  preprint arXiv:2212.10509.
+                                                            A      D2 P LAN Workflow
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+  and Ashish Sabharwal. 2022b. Musique: Multi-              The inference workflow of D2 P LAN is formalized
+  hop questions via single-hop question composition.        in Algorithm 1. Given an input question Q, the Rea-
+  Transactions of the Association for Computational
+  Linguistics, 10:539–554.
+                                                            soner first assesses its complexity. For single-hop
+                                                            questions, it directly performs iterative retrieval and
+Liang Wang, Nan Yang, Xiaolong Huang, Binxing               generates the answer. For multi-hop questions, it
+  Jiao, Linjun Yang, Daxin Jiang, Rangan Majumder,          decomposes the question into an ordered sequence
+  and Furu Wei. 2022. Text embeddings by weakly-
+  supervised contrastive pre-training. arXiv preprint       of sub-questions and solves them sequentially with
+  arXiv:2212.03533.                                         dynamic plan adaptation.
+
+Ziliang Wang, Kang An, Xuhui Zheng, Faqiang                 B     Trajectory Synthesis Strategy
+   Qian, Weikun Zhang, Cijun Ouyang, Jialu Cai,
+  Yuhang Wang, and Yichao Wu. 2025. Erase to im-            Given a question Q, the trajectory synthesis process
+   prove: Erasable reinforcement learning for search-       is formalized in Algorithms 3, 4, and 5.
+   augmented llms. arXiv preprint arXiv:2510.00861.
+                                                            Iterative Retrieval Loop (Algorithm 3) This
+Jason Wei, Nguyen Karina, Hyung Won Chung,                  component serves as the fundamental building
+  Yunxin Joy Jiao, Spencer Papay, Amelia Glaese,
+   John Schulman, and William Fedus. 2024. Mea-             block for retrieving information. It executes a loop
+   suring short-form factuality in large language models.   for up to K attempts. In each iteration k:
+   Preprint, arXiv:2411.04368.
+                                                                1. Query Generation: The teacher model M
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,               generates a reasoning thought rk and a search
+  William Cohen, Ruslan Salakhutdinov, and Christo-                query qk based on the current history H.
+  pher D Manning. 2018. Hotpotqa: A dataset for
+  diverse, explainable multi-hop question answering.               When the initial query fails to retrieve relevant
+  In Proceedings of the 2018 conference on empiri-                 information, we employ the query rewriting
+  cal methods in natural language processing, pages                strategy (Table 22) to refine the search query.
+  2369–2380.
+                                                                2. Retrieval and Purification: The retriever
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+                                                                   fetches documents Dk , and the Purifier (acted
+  Shafran, Karthik Narasimhan, and Yuan Cao. 2023.
+  React: Synergizing reasoning and acting in language              by the teacher model, Table 23) extracts infor-
+  models. In International Conference on Learning                  mation Ik with a relevance judgment Jk .
+  Representations (ICLR).
+                                                                3. Termination: If Jk is Relevant, the loop ter-
+Qi Zhang, Shouqing Yang, Lirong Gao, Hao Chen, Xi-                 minates successfully returning the history H.
+  aomeng Hu, Jinglei Chen, Jiexiang Wang, Sheng
+  Guo, Bo Zheng, Haobo Wang, and Junbo Zhao. 2025.
+                                                                   If the loop exhausts K attempts without suc-
+  LeTS: Learning to think-and-search via process-and-              cess, it returns Failure.
+  outcome reward hybridization. In Proceedings of
+  the 2025 Conference on Empirical Methods in Natu-         Single-hop Question Processing (Algorithm 4)
+  ral Language Processing, pages 5109–5122, Suzhou,         The process begins by assessing the question com-
+  China. Association for Computational Linguistics.         plexity. We denote the reasoning process for this
+Xuhui Zheng, Kang An, Ziliang Wang, Yuhang Wang,
+                                                            assessment as rtype . For single-hop questions, it
+  and Yichao Wu. 2025. StepSearch: Igniting LLMs            directly invokes the Iterative Retrieval Loop.
+  search ability via step-wise proximal policy optimiza-
+  tion. In Proceedings of the 2025 Conference on Em-             • If the loop succeeds, the teacher model gen-
+  pirical Methods in Natural Language Processing,                  erates the final reasoning rf inal and answer a
+  pages 21816–21841, Suzhou, China. Association for                based on the collected history (Table 24). The
+  Computational Linguistics.                                       final trajectory includes the complexity assess-
+Yaowei Zheng, Richong Zhang, Junhao Zhang, Yanhan                  ment, retrieval history, and the final answer.
+  Ye, Zheyan Luo, Zhangchi Feng, and Yongqiang Ma.
+  2024. Llamafactory: Unified efficient fine-tuning              • If the loop fails, the synthesis process is termi-
+  of 100+ language models. In Proceedings of the                   nated.
+                                                        4732
+Algorithm 1 D2 P LAN Inference Workflow
+Input: Question Q, Reasoner R, Purifier P, Retriever E, Max Retrieval Attempts K, Max Revisions M
+Output: Answer a
+ 1: type ← R.AssessComplexity(Q)                                   ▷ Determine if single-hop or multi-hop
+ 2: if type = SingleHop then
+ 3:      status, inf o ← IterativeRetrieval(Q, R, P, E, K, ∅)                                ▷ Call Alg. 2
+ 4:      a ← R.GenerateAnswer(Q, inf o, ∅)
+ 5: else
+ 6:      S ← R.Decompose(Q)                     ▷ Generate initial sub-question sequence [q1 , q2 , . . . , qn ]
+ 7:      C←∅                                                                   ▷ Initialize global context
+ 8:      revision_cnt ← 0
+ 9:      i←1
+10:      while i ≤ |S| do
+11:         qi ← S[i]
+12:         status, inf o ← IterativeRetrieval(qi , R, P, E, K, C)                           ▷ Call Alg. 2
+13:         if status = Success then
+14:             ai ← R.GenerateAnswer(qi , inf o, C)
+15:             C ← C ∪ {(qi , ai , inf o)}
+16:             S[i + 1] ← R.RefineNextSubQuestion(S[i + 1], C)                        ▷ Plan Refinement
+17:             i←i+1
+18:         else
+19:             if revision_cnt < M then
+20:                 Snew ← R.RevisePlan(S, i, C)                                          ▷ Plan Revision
+21:                 S ← Snew
+22:                 revision_cnt ← revision_cnt + 1
+23:             else
+24:                 ai ← R.GenerateAnswer(qi , ∅, C)                   ▷ Answer with internal knowledge
+25:                 C ← C ∪ {(qi , ai , ∅)}
+26:                 i←i+1
+27:      a ← R.GenerateFinalAnswer(Q, C)
+28: return a
+
+
+Algorithm 2 Iterative Retrieval with Purifier
+Input: Target q, Reasoner R, Purifier P, Retriever E, Max Attempts K, Context C
+Output: Status, Purified Information
+ 1: H ← ∅                                                                      ▷ Local retrieval history
+ 2: for k = 1 to K do
+ 3:     queryk ← R.GenerateQuery(q, H, C)
+ 4:     Dk ← E.Retrieve(queryk )                                       ▷ Retrieve candidate documents
+ 5:     inf ok , relevancek ← P.Purify(q, Dk )            ▷ Purifier judges relevance and extracts info
+ 6:     H ← H ∪ {(queryk , inf ok , relevancek )}
+ 7:     if relevancek = Relevant then
+ 8:         return Success, inf ok
+ 9: return Failure, H
+
+
+
+Multi-hop Question Processing (Algorithm 5)               paradigm:
+The process begins by assessing the question com-
+plexity. We denote the reasoning process for                1. Initialization: The model decomposes Q into
+this assessment as rtype . For multi-hop questions,            an initial sub-question plan P (Table 21).
+the process follows the dynamic global planning             2. Execution Loop: The model iterates through
+                                                     4733
+      the sub-questions in P. For each sub-question       attempts to 3. Following common practice (Jin
+      qi :                                                et al., 2025a,b; Song et al., 2025), we mask out the
+                                                          tokens of search tool responses during training to
+         • Before retrieval, we first judge whether
+                                                          prevent noise in the retrieval content from skewing
+           external retrieval is necessary (Table 26).
+                                                          the learning signal.
+           If so, it invokes the Iterative Retrieval
+           Loop.                                          D    Datasets
+         • Success (Plan Refinement): If retrieval
+           succeeds, the evidence is added to the         We use publicly available QA benchmarks for train-
+           global context C. The model answers            ing and evaluation. Table 7 summarizes the statis-
+           the sub-question (Table 24) and then re-       tics of all datasets used in our experiments.
+           fines the next sub-question based on C
+           (Table 25), making it more specific and              Dataset                 Train    Dev/Test
+           self-contained.                                      NQ                     79,168      3,610
+         • Failure (Plan Revision): If retrieval                SimpleQA                  -        4,326
+           fails, the model checks if the maximum               HotpotQA               90,447      7,405
+           revision count M has been reached. If                2WikiMultihopQA        15,000     12,576
+           not, it triggers plan revision (Table 27) to         MuSiQue                19,938      2,417
+           revise the remaining sub-questions based             FRAMES                    -         824
+           on the current context and failure infor-
+                                                          Table 7: Statistics of datasets used in our experiments.
+           mation. The execution resumes with the         “-” indicates the split is not used or not available.
+           revised plan.
+
+    3. Completion: Once all sub-questions are             Data Sources All datasets except SimpleQA and
+       solved, the model generates the final answer       FRAMES are obtained from FlashRAG (Jin et al.,
+       (Table 28).                                        2024), a modular toolkit for retrieval-augmented
+                                                          generation research that provides standardized
+C     Training Details                                    dataset preprocessing and evaluation pipelines.
+                                                          These datasets are publicly available and do not
+SFT Cold-Start We use qwen-max-latest                     contain personally identifiable information or of-
+(Qwen et al., 2025) as the teacher model to syn-          fensive content.
+thesize reasoning trajectories from NQ, HotpotQA,
+MuSiQue (2-hop), and MuSiQue (3,4-hop) training           E Ablation Study Implementation Details
+sets, collecting 800, 1,600, 800, and 800 trajecto-
+                                                          For the removal of the Dynamic Global Planning
+ries respectively. This yields 4,000 Reasoner sam-
+                                                          Paradigm (w/o Plan&Adapt), we do not use the
+ples and 11,255 Purifier samples. SFT is conducted
+                                                          reasoning trajectory synthesis method described
+using LLaMA-Factory (Zheng et al., 2024) with a
+                                                          in §2.2. Instead, while retaining the dual-agent
+learning rate of 1e-5, batch size of 64, for 3 epochs.
+                                                          architecture, we employ the prompt provided in
+We set the maximum number of retrieval attempts
+                                                          Table 30 to guide the teacher model in rolling out
+to 3 and the maximum number of plan revisions to
+                                                          solutions. We then apply rejection sampling to
+1.
+                                                          retain only those reasoning trajectories that yield
+RL Training We sample 5,000, 10,000, 10,000,              correct answers, which are subsequently used as
+and 4,762 additional instances (non-overlapping           SFT data. In the RL phase, we optimize using only
+with SFT data) from the NQ, HotpotQA, MuSiQue             format and answer rewards, omitting all planning-
+(2-hop), and MuSiQue (3,4-hop) training sets, total-      related reward designs.
+ing 29,762 samples. We adopt GRPO (Shao et al.,              For w/o Adapt, we disable the plan adaptation
+2024) as the learning algorithm, implemented on           mechanism, meaning the model generates an initial
+verl (Sheng et al., 2025). Training is conducted          plan but lacks the ability to replan or perform iter-
+for 3 epochs with 5 rollouts per sample, using to-        ative retrieval when retrieval results are irrelevant.
+tal/mini/micro batch sizes of 256/128/64, a learn-        During the RL phase, we use the format reward,
+ing rate of 1e-6, α = β = 0.1, and discount factor        answer reward, and the Initial Planning Reward
+λ = 0.5. We set the maximum number of retrieval           Rp .
+                                                      4734
+Algorithm 3 Iterative Retrieval Loop
+Input: Retrieval Target q, Teacher Model M, Max Attempts K
+Output: Status S, Local Context H
+ 1: H ← ∅
+ 2: for k = 1 to K do
+ 3:     rk , qk ← M.GenerateQuery(q, H)
+ 4:     Dk ← Retrieve(qk )
+ 5:     Ik , Jk ← M.Purify(q, Dk )
+ 6:     H ← H ∪ {rk , qk , Ik , Jk }
+ 7:     if Jk = Relevant then
+ 8:          return Success, H
+ 9: return Failure, H
+
+
+Algorithm 4 Trajectory Synthesis for Single-hop Questions
+Input: Question Q, Teacher Model M, Max Retrieval Attempts K
+Output: Trajectory T or Failure
+ 1: rtype ← M.AssessComplexity(Q)                                      ▷ Identify question complexity
+ 2: S, H ← RetrievalLoop(Q, M, K)                                                        ▷ Call Alg. 3
+ 3: if S = Success then
+ 4:     rf inal , a ← M.Answer(Q, H)                                          ▷ Generate final answer
+ 5:     return T = {Q, rtype } ∪ H ∪ {rf inal , a}
+ 6: else
+ 7:     return Failure
+
+Algorithm 5 Trajectory Synthesis for Multi-hop Questions
+Input: Question Q, Teacher Model M, Max Revisions M , Max Retrieval Attempts K
+Output: Trajectory T or Failure
+ 1: rtype ← M.AssessComplexity(Q)                                    ▷ Identify question complexity
+ 2: P ← M.Decompose(Q)                                   ▷ Generate initial sub-question sequence
+ 3: C ← {Q, P}                                                            ▷ Initialize global context
+ 4: revision_cnt ← 0
+ 5: i ← 1                                                           ▷ Index of current sub-question
+ 6: while i ≤ |P| do
+ 7:     qi ← P[i]
+ 8:     S, H ← RetrievalLoop(qi , M, K)                                                 ▷ Call Alg. 3
+ 9:     if S = Success then
+10:         C ←C∪H                                                          ▷ Accumulate evidence
+11:         P ← M.RefineNextSubQuestion(P, C)                                     ▷ Plan Refinement
+12:         i←i+1
+13:     else
+14:         if revision_cnt < M then
+15:             P ← M.RevisePlan(Q, C)                                               ▷ Plan Revision
+16:             revision_cnt ← revision_cnt + 1
+17:                                      ▷ Resume from the first unsolved sub-question in new plan
+18:         else
+19:             return Failure
+20: a ← M.GenerateAnswer(Q, C)
+21: C ← C ∪ {a}
+22: return T = {rtype } ∪ C
+
+
+
+
+                                                4735
+   We conduct SFT training using reasoning trajec-             Purifier               LasJ    SC     Len    Time
+tories synthesized from the same question set.                 Search-R1              19.78   3.01   2883    -
+   For w/o Rp and w/o Ra , we remove the initial               w/o Purifier           27.18   4.89   5180   432
+planning reward and adaptation reward respectively,            Qwen2.5-7B-Instruct    26.70   5.06   1724   359
+while keeping all other components unchanged.                  Qwen2.5-32B-Instruct   28.88   4.89   1758   653
+                                                               Qwen-Max               32.16   4.65   2073    -
+F     Format Reward Constraints                                Qwen2.5-3B-SFT         27.30   4.70   1979   345
+                                                               Qwen2.5-7B-SFT         29.49   4.59   1883   381
+The format reward Rf enforces the following con-
+straints to ensure parsable reasoning paths:               Table 8: Performance comparison of different Purifier
+                                                           Agents on FRAMES. LasJ: LLM-as-a-Judge (%); SC:
+    1. Answer Tag Constraint: The model output             Number of search calls; Len: Context length (tokens);
+       must contain exactly one pair of <answer>           Time: Total inference time (seconds). Search-R1 serves
+       and </answer> tags, enclosing the final an-         as a baseline without the dual-agent architecture.
+       swer.
+
+    2. Plan Tag Constraint: For multi-hop ques-            models (Qwen2.5-7B/32B-Instruct and Qwen-
+       tions, the output must contain <plan> and           Max), and (3) our task-specific fine-tuned mod-
+       </plan> tags that enclose the initial decompo-      els (Qwen2.5-3B/7B-SFT). Search-R1 serves as
+       sition of sub-questions.                            an external baseline representing the single-agent
+                                                           paradigm.
+    3. Sub-question Identifier Constraint: Within
+       the plan, each sub-question must be marked          Task-Specific Fine-Tuning Enables Smaller
+       with identifiers "#Q_i: " (where i is the sub-      Models to Serve as Effective Purifiers. Among
+       question index), enabling systematic tracking       general-purpose models, larger Purifiers generally
+       of the solving process.                             yield better performance, with Qwen-Max achiev-
+                                                           ing the highest LasJ score of 32.16%. However,
+    4. Refinement Tag Constraint: When refin-              the general-purpose Qwen2.5-7B-Instruct fails to
+       ing a sub-question after solving its dependen-      effectively perform the Purifier task, achieving only
+       cies, the model must use <Updated_#Q_i>             26.70% LasJ—even lower than the no-Purifier base-
+       and </Updated_#Q_i> tags to mark the re-            line (27.18%). This indicates that smaller general-
+       fined version.                                      purpose models lack the capability to accurately
+                                                           judge relevance and extract key information from
+    5. Revision Tag Constraint: When triggering
+                                                           noisy retrieval results. In contrast, our fine-tuned
+       plan revision after retrieval failures, the model
+                                                           Qwen2.5-7B-SFT achieves a LasJ score of 29.49%,
+       must use <Replan> and </Replan> tags to
+                                                           which not only recovers from this deficiency but
+       enclose the revised plan.
+                                                           also surpasses Qwen2.5-32B-Instruct (28.88%) de-
+   These constraints ensure that the reasoning tra-        spite having only 22% of its parameters. This
+jectory can be automatically parsed via regular ex-        demonstrates that task-specific fine-tuning is essen-
+pressions to compute the Initial Planning Reward           tial for enabling moderate-sized models to serve
+Rp (by extracting the initial plan and counting sub-       as effective Purifiers, offering a practical trade-off
+questions) and the Plan Adaptation Reward Ra (by           between performance and computational cost.
+detecting refinement tags, revision tags, and itera-       Inference Efficiency Details. We deploy the Pu-
+tive retrieval patterns).                                  rifier using vLLM’s server mode on an 8×A800
+                                                           node. Deploying an additional 7B Purifier incurs
+G      Comparison of Different Purifier
+                                                           approximately 20% additional GPU memory over-
+       Agents
+                                                           head. The general-purpose Qwen2.5-32B-Instruct
+This section extends the analysis in §4 by compar-         not only achieves lower accuracy (28.88% vs.
+ing different Purifier configurations. We use the          29.49%) but also incurs significantly higher infer-
+same experimental setup described in the main text.        ence time (653s) due to its larger model size. This
+   As shown in Table 8, we compare three cat-              comparison highlights the value of task-specific
+egories of Purifier configurations: (1) no Puri-           fine-tuning: our Qwen2.5-7B-SFT, with only 22%
+fier baseline, (2) general-purpose instruction-tuned       of the parameters, outperforms the 32B general-
+                                                       4736
+purpose model in both accuracy and efficiency.            rewards Rp and Ra are bounded in [0, 1] and scaled
+                                                          by small coefficients, so the answer reward Rans
+H    Purifier Transplantation to Baselines                always dominates the gradient signal. The auxiliary
+To disentangle the contribution of the Purifier           terms act as gentle regularizers rather than primary
+from the overall D2 Plan framework, we added our          optimization drivers.
+trained Purifier (Qwen2.5-7B-SFT) to representa-
+tive baselines. Since baselines like Search-R1 and        K     Detailed Error Analysis
+R1-Searcher lack sub-question decomposition, we           K.1 Instance-Level Error Transition Analysis
+use their search queries as surrogate target ques-
+tions for the Purifier’s relevance judgment (Algo-        To substantiate that D2 Plan’s performance gains
+rithm 2), which is inherently less precise than a         stem from the proposed mechanisms, we conduct a
+well-formed sub-question.                                 comparative instance-level error transition analysis
+   As shown in Table 9, the Purifier brings modest        between Search-R1 and D2 Plan on the 200 sampled
+improvements to baselines (e.g., +3.32% AVG for           questions from the FRAMES dataset used in §4.6.
+Search-R1), but they still fall far short of D2 Plan      The overall transition matrix is shown in Table 12.
+(+9.27% AVG over Search-R1+Purifier). This
+                                                          Wrong → Correct (27 cases). The errors made
+demonstrates that D2 Plan’s superior performance
+                                                          by Search-R1 in this subset were dominated by
+stems from the synergy between dynamic planning
+                                                          E2.1 (59.3%) and E1 (40.7%). This confirms that
+and the Purifier, rather than from either component
+                                                          D2 Plan’s performance gains directly stem from mit-
+alone.
+                                                          igating ineffective search chain construction and
+I   Single-Agent Baseline Comparison                      reasoning hijacking by peripheral evidence, as in-
+                                                          tended by our design.
+To verify whether the explicit dual-agent workflow
+is essential, we trained a single-agent SFT base-         Wrong → Wrong (128 cases). As shown in Ta-
+line that performs retrieval, relevance assessment,       ble 13, we observed a significant shift in error
+compression, and reasoning all-in-one (merging            distribution within the persistently incorrect sub-
+the Purifier’s role into the Reasoner’s training data).   set. E1 drops from 37→20 and E2.1 from 60→39,
+Results on FRAMES:                                        while E2.2 rises from 26→69. This shift demon-
+   The single-agent with internal compression             strates that D2 Plan effectively optimizes search
+barely improves (+0.64%), while D2 Plan achieves          query chains and identifies clearly irrelevant infor-
++2.31% with a 63.6% reduction in context length.          mation, but the remaining failures are increasingly
+Internal compression actually increases context           attributable to inherent retrieval system limitations.
+length (5,746 > 5,180) because raw documents
+must be loaded into the context before compression        Correct → Wrong (14 cases). We manually an-
+can occur, and the generated summaries further add        alyzed the underlying causes for these regressions.
+to it. This confirms that the dual-agent workflow         They fall into four categories:
+is essential: the Purifier processes raw documents
+                                                             1. Purifier information loss (4/14, 28.6%): The
+in a separate context, ensuring they never pollute
+                                                                retrieved documents contain the correct an-
+the Reasoner’s attention.
+                                                                swer, but the Purifier distorts or filters it dur-
+J   Reward Weight Sensitivity Analysis                          ing compression.
+
+To verify that our results are not brittle with respect      2. Imprecise/incomplete retrieval, uncritically
+to the reward scaling factors, we trained a variant             accepted (4/14, 28.6%): The search engine
+with α = β = 0.15 on the 7B model (a single RL                  returns partially correct but insufficiently pre-
+training run requires ∼68 hours on 8×A800).                     cise information, and the model lacks the
+   The AVG varies by only 0.35%, confirming that                meta-judgment to assess retrieval quality.
+the results are not brittle. We attribute this stabil-
+ity to two factors: (1) the SFT cold-start already           3. Semantic understanding errors causing rea-
+provides a strong initialization, so the RL stage               soning chain drift (3/14, 21.4%): The model
+primarily reinforces and refines existing behaviors             fails to distinguish subtle semantic differ-
+rather than learning from scratch; (2) the auxiliary            ences during sub-question decomposition or
+                                                      4737
+                  Method               HotpotQA        2Wiki        MSQ      FRAMES        AVG
+                  Search-R1-7B            51.67           39.36     21.51      19.78      33.08
+                    + Purifier            52.26           44.85     24.61      23.88      36.40
+                  R1-Searcher-7B          59.03           52.04     29.83      25.61      41.63
+                    + Purifier            59.10           52.84     30.38      26.24      42.14
+                  D2 Plan-7B              61.59           56.32     33.47      31.31      45.67
+
+                  Table 9: Effect of transplanting the Purifier to baselines. We report LasJ (%).
+
+                    Method (Only SFT)                        LasJ (%)       Avg Context Len
+                    Single-Agent (w/o compression)                27.18           5,180
+                    Single-Agent (w/ compression)                 27.82           5,746
+                    D2 Plan (dual-agent)                          29.49           1,883
+
+                        Table 10: Single-agent vs. dual-agent comparison on FRAMES.
+
+
+     information processing, e.g., confusing “rat-                  limited planning and reasoning capability of
+     ified the Constitution” with “admitted to the                  the 7B foundation model, which struggles to
+     Union”.                                                        disentangle intricate sub-problems and com-
+                                                                    prehend their logical relationships, leading
+  4. Reasoning-stage hallucination or informa-                      to missing intermediate entities, ignored con-
+     tion loss (3/14, 21.4%): The model introduces                  straints, or incorrect dependency relations be-
+     errors after retrieval, e.g., discarding correctly             tween sub-questions.
+     retrieved information and fabricating a non-
+     existent answer, or omitting one of multiple
+     names from the final answer despite having               3. Failure to Identify Inaccurate Evidence
+     retrieved them all.                                         (4/20, 20%): The model accepted partially
+                                                                 incorrect or approximate evidence (e.g., sub-
+K.2 Failure Mode Analysis                                        stituting 2018 statistics for 2019 data, or ac-
+To provide deeper insight into D2 Plan’s remain-                 cepting evidence related to a homonymous
+ing failure modes, we manually analyzed 20 sam-                  entity). This reflects the inherent limitation
+pled error cases from the FRAMES and MuSiQue                     of smaller-scale models in fine-grained fact
+benchmarks. The failures fall into three main cate-              verification, where they may struggle to dis-
+gories:                                                          tinguish between subtle factual discrepancies
+                                                                 despite high semantic overlap.
+  1. Retrieval System Limitations (7/20, 35%):
+     The model exhibited correct planning behav-
+                                                            The remaining 4 cases (20%) involve miscella-
+     ior and executed multiple effective recovery at-
+                                                            neous errors such as reasoning-stage hallucination.
+     tempts (e.g., query rewriting and re-planning).
+     However, through manual verification, we                  Furthermore, among the E2.2 errors identified
+     confirmed that the gold documents were struc-          by Gemini in §4.6, we manually verified 8 sampled
+     turally absent from the retrieval corpus, mak-         cases and found that 7 out of 8 were caused by
+     ing it impossible for any agent to succeed.            retrieval system limitations (i.e., the gold evidence
+     This highlights the bottleneck of the external         was absent from the corpus) rather than reason-
+     retriever rather than the reasoning agent itself.      ing deficiencies of the model. This confirms that
+                                                            the errors classified as E2.2 are indeed largely at-
+  2. Deficient Search Chain (5/20, 25%): The                tributable to inherent retrieval system limitations,
+     model failed to generate a correct sub-                and that D2 Plan has effectively reduced reasoning
+     question sequence for extremely complex                errors, leaving retrieval limitations as the dominant
+     problems. This is largely attributed to the            remaining bottleneck.
+                                                       4738
+                 Setting               HotpotQA         2Wiki    MSQ      FRAMES          AVG
+                 α=β=0.1 (default)        61.59         56.32    33.47      31.31      45.67
+                 α=β=0.15                 61.03         55.74    33.82      30.67      45.32
+
+                      Table 11: Reward weight sensitivity analysis. We report LasJ (%).
+
+                                                  D2 Plan Correct    D2 Plan Wrong
+                        Search-R1 Correct           31 (15.5%)            14 (7.0%)
+                        Search-R1 Wrong             27 (13.5%)           128 (64.0%)
+
+     Table 12: Instance-level transition matrix between Search-R1 and D2 Plan on FRAMES (200 samples).
+
+
+L   Token Consumption Analysis                            decomposition leads to semantic drift—retrieving
+                                                          engineering “dog” tools instead of pet walking
+To comprehensively evaluate the practical effi-
+                                                          equipment. After two failed retrieval attempts,
+ciency of the dual-agent architecture, we report
+                                                          the model triggers plan revision that merges the
+the Purifier’s token consumption on FRAMES in
+                                                          first two sub-questions, directly querying for syn-
+Table 14. The inference time reported in §4.5 is
+                                                          onyms of dog walking tools. This successfully
+wall-clock time from question input to final answer,
+                                                          redirects the reasoning and arrives at the correct
+encompassing all Purifier calls, inter-agent commu-
+                                                          answer “Lead” (both a synonym for leash and a
+nication, and retrieval.
+                                                          chemical element).
+   The Reasoner’s context drops by 63.6%, which
+is the primary latency saving since self-attention        E2.1 vs. E2.2 Error Case. Tables 19 and 20
+scales quadratically. Each Purifier call processes        illustrate the difference between E2.1 and E2.2 er-
+only ∼930 input tokens and generates ∼92 output           rors, comparing the behaviors of Search-R1 and
+tokens on average, contributing minimal additional        D2 P LAN on the same question.
+latency. The net effect is a ∼12% reduction in end-          As shown in Table 19, Search-R1 successfully re-
+to-end inference time (432s → 381s) despite the           trieves Hod Lisenbee’s place of death (Clarksville)
+additional Purifier overhead.                             but fails to find the distance information in the
+                                                          second retrieval. Critically, Search-R1 does not
+M    Case Study                                           attempt to reformulate the query or re-retrieve—
+                                                          instead, it directly hallucinates an answer (“approx-
+E1: Deficient Search Chain. Tables 15 and 16
+                                                          imately 60 miles”) based on its internal knowledge,
+illustrate a scenario where Search-R1 exhibits E1
+                                                          which is incorrect. This exemplifies E2.1 errors:
+(Deficient Search Chain) by generating a flawed
+                                                          the model reasons with irrelevant retrieval results
+query sequence that diverges from the original rea-
+                                                          without attempting any remediation.
+soning objective—instead of querying the discov-
+                                                             In contrast, as shown in Table 20, D2 P LAN
+erer’s birthdate, it directly searches for a holiday,
+                                                          demonstrates more robust behavior: when the ini-
+leading to an incorrect answer. In contrast, our pro-
+                                                          tial retrieval for the distance fails, the model ap-
+posed D2 P LAN successfully solves the problem
+                                                          propriately recognizes the irrelevance and attempts
+through explicit global planning and dynamic sub-
+                                                          query reformulation with enriched entities (adding
+question refinement, maintaining alignment with
+                                                          constraints like “miles”, “km”, and authoritative
+the original reasoning objective throughout the pro-
+                                                          sources). However, despite multiple retrieval at-
+cess.
+                                                          tempts with refined queries, the retrieval system
+Plan Revision. Tables 17 and 18 demonstrate               cannot locate the required distance information,
+how D2 P LAN’s plan revision mechanism corrects           causing the model to hallucinate an incorrect an-
+an initially flawed reasoning direction. In this ex-      swer (95 miles instead of 45 miles). This exempli-
+ample, Search-R1 incorrectly identifies “line” as         fies E2.2 errors: the model attempts remediation
+a synonym for “leash” and then erroneously con-           but fails due to inherent corpus limitations.
+cludes that “Lithium” sounds like “line”, leading to         Upon manual inspection, we traced the
+an incorrect answer. In contrast, D2 P LAN’s initial      ground-truth answer to the Wikipedia article for
+                                                     4739
+             Search-R1 \ D2 Plan            E1            E2.1            E2.2           Total
+             E1                         7 (5.5%)         8 (6.3%)      22 (17.2%)     37 (28.9%)
+             E2.1                       10 (7.8%)       21 (16.4%)     29 (22.7%)     60 (46.9%)
+             E2.2                       2 (1.6%)         7 (5.5%)      17 (13.3%)     26 (20.3%)
+             E3                         1 (0.8%)         3 (2.3%)       1 (0.8%)       5 (3.9%)
+             Total                     20 (15.6%)       39 (30.5%)     69 (53.9%)         128
+
+Table 13: Error type transition matrix for the W→W subset (128 cases on FRAMES). Rows: Search-R1 error types;
+Columns: D2 Plan error types.
+
+         Method         Reasoner Ctx       Purifier Calls     Purifier In/Call      Purifier Out/Call
+         w/o Purifier        5,180                —                    —                  —
+         D2 Plan             1,883               4.59                929.70              91.83
+
+Table 14: Token consumption analysis on FRAMES. Reasoner Ctx: average context length (tokens); Purifier In/Out:
+average input/output tokens per Purifier call.
+
+
+Clarksville, Tennessee (https://en.wikipedia.             case study illustrates how D2 P LAN’s dynamic plan-
+org/wiki/Clarksville,_Tennessee), which                   ning paradigm shifts errors from model capability
+states: “Clarksville is located on the northwest          deficiencies (E2.1) to inherent retrieval system lim-
+edge of the Highland Rim, which surrounds the             itations (E2.2).
+Nashville Basin, and is 45 miles (72 km) northwest
+of Nashville.”       However, the corresponding
+document in our corpus does not contain the
+critical distance information “45 miles (72 km)”:
+     {“id”:       “14985934”,     “contents”:
+     “"Clarksville,       Tennessee"     was
+     rededicated. In addition to restoring
+     the 1879 courthouse and plazas, the
+     county built a new courts center on the
+     north side for the court operations.
+     According to the United States Census
+     Bureau, the city has a total area of ,
+     of which is land and (0.71%) is covered
+     by water. Clarksville is located on
+     the northwest edge of the Highland Rim,
+     which surrounds the Nashville Basin,
+     and is northwest of Nashville. Fort
+     Campbell North is a census-designated
+     place (CDP) in Christian County,
+     Kentucky.    It contains most of the
+     housing for the Fort Campbell Army base.
+     The population was 14,338”}
+
+As shown, the corpus document retains only the
+directional phrase “northwest of Nashville” with-
+out the numeric distance, making it impossible for
+the model to retrieve the correct answer. This com-
+parison highlights the key difference between E2.1
+and E2.2 errors: Search-R1 exhibits E2.1 behavior
+by immediately resorting to hallucination without
+any remediation effort, whereas D2 P LAN demon-
+strates superior self-correction behavior by actively
+attempting to reformulate queries—though it ulti-
+mately fails due to corpus limitations (E2.2). This
+                                                    4740
+   Question: The Basibasy mine is located in Madagascar. This mine is abundant in a specific chemical element that was
+   discovered for the first time in 1791. The person who discovered this element was born on what is now known as a major
+   US holiday - what holiday is this?
+   Golden Answer: Christmas
+   Search-R1 (Incorrect):
+   <search> Basibasy mine Madagascar </search>
+   <information> Doc 1(Title: “Ambatovy mine”) Ambatovy, located in Madagascar, off the east coast of Africa, is one
+   of the world’s largest lateritic nickel mines with a production capacity of 60,000 tonnes of nickel... Doc 2(Title: Maniry)
+   Maniry is a town and commune in southwestern Madagascar. It belongs to the district of Ampanihy... Doc 3(Title:
+   “Economy of Madagascar”) coal at Sakoa and nickel near Tamatave. The Ambatovy nickel mine is a huge operation...
+   Doc 4(Title: “Ambatovy mine”) Bank CSRM report estimate the impact of the mining industry as two to five indirect
+   jobs... Doc 5(Title: “Mining industry of Madagascar”) of mining Code. Minerals, both industrial and metallic, are
+   numerous including ilmenite, graphite... </information>
+   Based on the information provided, the Basibasy mine seems to be referred to as Ambatovy mine, which is located in
+   Madagascar and is a large nickel mine. Now, let’s find the element discovered in 1791.
+   <search> element discovered in 1791 </search>
+   <information> Doc 1(Title: “Group 9 element”) regia. Iridium was discovered in a very similar way in 1804 by
+   Smithson Tennant... Doc 2(Title: Titanium) Titanium was discovered in 1791 by the clergyman and amateur geologist,
+   William Gregor, as an inclusion of a mineral in Cornwall, Great Britain... Doc 3(Title: “Group 3 element”) the current
+   heaviest element known, oganesson. In 1787, Swedish part-time chemist Carl Axel Arrhenius... Doc 4(Title: “Anders
+   Gustaf Ekeberg”) Anders Gustaf Ekeberg was a Swedish chemist who discovered tantalum in 1802... Doc 5(Title:
+   “Group 9 element”) Meitnerium has not been isolated in pure form... </information>
+   From the information provided, it seems William Gregor discovered the element titanium in 1791. Now, let’s find the US
+   holiday related to the birth date provided.
+   <search> person born on Thanksgiving </search>
+   <information> Doc 1(Title: “Thanksgiving (United States)”) Thanksgiving is a national holiday in the United States,
+   celebrated on the fourth Thursday of November. It originated as a harvest festival... Doc 2(Title: Thanksgiving)
+   Thanksgiving Day is a national holiday celebrated on various dates in Canada, the United States... Doc 3(Title:
+   Thanksgiving) after 1700, late autumn Thanksgiving celebrations became commonplace... Doc 4(Title: Thanksgiving)
+   beginning of the 19th century, coinciding with and eventually superseding the existing holiday... Doc 5(Title: “Preterm
+   birth”) Ahmad resuscitated the baby after she was born... </information>
+   The information states that Thanksgiving is a national holiday in the United States, celebrated on the fourth Thursday of
+   November. The person who discovered titanium, William Gregor, was born on a day that is now a US holiday. Therefore,
+   the holiday in question is likely Thanksgiving.
+   <answer> Thanksgiving </answer>
+
+Table 15: Case study: Search-R1 exhibits E1 (Deficient Search Chain) by generating a flawed query sequence.
+Instead of querying William Gregor’s birthdate, it directly searches for “person born on Thanksgiving”, diverging
+from the correct reasoning objective and leading to an incorrect answer.
+
+
+
+
+                                                             4741
+   Question: The Basibasy mine is located in Madagascar. This mine is abundant in a specific chemical element that was
+   discovered for the first time in 1791. The person who discovered this element was born on what is now known as a major
+   US holiday - what holiday is this?
+   Golden Answer: Christmas
+   D2 P LAN (Correct):
+   This is a multi-hop question involving multiple steps: identifying the chemical element discovered in 1791 at the Basibasy
+   mine in Madagascar, determining the discoverer’s birth date, and linking it to a significant U.S. holiday. Each step builds
+   on the previous one, requiring sequential reasoning.
+   <plan>
+   #Q_1: What chemical element was discovered for the first time in 1791 and is abundant in the Basibasy mine in
+   Madagascar?
+   #Q_2: On what day was the person who discovered the element identified in #A_1 born?
+   #Q_3: What major US holiday is associated with the birthdate identified in #A_2?
+   </plan>
+   To proceed, I’ll first identify the chemical element linked to both the Basibasy mine and its discovery in 1791. External
+   verification will confirm whether this aligns with historical records of discoveries and elemental abundances.
+   <tool_call>
+   {“name”: “search”, “arguments”: {“query”: “chemical element discovered in 1791 in Madagascar”, “question”: “What
+   chemical element was discovered for the first time in 1791 and is abundant in the Basibasy mine in Madagascar?”}}
+   </tool_call>
+   <tool_response>
+   {“result”: “Doc 1: [TARGET_INFO_EXTRACTED] Titanium was discovered in 1791 by the clergyman and amateur
+   geologist William Gregor; Titanium is abundant in the Basibasy mine in Madagascar”}
+   </tool_response>
+   The document states that titanium was discovered in 1791 and is abundant in the Basibasy mine in Madagascar, directly
+   answering the question.
+   #A_1: Titanium
+   I’ll now determine the discoverer’s birthdate:
+   <updated_#Q_2>
+   On what day was William Gregor, the person who discovered titanium, born?
+   </updated_#Q_2>
+   The prior answer identifies titanium but does not include details about William Gregor’s birthdate. External information
+   is needed to address this sub-question.
+   <tool_call>
+   {“name”: “search”, “arguments”: {“query”: “William Gregor birth date”, “question”: “On what day was William Gregor,
+   the person who discovered titanium, born?”}}
+   </tool_call>
+   <tool_response>
+   {“result”: “Doc 1: [TARGET_INFO_EXTRACTED] William Gregor was born on 25 December 1761”}
+   </tool_response>
+   The document provides William Gregor’s birth date, including the day.
+   #A_2: 25 December
+   I’ll now determine which major U.S. holiday corresponds to this date.
+   <updated_#Q_3>
+   What major US holiday is celebrated on December 25?
+   </updated_#Q_3>
+   The answer is common knowledge: Christmas Day, a widely recognized national holiday in the United States.
+   #A_3: Christmas Day
+   <answer>
+   Christmas Day
+   </answer>
+
+Table 16: Case study: D2 P LAN succeeds through structured planning and dynamic sub-question refinement,
+effectively mitigating E1 (Deficient Search Chain). By explicitly decomposing the problem and dynamically
+updating #Q_2 with the discovered entity (William Gregor), it avoids diverging from the original reasoning objective
+and correctly queries the birthdate, arriving at the correct answer.
+
+
+
+
+                                                             4742
+   Question: Which element of the periodic table is a homonym of a synonym of a tool commonly used in dog walking?
+   Golden Answer: Lead
+   Search-R1 (Incorrect):
+   To solve this problem, I’ll need to break it down step by step: 1. Identify a tool commonly used in dog walking. 2. Find
+   a synonym for that tool. 3. Find an element in the periodic table that is a homonym of that synonym.
+   Step 1: A tool commonly used in dog walking is a leash or a lead.
+   Step 2: A synonym for “leash” or “lead” could be “line.”
+   Step 3: I need to find an element in the periodic table that is a homonym of “line.”
+   <search> homonym of line periodic table </search>
+   <information> Doc 1(Title: “Homology (chemistry)”) Homology (chemistry) In chemistry, homology is the appearance
+   of homologues. A homologue is a compound belonging to a series of compounds differing from each other by a repeating
+   unit... Doc 2(Title: “Periodic table”) The periodic table is a tabular arrangement of the chemical elements, ordered by
+   their atomic number... </information>
+   From the information provided, I can see that there is no direct mention of an element that is a homonym of “line.”
+   However, the periodic table contains elements with various names. I will search for elements with names that sound like
+   “line.”
+   <search> elements periodic table names sound like line </search>
+   <information> Doc 1(Title: “Periodic table”) The periodic table is a tabular arrangement of the chemical elements...
+   Doc 2(Title: “Naming of chemical elements”) Chemical elements may be named from various sources: sometimes based
+   on the person who discovered it, or the place it was discovered... </information>
+   There is no element in the periodic table that is a homonym of “line.” I will try searching for elements with names that
+   sound like “line.”
+   <search> elements periodic table names sound like line or lean </search>
+   <information> Doc 1(Title: “Periodic table”) The periodic table is a tabular arrangement of the chemical elements...
+   Doc 2(Title: “Chemical element”) The terms “light” and “heavy” are sometimes also used informally to indicate relative
+   atomic numbers... </information>
+   After searching, I found that there is an element in the periodic table named “Lithium,” which sounds like “line.”
+   Therefore, the answer is:
+   <answer> Lithium </answer>
+
+Table 17: Case study: Search-R1 incorrectly identifies “line” as a synonym for “leash” and then erroneously
+concludes that “Lithium” sounds like “line.” The model fails to recognize that “lead” is both a synonym for leash
+and a chemical element, leading to an incorrect answer.
+
+
+
+
+                                                            4743
+  Question: Which element of the periodic table is a homonym of a synonym of a tool commonly used in dog walking?
+  Golden Answer: Lead
+  D2 P LAN (Correct):
+  This is a multi-hop question involving two steps: identifying a tool used in dog walking and finding an element whose
+  name matches a synonym of that tool. The phrasing introduces ambiguity and requires sequential reasoning.
+  <plan>
+  #Q_1: What is a tool commonly used in dog walking?
+  #Q_2: What is a synonym of the tool identified in #A_1?
+  #Q_3: Which element of the periodic table is a homonym of the synonym identified in #A_2?
+  </plan>
+  First, I’ll identify a tool frequently used in dog walking. External knowledge is needed since no prior context provides
+  this information.
+  <tool_call>
+  {“name”: “search”, “arguments”: {“query”: “common tool used in dog walking”, “question”: “What is a tool commonly
+  used in dog walking?”}}
+  </tool_call>
+  <tool_response>
+  {“result”: “[NO_TARGET_INFO_FOUND]\nSummary of retrieved documents:\n[Doc 1]: Dog walking involves a
+  person walking with a dog... [Doc 2]: Dog walking refers to the act of walking a dog... [Doc 3]: In engineering, a dog is
+  a tool or part... [Doc 4]: Engineering tools called ‘dogs’ include feed dogs... [Doc 5]: A bench dog is a woodworking
+  accessory...”}
+  </tool_response>
+  The question asks about a tool used in dog walking. However, the documents describe ‘dog’ as an engineering term
+  referring to tools like dog clutches, feed dogs in sewing machines, and bench dogs in woodworking—not as a pet-related
+  term. The documents lack sufficient semantic alignment to answer the question.
+  Let me modify my search query using Entity Enrichment / Correction strategy.
+  <tool_call>
+  {“name”: “search”, “arguments”: {“query”: “engineering tool named dog — dog clutch, feed dog in sewing machine, or
+  bench dog in woodworking”, “question”: “What is a tool commonly used in dog walking?”}}
+  </tool_call>
+  <tool_response>
+  {“result”: “[NO_TARGET_INFO_FOUND]\nSummary of retrieved documents:\n[Doc 1]: In engineering, a dog is a
+  tool or part... [Doc 2]: A dog in engineering refers to a tool or mechanism... [Doc 3]: A lathe dog, also known as a
+  lathe carrier... [Doc 4]: A bench dog is a woodworking accessory... [Doc 5]: Shutter dogs are wrought-iron or cast-iron
+  devices...”}
+  </tool_response>
+  The documents still describe ‘dog’ in engineering contexts but do not mention dog walking or related activities. (No
+  relevant docs found after 2 attempts.)
+  Plan revision triggered due to repeated irrelevant retrieval.
+  <replan>
+  #Q_1: What is a synonym of a tool commonly used in dog walking?
+  #Q_2: Which element of the periodic table is a homonym of the synonym identified in #A_1?
+  </replan>
+  The first step is addressing #Q_1. External information is required since the context does not specify a tool for dog
+  walking or its synonyms.
+  <tool_call>
+  {“name”: “search”, “arguments”: {“query”: “What is a synonym for leash or harness, a tool commonly used in dog
+  walking?”, “question”: “What is a synonym of a tool commonly used in dog walking?”}}
+  </tool_call>
+  <tool_response>
+  {“result”: “Doc 1: [TARGET_INFO_EXTRACTED] A leash is also called a lead, lead line or tether”}
+  </tool_response>
+  The document states that a leash is also called a lead, lead line, or tether—synonyms for a tool used in dog walking.
+  #A_1: Lead
+  I’ll now determine which chemical element shares its name with this synonym.
+  <updated_#Q_2>
+  Which element of the periodic table is a homonym of the synonym “lead”?
+  </updated_#Q_2>
+  The synonym identified was ‘lead’, which is already a chemical element (Pb). No external retrieval is necessary.
+  #A_2: Lead
+  <answer>
+  Lead
+  </answer>
+
+Table 18: Case study: D2 P LAN’s plan revision mechanism corrects semantic drift through dynamic replanning.
+
+
+
+                                                           4744
+   Question: How far is Hod Lisenbee’s place of death in TN from Nashville?
+   Golden Answer: 45
+   Search-R1 (Incorrect — E2.1 Error):
+   <think> I need to find out the place of death for Hod Lisenbee first. </think>
+   <search> place of death for Hod Lisenbee </search>
+   <information> Doc 1(Title: “Hod Lisenbee”) He died at age 89 on November 14, 1987, in Clarksville and is buried
+   at the Liberty Presbyterian Church Cemetery. In 1998, the Clarksville City Council renamed a portion of Dover Road
+   (Highway 79) near the Dover Crossing interception as Hod Lisenbee memorial highway... Doc 2(Title: “Hod Lisenbee”)
+   retired from baseball. Hod Lisenbee was manager and half-owner of the Clarksville Colts club from 1946 to 1948...
+   Lisenbee lived in his hometown of Clarksville from the fall of 1945, until his death in 1987... Doc 3(Title: “Hod
+   Lisenbee”) from the Cincinnati Reds and pitched 31 games for the Reds, as a reliever... Following his release from the
+   Reds, he returned to his hometown of Clarksville... </information>
+   From the information, Hod Lisenbee’s place of death is in Clarksville. Now I need to find out how far Clarksville is from
+   Nashville.
+   <search> distance from Clarksville to Nashville </search>
+   <information> Doc 1(Title: “Clarksville, Tennessee”) Clarksville, Tennessee Clarksville is the county seat of Mont-
+   gomery County, Tennessee, United States. It is the fifth-largest city in the state behind Nashville, Memphis, Knoxville,
+   and Chattanooga. The city had a population of 132,929 at the 2010 census... Doc 2(Title: “Nashville Metropolitan
+   Transit Authority”) public hearings on April 24, 2012 regarding proposed regional express bus service from Clarksville
+   to Nashville... Doc 3(Title: “Clarksville, Tennessee”) Pleasant Academy. By 1819, the newly established town had 22
+   stores... Trade via land also grew as four main dirt roads were established, two to Nashville... </information>
+   From the information, Clarksville is the fifth-largest city in Tennessee, and it is located in Montgomery County.
+   Nashville is the capital of Tennessee and the county seat of Davidson County. The distance from Clarksville to
+   Nashville is approximately 60 miles.
+   <answer> 60 miles </answer>
+
+Table 19: Case study illustrating E2.1 error of Search-R1: the model fails to retrieve the distance information and
+does not attempt to reformulate the query. Instead, it directly hallucinates an incorrect answer (60 miles) based
+on internal knowledge, demonstrating lack of self-correction capability.
+
+
+
+
+                                                            4745
+Question: How far is Hod Lisenbee’s place of death in TN from Nashville?
+Golden Answer: 45
+D2 P LAN (Incorrect — E2.2 Error):
+This is a multi-hop question requiring two steps: identifying Hod Lisenbee’s place of death in Tennessee and calculating
+its distance from Nashville. Each step depends on resolving the prior one.
+<plan>
+#Q_1: Where did Hod Lisenbee die?
+#Q_2: How far is #A_1 (Hod Lisenbee’s place of death) from Nashville, TN?
+</plan>
+I’ll first determine where Hod Lisenbee died. This information isn’t provided in the question or prior context, so it must
+be retrieved externally.
+<tool_call>
+{“name”: “search”, “arguments”: {“query”: “Where did Hod Lisenbee die?”, “question”: “Where did Hod Lisenbee
+die?”}}
+</tool_call>
+<tool_response>
+{“result”: “Doc 1: [TARGET_INFO_EXTRACTED] Hod Lisenbee died in Clarksville”}
+</tool_response>
+The document states that Hod Lisenbee died in Clarksville.
+#A_1: Clarksville
+With Clarksville identified as the location of Hod Lisenbee’s death, I’ll now calculate the distance from there to Nashville,
+TN.
+<updated_#Q_2>
+How far is Clarksville, TN from Nashville, TN?
+</updated_#Q_2>
+This requires determining the geographical distance between the two cities, which hasn’t been covered yet.
+<tool_call>
+{“name”: “search”, “arguments”: {“query”: “distance from Clarksville TN to Nashville TN”, “question”: “How far is
+Clarksville, TN from Nashville, TN?”}}
+</tool_call>
+<tool_response>
+{“result”: “[NO_TARGET_INFO_FOUND] The Clarksville, TN–KY metropolitan statistical area consists of Mont-
+gomery and Stewart Counties in Tennessee, and Christian and Trigg Counties in Kentucky; The city distance between
+Clarksville, TN from Nashville is not provided...”}
+</tool_response>
+The document mentions the Clarksville, TN–KY metropolitan statistical area but does not provide the actual distance.
+Thus, it lacks sufficient information to answer the question directly.
+The retrieved documents are not relevant. I’ll modify my search query. The previous query returned contextual
+details about the Clarksville-Nashville region but failed to yield the numeric distance due to missing explicit entity
+constraints like units (“miles”, “km”) and authoritative source signals.
+<tool_call>
+{“name”: “search”, “arguments”: {“query”: “What is the straight-line driving distance in miles between Clarksville,
+Tennessee and Nashville, Tennessee, according to the U.S. Census Bureau or Tennessee Department of Transportation?”,
+“question”: “How far is Clarksville, TN from Nashville, TN?”}}
+</tool_call>
+<tool_response>
+{“result”: “[NO_TARGET_INFO_FOUND] The Clarksville, TN–KY metropolitan statistical area consists of Mont-
+gomery and Stewart Counties in Tennessee...; The public hearings on April 24, 2012 regarding proposed regional express
+bus service from Clarksville to Nashville indicate that the distance between Clarksville and Nashville is significant
+enough to require express bus service.”}
+</tool_response>
+The document mentions that public hearings discussed proposed regional express bus service from Clarksville to
+Nashville, noting the distance is significant. However, it does not provide the exact numerical distance or any quantitative
+measure (e.g., miles or kilometers), only qualitative information about its significance.
+#A_2: Approximately 95 miles
+<answer>
+95 miles
+</answer>
+
+                             Table 20: Case study illustrating E2.2 error of D2 P LAN.
+
+
+
+
+                                                           4746
+N   Prompts
+
+
+
+
+              4747
+Question Decomposition Prompt
+I will give you a multi-hop question. You need to decompose it into atomic sub-questions. Since the sub-questions may
+depend on each other, you need to number the sub-questions (#Q_1, #Q_2, #Q_3...). A sub-question numbered k can
+only depend on all sub-questions numbered less than k. When considering dependencies, some sub-questions may rely on
+the answers to other sub-questions. In this case, you need to denote these answers as #A_i, where i is the corresponding
+sub-question number.
+
+Please follow these instructions.
+- Be creative and varied in your response.
+- You should output in the <output></output> tags
+- First provide the rationale for the decomposition, then list the sub-questions.
+- The reasonable number of sub-questions is between 2 and 5.
+- Do not output subtitles like “Rationale for the Decomposition:”, but directly provide the rationale.
+- You need to place the subquestions within the <plan></plan> tag.
+
+An Example of a decomposition:
+
+<question>
+Here is a multi-hop question
+</question>
+
+<output>
+Here is the rationale for the decomposition
+
+<plan>
+#Q_1: Sub-question 1
+#Q_2: Sub-question 2
+...
+</plan>
+</output>
+
+Question: {question}
+
+                    Table 21: Prompt template for question decomposition in multi-hop QA.
+
+
+
+
+Query Rewrite Prompt
+You are an expert search strategist for a semantic retrieval system. Your goal is to analyze and refine a search query that
+has previously failed to retrieve relevant documents.
+
+Some common rewriting strategies include: expanding the query into a hypothetical answer, breaking down the question
+into sub-questions, adding or correcting key entities, asking a more general high-level question, or narrowing the query
+with specific constraints. You may use these or any other strategy you find appropriate.
+
+Based on the user’s question and the failed search history, your task is to generate a new, improved query. Provide your
+output as a single JSON object with no other text before or after it.
+
+Original question: {question}
+
+Previous search attempts (all failed to retrieve relevant information): {query_history}
+
+JSON Output:
+You must output a JSON formatted object that includes:
+- “reason”: A concise analysis of why the previous queries likely failed and a justification for your new approach.
+- “new_query”: The modified search query, designed for better semantic retrieval.
+
+                       Table 22: Prompt template for query rewriting in iterative retrieval.
+
+
+
+
+                                                          4748
+Purifier Agent Prompt
+TASK: Analyze the provided [DOCUMENTS] to determine whether they contain information that answers the [QUES-
+TION]. Then output EXACTLY ONE valid JSON object following the [RULES] and [JSON OUTPUT FORMAT].
+
+RULES:
+
+1. RELEVANT DETERMINATION:
+   If ANY document provides information that can help to answer the QUESTION, set “relevant” to “Yes”; otherwise
+“No”.
+
+2. WHEN relevant = “Yes”:
+   - “extracted_info”: Output ONLY the minimal factual statements (facts) present in the documents that are strictly
+required to answer the QUESTION. Do NOT output a full formulated answer, do NOT repeat or restate the QUESTION.
+   - Each fact must be directly supported by the documents; paraphrasing is allowed but no speculation or inference beyond
+what is stated.
+   - Each fact MUST be SELF-CONTAINED: explicitly name the subject/entity; do NOT use context-dependent pronouns
+or vague referents (e.g. it, they, he, she, this, that, these, those, its, their, former, latter). Replace such pronouns with the
+concrete entity name from the documents.
+   - If multiple facts are needed, separate them with “; ” (semicolon + space). If one fact suffices, output just that fact.
+   - No document indices, no citations, no commentary, no prefixes like “Fact:” or “According to”.
+   - “summary”: must be an empty string “”.
+
+3. WHEN relevant = “No”:
+   - “extracted_info”: must be “”.
+   - “summary”: Provide brief summaries for EACH document using the exact format:
+      [Doc 1]: <summary of document 1>\n[Doc 2]: <summary of document 2>\n...
+   Each summary should be concise and factual.
+
+4. OUTPUT:
+   - Return ONLY the JSON object; no extra text, no markdown.
+   - Ensure valid JSON (double quotes, proper escaping).
+
+QUESTION: {query}
+
+DOCUMENTS:
+{docs_text}
+
+JSON OUTPUT FORMAT (fields and meaning):
+“relevant”: “Yes” or “No”
+“extracted_info”: See RULES
+“summary”: See RULES
+
+OUTPUT:
+
+ Table 23: Prompt template for the Purifier Agent to extract relevant information from retrieved documents.
+
+
+
+Sub-question Answering Prompt
+You need to answer the question. Please concisely analyze it first before providing your answer. You should provide your
+answer at the end in the <answer></answer> tag.
+
+Rules:
+- If you think that there is no information in the document to answer the question, please first indicate that there is no
+information, and then use your internal knowledge to answer the question.
+- Do NOT include any markdown formatting in your response like “# Answer” or “## Explanation”.
+- The final answer in the <answer></answer> tag should be concise (no more than 15 words) and directly address the
+original question. It can be a single word or a phrase without markdown formatting.
+
+<document>
+{document}
+</document>
+<question>
+{question}
+</question>
+
+               Table 24: Prompt template for answering sub-questions with retrieved documents.
+
+
+                                                             4749
+Sub-question Update Prompt
+I will give you a multi-hop question and several sub-questions decomposed from it. Sub-questions 1∼{k} have been
+solved. Now please update sub-question {j} based on the questions and answers of sub-questions 1∼{k}, making it
+self-contained. Only output the updated sub-question.
+
+Multi-hop question:
+{question}
+
+Sub-questions and answers:
+{sub_qa}
+
+Updated #Q_{j}:
+
+             Table 25: Prompt template for updating sub-questions based on solved dependencies.
+
+Retrieval Necessity Judgment Prompt
+I will give you the original question, previously solved sub-questions and their answers, and the current sub-question to be
+solved. Please determine whether you need to retrieve external information to answer the current sub-question based on
+the information already available.
+
+You need to output a JSON formatted object that includes:
+- “reason”: a concise reason for whether you need to retrieve external information
+- “need_retrieval”: true/false, indicating whether retrieval is needed
+- “query”: if need_retrieval is true, please provide the query for retrieval; otherwise, set to null
+
+Original question: {original_question}
+
+Previously solved sub-questions and answers:
+{previous_qas}
+
+Current sub-question to solve: {current_subquestion}
+
+             Table 26: Prompt template for judging whether retrieval is needed for a sub-question.
+
+Plan Revision Prompt
+I will give you the original multi-hop question and the solved sub-questions with their answers so far. You need to REVISE
+the remaining plan by generating a new ordered list of self-contained replacement sub-questions that efficiently lead to the
+final answer.
+
+Please follow these instructions.
+- Do not repeat already-solved sub-questions.
+- Each new sub-question must be self-contained and should implicitly leverage the known answers.
+- Keep the list concise (between 1 and 5 items).
+- A sub-question numbered k can only depend on all sub-questions numbered less than k. When considering dependencies,
+some sub-questions may rely on the answers to other sub-questions. In this case, you need to denote these answers as
+#A_i, where i is the corresponding sub-question number.
+- Output strictly within the <output></output> tags.
+- Inside <output>, write only lines in the following format, one per line:
+   #Q_1: <sub-question>
+   #Q_2: <sub-question>
+   ...
+
+An Example:
+
+<output>
+#Q_1: xxxx
+#Q_2: xxxx based on #A_1
+#Q_3: xxxx based on #A_1 and #A_2
+</output>
+
+Original multi-hop question:
+{question}
+
+Solved sub-questions and their answers so far:
+{solved_qas}
+
+                        Table 27: Prompt template for plan revision after retrieval failures.
+
+                                                            4750
+  Final Answer Synthesis Prompt
+  Based on the analysis of the multi-hop question and the sub-questions, please provide a final answer that synthesizes the
+  information from all relevant sub-questions. Only output the final answer. The final answer should be concise (no more
+  than 10 words) and directly address the original multi-hop question. It can be a single word or a phrase without markdown
+  formatting.
+
+  Multi-hop question:
+  {question}
+
+  Sub-questions and answers:
+  {sub_qa}
+
+  Final answer:
+
+             Table 28: Prompt template for synthesizing the final answer from sub-question answers.
+
+
+
+
+  LLM-as-a-Judge Prompt Template
+  You are a judge. You need to determine whether the answer to a question provided by the LLM is
+  correct based on the reference answer. Please answer “Yes” if they are consistent and “No” if they
+  are not. Only output “Yes” or “No”.
+
+  Question: {question}
+  LLM answer: {llm_answer}
+  Reference answer: {reference_answer}
+
+                         Table 29: Prompt template for LLM-as-a-Judge (LasJ) evaluation.
+
+
+
+
+  Reasoner Agent Prompt (w/o Global Planning)
+  I will give you a question. You can call a retriever to obtain relevant documents to help answer the
+  question, or you can directly use internal knowledge to respond. If you think there is no relevant
+  information in the search results, you can call the retriever again. You can call the retriever multiple
+  times in the multi-turn conversation. You must conduct reasoning inside <think> and </think> first
+  every time you call the retriever. You should think and analyze it first, and then provide the answer
+  at the end in the <answer></answer> tags. The answer in the <answer></answer> tag should be
+  concise (no more than 15 words) and directly address the original question.
+
+  Question: {question}
+
+Table 30: Prompt template for the Reasoner Agent without global planning mechanism, used in the ablation study
+(w/o Global Planning).
+
+
+
+
+                                                           4751
+  Trajectory Rewriting Prompt for Ar
+  You are an expert at transforming structured reasoning trajectories into coherent, natural reasoning processes. Your task is
+  to rewrite the given trajectory into a fluent and logical reasoning flow that can serve as a high-quality training example for
+  a Reasoner Agent.
+
+  ## Input Format
+  You will receive a structured reasoning trajectory.
+  ## Output Requirements
+  Transform the trajectory into a natural reasoning process that:
+  1. Maintains all the key reasoning steps and information from the original trajectory
+  2. Uses a coherent narrative flow with smooth transitions between steps
+  3. Preserves the structured tags required for training:
+     - <tool_call>...</tool_call> for each retrieval attempt
+     - <tool_response>...</tool_response> for each retrieval result
+     - <plan>...</plan> for initial question decomposition
+     - <Updated_#Q_i>...</Updated_#Q_i> for sub-question updates
+     - <Replan>...</Replan> for global replanning
+     - <answer>...</answer> for the final answer
+  4. Removes redundant or verbose content while keeping essential reasoning
+  5. Ensures the reasoning appears natural and self-contained
+
+  ## Guidelines
+  - The rewritten trajectory should read as if a skilled reasoner is thinking through the problem step by step
+  - Integrate the retrieval feedback naturally into the reasoning flow
+  - When sub-questions are updated, explain the reasoning behind the update
+  - When replanning occurs, articulate why the previous approach failed and how the new plan addresses it
+  - Keep the final answer concise and directly addressing the original question
+
+  Original Trajectory:
+  {trajectory}
+
+  Rewritten Trajectory:
+
+Table 31: Prompt template for rewriting synthesized trajectories into coherent reasoning processes for Reasoner’s
+SFT training (§2.2.2).
+
+
+
+
+                                                              4752
+Error Analysis Prompt
+You are a professional Search Agent Error Diagnostic Expert. Your task is to analyze the reasoning trajectory of an Agent
+in Open-domain Multi-hop QA tasks and classify errors based on the criteria provided below.
+
+Please strictly follow the “First Error” principle: check the reasoning trajectory chronologically from the beginning. Once
+you identify an error fitting any of the following categories, immediately stop checking subsequent steps and output the
+result.
+
+## Type 1: Erroneous Question Decomposition
+The Agent makes a mistake during question decomposition, resulting in an incorrect sequence of sub-questions/sub-queries.
+Examples include:
+- The generated series of sub-questions deviates from the original question or covers insufficient knowledge to effectively
+support the answer to the complex task.
+- The decomposed sub-questions are not atomic enough or are too granular.
+- When facing a factual sub-question, the Agent fails to invoke a search tool and directly answers incorrectly based on
+internal parametric knowledge.
+
+## Type 2: Reasoning Hijacking by Peripheral Evidence (Direct Reasoning)
+The model directly reasons with irrelevant retrieval results without attempting remediation. Specifically, the planning
+logic and the sub-question itself are correct, but the retrieval results consist entirely of irrelevant information. The Agent
+makes no attempt to remedy the situation by modifying the Query or re-decomposing the sub-questions; instead, it answers
+directly based on the irrelevant information or incorrect internal knowledge.
+
+## Type 3: Reasoning Hijacking by Peripheral Evidence (Failed Remediation)
+The model recognizes that the initial retrieval is irrelevant and attempts query rewriting several times but still fails to
+obtain correct evidence, resulting in an incorrect answer. Specifically, the planning logic and the sub-question itself are
+correct. The Agent initiates a search, but the retrieval results consist entirely of irrelevant information. The Agent attempts
+remedial measures (e.g., rewriting the Query, modifying the sub-question decomposition), but the retrieval results still do
+not contain relevant information. Consequently, the Agent answers incorrectly due to a lack of information or is forced to
+answer “not found.”
+
+## Type 4: Other Errors
+Errors that do not belong to any of the above categories.
+
+# Input Data
+[Original Question]
+{question}
+[Reasoning Trajectory]
+{trajectory}
+[Golden Answer]
+{golden_answer}
+
+# Output Format
+Please output the analysis result in JSON format:
+{
+  "analysis": "A brief analysis of the reasoning trajectory, explaining why it is classified into
+this error type.",
+  "error_type": "Type 1 / Type 2 / Type 3 / Type 4",
+}
+
+                  Table 32: Prompt template for error analysis using gemini-3-pro-preview.
+
+
+
+
+                                                            4753
+Redundancy Check Prompt
+You are a question decomposition expert. Please determine whether the model-generated question decomposition plan
+contains redundant subquestions.
+
+Definition of Redundant Subquestions:
+- The subquestion does NOT help solve the original question; it is unnecessary
+- The subquestion has NO semantic correspondence in the Gold-annotated question decomposition
+- Even if the wording differs, as long as they ask about the same thing, they are considered semantically corresponding
+
+Example of Redundant Question:
+- Original question: “Where is Ulrich Walter’s employer headquartered?”
+- Gold decomposition: Q1: Ulrich Walter >> employer, Q2: #1 >> headquarters location (2 steps)
+- Model decomposition: Q1: Who is Ulrich Walter?, Q2: Who is Ulrich Walter’s employer?, Q3: Where is #A_2
+headquartered? (3 steps)
+- “Who is Ulrich Walter?” is redundant because it does not help solve the original question, and there is no corresponding
+question in Gold
+
+Example of Non-Redundant Question:
+- Original question: “Who is the spouse of the Green performer?”
+- Gold decomposition: Q1: Green >> performer, Q2: #1 >> spouse (2 steps)
+- Model decomposition: Q1: Who is the Green performer?, Q2: Who is the spouse of #A_1? (2 steps)
+- “Who is the Green performer?” is NOT redundant because it is equivalent to Gold’s Q1 “Green >> performer” and is
+a necessary step to solve the original question
+
+Notes:
+- “#1” in Gold refers to the answer of the first question; “#A_1” in the model means the same thing
+- “X >> Y” format means asking for the Y attribute of X, equivalent to “What/Who is the Y of X?”
+- As long as the model’s subquestion semantically corresponds to a question in Gold, it is NOT redundant
+- If the model’s subquestion has no semantic correspondence in Gold AND does not help solve the original question, it is
+redundant
+
+Original Question: {original_question}
+
+Gold Decomposition ({gold_steps} steps):
+{gold_str}
+
+Model Decomposition Plan ({model_steps} steps):
+{model_str}
+
+Please carefully analyze each subquestion from the model:
+1. Does this subquestion have a semantically corresponding question in Gold?
+2. If not, does this subquestion help solve the original question?
+3. If there is no correspondence AND it does not help, then the question is redundant
+
+Please respond in the following JSON format (field names must match exactly):
+{
+  "has_extra": true,
+  "extra_questions": ["Q1: Who is Ulrich Walter?"],
+  "explanation": "Q1 does not help solve the original question and has no correspondence in Gold"
+}
+Or if there are no redundant questions:
+{
+  "has_extra": false,
+  "extra_questions": [],
+  "explanation": "All questions have correspondence or help solve the original question"
+}
+
+Output only JSON, nothing else.
+
+         Table 33: Prompt for detecting redundant sub-questions using gemini-3-flash-preview.
+
+
+
+
+                                                          4754
+

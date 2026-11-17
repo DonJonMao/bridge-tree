@@ -1,0 +1,81 @@
+{
+  "unit_id": "wwqa-0000",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "\nIndependently check each candidate against the exact offered originals and its\nrequested scope. The candidate is an untrusted proposal, not an established fact.\nReturn entailed, not_entailed or uncertain, with a short reason, for each candidate_id.\nFor support, its cited originals must establish both the requested entity/event/\nrelation and the claimed attribute/value. Another project's attribute, a shared\npartner/site/topic, or the question's presupposition supplies no identity bridge.\nFor partial/unknown, the originals must actually concern that requested scope and\ncontain genuine incomplete evidence; unrelated text is not scoped uncertainty.\nFor irrelevant, check that its cited text warrants irrelevance to the requested\nattribute. For contradiction, check the originals and the offered target claim:\nthe evidence must warrant that specific retraction, not merely a different value.\nSupported parents are grounding inputs only at their supplied scope and versions.\nPrior claims are not certified evidence. No replacement facts, new sources,\nretractions, settlement claims or permission decisions may be returned.\n\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"reviews\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"candidate_id\": {\"enum\": [\"0909f9e9125e90015afb5ba03367a7b729bc14c3327988a3c1cf4679bf0dc6fc\", \"38479d6bbebedb60e5961e0905e7dac9d0da1e03c8a4a2161b9bc581c52cb213\", \"b7f708f0a9967bbe3cdfd5a9cd0592b022c88de7ca629202e338b468beb6ed55\"], \"type\": \"string\"}, \"reason\": {\"minLength\": 1, \"type\": \"string\"}, \"verdict\": {\"enum\": [\"entailed\", \"not_entailed\", \"uncertain\"], \"type\": \"string\"}}, \"required\": [\"candidate_id\", \"verdict\", \"reason\"], \"type\": \"object\"}, \"maxItems\": 3, \"minItems\": 3, \"type\": \"array\"}}, \"required\": [\"reviews\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "{\"original_question\": \"Which program funded the SUPPLY project involving EHA, when did the project start, and how long will it last?\", \"requested_scopes\": {\"funding_program\": {\"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\"}, \"start_date\": {\"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\"}, \"duration\": {\"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\"}}, \"supported_parents\": {}, \"source_spans\": [{\"id\": \"s71\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 8419, \"end\": 8816, \"text\": \"Our consortium members gathered to kick off this HORIZON-funded initiative project.\\nContact\\nPlease get in touch with us if you have any questions or comments! We will get back to you as soon as possible.\\nFor research-related questions:\\nCarin Uyl-de Groot\\nProject Coordinator\\nErasmus University Rotterdam\\nln.rue.mphse@lyu\\nPhone: +31 10 4081583\\nFor general project questions:\\nMarcel Langone Marques\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s70\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 8063, \"end\": 8419, \"text\": \"Discover how ASCERTAIN is tackling inequalities in access to healthcare technologies with our latest animated video! Learn about the project’s mission to improve affordability and sustainability while promoting innovation and considering environmental impacts.\\nWe are excited to share our video showcasing the launch of the ASCERTAIN project in Rotterdam! \", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s72\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 8816, \"end\": 9210, \"text\": \"Project Manager\\nErasmus University Rotterdam\\nln.rue@seuqramenognal.lecram\\nPhone: +31 10 4081583\\nFor communications:\\nLena Jessen\\nProject Manager\\nOptiMedis\\ned.sidemitpo@nessej.l\\nPhone: +49 40 226211490\\nOur Partners\\nSUPPORT\\nLegal Notice\\nPrivacy Policy\\nCookie Policy\\nSITEMAP\\nASCERTAIN Project\\nAbout\\nImpact\\nWork Packages\\nConsortium\\nAdvisory Board\\nFinal Conference\\nNews & Events\\nFor Patients\\nResults\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s73\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 9210, \"end\": 9572, \"text\": \"Contact\\nEnglish\\nDeutsch (German)\\nNorsk bokmål (Norwegian Bokmål)\\nRomână (Romanian)\\nHrvatski (Croatian)\\nFrançais (French)\\nNederlands (Dutch)\\nEspañol (Spanish)\\nStay up to date!\\nTwice a year we will be sending out regular newsletters on the status of our project.\\nEmail\\nLast name\\nFirst name\\nI have read the privacy policy and I want to receive the Newsletter.\\nSend\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s30\", \"doc_id\": \"web-66f1eb59d2a4a12d02055bd2\", \"start\": 3804, \"end\": 4175, \"text\": \"How to apply to join an SWG\\nWebinars and online groups\\nSWG Preceptorship Program\\nGrants\\nEHA Research Grants\\nEHA Bilateral Collaborative Grant\\nEHA Innovation Grant\\nEHA Kick-off Grant\\nEHA Research Mobility Grant\\nEHA Grants Hall of Fame\\nEHA Travel Grants\\nNon-EHA funding opportunities\\nScope of our grants\\nTopics-in-Focus program\\nPrecision Hematology Topics-in-Focus program\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s29\", \"doc_id\": \"web-66f1eb59d2a4a12d02055bd2\", \"start\": 3431, \"end\": 3804, \"text\": \"Entrustable Professional Activities\\nLighting the Flame Program\\nTests and tools\\nEHA Diagnosis\\nEHA Exam\\nProgress Test\\nMentoring and career development\\nCareer comparison tool\\nEHA Mentorship Program\\nMaster Class\\nResearch training programs\\nEHA-EMBO Lab Leadership Course\\nResearch & Innovation\\nHemaSphere\\nSpecialized Working Groups\\nSupport for SWG scientific meetings\\nSWG Grants\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s31\", \"doc_id\": \"web-66f1eb59d2a4a12d02055bd2\", \"start\": 4175, \"end\": 4550, \"text\": \"Hemoglobinopathies Topics-in-Focus program\\nCongress\\nHemaSphere\\nAbout EHA\\nSearch\\nJoin EHA\\nLogin\\nHome\\nAbout EHA\\nNews & updates\\nASCERTAIN project for better pricing and reimbursement models enters final phase\\nLeft Sidebar\\n3 min read · July 23, 2026\\nJuly 23, 2026\\nShare\\nNews & updates\\nNews archive\\nASCERTAIN project for better pricing and reimbursement models enters final phase\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s74\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 9572, \"end\": 9901, \"text\": \"We use an external service provider to send our newsletter. You can find more information in our privacy policy.\\nThank you for your subscription!\\nWe have sent you an email - please confirm your email address by clicking the activation link in it.\\nWe‘ll send only nice news, don‘t worry.\\nFollow\\nFollow\\nFollow\\n© 2026: OptiMedis AG\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s75\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 9901, \"end\": 10227, \"text\": \"Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Health and Digital Executive Agency (HADEA). Neither the European Union nor the granting authority can be held responsible for them. Grant Agreement 101094938.\\nManage Cookie Consent\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s76\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 10227, \"end\": 10581, \"text\": \"To provide the best experiences, we use technologies like cookies to store and/or access device information. Consenting to these technologies will allow us to process data such as browsing behavior or unique IDs on this site. Not consenting or withdrawing consent, may adversely affect certain features and functions.\\nFunctional\\nFunctional\\nAlways active\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s81\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 11875, \"end\": 12016, \"text\": \"Deutsch (German)\\nNorsk bokmål (Norwegian Bokmål)\\nRomână (Romanian)\\nHrvatski (Croatian)\\nFrançais (French)\\nNederlands (Dutch)\\nEspañol (Spanish)\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s80\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 11483, \"end\": 11875, \"text\": \"The technical storage or access is required to create user profiles to send advertising, or to track the user on a website or across several websites for similar marketing purposes.\\nManage options\\nManage services\\nManage {vendor_count} vendors\\nRead more about these purposes\\nAccept all\\nDeny all\\nView preferences\\nSave preferences\\nView preferences\\n{title}\\n{title}\\n{title}\\nManage consent\\nEnglish\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s44\", \"doc_id\": \"web-66f1eb59d2a4a12d02055bd2\", \"start\": 8437, \"end\": 8612, \"text\": \"Privacy statement\\nTerms and conditions\\nSubscribe\\nCopyright © 2026\\nBecome an EHA Mentor\\nEHA Mentorship Program\\nDiscover the rewards of mentoring\\nApply by October 29\\nApply today\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s43\", \"doc_id\": \"web-66f1eb59d2a4a12d02055bd2\", \"start\": 8049, \"end\": 8437, \"text\": \"Find more patient resources\\nShare\\nNews & updates\\nNews archive\\nASCERTAIN project for better pricing and reimbursement models enters final phase\\nInterview with EHA’s European Affairs Committee Member, Ariane Weinman\\nJoin EHA\\nFull membership\\nJunior membership\\n60-day trial\\nGet involved\\nCareer development\\nScientific meetings\\nAbout us\\nMission and vision\\nJobs\\nSponsor EHA\\nContact us\\nFollow us\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s77\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 10581, \"end\": 10895, \"text\": \"The technical storage or access is strictly necessary for the legitimate purpose of enabling the use of a specific service explicitly requested by the subscriber or user, or for the sole purpose of carrying out the transmission of a communication over an electronic communications network.\\nPreferences\\nPreferences\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s79\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 11238, \"end\": 11483, \"text\": \"Without a subpoena, voluntary compliance on the part of your Internet Service Provider, or additional records from a third party, information stored or retrieved for this purpose alone cannot usually be used to identify you.\\nMarketing\\nMarketing\\n\", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}, {\"id\": \"s78\", \"doc_id\": \"web-f9552075330dd435c5a02363\", \"start\": 10895, \"end\": 11238, \"text\": \"The technical storage or access is necessary for the legitimate purpose of storing preferences that are not requested by the subscriber or user.\\nStatistics\\nStatistics\\nThe technical storage or access that is used exclusively for statistical purposes.\\nThe technical storage or access that is used exclusively for anonymous statistical purposes. \", \"source_role\": \"document\", \"source_message_indices\": [], \"time_metadata\": {}}], \"retraction_targets\": [], \"candidates\": [{\"candidate_id\": \"0909f9e9125e90015afb5ba03367a7b729bc14c3327988a3c1cf4679bf0dc6fc\", \"observation\": {\"id\": \"obs_funding_1\", \"stance\": \"support\", \"value\": \"HORIZON\", \"source_ids\": [\"s71\"], \"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\", \"parent_versions\": {}, \"retract_ids\": [], \"variable\": \"funding_program\"}}, {\"candidate_id\": \"38479d6bbebedb60e5961e0905e7dac9d0da1e03c8a4a2161b9bc581c52cb213\", \"observation\": {\"id\": \"obs_start_1\", \"stance\": \"partial\", \"value\": null, \"source_ids\": [\"s70\", \"s71\"], \"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\", \"parent_versions\": {}, \"retract_ids\": [], \"variable\": \"start_date\"}}, {\"candidate_id\": \"b7f708f0a9967bbe3cdfd5a9cd0592b022c88de7ca629202e338b468beb6ed55\", \"observation\": {\"id\": \"obs_duration_1\", \"stance\": \"partial\", \"value\": null, \"source_ids\": [\"s31\"], \"entity_scope\": \"SUPPLY project involving EHA\", \"time_scope\": \"project timeline\", \"parent_versions\": {}, \"retract_ids\": [], \"variable\": \"duration\"}}]}"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 1024
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": [
+    "web_grounding_review",
+    "8"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1792137675.521433,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1792137686.092632
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-9415da6c2e9c84db",
+    "object": "chat.completion",
+    "created": 1792137676,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"reviews\": [\n    {\n      \"candidate_id\": \"0909f9e9125e90015afb5ba03367a7b729bc14c3327988a3c1cf4679bf0dc6fc\",\n      \"verdict\": \"not_entailed\",\n      \"reason\": \"Source s71 mentions a 'HORIZON-funded initiative project' but does not name the SUPPLY project or link it to EHA. The entity scope is not established.\"\n    },\n    {\n      \"candidate_id\": \"38479d6bbebedb60e5961e0905e7dac9d0da1e03c8a4a2161b9bc581c52cb213\",\n      \"verdict\": \"not_entailed\",\n      \"reason\": \"Sources s70 and s71 discuss the ASCERTAIN project, not the SUPPLY project involving EHA. No evidence of the requested entity or its start date.\"\n    },\n    {\n      \"candidate_id\": \"b7f708f0a9967bbe3cdfd5a9cd0592b022c88de7ca629202e338b468beb6ed55\",\n      \"verdict\": \"not_entailed\",\n      \"reason\": \"Source s31 mentions the ASCERTAIN project entering a final phase, not the SUPPLY project involving EHA. No evidence of the requested entity or its duration.\"\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 3449,
+      "total_tokens": 3766,
+      "completion_tokens": 317,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 3449,
+    "observed_prompt_tokens": 3449,
+    "tokenization_request_sha256": "341722d8cf4e94ad8629231d36de6f4cc99063c2f6df1fb91cfe2b5c9de42fbb"
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "package_kind": "research_experiment",
+  "created_utc": "2026-10-15T06:28:52.416785+00:00",
+  "protocol": "webwalkerqa_root_traversal_v4_access_v1",
+  "access_policy": "paired_root_unavailable_exclusion_v1",
+  "upstream_package": {
+    "source_commit": "e6677081cdfb33c01db3aaa274a497168f314f78",
+    "sha256": "88b72a8e64b64ba4e33e806fb8023c3d24da333a1a467eb831b2e1dd47f9e4fc",
+    "reviewed_artifacts": [
+      "README_EXPERIMENT.md",
+      "README_PERSONAMEM_V4.md",
+      "VALIDATION_PERSONAMEM_V4.json",
+      "core diff from a5b993a",
+      "RESIDUAL_FRONTIER_POLICY_V2.md",
+      "HANDOFF_EXECUTABILITY_POLICY.md"
+    ],
+    "exact_core_files_matched_to_user_archive": 107,
+    "original_package_sha256_reverified": true
+  },
+  "previous_webwalker_archive_sha256": "2996d6a4cac203f200d4b7f8730088ddd1185c98b8e2ef03eabb3172252cbee6",
+  "public_core_modified": false,
+  "algorithms": [
+    "dagbt_joint_memory_v1",
+    "dagbt_residual_memory_v2"
+  ],
+  "budgets": {
+    "llm_calls": 24,
+    "json_repairs": 6,
+    "context_tokens": 16384,
+    "web_actions": 36,
+    "ann_calls_used": 0,
+    "reranker_calls": 0
+  },
+  "dataset": {
+    "schema": "webwalkerqa_main_root_traversal_v1",
+    "source": "https://huggingface.co/datasets/callanwu/WebWalkerQA/resolve/c7ab3329a2a4a35ca569fdca369b61a3d1787e5b/data/main-00000-of-00001.jsonl",
+    "revision": "c7ab3329a2a4a35ca569fdca369b61a3d1787e5b",
+    "raw_sha256": "cbe95d9de714ef52fe4a9ddf160dfab462407cb1ba526f1c31b4305ca32c34cb",
+    "questions": 680,
+    "questions_sha256": "27df0fd12be23f74a98a5f70303d9aff51843a069c91d37ae782cdb3dce7fadd",
+    "evaluation_sha256": "9dbb33c9fa5d24698ed1df3ab760fe7fa0f1c37920dff99bdf776335c3080c1e",
+    "generation_fields": [
+      "id",
+      "question",
+      "root_url"
+    ],
+    "oracle_fields_for_evaluation_only": [
+      "answer",
+      "info"
+    ]
+  },
+  "regression": {
+    "passed": 2435,
+    "skipped": 0,
+    "warnings": 69,
+    "seconds": 89.67,
+    "command": "PYTHONPATH=<isolated jsonschema deps> python -m pytest -q --ignore=_webwalker_browser_vendor",
+    "log_sha256": "73bfdb4a195a6f462f08c07068f2d703c291858c67dcfc4c3acb8d0bdaf89e9f"
+  },
+  "installed_payload_tests": {
+    "passed": 54,
+    "skipped": 0,
+    "seconds": 16.57,
+    "log_sha256": "cc6d026fff12c4bb30731aafbe68645b449f1a7af84a1ffba8943a5d6a5288fd",
+    "note": "125 hashed payload files installed into a clean target; isolated Playwright and Chromium from previous installation reused. Includes real browser denial and JS-rendering tests."
+  },
+  "offline_http_smoke": {
+    "both_arms_passed": true,
+    "external_model_or_website_calls": false,
+    "log_sha256": "1a230fd7dcbd3c8fcd10ae6a4e714475e8d4b5bfeb5fc357e2151f7df177f934"
+  },
+  "access_tests": {
+    "added": 18,
+    "coverage": [
+      "HTTP 403/429/503 bounded retries and one browser fallback",
+      "browser success recovers source and freezes DOM cache",
+      "final browser refusal preserves status",
+      "missing browser and corrupt cache are not environmental exclusions",
+      "HTTP 200 challenge with help link never enters fact evidence",
+      "typed DNS failure",
+      "actual engine builds full DAG before denied root and preserves costs",
+      "paired skips preserve identical denominators and continue later questions",
+      "all excluded produces null accuracy, zero judge failures",
+      "exclusion in either arm excludes same question in both arms",
+      "invalid exclusion reason rejected",
+      "real Chromium 403 response"
+    ]
+  },
+  "exclusion_scope": "Only dataset-provided root-page unavailability. Intermediate-link errors continue other frontiers and do not exclude questions. Model/protocol/parse/config/cache/disk failures remain scored failures.",
+  "result_reporting": [
+    "paired common-subset accuracy",
+    "planned questions and exclusions",
+    "coverage",
+    "all-planned denominator accuracy bounds with exclusions counted as failures",
+    "per-question reasons and status",
+    "all incurred costs"
+  ],
+  "previous_live_preflight": {
+    "note": "Prior v4 archive preflight only; not rerun for access v1. Not a new prediction/accuracy claim.",
+    "model_ready_then": true,
+    "website_ready_then": "https://ehaweb.org/"
+  },
+  "official_question_generation_with_this_package": "not run",
+  "full_680_evaluation_executed": false,
+  "accuracy_improvement_established": false,
+  "validated_platform": "Darwin arm64",
+  "remote_linux_execution": "Not run here. User curl probe reached some dataset sites and observed 403/429 on others; actual Chromium target access remains to be tested.",
+  "privacy": {
+    "no_private_credentials_or_outputs_in_tar": true
+  },
+  "installation": {
+    "core_source_files_verified": 107,
+    "payload_files": 125,
+    "independent_target": true,
+    "new_default_target": "~/dagbt_runs/20261015_webwalker_v4_access_experiment/dagv2",
+    "new_default_output_prefix": "outputs/webwalkerqa_v4_access_v1",
+    "old_sources_and_output_not_overwritten": true
+  },
+  "known_limits": [
+    "Access exclusions yield a locally accessible common subset, not official full-set benchmark accuracy.",
+    "Ordinary browser fallback cannot guarantee access or solve CAPTCHAs.",
+    "Intermediate-link failures may still cause unanswered questions, retained as failures.",
+    "Automated challenge detection uses explicit markers; website changes remain possible."
+  ]
+}

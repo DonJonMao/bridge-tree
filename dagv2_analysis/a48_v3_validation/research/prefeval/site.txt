@@ -1,0 +1,197 @@
+PrefEval: Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs
+PrefEval:
+Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs
+Siyan Zhao
+2 †
+,
+Mingyi Hong
+1,3
+,
+Yang Liu
+1
+,
+Devamanyu Hazarika
+1
+,
+Kaixiang Lin
+1
+1
+Amazon AGI
+2
+UCLA
+3
+University of Minnesota
+ICLR 2025 Oral
+†
+Work done while as an intern at Amazon
+Paper
+Code
+🤗
+Dataset
+🌐
+Twitter
+Motivating Example
+✅ Personalized Assistant
+User:
+"I don't like jazz" 🎺❌
+Later in conversation...
+⏳
+User:
+🗺️ "Can you recommend places to visit in New Orleans?" ⚜️
+Assistant:
+"Based on your prior preference, here's a personalized itinerary for New Orleans:
+- 🍜 Food tasting in Magazine Street
+- 🎭 Visit historical museums
+- ⚜️ Garden District walking tour
+- 🚢 Mississippi River cruise"
+✨ Demonstrates preference following by avoiding jazz venues!
+❌ Non-Personalized Assistant
+User:
+"I don't like jazz" 🎺❌
+Later in conversation...
+⏳
+User:
+🗺️ "Can you recommend places to visit in New Orleans?" ⚜️
+Assistant:
+"Must-visit places in New Orleans:
+- 🎺 Preservation Hall for classic jazz
+- 🎷 Bourbon Street jazz clubs
+- 🎵 Jazz National Historical Park
+- 🏛️ French Quarter
+- 🍜 Local cuisine spots"
+⚠️ Ignores previously stated jazz preference!
+This example shows a challenge in personalized AI assistants: they need to proactively infer, remember, and apply user preferences across conversations. While suggesting jazz venues in New Orleans would be standard for general tourist recommendations, a truly personalized assistant should avoid such suggestions based on the user's previously stated preference.
+Surprisingly, we find that even current SoTA LLMs like GPT-4o, o1-preview, Claude 3.5 Sonnet, and Gemini 1.5 Pro fail to maintain such preference following in conversations
+even as short as 10 turns (~3k tokens).
+Introduction
+Large Language Models (LLMs)
+are increasingly deployed as chatbots, yet their ability to personalize responses to user preferences remains limited. We introduce
+PrefEval
+, a
+benchmark for evaluating LLMs' ability to infer, memorize and adhere to user preferences
+in long-context conversational setting.
+PrefEval
+comprises
+3,000 manually curated user preference and query pairs
+spanning
+20 topics
+.
+PrefEval
+contains user personalization or preference information in both
+explicit and implicit preference forms
+, and evaluates LLM performance using a
+generation and classification task
+. With
+PrefEval
+, we have evaluated
+10 open-sourced and proprietary LLMs
+in multi-session conversations with varying context lengths up to
+100k tokens
+. We benchmark with various
+prompting
+,
+iterative feedback
+, and
+retrieval-augmented generation methods
+.
+Our benchmarking effort reveals that state-of-the-art LLMs face significant challenges in following users' preference during conversations. In particular, in zero-shot settings,
+preference following accuracy falls below 10%
+at merely 10 turns (~3k tokens) across most evaluated models. Even with advanced prompting and retrieval methods, preference following still deteriorates in long-context conversations. We also find that
+multiple stated preferences
+within a conversation improve adherence and models are not affected by conflicting preferences. Furthermore, we show that
+fine-tuning
+on
+PrefEval
+significantly improves performance. We believe
+PrefEval
+serves as a valuable resource for measuring, understanding, and enhancing LLMs' proactive preference following abilities, paving the way for
+personalized conversational agents
+.
+PrefEval
+setup overview. Key components from left to right:
+1) Multi-Session Conversation Setup:
+PrefEval
+evaluates LLMs' ability to follow user preferences in multi-session conversation, challenging LLMs to handle
+preference inference
+,
+long-range retrieval
+, and
+context-aware preference following
+simultaneously.
+2) Preferences and Queries:
+User preferences can be expressed through both
+explicit and implicit forms
+. Queries are designed such that a non-personalized answer would inadvertently conflict with user preferences, testing the LLM's adherence.
+3) Tasks and Evaluations:
+PrefEval
+includes
+generation and classification tasks
+. Generation tasks are evaluated using an LLM-based evaluator to measure preference following accuracy and analyze error types. Classification tasks enable quicker evaluation through multiple-choice questions. The two tasks' performances are highly correlated.
+SoTA LLMs performance on PrefEval
+Zero-shot performance of LLMs with explicit preferences, averaged across 20 topics. The x-axis represents the dialogue length between the user's stated preference and the final query, measured by both the number of tokens in the prompt and the number of conversation turns. All LLMs exhibit a rapid decline in accuracy as the number of turns increases.
+Comparison of preference-following accuracy across SoTA LLMs evaluated at two context lengths with two methods: Zero-shot and Reminder (best prompting method), evaluated at two context lengths, on the travel restaurant topic and on generation task
+PrefEval Dataset
+Dataset Statistics
+Dataset Scale
+1,000 unique preference-query pairs
+3 distinct preference forms per pair
+Context Length
+Up to 100k tokens
+Multi-session conversational context
+Preference Forms
+Explicit Preference
+Direct single-turn expression of user preferences
+Implicit Choice-Based
+Two-turn dialogue with preference revealed through choices
+Implicit Persona-Driven
+4-8 turn dialogue with subtle preference revelation
+Task Types
+Generation Task
+LLM-based Evaluators
+Classification Task
+Automatic Accuracy Check
+Distribution of Domains and Topics
+Experiment Results
+Main Performance Comparisons
+Performance comparison of 5 methods across 6 LLMs with explicit preferences on the generation task. Both Reminder and RAG consistently achieve the highest accuracy across models. Notably, Reminder outperforms more complex techniques such as Self-Critic and CoT.
+Comparison of 3 preference forms for 6 LLMs on the generation task, across varying lengths between the stated preference and query. Note that the user preference is stated in the first turn. Results show that implicit preferences are more challenging to infer than explicit preferences.
+Performance of classification task acros models and methods on the explicit preferences dataset across various input lengths between the user's preference and the final query. Results are averaged over 20 topics.
+Error Analysis
+Distribution of 4 disjoint error types across 2 LLMs and 5 methods in the generation task with explicit preferences.
+Dynamic Preferences
+Effect of adding conflicting versus non-conflicting preferences on adherence, with red bar indicating performance with original preference only.
+Introducing multiple preferences throughout a conversation improves adherence to the initial preference using Claude 3 Sonnet with Reminder prompting.
+Finetuning on PrefEval
+SFT results on PREFEVAL: Mistral-7B model exhibits superior preference following accuracy after fine-tuning.
+BibTeX
+Copy
+@misc{zhao2025llmsrecognizepreferencesevaluating,
+      title={Do LLMs Recognize Your Preferences? Evaluating Personalized Preference Following in LLMs}, 
+      author={Siyan Zhao and Mingyi Hong and Yang Liu and Devamanyu Hazarika and Kaixiang Lin},
+      year={2025},
+      eprint={2502.09597},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.09597}, 
+}
+function copyBibtex() {
+  const bibtex = document.getElementById('bibtex').innerText;
+  navigator.clipboard.writeText(bibtex);
+  
+  const button = document.getElementById('copyButton');
+  button.innerText = 'Copied!';
+  button.style.background = '#4CAF50';
+  button.style.color = 'white';
+  
+  setTimeout(() => {
+    button.innerText = 'Copy';
+    button.style.background = '#f5f5f5';
+    button.style.color = 'black';
+  }, 2000);
+}
+This website is website adapted from
+Nerfies
+, licensed under a
+Creative
+            Commons Attribution-ShareAlike 4.0 International License
+.

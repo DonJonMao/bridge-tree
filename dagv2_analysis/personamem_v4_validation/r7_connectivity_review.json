@@ -1,0 +1,102 @@
+{
+  "scope": "Bounded read-only local connectivity diagnosis after R7 preflight failure; no generation, credentials, model names, endpoint addresses, proxy addresses/ports, or full configuration are recorded.",
+  "observed_utc": "2026-10-13T11:11:13.859271+00:00",
+  "release_commit": "c10c6dab840a855de4233393ffba086a43e6772b",
+  "network_mutations": false,
+  "source_mutations": false,
+  "credential_mutations": false,
+  "environment_proxy_variables": {
+    "HTTP_PROXY": "unset",
+    "HTTPS_PROXY": "unset",
+    "ALL_PROXY": "unset",
+    "NO_PROXY": "unset",
+    "http_proxy": "unset",
+    "https_proxy": "unset",
+    "all_proxy": "unset",
+    "no_proxy": "unset"
+  },
+  "system_proxy_observation": {
+    "urllib_detected_schemes": [
+      "http",
+      "https"
+    ],
+    "proxy_address_category": "loopback",
+    "both_endpoint_hosts_bypass_system_proxy": false
+  },
+  "route_observation": {
+    "llm": "tunnel interface",
+    "embedding": "tunnel interface",
+    "same_route_interface": true,
+    "configured_host_category": "literal globally classified IP addresses; no DNS hostname resolution required"
+  },
+  "direct_tcp_probes": [
+    {
+      "endpoint_role": "llm",
+      "result": "connected",
+      "elapsed_ms": 0.5
+    },
+    {
+      "endpoint_role": "embedding",
+      "result": "connected",
+      "elapsed_ms": 0.5
+    }
+  ],
+  "read_only_http_probes": [
+    {
+      "endpoint_role": "llm",
+      "path_kind": "models listing",
+      "method": "GET",
+      "authorization_header": false,
+      "proxy_mode": "system default",
+      "http_status": 502,
+      "elapsed_seconds": 5.004
+    },
+    {
+      "endpoint_role": "llm",
+      "path_kind": "models listing",
+      "method": "GET",
+      "authorization_header": false,
+      "proxy_mode": "disabled only on this request opener",
+      "error_type": "RemoteDisconnected",
+      "elapsed_seconds": 5.007
+    },
+    {
+      "endpoint_role": "embedding",
+      "path_kind": "models listing",
+      "method": "GET",
+      "authorization_header": false,
+      "proxy_mode": "system default",
+      "http_status": 502,
+      "elapsed_seconds": 5.004
+    },
+    {
+      "endpoint_role": "embedding",
+      "path_kind": "models listing",
+      "method": "GET",
+      "authorization_header": false,
+      "proxy_mode": "disabled only on this request opener",
+      "error_type": "RemoteDisconnected",
+      "elapsed_seconds": 5.006
+    }
+  ],
+  "request_bound": {
+    "direct_tcp_connections": 2,
+    "http_get_requests": 4,
+    "generation_requests": 0,
+    "http_retries": 0,
+    "further_http_requests_after_comparison": 0
+  },
+  "transport_code_observation": {
+    "generation_transport": "urllib.request.urlopen uses discovered system proxies by default",
+    "tokenization_transport": "explicit ProxyHandler({}) bypasses application-level proxy",
+    "routing_limit": "Both modes still traverse the system tunnel route; opener-level bypass is not a separate physical network path."
+  },
+  "conclusions": [
+    "Both configured model-service interfaces are blocked at the usable HTTP connection/response layer in the observed local network path.",
+    "There is an evidenced local client-network factor: an enabled loopback system proxy and a common tunnel route for both service addresses.",
+    "Bypassing the urllib application proxy did not recover either interface. The test does not prove that the local proxy alone is the cause or that changing proxy configuration would fix it.",
+    "Fast TCP establishment through a tunnel is not proof of a successful end-to-end service HTTP connection.",
+    "No endpoint authentication result was obtained; no conclusion about key validity, selected model identity, or model weights is supported.",
+    "A client tunnel/upstream path failure and a shared remote gateway/service failure remain distinguishable only with additional independent network evidence, which was not sought in this bounded diagnosis."
+  ]
+}
