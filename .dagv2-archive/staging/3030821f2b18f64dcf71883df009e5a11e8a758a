@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator.\n\n[Passage {\"doc_id\": \"hotpotqa:9784\", \"source_id\": \"hotpotqa:9784\"}]\nMatt O'Leary\nMatthew Joseph \"Matt\" O'Leary (born July 6, 1987) is an American actor who made his debut in the made-for-television Disney Channel Original film \"Mom's Got a Date with a Vampire\" (2000). He would go on to star in the thriller \"Domestic Disturbance\" (2001) opposite John Travolta, and have supporting roles in \"Frailty\" (2001), and the independent neo-noir film \"Brick\" (2005)."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "191",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599242.8219562,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599243.659611
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.000639147257813179
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 696,
+      "completion_tokens": 2,
+      "total_tokens": 698
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
