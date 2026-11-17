@@ -1,0 +1,874 @@
+{
+  "updated_utc": "2026-10-16T03:47:58.079775+00:00",
+  "scope": "generation-only budget/token/paid-plan audit; no evaluation, references, input, manifest, declaration or raw pages read",
+  "driver_state": {
+    "started_utc": "2026-10-16T03:24:50.772398+00:00",
+    "source": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_branch_review_v2/source",
+    "trial": "/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_branch_review_v2",
+    "driver_pid": 22541,
+    "completed_stages": [
+      {
+        "name": "preflight",
+        "exit_code": 0,
+        "seconds": 3.979270208001253,
+        "log_sha256": "acd9d037b26cf16e95ec2330dc61934a9788fd03e35f79e48d25f5c99b12b199"
+      },
+      {
+        "name": "generation",
+        "exit_code": 0,
+        "seconds": 1327.6085199999998,
+        "log_sha256": "ba15dee5e3d12a8872b0b8b8f7e96809136dd271d2240c3d58aaa78250a2a30a"
+      },
+      {
+        "name": "scoring",
+        "exit_code": 0,
+        "seconds": 0.22149562500089814,
+        "log_sha256": "8654a927df19165eec2ccdc5536347730541a4e237ba36842e2dfd8508ea66ce"
+      }
+    ],
+    "status": "complete",
+    "updated_utc": "2026-10-16T03:47:02.364702+00:00",
+    "child_pid": 25793,
+    "finished_utc": "2026-10-16T03:47:02.586614+00:00"
+  },
+  "generation_progress": {
+    "state": "complete",
+    "completed": 4,
+    "total": 4,
+    "failed_tasks": 4,
+    "environment_skipped_tasks": 0,
+    "environment_excluded_questions": 0,
+    "updated_unix": 1792122422.349016
+  },
+  "tasks": [
+    {
+      "question_id": "wwqa-0000",
+      "arm": "dagbt_joint_memory_v1",
+      "request_records": 14,
+      "logical_model_request_starts": 14,
+      "cache_hits": 0,
+      "logical_llm_budget_matches_request_starts": true,
+      "completed_response_records": 14,
+      "request_stages": [
+        [
+          "planner",
+          "1"
+        ],
+        [
+          "joint_read",
+          "2"
+        ],
+        [
+          "web_navigate",
+          "3"
+        ],
+        [
+          "web_navigate",
+          "4"
+        ],
+        [
+          "joint_read",
+          "5"
+        ],
+        [
+          "joint_read",
+          "6"
+        ],
+        [
+          "joint_read_repair",
+          "7"
+        ],
+        [
+          "joint_read_repair",
+          "8"
+        ],
+        [
+          "web_navigate",
+          "9"
+        ],
+        [
+          "web_navigate",
+          "10"
+        ],
+        [
+          "joint_read",
+          "11"
+        ],
+        [
+          "joint_read_repair",
+          "12"
+        ],
+        [
+          "joint_read_repair",
+          "13"
+        ],
+        [
+          "joint_read",
+          "14"
+        ]
+      ],
+      "started_call_records": 14,
+      "llm_physical_attempt_records": 14,
+      "llm_failed_attempts": [],
+      "budget_reserved_used": {
+        "llm": 14,
+        "http_attempts": 14,
+        "web_actions": 5,
+        "json_repairs": 6
+      },
+      "token_usage_validation_counts": {
+        "matched": 14
+      },
+      "usage_mismatches": [],
+      "model_context_checks": 14,
+      "over_context": [],
+      "tokenizer_failed_http_attempts": 0,
+      "tokenizer_http_retries": 0,
+      "plan_audits": [
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "project_info",
+            "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+            "paid_plan_ref": "337add6034973cdc9ab14e4c572e8f953e7fc67a094c8ac9d7ee073cd16e4b20",
+            "request_identity": "6672a24891d2f66a2044dc4bfd37594029c9b2f53a6ae4860943ed86b3c97478",
+            "logical_call_index": 4,
+            "selected_link_id": "l81",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (EHA homepage) shows a 'Grants' link (l81) in the main content area, which is a plausible intermediate section to find information about funded projects like SUPPLY. The link text 'Grants' directly relates to funding programs, making it a reasonable next step to locate project-specific details.",
+              "alternative_link_id": "l86",
+              "alternative_reason": "Link l86 points to a news item about the 'ASCERTAIN project' entering its final phase, which is another EHA-related project. If the Grants page does not contain SUPPLY project details, this news section might provide similar project information or lead to a broader project listing."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 66,
+            "elapsed_seconds": 44.149219036102295
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true,
+            "consumed_original_occurrence_matches_paid_alternative": true,
+            "consumption_adds_no_navigation_model_call": true,
+            "consumption_is_nonfactual": true,
+            "next_event_reserves_normal_web_action": true
+          },
+          "consumed": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "project_info",
+              "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "paid_plan_ref": "337add6034973cdc9ab14e4c572e8f953e7fc67a094c8ac9d7ee073cd16e4b20",
+              "request_identity": "6672a24891d2f66a2044dc4bfd37594029c9b2f53a6ae4860943ed86b3c97478",
+              "logical_call_index": 4,
+              "link": {
+                "id": "l86",
+                "source_doc_id": "web-307533c1a4508473094316ab",
+                "url": "https://ehaweb.org/about-eha/news-updates/ascertain-project-for-better-pricing-and-reimbursement-models-enters-final-phase",
+                "text": "Thursday, July 23, 2026 ASCERTAIN project for better pricing and reimbursement models enters final phase",
+                "source_region": "main",
+                "source_context": {
+                  "start": 4885,
+                  "end": 5065,
+                  "text": "ith EHA’s European Affairs Committee Member, Ariane Weinman\nThursday, July 23, 2026\nASCERTAIN project for better pricing and reimbursement models enters final phase\nWednesday, July"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 90,
+              "elapsed_seconds": 54.588019132614136
+            }
+          ],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        },
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "project_info",
+            "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+            "paid_plan_ref": "f92667bc82420290b11048457572da69a81616cb299c951dd07b7fc0ec32a07a",
+            "request_identity": "dbde33f8fae9981e67902425122bce46b742951988d6dabb5f5115628ac79347",
+            "logical_call_index": 10,
+            "selected_link_id": "l83",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks which program funded the SUPPLY project involving EHA, when it started, and its duration. The current page (ASCERTAIN project news) mentions ASCERTAIN is an EU-funded project but does not name the specific funding program (e.g., Horizon Europe, IMI). Link l83 points to 'Read more about ASCERTAIN' on access2meds.eu, which is likely the project's official site and should contain detailed funding information, start date, and duration.",
+              "alternative_link_id": "l84",
+              "alternative_reason": "Link l84 points to the final conference page, which might include project timeline details, but l83 is more likely to have comprehensive project information including funding program and duration."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 169,
+            "elapsed_seconds": 129.55056715011597
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true,
+            "consumed_original_occurrence_matches_paid_alternative": true,
+            "consumption_adds_no_navigation_model_call": true,
+            "consumption_is_nonfactual": true,
+            "next_event_reserves_normal_web_action": true
+          },
+          "consumed": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "project_info",
+              "query_identity": "9240bd8598d848495f4a72768ddf714ba4de6296ee47f9465694f1c6404f109f",
+              "paid_plan_ref": "f92667bc82420290b11048457572da69a81616cb299c951dd07b7fc0ec32a07a",
+              "request_identity": "dbde33f8fae9981e67902425122bce46b742951988d6dabb5f5115628ac79347",
+              "logical_call_index": 10,
+              "link": {
+                "id": "l84",
+                "source_doc_id": "web-c5488f35f88f78b37833d0fb",
+                "url": "https://www.access2meds.eu/events/ascertain-final-conference/",
+                "text": "Learn more about the final conference",
+                "source_region": "main",
+                "source_context": {
+                  "start": 7246,
+                  "end": 7426,
+                  "text": "more equitable access to new health technologies in Europe.\nLearn more about the final conference\nWhat is ASCERTAIN doing for patients?\nMyeloma Patients Europe (MPE) represents pat"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 233,
+              "elapsed_seconds": 180.9030361175537
+            }
+          ],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        }
+      ],
+      "runtime_terminal_result": {
+        "answer_status": "unresolved_or_exhausted",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 14,
+            "http_attempts": 14,
+            "web_actions": 5,
+            "json_repairs": 6
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 10,
+            "reader": 0,
+            "json_repairs": 0,
+            "web_actions": 31
+          }
+        },
+        "errors": [
+          {
+            "node_id": "project_info",
+            "type": "InputOverflow",
+            "error": "Local sources/parents/counters exceed real wire capacity"
+          }
+        ],
+        "reasoning_call_count": 14
+      },
+      "last_event_sequence": 370
+    },
+    {
+      "question_id": "wwqa-0000",
+      "arm": "dagbt_residual_memory_v2",
+      "request_records": 4,
+      "logical_model_request_starts": 5,
+      "cache_hits": 0,
+      "logical_llm_budget_matches_request_starts": true,
+      "completed_response_records": 4,
+      "request_stages": [
+        [
+          "planner",
+          "1"
+        ],
+        [
+          "joint_read",
+          "2"
+        ],
+        [
+          "web_navigate",
+          "3"
+        ],
+        [
+          "web_navigate",
+          "4"
+        ]
+      ],
+      "started_call_records": 5,
+      "llm_physical_attempt_records": 4,
+      "llm_failed_attempts": [],
+      "budget_reserved_used": {
+        "llm": 5,
+        "http_attempts": 4,
+        "web_actions": 1,
+        "json_repairs": 2,
+        "cache_hits": 1
+      },
+      "token_usage_validation_counts": {
+        "matched": 5
+      },
+      "usage_mismatches": [],
+      "model_context_checks": 5,
+      "over_context": [],
+      "tokenizer_failed_http_attempts": 0,
+      "tokenizer_http_retries": 0,
+      "plan_audits": [],
+      "runtime_terminal_result": {
+        "answer_status": "unresolved_or_exhausted",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 5,
+            "http_attempts": 4,
+            "web_actions": 1,
+            "json_repairs": 2,
+            "cache_hits": 1
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 19,
+            "reader": 0,
+            "json_repairs": 4,
+            "web_actions": 35
+          }
+        },
+        "errors": [
+          {
+            "node_id": "project_info",
+            "type": "ProtocolError",
+            "error": "Navigation requires a complete bounded exploration plan"
+          }
+        ],
+        "reasoning_call_count": 5
+      },
+      "last_event_sequence": 84
+    },
+    {
+      "question_id": "wwqa-0001",
+      "arm": "dagbt_joint_memory_v1",
+      "request_records": 18,
+      "logical_model_request_starts": 18,
+      "cache_hits": 0,
+      "logical_llm_budget_matches_request_starts": true,
+      "completed_response_records": 18,
+      "request_stages": [
+        [
+          "planner",
+          "1"
+        ],
+        [
+          "joint_read",
+          "2"
+        ],
+        [
+          "web_navigate",
+          "3"
+        ],
+        [
+          "joint_read",
+          "4"
+        ],
+        [
+          "joint_read",
+          "5"
+        ],
+        [
+          "web_navigate",
+          "6"
+        ],
+        [
+          "joint_read",
+          "7"
+        ],
+        [
+          "joint_read",
+          "8"
+        ],
+        [
+          "web_navigate",
+          "9"
+        ],
+        [
+          "web_navigate",
+          "10"
+        ],
+        [
+          "joint_read",
+          "11"
+        ],
+        [
+          "joint_read",
+          "12"
+        ],
+        [
+          "joint_read",
+          "13"
+        ],
+        [
+          "joint_read_repair",
+          "14"
+        ],
+        [
+          "joint_read_repair",
+          "15"
+        ],
+        [
+          "joint_read_repair",
+          "16"
+        ],
+        [
+          "joint_read_repair",
+          "17"
+        ],
+        [
+          "joint_read_repair",
+          "18"
+        ]
+      ],
+      "started_call_records": 18,
+      "llm_physical_attempt_records": 18,
+      "llm_failed_attempts": [],
+      "budget_reserved_used": {
+        "llm": 18,
+        "http_attempts": 18,
+        "web_actions": 7,
+        "json_repairs": 6
+      },
+      "token_usage_validation_counts": {
+        "matched": 18
+      },
+      "usage_mismatches": [],
+      "model_context_checks": 18,
+      "over_context": [],
+      "tokenizer_failed_http_attempts": 1,
+      "tokenizer_http_retries": 1,
+      "plan_audits": [
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "agreement_details",
+            "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+            "paid_plan_ref": "e36791d0c285a54e7feabc80a1c83e0804ced797e791623c316007e2ae29484b",
+            "request_identity": "3ec381dc252b345ea46e62a938803043064029a8d8f94223f34079de47fdcfd6",
+            "logical_call_index": 3,
+            "selected_link_id": "l9",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks when and where the ICSE duplicate submission statement was agreed upon. The current page is a navigation index with no substantive content about policies. Link l9 is labeled 'ICSE SC Documents', which is the most plausible section to contain steering committee documents, including policy agreements like a duplicate submission statement.",
+              "alternative_link_id": "l1",
+              "alternative_reason": "Link l1 is labeled 'News from the SC', which might contain announcements about policy decisions, but 'ICSE SC Documents' is more likely to house formal agreed-upon statements."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 42,
+            "elapsed_seconds": 21.9365451335907
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true,
+            "consumed_original_occurrence_matches_paid_alternative": true,
+            "consumption_adds_no_navigation_model_call": true,
+            "consumption_is_nonfactual": true,
+            "next_event_reserves_normal_web_action": true
+          },
+          "consumed": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "agreement_details",
+              "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+              "paid_plan_ref": "e36791d0c285a54e7feabc80a1c83e0804ced797e791623c316007e2ae29484b",
+              "request_identity": "3ec381dc252b345ea46e62a938803043064029a8d8f94223f34079de47fdcfd6",
+              "logical_call_index": 3,
+              "link": {
+                "id": "l1",
+                "source_doc_id": "web-a839c19604f161a49b32fd91",
+                "url": "http://www.icse-conferences.org/news.html",
+                "text": "News from the SC",
+                "source_region": "content",
+                "source_context": {
+                  "start": 30,
+                  "end": 210,
+                  "text": "ICSE\nInternational Conference\non Software Engineering®\nHOME\nNews from the SC\nEDI STATEMENT\nCONDUCT & SAFETY\nHISTORY\nPROCEEDINGS\nINFLUENTIAL PAPERS\nORGANIZING ICSE\nSTEERING COMMITTE"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 64,
+              "elapsed_seconds": 25.806555032730103
+            }
+          ],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        },
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "agreement_details",
+            "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+            "paid_plan_ref": "a3a1526cfb37de3d9973c82f7695ff890ba26cb32db5950b34233f18cb179dfd",
+            "request_identity": "0358bdd510e052f08a775bc84d800fdc4b0c6057870e29011d83a42e4ca5ec09",
+            "logical_call_index": 6,
+            "selected_link_id": "l22",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks when and where the ICSE duplicate submission statement was agreed upon. The ICSE PC Chairs Guiding Document 1.1 (link l22) is a policy document that likely contains or references the agreement on duplicate submission rules, making it a plausible intermediate source for this information.",
+              "alternative_link_id": "l18",
+              "alternative_reason": "The ICSE 2024 SC Strategic Discussions PDF (link l18) may include discussions about duplicate submission policies, but it is less directly focused on PC chair guidance than the Guiding Document."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 107,
+            "elapsed_seconds": 40.65373706817627
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true,
+            "consumed_original_occurrence_matches_paid_alternative": true,
+            "consumption_adds_no_navigation_model_call": true,
+            "consumption_is_nonfactual": true,
+            "next_event_reserves_normal_web_action": true
+          },
+          "consumed": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "agreement_details",
+              "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+              "paid_plan_ref": "a3a1526cfb37de3d9973c82f7695ff890ba26cb32db5950b34233f18cb179dfd",
+              "request_identity": "0358bdd510e052f08a775bc84d800fdc4b0c6057870e29011d83a42e4ca5ec09",
+              "logical_call_index": 6,
+              "link": {
+                "id": "l18",
+                "source_doc_id": "web-994d48b14af171acdfb8dc89",
+                "url": "http://www.icse-conferences.org/sc/ICSE/2024/ICSE-2024-SC-Strategic-Discussions.pdf",
+                "text": "ICSE 2024 SC Strategic Discussions (PDF)",
+                "source_region": "content",
+                "source_context": {
+                  "start": 496,
+                  "end": 676,
+                  "text": "orporate ICSE knowledge can be found under Organizing ICSE.\nICSE 2024 SC Strategic Discussions (PDF)\nICSE\n2019 PC Chairs Report by Bultan and Whittle (PDF)\nICSE\n2018 PC Chairs Repo"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 147,
+              "elapsed_seconds": 48.854055881500244
+            }
+          ],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        },
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "agreement_details",
+            "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+            "paid_plan_ref": "d4539b7109ef9d675297ded3d477b0bc1429e7565470ec739931267b47ef1ad5",
+            "request_identity": "c0c1df020e6710adfa0cf95399c09e4f3d86b895ff27e3352f1d8a93e44d103e",
+            "logical_call_index": 10,
+            "selected_link_id": "l18",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks when and where the ICSE duplicate submission statement was agreed upon. The ICSE PC Chairs Guiding Document 1.1 (already visited) likely contains policy decisions, but the specific agreement on duplicate submission may be documented in a PC Chairs report. Link l18 points to the ICSE 2019 PC Chairs Report, which is a plausible intermediate source for such policy agreements.",
+              "alternative_link_id": "l19",
+              "alternative_reason": "If the 2019 report does not contain the agreement, the ICSE 2018 PC Chairs Report (l19) is another plausible intermediate source for policy decisions."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 224,
+            "elapsed_seconds": 78.53725409507751
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true,
+            "consumed_original_occurrence_matches_paid_alternative": true,
+            "consumption_adds_no_navigation_model_call": true,
+            "consumption_is_nonfactual": true,
+            "next_event_reserves_normal_web_action": true
+          },
+          "consumed": [
+            {
+              "event": "web_branch_plan_consumed",
+              "node_id": "agreement_details",
+              "query_identity": "e6ad7f7e6ab9df22fd3389f9af0cd6e9559ffa610181d5bb0bcf3d36f8fb59da",
+              "paid_plan_ref": "d4539b7109ef9d675297ded3d477b0bc1429e7565470ec739931267b47ef1ad5",
+              "request_identity": "c0c1df020e6710adfa0cf95399c09e4f3d86b895ff27e3352f1d8a93e44d103e",
+              "logical_call_index": 10,
+              "link": {
+                "id": "l19",
+                "source_doc_id": "web-994d48b14af171acdfb8dc89",
+                "url": "http://www.icse-conferences.org/sc/ICSE/2018/ICSE2018-PC-Chairs-Report.pdf",
+                "text": "ICSE 2018 PC Chairs Report by Chechik, Harman, Zimmerman and Crnkovic (PDF)",
+                "source_region": "content",
+                "source_context": {
+                  "start": 592,
+                  "end": 772,
+                  "text": "PDF)\nICSE\n2019 PC Chairs Report by Bultan and Whittle (PDF)\nICSE\n2018 PC Chairs Report by Chechik, Harman, Zimmerman and Crnkovic (PDF)\nICSE 2017 Report on the Technical Track V1.0"
+                }
+              },
+              "new_navigation_model_call": false,
+              "navigation_is_not_fact_support": true,
+              "sequence": 310,
+              "elapsed_seconds": 100.8173098564148
+            }
+          ],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        }
+      ],
+      "runtime_terminal_result": {
+        "answer_status": "unresolved_or_exhausted",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 18,
+            "http_attempts": 18,
+            "web_actions": 7,
+            "json_repairs": 6
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 6,
+            "reader": 0,
+            "json_repairs": 0,
+            "web_actions": 29
+          }
+        },
+        "errors": [],
+        "reasoning_call_count": 18
+      },
+      "last_event_sequence": 2857
+    },
+    {
+      "question_id": "wwqa-0001",
+      "arm": "dagbt_residual_memory_v2",
+      "request_records": 10,
+      "logical_model_request_starts": 10,
+      "cache_hits": 0,
+      "logical_llm_budget_matches_request_starts": true,
+      "completed_response_records": 10,
+      "request_stages": [
+        [
+          "planner",
+          "1"
+        ],
+        [
+          "joint_read",
+          "2"
+        ],
+        [
+          "joint_read_repair",
+          "3"
+        ],
+        [
+          "web_navigate",
+          "4"
+        ],
+        [
+          "joint_read_repair",
+          "5"
+        ],
+        [
+          "joint_read_repair",
+          "6"
+        ],
+        [
+          "joint_read_repair",
+          "7"
+        ],
+        [
+          "web_navigate",
+          "8"
+        ],
+        [
+          "joint_read_repair",
+          "9"
+        ],
+        [
+          "joint_read_repair",
+          "10"
+        ]
+      ],
+      "started_call_records": 10,
+      "llm_physical_attempt_records": 10,
+      "llm_failed_attempts": [],
+      "budget_reserved_used": {
+        "llm": 10,
+        "http_attempts": 10,
+        "web_actions": 3,
+        "json_repairs": 6
+      },
+      "token_usage_validation_counts": {
+        "matched": 10
+      },
+      "usage_mismatches": [],
+      "model_context_checks": 10,
+      "over_context": [],
+      "tokenizer_failed_http_attempts": 0,
+      "tokenizer_http_retries": 0,
+      "plan_audits": [
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "agreement_details",
+            "query_identity": "c2ee62969b666351f155f373f8ae56c2bb3f2a0f38b917309f6862be4428584f",
+            "paid_plan_ref": "2ac9526270ad3dfb7e9769853708bb58216a163381dbc767cb5a3503ecb7fecc",
+            "request_identity": "486d1d0c81a237069960dfe5a16a0360eede8875b1c5e526ad43517b90c91ee7",
+            "logical_call_index": 4,
+            "selected_link_id": "l9",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks about the ICSE duplicate submission statement, which is likely a policy document of the ICSE Steering Committee. The link 'ICSE SC Documents' (l9) is the most plausible section to contain such policy statements, as it is the repository for steering committee documents.",
+              "alternative_link_id": "l1",
+              "alternative_reason": "The 'News from the SC' (l1) page might contain announcements about policy changes, including the duplicate submission statement, if it was agreed upon at a steering committee meeting."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 54,
+            "elapsed_seconds": 40.099514961242676
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true
+          },
+          "consumed": [],
+          "invalidated": [
+            {
+              "event": "web_branch_plan_invalidated",
+              "node_id": "agreement_details",
+              "paid_plan_ref": "2ac9526270ad3dfb7e9769853708bb58216a163381dbc767cb5a3503ecb7fecc",
+              "reason": "query_material_or_original_candidate_changed",
+              "sequence": 119,
+              "elapsed_seconds": 80.49609088897705
+            }
+          ],
+          "all_observed_checks_pass": true
+        },
+        {
+          "decision": {
+            "event": "web_navigation_plan_decided",
+            "node_id": "agreement_details",
+            "query_identity": "c2ee62969b666351f155f373f8ae56c2bb3f2a0f38b917309f6862be4428584f",
+            "paid_plan_ref": "b213feb70ab708d5435087bcf333627210ae9c891424ba4d67237bb04af652d7",
+            "request_identity": "d4da694fbfe0be0625ef3b2552bb68c6c94b8f66aa20bdda201cb88147116ef7",
+            "logical_call_index": 8,
+            "selected_link_id": "l16",
+            "plan": {
+              "intent": "intermediate_branch",
+              "reason": "The subproblem asks when and where the ICSE duplicate submission statement was agreed upon. The ICSE PC Chairs Guiding Document 1.1 is a policy document that likely contains or references the agreement on a duplicate submission statement, making it a plausible intermediate source to find the answer.",
+              "alternative_link_id": "l13",
+              "alternative_reason": "The ICSE 2019 PC Chairs Report may discuss policy decisions made during that year, including a duplicate submission statement, but the guiding document is more directly a policy document."
+            },
+            "navigation_is_not_fact_support": true,
+            "sequence": 131,
+            "elapsed_seconds": 87.65948486328125
+          },
+          "checks": {
+            "paid_request_record_present": true,
+            "actual_paid_wire_identity_matches": true,
+            "raw_model_plan_preserved": true,
+            "raw_model_primary_selection_preserved": true,
+            "paid_plan_identity_matches": true,
+            "alternative_from_same_admitted_wire": true,
+            "alternative_differs_from_primary_url": true,
+            "navigation_marked_nonfactual": true,
+            "consumed_at_most_once": true
+          },
+          "consumed": [],
+          "invalidated": [],
+          "all_observed_checks_pass": true
+        }
+      ],
+      "runtime_terminal_result": {
+        "answer_status": "unresolved_or_exhausted",
+        "ledger": {
+          "limits": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 24,
+            "reader": 0,
+            "json_repairs": 6,
+            "web_actions": 36
+          },
+          "used": {
+            "llm": 10,
+            "http_attempts": 10,
+            "web_actions": 3,
+            "json_repairs": 6
+          },
+          "remaining": {
+            "ann": 36,
+            "set_score": 0,
+            "llm": 14,
+            "reader": 0,
+            "json_repairs": 0,
+            "web_actions": 33
+          }
+        },
+        "errors": [],
+        "reasoning_call_count": 10
+      },
+      "last_event_sequence": 372
+    }
+  ]
+}

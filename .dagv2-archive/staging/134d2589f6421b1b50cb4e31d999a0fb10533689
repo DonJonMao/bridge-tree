@@ -1,0 +1,163 @@
+{
+  "schema": 1,
+  "config": {
+    "llm_base_url": "http://127.0.0.1:62368/v1",
+    "embedding_base_url": "http://127.0.0.1:62368/v1",
+    "llm_model": "deepseek-v4-flash",
+    "embedding_model": "qwen3-embedding-8b",
+    "request_timeout_seconds": 10,
+    "max_identical_attempts": 1,
+    "reranker": {
+      "url": "http://127.0.0.1:62368/rerank",
+      "model": "",
+      "score_space": "unit_interval",
+      "score_contract": "pointwise",
+      "max_input_tokens": 8192,
+      "batch_size": 4,
+      "max_batch_documents": 4,
+      "required_max_model_len": 8192,
+      "timeout_seconds": 180,
+      "deployment_identity": {
+        "model_id": "Qwen3-Reranker-8B",
+        "tokenizer_id": "Qwen2Tokenizer",
+        "serving_engine": "vllm-ascend",
+        "serving_version": "v0.20.2rc1-310p",
+        "deployment_revision": "proxy-ef5da1dd44485cd5-start-9150f425de611613-len8192-fp16-seqs4",
+        "identity_source": "operator_declared",
+        "verification_evidence_id": "validation_20260917_145455_9de6b2a8"
+      }
+    },
+    "fusion": {
+      "ann_calls": 12,
+      "set_score_calls": 64,
+      "llm_calls": 24,
+      "reader_calls": 1,
+      "context_tokens": 16384,
+      "reader_output_tokens": 1024
+    },
+    "experiment": {
+      "question_timeout_seconds": 180,
+      "worker_startup_timeout_seconds": 120,
+      "max_question_attempts": 3,
+      "fixture_note": "Scripted loopback PersonaMem scope compatibility test; not accuracy"
+    },
+    "model_profile": "bridgetree",
+    "llm_provider_request_params": {},
+    "credentials_file": "/Users/mao/projects/dagv2/outputs/verification/personamem/full_suite/test_personamem_spawned_pair_s0/empty_credentials.json",
+    "embedding_batch_size": 32,
+    "deployment_identity": {
+      "source_profile": "bridgetree_preference_rag/configs/evidence_bridge.yaml",
+      "source_chain": [
+        "evidence_bridge.yaml",
+        "chain_service_fixed.yaml",
+        "chain_full.yaml",
+        "default.yaml"
+      ],
+      "identity_source": "configuration_snapshot_20260923",
+      "note": "Model names and deployment metadata are not independently verified weight hashes."
+    },
+    "derived_index_dir": "/Users/mao/projects/dagv2/outputs/verification/personamem/full_suite/test_personamem_spawned_pair_s0/derived_indices"
+  },
+  "datasets": [
+    "personamem"
+  ],
+  "arms": [
+    "original",
+    "fusion"
+  ],
+  "question_ids": {
+    "personamem": [
+      "acd74206-37dc-4756-94a8-b99a395d9a21",
+      "6142fba4-a233-405a-a4fe-a5b2e27374a7"
+    ]
+  },
+  "questions_digest": {
+    "personamem": "38f5fbd5b38bd269804a3839c533207354ac09ea9a77b9d2224c680d9a973161"
+  },
+  "source_hashes": {
+    "dagbt/__init__.py": "69134790588a3e07a68e427d670f11116bf94b0b78814eb86e8b3db28b41108d",
+    "dagbt/bridge.py": "221456cd4a64eda80a1954e616b725b5b570cae635eedb72015b7653edf087cf",
+    "dagbt/budget.py": "3a58d0181bca85394a3102cb8fa280db2f819193cbe653b7f1035c3207e927a1",
+    "dagbt/config.py": "9123c5b97ce03f18fbde32f50cf903e3be8042d48f915d032f87646fb9be1766",
+    "dagbt/engine.py": "0c86d1c4248c76ae5676f8a51479f59407f9a427d517e5f096b48d5e46fd2914",
+    "dagbt/model_runtime.py": "4ce494224bbe3a5fcd27ca9096878dbb3ec759bcf3affd6206a777a8c283db53",
+    "dagbt/personamem.py": "310459e344d35adee9b684fd31ebfc32f98c172f30b292310750dc6d1dce9350",
+    "dagbt/prompts.py": "ea30bdd536848515e55de88d3a860070dc5492d083ab78205842272de4adf53d",
+    "dagbt/proxy_free.py": "6ac851148271edf23e1965b6b2a5fbc82da981f7685e0c1a316dbb1a5a55da6b",
+    "dagbt/resources.py": "fbe9b5f7d228bbbafc92d0eb91b3258480506352cf28bee857dd75198f9a9024",
+    "dagbt/runner.py": "f6cf0177c914114e5e9362ff5b25761d4b6e03d9ff3f040afed054190c0f17b4",
+    "dagbt/support.py": "b1ea70539db1db56a1c45932a0adaf5b942adea4b0794636b6fb5e33fabb956b",
+    "dagbt/transport.py": "605f3bfff40b8ace550a4e45f4b6be2cfb07daa8906d6842c2a58162a078c41c",
+    "original_manifest.json": "9d3280858f5ab56936ac7d55f9b6086efc2627a591661f78f96f0d2bf000dd6a",
+    "scripts/run_paired.sh": "d56eaae616a2b5854d33b5cdf1d371f58a37fdb78165b67802eb27f61705e3c4",
+    "vendor/README.md": "c302e7a1b51215463874fb577dc0d328589b1eb23f4857a1835fd42c71cc6de0",
+    "vendor/__init__.py": "a9abafbbddef4e797ee6eced7986c9710301e65a71a5274bc664d0b1dfe557a8",
+    "vendor/bridgetree/__init__.py": "ab1c189f8681d806a3ac9b267cfc4e35270bdaa36696f24dd24fbde5e79610ab",
+    "vendor/bridgetree/__main__.py": "4c5368a67d7ba871de7655973728f9cc5c34095e3b906187da3668b58f8485de",
+    "vendor/bridgetree/aggregation.py": "e1983918d3d4ee19775db15758cf08a8f0b47b679c2b1f27c3fc4565cb4f80dc",
+    "vendor/bridgetree/background.py": "a2e1a32ef87c05afed5bdab32b72a8504f62c845adeb48c0bfacb77134ab9de6",
+    "vendor/bridgetree/baselines.py": "9483986eccfc5bf7c05adfd2f2db7b798be44cb3549f69037e28df6c95bc2e92",
+    "vendor/bridgetree/budget.py": "ca430553036fd67d509150a9f9ab9565f45fdc23ed00d2dd7c551cd5eb231f33",
+    "vendor/bridgetree/chain_experiment.py": "96de640cb687fb0692747c070a7406263319dcb3c377a09ec8abb4528f563024",
+    "vendor/bridgetree/chain_fixture.py": "a1e25dea2b08fcc3c0882f4a4cfa486f498c7bae43bfbc567f05f9ce82c951b7",
+    "vendor/bridgetree/chain_judge.py": "dd7f4fd1f243107ffca97545b82859310ac3d9a1d84e2442d393dcd2a9007f5d",
+    "vendor/bridgetree/chain_search.py": "c59012bbd3240cab5e8aaf7391013d8e103a1fd16ac070fb137a52e8fb2ce7a0",
+    "vendor/bridgetree/chain_support.py": "b155587a133ee42a59108a5937e39971c07be33b68bcd0cb82d76e64e06dcc54",
+    "vendor/bridgetree/cli.py": "0413944e8de017e99e14baeca6cfab4c13ec3e905d2b50290fdbd88e72b45a65",
+    "vendor/bridgetree/clients.py": "ad65a08d668b254bc5926dab950c7598586bcf66fa8661e1a16bccc07793bb39",
+    "vendor/bridgetree/clustering.py": "8977c351bfd5e3ef0830875ec8807f40ab2c3594ff431499834f40cd2eb6a70b",
+    "vendor/bridgetree/config.py": "189fd816899ed4c6dca950e0ce0130afb9ca38291676a688b814465524ac4e9a",
+    "vendor/bridgetree/dependency_config.py": "714fa42c01c1a449e53a91ebaa255acc5309c31428c284a9aabb350d7c1643f8",
+    "vendor/bridgetree/dependency_diagnostics.py": "91e775558ed6a9768bbb989313a4d93e7caf6ab5cac2b988789dec4e7922b1ee",
+    "vendor/bridgetree/dependency_experiment.py": "000eeac4159c04267842441041f40dfa90f9305e5de1a7c6448d690a4a28ef4e",
+    "vendor/bridgetree/dependency_retrieval.py": "1129d1bf3e650ebe796d4a61479dd7e3dce8314f2a61dec8d12fec21af00f57a",
+    "vendor/bridgetree/dependency_scoring.py": "fc2ba748184e9a2e05563ed6f063952890c42eff05ecd2eaa82e7680121cee46",
+    "vendor/bridgetree/dependency_search.py": "8eb27e239be707f28a9a4cabdb462062f8e85794ad437df04665949bf0ae3ac2",
+    "vendor/bridgetree/diagnostic_background.py": "75d1fd66aa75f30210573edd060d2cbc392ab9affd7a161fbcb7013ff3815fdf",
+    "vendor/bridgetree/diagnostic_config.py": "eaa1990d58ef3a31a9f6036065e1b97e95be1609ca02f5cb15c48b1bb08d74e1",
+    "vendor/bridgetree/diagnostic_evaluation.py": "b4fd14bfa5464025cc584fd4a18182a342ae5590cf78950bb06a3ee9fd8f354a",
+    "vendor/bridgetree/diagnostic_identity.py": "3b9a12c7da5c8a9f76d841327c359d4f09c17268d93dbdbd4b0ad8670410986e",
+    "vendor/bridgetree/diagnostic_import.py": "6755f4d6949b5aeb05036b856ba6794012437c49d30b1336081a5b737c1a5bbf",
+    "vendor/bridgetree/diagnostic_observability.py": "6dd84dffc71914ff267818ee0ae8475e4d9a74007025033cb5d95929fdfa97df",
+    "vendor/bridgetree/diagnostic_progress.py": "9b398f055a3b0942cabe3b574a6ed4219aae9a1964da5573b0be7a99701dcf0c",
+    "vendor/bridgetree/diagnostic_root_runner.py": "19fdce1aee63dcde69814872c4dfff252e93a3a4924afa494e7fc8ce0f2f269e",
+    "vendor/bridgetree/diagnostic_runner.py": "c8636c2787c8892b2df50ea27ec17d284bc6a1f37e978065c85f64c06729268f",
+    "vendor/bridgetree/evidence_config.py": "d683253af5808b894d66e521d4a59b6b152a7ffbeeefeb7e271e7f60539afaa1",
+    "vendor/bridgetree/evidence_diagnostics.py": "68ba257de407eebd4f9de0bb43772fe0655ebe1e1d155a882cceff56606cd756",
+    "vendor/bridgetree/evidence_search.py": "eb9e74a299fa2de5898351bdc6461e38d6a03c15592a2e9df088a5d146e1a1b4",
+    "vendor/bridgetree/evidence_selection.py": "31ede9a8f8f8daf0655309452827d0ccf026d5274e986dabdd43e5851c553934",
+    "vendor/bridgetree/experiment.py": "0985bd5c35cf1c4946b4bc3ca0ebbaaf3a0a4c1202565479a516d99590321088",
+    "vendor/bridgetree/guided_retriever.py": "10fd54238f6e83182c51b3db4245f7023a3073da52fa2470630a2575819557d0",
+    "vendor/bridgetree/index.py": "4e9927cddbba42e820d982dd457e6e0b8663e40963c1625dfff707f3ac303d04",
+    "vendor/bridgetree/information.py": "4311ccee48bec50e5be4ba62f0e85b3d4616380fefcd3c652ba366264125b98a",
+    "vendor/bridgetree/math_utils.py": "bf046300a5898aca766749102d330a6c04e89b3a60d5a986032dc5311f4670df",
+    "vendor/bridgetree/measure.py": "af54b58a2638a2318bb923e708bc4b7bd189247910cf5f54b0fbbb1470be0335",
+    "vendor/bridgetree/metrics.py": "952da88e1572f267ec700949fa1cc67ab1c01c86fc66acb55490d0ec85dc5fdf",
+    "vendor/bridgetree/module_metrics.py": "90bebe60e740c71b0e5521df0087c04c49ca9877919da355a51b1b8bd2186ada",
+    "vendor/bridgetree/offline_validation.py": "2ce3877f6ddc8a17cdb92fcb5cb39b54661896242caca0817b37ccc562ddfd84",
+    "vendor/bridgetree/oracle.py": "d15b371df5257f321588739869356cd0f77045f8b1a0227511b3aff1ba4e7213",
+    "vendor/bridgetree/personamem.py": "923f219bd66e56d1e6be4fe60075417ab87aab19f0527ea57832c9d56e55c05c",
+    "vendor/bridgetree/protocol.py": "1ee6043f9c690a930883ea9f49327f7e938652e9bcfa44ff88396e073a344713",
+    "vendor/bridgetree/ranking.py": "8e78057ec5bf269f76d8b815dc70e8cda7292b3b3b2ea21d2cb1b3d5ec0b4728",
+    "vendor/bridgetree/request_audit.py": "14ca24f5c89b3bbd9d45d8590a67e1426f9320a325a703511dcbaf6caefe7665",
+    "vendor/bridgetree/retriever.py": "0e76907b3feaea139d157c1658627d4bb423aee25517df8a26fdf040636dcdcf",
+    "vendor/bridgetree/root_tie_diagnostics.py": "bcb47ebc9d5f380e5a0ed3156fa8e926a92b7ddce97ce2fc1f59c439ea89b411",
+    "vendor/bridgetree/run_audit.py": "9546f990acf8e2efdae1ee70d22a5a4d6a421aa3e49ceff68a9d03cd3f002996",
+    "vendor/bridgetree/semantic.py": "3b9022e1360c650686336cc117253694f96e63601fd616b049a6868a6742111f",
+    "vendor/bridgetree/server_bundle.py": "984a60a70e43935b542ddab614dcec9f7dd81b07b677f87dd655e9bec7a52196",
+    "vendor/bridgetree/smoke.py": "6e1734c93ae63c349ca117d656d4ba2c2aa614acb440bdf90a83a22509bb295e",
+    "vendor/bridgetree/temporal.py": "6da835f8d64b929c26dee809a4941d14f92d536baf4bf2bcb45ee2fc507db0a9",
+    "vendor/bridgetree/training.py": "419ea621cd169d297dbe13434b754ef3b2bda883417ddfb7918a092d4d92cf8b",
+    "vendor/bridgetree/types.py": "cef932a3ed40a1e013d0f860e7cb42763d99aa45beb6cd267010e0454bd6c506",
+    "vendor/bridgetree_manifest.json": "c5fea81843d8b6028eca0817438d12ec148c44775bf8f513e59211f557217cb9",
+    "vendor/upstream_test_manifest.json": "0687de22e9b598efbb1bdde722fe8323bde67750b120da58f12048fd2ff2886e"
+  },
+  "original_hash_manifest": "9d3280858f5ab56936ac7d55f9b6086efc2627a591661f78f96f0d2bf000dd6a",
+  "scope": "first_2_per_dataset",
+  "dataset_manifests": {
+    "personamem": "1d64f79400eb9589d69f1907d08289604d192b704a68e88174e89fa877763619"
+  },
+  "baseline": "native make_plan/native.solve; original archive algorithm with query-dimension guard tied to new index; shared BT model/resource adapter replaces backend protocol, token accounting and corpus vectors",
+  "generation": "all configured dataset/arm tasks terminal before first label load",
+  "kind": "inference_evaluation_not_parameter_training"
+}
