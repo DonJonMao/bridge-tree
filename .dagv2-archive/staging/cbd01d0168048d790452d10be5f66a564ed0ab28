@@ -1,0 +1,260 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 74%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+..............................................F.....................FFF. [ 89%]
+........................................................................ [ 93%]
+......................................................F................. [ 96%]
+............................................................             [100%]
+=================================== FAILURES ===================================
+__ test_successful_empty_read_cannot_clear_another_querys_evidence_obligation __
+
+    def test_successful_empty_read_cannot_clear_another_querys_evidence_obligation():
+        reader, engine, state, calls, aliases = capacity_downgrade()
+        before = deepcopy(reader.obligation_snapshot())
+        calls.respond = lambda index, data: response()
+        reader.read(engine.steps[0], 'Recheck only established history', ['history'],
+                    [engine.mapper.sources[aliases[0]]['doc_id']], 'unrelated-check')
+        assert state.valid()[0]['history'] == ['piano']
+        assert 'history' in state.pending
+        assert 'history' in reader.pending_variables()
+>       assert reader.obligation_snapshot() == before
+E       AssertionError: assert {'unread_obli...ews': [], ...} == {'unread_obli...ews': [], ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Differing items:
+E         {'source_exposures': [{'query_identity': 'new-history', 'operation': 'joint_read', 'task_id': 'history', 'variables': ...{'query_identity': 'unrelated-check', 'operation': 'joint_read', 'task_id': 'history', 'variables': ['history'], ...}]} != {'source_exposures': [{'query_identity': 'new-history', 'operation': 'joint_read', 'task_id': 'history', 'variables': ...uery_identity': 'new-history', 'operation': 'joint_read_repair', 'task_id': 'history', 'variables': ['history'], ...}]}
+E         Use -v to get more diff
+
+tests/test_v4_reader_review.py:68: AssertionError
+_ test_scope_rejection_preserves_reader_and_source_ownership_before_counting[outside] _
+
+kind = 'outside'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ff88490>
+
+    @pytest.mark.parametrize('kind', ['doc_ids', 'outside', 'uncovered_variable', 'foreign'])
+    def test_scope_rejection_preserves_reader_and_source_ownership_before_counting(kind, monkeypatch):
+        reader, engine, state, calls = prepare_terminal()
+        if kind == 'outside':
+            reader.unread_obligations['closure', 's2'] = {'history'}
+        elif kind == 'uncovered_variable':
+            reader.unread_obligations['closure', 's1'] = {'history', 'not-requested'}
+        elif kind == 'foreign':
+            reader.unread_obligations['old-query', 's1'] = {'history'}
+        reader.current_identity = 'old-current'
+        reader.current_terminal_output = False
+        before = deepcopy((reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                           reader.current_identity, reader.current_terminal_output, engine.ledger.used))
+        monkeypatch.setattr(reader, '_fits', lambda *args: pytest.fail('Guard must precede counting'))
+        with pytest.raises(ProtocolError):
+            mandatory(reader, docs=['piano'] if kind == 'doc_ids' else ())
+>       assert before == (reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                          reader.current_identity, reader.current_terminal_output, engine.ledger.used)
+E       AssertionError: assert ({'unread_obl...se, Counter()) == ({'unread_obl...se, Counter())
+E         
+E         At index 1 diff: {'initial_program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'contract': {'mode': 'semantic', 'result_type': 'text', 'entity_scope': 'user', 'time_scope': 'history', 'explanation': 'semantic'}, 'program_revision': 0, 'facts': {'history': ['piano']...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_v4_reader_scope_implementation.py:40: AssertionError
+_ test_scope_rejection_preserves_reader_and_source_ownership_before_counting[uncovered_variable] _
+
+kind = 'uncovered_variable'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11014fd50>
+
+    @pytest.mark.parametrize('kind', ['doc_ids', 'outside', 'uncovered_variable', 'foreign'])
+    def test_scope_rejection_preserves_reader_and_source_ownership_before_counting(kind, monkeypatch):
+        reader, engine, state, calls = prepare_terminal()
+        if kind == 'outside':
+            reader.unread_obligations['closure', 's2'] = {'history'}
+        elif kind == 'uncovered_variable':
+            reader.unread_obligations['closure', 's1'] = {'history', 'not-requested'}
+        elif kind == 'foreign':
+            reader.unread_obligations['old-query', 's1'] = {'history'}
+        reader.current_identity = 'old-current'
+        reader.current_terminal_output = False
+        before = deepcopy((reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                           reader.current_identity, reader.current_terminal_output, engine.ledger.used))
+        monkeypatch.setattr(reader, '_fits', lambda *args: pytest.fail('Guard must precede counting'))
+        with pytest.raises(ProtocolError):
+            mandatory(reader, docs=['piano'] if kind == 'doc_ids' else ())
+>       assert before == (reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                          reader.current_identity, reader.current_terminal_output, engine.ledger.used)
+E       AssertionError: assert ({'unread_obl...se, Counter()) == ({'unread_obl...se, Counter())
+E         
+E         At index 1 diff: {'initial_program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'contract': {'mode': 'semantic', 'result_type': 'text', 'entity_scope': 'user', 'time_scope': 'history', 'explanation': 'semantic'}, 'program_revision': 0, 'facts': {'history': ['piano']...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_v4_reader_scope_implementation.py:40: AssertionError
+_ test_scope_rejection_preserves_reader_and_source_ownership_before_counting[foreign] _
+
+kind = 'foreign'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x111ebdbd0>
+
+    @pytest.mark.parametrize('kind', ['doc_ids', 'outside', 'uncovered_variable', 'foreign'])
+    def test_scope_rejection_preserves_reader_and_source_ownership_before_counting(kind, monkeypatch):
+        reader, engine, state, calls = prepare_terminal()
+        if kind == 'outside':
+            reader.unread_obligations['closure', 's2'] = {'history'}
+        elif kind == 'uncovered_variable':
+            reader.unread_obligations['closure', 's1'] = {'history', 'not-requested'}
+        elif kind == 'foreign':
+            reader.unread_obligations['old-query', 's1'] = {'history'}
+        reader.current_identity = 'old-current'
+        reader.current_terminal_output = False
+        before = deepcopy((reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                           reader.current_identity, reader.current_terminal_output, engine.ledger.used))
+        monkeypatch.setattr(reader, '_fits', lambda *args: pytest.fail('Guard must precede counting'))
+        with pytest.raises(ProtocolError):
+            mandatory(reader, docs=['piano'] if kind == 'doc_ids' else ())
+>       assert before == (reader.obligation_snapshot(), state.public_dict(), engine.mapper.sources,
+                          reader.current_identity, reader.current_terminal_output, engine.ledger.used)
+E       AssertionError: assert ({'unread_obl...se, Counter()) == ({'unread_obl...se, Counter())
+E         
+E         At index 1 diff: {'initial_program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'program': {'variables': {'history': {'type': 'set', 'demand': 'history'}, 'suggestion': {'type': 'text', 'demand': 'suggestion'}}, 'expression': {'op': 'var', 'id': 'suggestion'}}, 'contract': {'mode': 'semantic', 'result_type': 'text', 'entity_scope': 'user', 'time_scope': 'history', 'explanation': 'semantic'}, 'program_revision': 0, 'facts': {'history': ['piano']...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_v4_reader_scope_implementation.py:40: AssertionError
+_ test_durable_feedback_keeps_stable_ids_and_rebinds_every_alias_after_checkpoint _
+
+    def test_durable_feedback_keeps_stable_ids_and_rebinds_every_alias_after_checkpoint():
+        reader, engine, state, calls, aliases, original, draft = source_fixture()
+        calls.respond = lambda index, data: response(deepcopy(draft))
+        read_revision(reader, engine)
+        assert len(calls.requests) == 2 and state.pending == {'history'}
+        limits, settings = deepcopy(engine.ledger.limits), deepcopy(engine.s)
+        checkpoint = json.loads(json.dumps(reader.obligation_snapshot()))
+        old_record = next(iter(reader.failed_batch_reviews.values()))
+        stable = feedback_record(old_record['failed'])['summary_revision_sources']
+        assert set(stable['required_source_ids']) == {engine.mapper.sources[a]['source_id'] for a in aliases[:22]}
+        assert set(stable['missing_source_ids']) == {engine.mapper.sources[a]['source_id'] for a in aliases[9:22]}
+        rename = {alias: f'current_alias_{index:05d}' for index, alias in enumerate(aliases)}
+        engine.mapper.sources = {rename[alias]: {**row, 'id': rename[alias]}
+                                 for alias, row in engine.mapper.sources.items()}
+        engine.mapper.source_aliases = {row['source_id']: alias for alias, row in engine.mapper.sources.items()}
+        restored = JointReader(engine, state)
+>       restored.restore_obligations(checkpoint)
+
+tests/test_v4_summary_source_feedback_review.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dagbt.joint_reading.JointReader object at 0x10938a890>
+snapshot = {'unread_obligations': [], 'failed_obligations': [['initial-source-review', 'b5f6d53b06cf40a7950348e1f0873703ec6726053...itial-source-review', 'batch_identity': 'b5f6d53b06cf40a7950348e1f0873703ec6726053f6f0631ef7970fa32aa9aae', ...}], ...}
+
+    def restore_obligations(self, snapshot):
+        for name in ('unread_obligations','failed_obligations'):
+            setattr(self,name,{(i,a):set(v) for i,a,v in snapshot.get(name,[])})
+        self.evidence_obligations={item['id']:deepcopy(item) for item in snapshot.get('evidence_obligations',[])}
+        self.failed_batch_reviews={item['id']:deepcopy(item) for item in snapshot.get('failed_batch_reviews',[])}
+        self.discovery_frontier={}
+        self.discovery_contexts={}
+        self.discovery_promotions=[]
+        self.source_exposures=[]
+        version=snapshot.get('frontier_policy_version')
+        if version is None:
+            if any(snapshot.get(name) for name in ('discovery_frontier','discovery_contexts','discovery_promotions','source_exposures')):
+                raise ProtocolError('Discovery state requires explicit frontier provenance version')
+            # Legacy unread entries retain their original hard meaning.
+            return
+        if type(version) is not int or version!=1:
+            raise ProtocolError('Unsupported discovery frontier provenance version')
+        for item in snapshot.get('discovery_contexts',[]):
+            self._validate_work_context(item)
+            if item['query_identity'] in self.discovery_contexts:
+                raise ProtocolError('Discovery identity has more than one scope/version context')
+            self.discovery_contexts[item['query_identity']]=deepcopy(item)
+        exposures=snapshot.get('source_exposures',[])
+        if not isinstance(exposures,list):
+            raise ProtocolError('Discovery exposure history must be a list')
+        attempted=set()
+        for record in exposures:
+            self._validate_work_context(record,allow_empty=True)
+            if (record.get('status') not in ('attempted','batch_assessed','incomplete')
+                    or not isinstance(record.get('sources'),list)):
+                raise ProtocolError('Discovery exposure history has an invalid work state')
+            for source in record['sources']:
+                alias=source.get('source_alias') if isinstance(source,dict) else None
+                if (alias not in self.e.mapper.sources
+                        or any(source.get(k)!=v for k,v in self._source_identity(alias).items())):
+>                   raise ProtocolError('Discovery exposure history changed an original source')
+E                   dagbt.reasoning.ProtocolError: Discovery exposure history changed an original source
+
+dagbt/joint_reading.py:386: ProtocolError
+=============================== warnings summary ===============================
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: divide by zero encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: overflow encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagresolve/flow.py:222: RuntimeWarning: invalid value encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4-reconcile/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_v4_reader_review.py::test_successful_empty_read_cannot_clear_another_querys_evidence_obligation
+FAILED tests/test_v4_reader_scope_implementation.py::test_scope_rejection_preserves_reader_and_source_ownership_before_counting[outside]
+FAILED tests/test_v4_reader_scope_implementation.py::test_scope_rejection_preserves_reader_and_source_ownership_before_counting[uncovered_variable]
+FAILED tests/test_v4_reader_scope_implementation.py::test_scope_rejection_preserves_reader_and_source_ownership_before_counting[foreign]
+FAILED tests/test_v4_summary_source_feedback_review.py::test_durable_feedback_keeps_stable_ids_and_rebinds_every_alias_after_checkpoint
+5 failed, 1927 passed, 69 warnings in 107.68s (0:01:47)

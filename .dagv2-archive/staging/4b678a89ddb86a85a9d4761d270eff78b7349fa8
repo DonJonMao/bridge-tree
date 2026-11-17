@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:2956\", \"source_id\": \"hotpotqa:2956\"}]\nAnna Camp\nAnna Ragsdale Camp (born September 27, 1982) is an American actress and singer. She is known for her role as Sarah Newlin in \"True Blood\", and her recurring roles in \"Mad Men\", \"The Good Wife\", and \"The Mindy Project\". She is also known for her role as Aubrey Posen in \"Pitch Perfect\" (2012), \"Pitch Perfect 2\" (2015), and the upcoming \"Pitch Perfect 3\" (2017). She made her Broadway debut in the 2008 production of \"A Country House\" and played Jill Mason in the 2008 Broadway revival of \"Equus\". In 2012, she was nominated for a Drama Desk Award for her performance in the Off-Broadway play \"All New People\". Camp played Jane Hollander, a researcher for the fictitious \"News of the Week\" magazine in the Amazon series \"Good Girls Revolt.\" She also had a role in the 2011 film \"The Help\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "318",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599364.693541,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599365.592695
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0036785071812786793
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 874,
+      "completion_tokens": 2,
+      "total_tokens": 876
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
