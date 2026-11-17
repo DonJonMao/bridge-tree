@@ -1,0 +1,51 @@
+{
+  "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "I'm planning a weekend getaway and want to try something creatively fulfilling. What would you suggest?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\", \"source_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\"}]\nConversation message indices 146–147 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I went on a hiking date recently but found it tiring and, quite frankly, not enjoyable at all. The trek was supposed to be a fun way to connect with someone special, surrounded by nature and fresh air. However, instead of feeling invigorated by the outdoors, I felt overwhelmed and exhausted. It's surprising how strenuous a hike can be, especially when you're trying to navigate both the terrain and the expectations of a date. Perhaps it was the elevation or the length that caught me off guard, but it really put a damper on what was meant to be a joyful experience.\n\nAssistant:\nAssistant: Physical dates can be challenging, particularly when they involve outdoor activities that demand a certain level of physical fitness and stamina. It's definitely important to consider the various aspects that might influence your enjoyment, such as the location, your current physical health, and even the weather conditions on that day. If the setting is too strenuous, it can hinder what could have been a wonderful opportunity to get to know someone. What kind of setting do you think would suit you better? For example, maybe an active date indoors, such as a cooking class, could allow for more engaging conversation without the physical toll that hiking often brings. Alternatively, a leisurely stroll in a local park or a visit to a cozy cafe might provide a relaxed atmosphere for both of you to connect without the stress of difficult terrain.\n\n[Passage {\"doc_id\": \"personamem:memory:41148c9ced3a1407f0d3502173763c9a9dade44bf972aceedece4eac725d278d\", \"source_id\": \"personamem:memory:41148c9ced3a1407f0d3502173763c9a9dade44bf972aceedece4eac725d278d\"}]\nConversation message indices 163–164 (zero-based chronological observation order; not calendar time)\nUser:\nUser: This has been great for my personal projects, allowing me to really connect with my roots as I create music. By diving into my heritage, I’ve been able to explore different musical styles that are unique to my background, which has been an incredible journey of self-discovery. I find that these sounds resonate with me on a level that feels both familiar and evocative. It feels empowering to express my identity through music, channeling my personal experiences and family history into my compositions. Each note and rhythm becomes a tribute to the cultures that have shaped me, allowing me to convey stories that matter deeply to me.\n\nAssistant:\nAssistant: That's a fantastic approach to integrate your culture into your music. When you incorporate traditional elements, you not only honor your heritage but also make a significant contribution to contemporary music as a whole. It might be worthwhile to consider how your unique musical perspective can inspire others who are also on a journey of cultural exploration. Have you thought about sharing your work more publicly? For instance, setting up an online platform could broaden your audience, and it might provide an opportunity for meaningful engagement with listeners who share similar backgrounds or interests. You could also explore partnerships with community organizations to enhance visibility and create a supportive network around your music, which could lead to exciting collaborations and new projects."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "121",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537310.9066508,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537311.913387
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0009640919038640261
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1940,
+      "completion_tokens": 2,
+      "total_tokens": 1942
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:171\", \"source_id\": \"hotpotqa:171\"}]\nAdam Pascal\nAdam Pascal (born October 25, 1970) is an American actor, singer, and musician, known for his performance as Roger Davis in the original cast of Jonathan Larson's musical \"Rent\" on Broadway 1996, the 2005 movie version of the musical, and the Broadway Tour of \"Rent\" in 2009. He is also known for originating the role of Radames in Elton John and Tim Rice's \"Aida\", for playing the Emcee from the 1998 revival of \"Cabaret\", and for playing Huey Calhoun in the Broadway Company of \"Memphis\". Most recently, he played William Shakespeare in the Tony Award-winning musical \"Something Rotten!\"\n\n[Passage {\"doc_id\": \"hotpotqa:338\", \"source_id\": \"hotpotqa:338\"}]\nLea Thompson\nLea Katherine Thompson (born May 31, 1961) is an American actress, television director, and television producer. She is known for her role as Lorraine Baines in the \"Back to the Future\" trilogy and as the title character in the 1990s NBC sitcom \"Caroline in the City\". Other films for which she is known include \"All the Right Moves\" (1983), \"Red Dawn\" (1984), \"Howard the Duck\" (1986) \"Some Kind of Wonderful\" (1987), and \"The Beverly Hillbillies\" (1993). From 2011-2017, she co-starred as Kathryn Kennish in the Freeform (formerly ABC Family) series \"Switched at Birth\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "278",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599326.9340649,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599327.771911
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0007106771292581884
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 968,
+      "completion_tokens": 2,
+      "total_tokens": 970
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
