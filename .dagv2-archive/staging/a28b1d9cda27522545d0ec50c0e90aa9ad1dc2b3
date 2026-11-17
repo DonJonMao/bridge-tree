@@ -1,0 +1,153 @@
+--- a/dagbt/webwalker_reasoning.py
++++ b/dagbt/webwalker_reasoning.py
+@@ -49,6 +49,87 @@
+ }'''
+ 
+ 
++PLANNER_MULTIHOP_BINDING_EXAMPLE = '''{
++  "steps": [
++    {
++      "question": "Identify the unknown item described in the original question.",
++      "output_slot": "item",
++      "answer_type": "fact",
++      "inputs": [],
++      "execution": "retrieval"
++    },
++    {
++      "question": "Identify the maker of {item}.",
++      "output_slot": "maker",
++      "answer_type": "fact",
++      "inputs": [
++        "item"
++      ],
++      "execution": "retrieval"
++    },
++    {
++      "question": "Return the identified maker.",
++      "output_slot": "answer",
++      "answer_type": "fact",
++      "inputs": [
++        "maker"
++      ],
++      "execution": "compose"
++    }
++  ],
++  "final_node_id": "answer",
++  "output_contract": {
++    "mode": "value",
++    "result_type": "entity",
++    "entity_scope": "maker of the item described in the question",
++    "time_scope": "question scope",
++    "explanation": "none"
++  },
++  "program": {
++    "variables": {
++      "item": {
++        "type": "entity",
++        "demand": "item",
++        "open": true,
++        "scope": {
++          "entity_scope": "item described in the question",
++          "time_scope": "question scope"
++        }
++      },
++      "maker": {
++        "type": "entity",
++        "demand": "maker",
++        "open": true,
++        "scope": {
++          "entity_scope": "maker of the item described in the question",
++          "time_scope": "question scope"
++        }
++      },
++      "answer": {
++        "type": "entity",
++        "demand": "answer",
++        "open": true,
++        "scope": {
++          "entity_scope": "maker of the item described in the question",
++          "time_scope": "question scope"
++        }
++      }
++    },
++    "expression": {
++      "op": "var",
++      "id": "answer"
++    },
++    "task_expressions": {
++      "answer": {
++        "op": "var",
++        "id": "maker"
++      }
++    },
++    "rules_complete": true
++  }
++}'''
++
++
+ PLANNER_TYPE_GUIDANCE = '''
+ Type consistency is structural: a var expression has its variable declaration's
+ type; record produces record; tuple produces set (a JSON array), never string
+@@ -68,6 +149,13 @@
+ coerce values or narrow the user's requested output to satisfy a type check.
+ Every initial task must lead to the designated terminal and participate in F,
+ including every conditional branch before evidence permits partial evaluation.
++Every retrieval task must expose at least one typed UNBOUND program.variables
++entry whose demand is that task's exact output_slot. Listing a task only in
++steps or inputs does not create its output variable. Declare intermediate
++variables as well as the final variable, with each variable's own scope. A
++semantic compose consumes its declared parent variables; a deterministic
++compose must reference the needed variables in its task_expressions. Repair
++missing bindings without guessing values or deleting the planned work.
+ Independent requested facts must converge: use a record with explicit required
+ output_contract.fields, or a terminal compose task that consumes all of them and
+ answers the ENTIRE original question. Do not select one independent leaf as the
+@@ -99,6 +187,12 @@
+ ''' + PLANNER_JOINT_RECORD_EXAMPLE + '''
+ This example demonstrates types and dependencies only. Use the current
+ question's own entities, requested attributes, scopes and genuine dependencies.
++A generic multi-hop binding example follows. It supplies no facts or values:
++the item and maker remain unbound until original-source reading. The final
++compose only copies the already supported maker through a typed expression.
++''' + PLANNER_MULTIHOP_BINDING_EXAMPLE + '''
++Use this wiring pattern only when the original question has these dependencies;
++do not add an item/maker task or change the requested output to fit the example.
+ '''
+ 
+ 
+@@ -321,16 +415,31 @@
+         final = value['final_node_id']
+         def closure(node):
+             return {node} | set().union(*(closure(parent) for parent in tasks[node]['inputs']))
+-        if set(tasks) != closure(final):
++        terminal_dependencies = closure(final)
++        if set(tasks) != terminal_dependencies:
++            outside = sorted(set(tasks) - terminal_dependencies)
+             raise ProtocolError('Web initial DAG has tasks outside the terminal dependency closure; '
+-                                'converge all answering branches at the complete terminal')
++                                'converge all answering branches at the complete terminal; '
++                                'outside_terminal_task_ids=' + json.dumps(outside) + '; '
++                                'terminal_task_id=' + json.dumps(final) + '. '
++                                'Converge the existing branches through genuine terminal dependencies '
++                                'and typed bindings; preserve their work, scopes and requested output.')
+         program = snapshot['program']
+         solving_vars = _result_variables(program, tasks, references(program['expression']) |
+             set().union(*(references(c) for c in program.get('constraints', []))))
+         participating = {program['variables'][v]['demand'] for v in solving_vars} | {final}
+-        if set(tasks) - participating:
++        omitted = set(tasks) - participating
++        if omitted:
++            declared_demands = {declaration['demand']
++                                for declaration in program['variables'].values()}
++            unrepresented = sorted(set(tasks) - declared_demands)
+             raise ProtocolError('Web initial F omits planned task dependencies; graph-only parents '
+-                                'do not preserve an output component')
++                                'do not preserve an output component; '
++                                'unrepresented_task_ids=' + json.dumps(unrepresented) + '; '
++                                'nonparticipating_task_ids=' + json.dumps(sorted(omitted)) + '. '
++                                'Declare typed unbound variables with demand set to the existing task IDs '
++                                'and connect them through actual parent bindings or task_expressions; '
++                                'preserve the planned tasks, scopes and requested output.')
+         if (not self.tasks <= snapshot['tasks'] or not self.outputs <= snapshot['outputs']
+                 or not self.edges <= snapshot['edges']
+                 or not self.product_outputs <= snapshot['guaranteed_outputs']):

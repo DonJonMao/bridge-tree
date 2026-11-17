@@ -1,0 +1,448 @@
+{
+  "url": "http://127.0.0.1:58391/rerank",
+  "model": "",
+  "protocol": {
+    "consistent": true,
+    "score_space": "unit_interval",
+    "score_contract": "pointwise",
+    "rtol": 1e-05,
+    "atol": 1e-06,
+    "compared_values": 6,
+    "max_absolute_deviation": 0.0,
+    "max_relative_deviation": 0.0,
+    "reranker_adapter_requests": 5
+  },
+  "trace_directory": "/Users/mao/projects/dagv2/outputs/verification/model_alignment/pytest/test_bt_profile_chat_only_and_0/scripted_bt_profile_system_test/preflight_calls/probe-1790170657822735000",
+  "ledger": {
+    "limits": {
+      "rerank_http": 5,
+      "http_attempts": 5
+    },
+    "used": {
+      "rerank_http": 5,
+      "http_attempts": 5
+    },
+    "remaining": {
+      "rerank_http": 0,
+      "http_attempts": 0
+    },
+    "events": [
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "1",
+          "batch",
+          "0"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "Personal memories: [No personal memories supplied.]"
+        ],
+        "document_offset": 0,
+        "logical_document_count": 1,
+        "physical_batch_limit": 4,
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/1/batch/0",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/1/batch/0",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/1/batch/0",
+        "response_ref": "514072b3919fadc2a09858fd85deab5afff7f90eff3bca52311392d6e5e887ca",
+        "kind": "rerank_http",
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        },
+        "seconds": 0.0006031990051269531
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "1",
+          "batch",
+          "0"
+        ],
+        "response_ref": "514072b3919fadc2a09858fd85deab5afff7f90eff3bca52311392d6e5e887ca",
+        "document_offset": 0,
+        "response": {
+          "model": "Qwen3-Reranker-8B",
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.1
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "2",
+          "batch",
+          "0"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The city is located in France."
+        ],
+        "document_offset": 0,
+        "logical_document_count": 1,
+        "physical_batch_limit": 4,
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/2/batch/0",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/2/batch/0",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/2/batch/0",
+        "response_ref": "36ae94eb2c88da2216520cb97c04e95afdfdb5c900de3f3a4a6fc474abd72116",
+        "kind": "rerank_http",
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        },
+        "seconds": 0.0005199909210205078
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "2",
+          "batch",
+          "0"
+        ],
+        "response_ref": "36ae94eb2c88da2216520cb97c04e95afdfdb5c900de3f3a4a6fc474abd72116",
+        "document_offset": 0,
+        "response": {
+          "model": "Qwen3-Reranker-8B",
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.1
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "3",
+          "batch",
+          "0"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The painter uses blue pigments."
+        ],
+        "document_offset": 0,
+        "logical_document_count": 1,
+        "physical_batch_limit": 4,
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/3/batch/0",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/3/batch/0",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/3/batch/0",
+        "response_ref": "e7abc9b88fe190628e60449a0949425a1a9c2d856b4a8fbf3cb72e904f8d4f1e",
+        "kind": "rerank_http",
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        },
+        "seconds": 0.0004899501800537109
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "3",
+          "batch",
+          "0"
+        ],
+        "response_ref": "e7abc9b88fe190628e60449a0949425a1a9c2d856b4a8fbf3cb72e904f8d4f1e",
+        "document_offset": 0,
+        "response": {
+          "model": "Qwen3-Reranker-8B",
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.1
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "4",
+          "batch",
+          "0"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "Personal memories: [No personal memories supplied.]",
+          "The city is located in France.",
+          "The painter uses blue pigments."
+        ],
+        "document_offset": 0,
+        "logical_document_count": 3,
+        "physical_batch_limit": 4,
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/4/batch/0",
+        "amount": 1,
+        "used": 4
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/4/batch/0",
+        "amount": 1,
+        "used": 4
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/4/batch/0",
+        "response_ref": "ede742834e2b286f144b19066aa2adb43f9388d01f2e02f4c841974122bc67f6",
+        "kind": "rerank_http",
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        },
+        "seconds": 0.00045371055603027344
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "4",
+          "batch",
+          "0"
+        ],
+        "response_ref": "ede742834e2b286f144b19066aa2adb43f9388d01f2e02f4c841974122bc67f6",
+        "document_offset": 0,
+        "response": {
+          "model": "Qwen3-Reranker-8B",
+          "results": [
+            {
+              "index": 2,
+              "relevance_score": 0.1
+            },
+            {
+              "index": 1,
+              "relevance_score": 0.1
+            },
+            {
+              "index": 0,
+              "relevance_score": 0.1
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "5",
+          "batch",
+          "0"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The painter uses blue pigments.",
+          "The city is located in France.",
+          "Personal memories: [No personal memories supplied.]"
+        ],
+        "document_offset": 0,
+        "logical_document_count": 3,
+        "physical_batch_limit": 4,
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/5/batch/0",
+        "amount": 1,
+        "used": 5
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/5/batch/0",
+        "amount": 1,
+        "used": 5
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/5/batch/0",
+        "response_ref": "f0eb9f3de0bf2307127b4f955526f09c3423735997700c56f4c7bff770d56c42",
+        "kind": "rerank_http",
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        },
+        "seconds": 0.0005168914794921875
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "5",
+          "batch",
+          "0"
+        ],
+        "response_ref": "f0eb9f3de0bf2307127b4f955526f09c3423735997700c56f4c7bff770d56c42",
+        "document_offset": 0,
+        "response": {
+          "model": "Qwen3-Reranker-8B",
+          "results": [
+            {
+              "index": 2,
+              "relevance_score": 0.1
+            },
+            {
+              "index": 1,
+              "relevance_score": 0.1
+            },
+            {
+              "index": 0,
+              "relevance_score": 0.1
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      },
+      {
+        "event": "reranker_protocol_verified",
+        "report": {
+          "consistent": true,
+          "score_space": "unit_interval",
+          "score_contract": "pointwise",
+          "rtol": 1e-05,
+          "atol": 1e-06,
+          "compared_values": 6,
+          "max_absolute_deviation": 0.0,
+          "max_relative_deviation": 0.0,
+          "reranker_adapter_requests": 5
+        },
+        "scope": "fixed_local_composition_probes",
+        "search_quota_charged": false
+      }
+    ]
+  },
+  "cost": {
+    "logical_calls": 5,
+    "cache_hits": 0,
+    "unique_requests": 5,
+    "http_attempts": 5,
+    "http_retries": 0,
+    "successful_http_requests": 5,
+    "prompt_tokens": 55,
+    "completion_tokens": 35,
+    "total_tokens": 90,
+    "requests_by_stage": {
+      "[\"dagbt\", \"set_reranker\", \"5\", \"batch\", \"0\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"1\", \"batch\", \"0\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"2\", \"batch\", \"0\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"4\", \"batch\", \"0\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"3\", \"batch\", \"0\"]": 1
+    },
+    "incomplete_or_failed_http_attempts": 0,
+    "missing_usage_responses": 0,
+    "incomplete_event_lines": 0,
+    "malformed_request_records": 0,
+    "token_scope": "observed successful nonseeded API responses; failed/lost server work may be unreported",
+    "token_usage_complete": true
+  },
+  "scope": "five synthetic composition/order probes; not a proof for all inputs; outside per-question budgets"
+}

@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017.\n\n[Passage {\"doc_id\": \"hotpotqa:9566\", \"source_id\": \"hotpotqa:9566\"}]\nFreeloaders (film)\nFreeloaders is an American ensemble comedy film directed by Dan Rosen and written by Rosen and singer Dave Gibbs. The film is produced by the Broken Lizard comedy troupe and is independently financed. \"Freeloaders\" stars Clifton Collins Jr., Josh Lawson, Kevin Sussman, Zoe Boyle, Nat Faxon, Warren Hutcherson, Jane Seymour, Olivia Munn, Dave Foley and Counting Crows lead singer Adam Duritz. It follows a group of friends who find their luxurious lifestyle threatened when the rock star they freeload off decides to sell his home."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "272",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599321.5647318,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599322.577704
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0029810327298548972
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 806,
+      "completion_tokens": 2,
+      "total_tokens": 808
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
