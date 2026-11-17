@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:21\", \"source_id\": \"hotpotqa:21\"}]\nHonours (Prevention of Abuses) Act 1925\nThe Honours (Prevention of Abuses) Act 1925 is an Act of the Parliament of the United Kingdom, that makes the sale of peerages or any other honours illegal. It was brought in after the Coalition government of David Lloyd George was severely embarrassed by the sale of honours, for the personal financial gain of the Prime Minister. The practice was legal and dated back several decades, Lloyd George made the practice more systematic and more brazen, charging £10,000 for a knighthood, £30,000 for baronetcy, and £50,000 upwards for a peerage. Prime Minister Lloyd George in mid-1922 was fast losing his political support, and his sales were denounced in the House of Lords as an abuse of the Prime Minister's powers of patronage.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:21\", \"source_id\": \"hotpotqa:21\"}]\nHonours (Prevention of Abuses) Act 1925\nThe Honours (Prevention of Abuses) Act 1925 is an Act of the Parliament of the United Kingdom, that makes the sale of peerages or any other honours illegal. It was brought in after the Coalition government of David Lloyd George was severely embarrassed by the sale of honours, for the personal financial gain of the Prime Minister. The practice was legal and dated back several decades, Lloyd George made the practice more systematic and more brazen, charging £10,000 for a knighthood, £30,000 for baronetcy, and £50,000 upwards for a peerage. Prime Minister Lloyd George in mid-1922 was fast losing his political support, and his sales were denounced in the House of Lords as an abuse of the Prime Minister's powers of patronage.\n\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "92",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600313.595799,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600315.34227
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9715639694252316
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.0007467366944572671
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2724,
+      "completion_tokens": 4,
+      "total_tokens": 2728
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

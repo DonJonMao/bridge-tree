@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:5323\", \"source_id\": \"hotpotqa:5323\"}]\nPrime Minister of Zimbabwe\nThe Prime Minister of Zimbabwe was a political office in the government of Zimbabwe that existed on two separate occasions. The first person to hold the position was Robert Mugabe from 1980 to 1987 following independence from the United Kingdom. He took office when Southern Rhodesia became the Republic of Zimbabwe on 18 April 1980. This position was abolished when the constitution was amended in 1987 and Mugabe became President of Zimbabwe, replacing Canaan Banana as the head of state while also remaining the head of government. The office of Prime Minister was restored in 2009 and held by Morgan Tsvangirai until the position was again abolished by the 2013 Constitution of Zimbabwe.\n\n[Passage {\"doc_id\": \"hotpotqa:5325\", \"source_id\": \"hotpotqa:5325\"}]\nDeputy Prime Minister of Pakistan\nThe office of the Deputy Prime Minister of Pakistan (Urdu: ‎ ) was created by the Prime Minister of Pakistan on 25 June 2012. The main coalition party, Pakistan Muslim League (Q) (PML-Q), demanded to make a post of Deputy Prime Minister which was accomplished by the newly elected Prime Minister Raja Pervez Ashraf. The main purpose of the post was to give a backup to the government in the absence of the Prime Minister. As a result of an agreement between the ruling Pakistan Peoples Party (PPP) and the PML-Q to share ministries in the federal cabinet, Chaudhry Pervaiz Elahi was made the first Deputy Prime Minister of Pakistan."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "231",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600663.3719978,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600664.205246
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00017691779453217883
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 918,
+      "completion_tokens": 2,
+      "total_tokens": 920
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
