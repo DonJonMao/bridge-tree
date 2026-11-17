@@ -1,0 +1,196 @@
+{
+  "question": {
+    "id": "4afc48ca-e6a7-4467-abd2-911915199315",
+    "question": "I found that my reviews were often criticized for not being objective, which made me less engaged in the process. It felt like I was constantly under the microscope, where every word I wrote was scrutinized by people who often missed the nuance of my opinion. This external pressure led me to second-guess not only my thoughts but also my emotional connection to the music I was discussing. In the end, I realized that the joy I once found in sharing my perspective on albums was overshadowed by the fear of backlash, and that’s a heavy burden for anyone. It became clearer to me that my passion for music needed to be expressed in a more personal, less public way, which is something I’m finally starting to embrace."
+  },
+  "nodes": [],
+  "spans": [],
+  "candidates": [],
+  "events": [
+    {
+      "event": "reasoning_request_started",
+      "operation": "planner",
+      "logical_call_index": 1,
+      "accounting_note": "One logical model request; Transport meters each physical retry against llm budget",
+      "sequence": 0,
+      "elapsed_seconds": 0.0002639293670654297
+    },
+    {
+      "event": "model_context_budget",
+      "stage": "planner/1",
+      "input_tokens_local": 1000,
+      "output_token_reserve": 4096,
+      "safety_margin": 8,
+      "input_margin": 256,
+      "context_tokens": 16384,
+      "total_tokens_local": 5360,
+      "within_estimated_budget": true,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "sequence": 1,
+      "elapsed_seconds": 0.0005199909210205078
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "llm",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 1,
+      "sequence": 2,
+      "elapsed_seconds": 0.0007061958312988281
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "http_attempts",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 1,
+      "sequence": 3,
+      "elapsed_seconds": 0.0007500648498535156
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "llm",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 2,
+      "sequence": 4,
+      "elapsed_seconds": 7.011035203933716
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "http_attempts",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 2,
+      "sequence": 5,
+      "elapsed_seconds": 7.011625051498413
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "llm",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 3,
+      "sequence": 6,
+      "elapsed_seconds": 16.024977922439575
+    },
+    {
+      "event": "budget_reserved",
+      "kind": "http_attempts",
+      "stage": "planner/1",
+      "amount": 1,
+      "used": 3,
+      "sequence": 7,
+      "elapsed_seconds": 16.025408029556274
+    },
+    {
+      "event": "task_failed",
+      "error_type": "ServiceError",
+      "error": "Retry limit at planner/1; request f82ed9910f1ed79c60781e39f3ccb7f22c90bd7aa1ff202d212a725d3c20d8ae",
+      "sequence": 8,
+      "elapsed_seconds": 21.030954122543335
+    }
+  ],
+  "ledger": {
+    "limits": {
+      "ann": 36,
+      "set_score": 512,
+      "llm": 24,
+      "reader": 1,
+      "json_repairs": 6
+    },
+    "used": {
+      "llm": 3,
+      "http_attempts": 3
+    },
+    "remaining": {
+      "ann": 36,
+      "set_score": 512,
+      "llm": 21,
+      "reader": 1,
+      "json_repairs": 6
+    },
+    "events": [
+      {
+        "event": "model_context_budget",
+        "stage": "planner/1",
+        "input_tokens_local": 1000,
+        "output_token_reserve": 4096,
+        "safety_margin": 8,
+        "input_margin": 256,
+        "context_tokens": 16384,
+        "total_tokens_local": 5360,
+        "within_estimated_budget": true,
+        "token_count_is_estimate": true,
+        "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+        "tokenizer_id": null,
+        "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 3
+      }
+    ]
+  },
+  "diagnostics": {
+    "reliability": {
+      "mapping_incomplete": false,
+      "unmapped_unit_ids": [],
+      "unavailable_unit_ids": [],
+      "source_span_registry": {},
+      "source_alias_to_id": {},
+      "unit_statuses": {},
+      "version": "dagbt_fusion_reliability_v3",
+      "cohort": "normal",
+      "input_truncated": false,
+      "mapping_complete": true,
+      "input_views": [],
+      "row_recoveries": []
+    },
+    "semantic_evidence": {},
+    "reasoning_call_count": 1
+  },
+  "error_type": "ServiceError",
+  "error": "Retry limit at planner/1; request f82ed9910f1ed79c60781e39f3ccb7f22c90bd7aa1ff202d212a725d3c20d8ae"
+}

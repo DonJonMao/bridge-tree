@@ -1,0 +1,60 @@
+# WebWalker 本机两题四任务复测与修复
+
+本次完成了修复前、修复后各一轮 **2 题 × 2 组**，共 8 个真实生成任务。两轮均完成预检、生成和评分，完整请求、响应、网页快照及事件日志已永久保存。
+
+**结果是修复前 1/4 正确，修复后 0/4 正确。本次修好了可复现的实现缺陷，但没有修好这两题的端到端表现；候选版不能据此认定为效果改善版。** 历史记录中的“第二题两组通过”没有在本次新运行中复现。
+
+| 题目 | 组 | 修复前 | 修复后 | LLM 次数（前→后） | 网页访问（前→后） | 付费 repair（前→后） |
+|---|---|---|---|---|---|---|
+| 第一题：SUPPLY 项目 | joint | 未作答 | 未作答 | 11→16 | 4→5 | 0→0 |
+| 第一题：SUPPLY 项目 | residual | 未作答 | 未作答 | 11→14 | 4→5 | 0→0 |
+| 第二题：ICSE 声明 | joint | 未作答 | 未作答 | 20→16 | 3→3 | 3→1 |
+| 第二题：ICSE 声明 | residual | 正确 | 预算耗尽，未发布 | 16→23 | 5→5 | 3→5 |
+
+两轮生成分别使用 58、69 次模型调用，共 127 次。表中的 repair 是实际修复模型调用；候选 residual 第二题共有 6 次 repair 预算预留、5 次实际 repair 调用，最后一次因可用模型调用不足未发送。评分调用独立于生成预算。两轮都没有环境排除或评分失败；候选四项均因没有发布答案被记为错误。
+
+## 已修复的实现缺陷
+
+1. **同一页重复 URL 的标签与上下文错配。** 原先可能保留菜单里的标签，却引用正文中另一处同 URL 的邻文。现在标签、区域及原文坐标来自同一个实际链接位置，原文与 URL 顺序保留。
+2. **新页面菜单覆盖旧页面正文链接。** 现在同 URL 的正文位置可以替换菜单代表，标签、文档、区域及坐标一起更新，URL 位置和选择别名保留。同级位置仍遵循原顺序，没有增加语义打分或答案匹配。
+3. **混合字段与局部重试丢失合法空读反馈。** 同批其他字段读到事实时，独立字段的有效空读提示现在可以保留。曝光按实际批次关联，处理重试缩小来源集合与一次读取包含多个批次的情况。同字段曾有事实、冻结记录或未解草稿时，后续空响应仍不能把它改记为空读。
+4. **缺少来源引用只得到笼统错误。** 保留原有严格拒绝与完整草稿捕获，在实际 repair 请求中额外呈现具体变量、观测 ID 和 `source_ids` 路径。提示只读，不改变事实、复核权限、修复次数或原始归档。
+
+修改仅涉及 [webwalker_browser.py](/Users/mao/projects/dagv2-webwalker-v4/dagbt/webwalker_browser.py) 与 [webwalker_reading.py](/Users/mao/projects/dagv2-webwalker-v4/dagbt/webwalker_reading.py)，另新增 33 项离线回归。
+
+这些修复使用虚构页面和脚本响应验证；没有加入 SUPPLY、ICSE、答案值、目标网页或题目路线特判。公共核心基线 `e6677081cdfb33c01db3aaa274a497168f314f78` 的 107 个 Python 文件逐个验证未变。
+
+## 真日志显示的效果与剩余问题
+
+**第一题：链接表示已修好，探索仍失败。** 修复前两组均走 root → Grants → Hall of Fame → 2026 winners。修复后 joint 多访问 Research Grants，residual 另访问 Precision Hematology，但均未提取到题目要求的事实。其他栏目链接实际已传给模型；不是适配层把全部其他 URL 删掉。
+
+候选 joint 的标签、来源文档、别名、anchor 邻文坐标和页面 excerpt 坐标独立审计均未发现错误。阅读收到完整的所选页面窗口，5 次阅读均完整返回空结果。旧正文代表确实进入真实导航请求，还曾被实际选中。最后 128 个候选完成局部 null 扫描和一次有界复议后停止，仍剩 8 次 LLM 与 31 次网页预算。因此这项失败主要表现为模型的分支选择与过早放弃，不能用“耗尽网页预算”解释，也没有证据证明继续重复同一请求能解决它。
+
+**第二题 joint：精确诊断真实生效，但没有带来完整解答。** 候选 call 12 的 `location/o2` 没有来源引用；call 13 的付费 repair 实际收到具体路径提示后，将同一个观测的 `source_ids=[]` 改为 `['s91']`。原草稿、原始响应及 ID 均保留，该批次最终通过，修复调用由基线 3 次降为 1 次。随后该地点仍是保守 unknown，模型没有继续找到完整证据；其导航扫描及复议仍返回 null。因此这里只能确认协议卡点消除。
+
+**第二题 residual：已经找到声明网页，仍被语义误读和复核失败卡住。** 它把 PDF 中另一项 review process 的 “ICSE 2018” 套用为题目要求的声明时间。后续虽读到声明网页和带有另一时间的地点文本，先前时间绑定仍未正确纠正；同时多次没有覆盖旧来源 `s91` 的完整复核范围，并重复提交冻结观测。系统保留这些问题，最终在 23 次生成调用后没有发布答案或审计证书。本轮该组没有触发新增的缺少来源诊断。
+
+此次未发现可以用一次机械修正解决上述语义和探索失败的额外确定实现缺陷。下一阶段应针对“停止导航前如何比较未探索分支”和“同一实体不同事件的时间关系识别、旧证据复核”设计独立策略实验。当前结果不足以支持扩大运行或宣布问题已解决。两个题目的单次前后运行也不足以判断某项补丁对总体正确率的因果影响。
+
+## 运行约束与验证
+
+两轮均使用 `deepseek-v4-flash`，相同配置校验值，相同题目与 joint/residual 两组；未新增 original 组。生成上限保持 LLM 24、JSON repair 6、每请求最多 repair 2、网页 36、上下文 16384、输出 4096、最终审计预留 1。没有 reranker 或评分式检索。
+
+修复前使用独立 v13 安装副本，修复后使用单独冻结源码副本；修复后全新输出与页面缓存，未复用上一轮抓取。声明保存了每个 payload 文件的 SHA-256；运行结束再次核对源码没有改变。基线评分在基线全部终态后查看；候选声明如实记录已知历史与基线结果。未为设计修复打开原始参考答案文件。候选生成期间没有读取其评分或参考文件。
+
+完整源码离线回归 **2909 passed，0 failed，0 skipped**，耗时 97.66 秒，包含新增 33 项回归。测试启用 loopback-only Python socket guard，未出现非 loopback 连接尝试。详见 [最终测试记录](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/final_validation/pytest_receipt.json)。冻结副本的真实 loopback HTTP 页面、模型和 tokenization 冒烟已通过，两组均生成证书。这些测试没有替代真实题目评分。
+
+## 完整证据
+
+- [修复前结果、逐调用成本与路线](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/baseline_v13/analysis_summary.json)
+- [修复后结果、逐调用成本与路线](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_occurrence_feedback/analysis_summary.json)
+- [修复前评分](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/baseline_v13/output/evaluation.json) / [修复后评分](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_occurrence_feedback/output/evaluation.json)
+- [修复后运行声明及源码校验值](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/candidate_occurrence_feedback/declaration.json)
+- [第一题修复后独立导航审计](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/analysis/candidate_q0_navigation_audit.json)
+- [第二题逐调用修复、来源与失败审计](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/analysis/candidate_q1_generation_audit.json)
+- [源码、公共核心及配置核对](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/analysis/source_verification.json)
+- [可审查补丁，含新增测试](/Users/mao/projects/dagv2_deploy/20261016_webwalker_v4_local_repair/repair.patch)
+
+两轮目录的 `output/tasks/<题号>/<组>/requests/` 保存完整模型请求与响应，`fusion_events.jsonl` 保存校验与控制事件，`output/pages/` 保存原始抓取与解析快照。所有原始运行产物保留，没有覆盖失败记录。
+
+本次评分使用配置中的 DeepSeek judge，按所有要求事实完整且无冲突判断；不是论文 GPT-4 judge，也不是官方全数据集准确率。

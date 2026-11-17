@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="11" time="0.202" timestamp="2026-10-16T10:40:49.723340+08:00" hostname="maozhifangdeMacBook-Pro-2.local"><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_complete_mixed_batch_keeps_only_the_independent_empty_slot_hint[support]" time="0.009" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_complete_mixed_batch_keeps_only_the_independent_empty_slot_hint[partial]" time="0.005" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_complete_mixed_batch_keeps_only_the_independent_empty_slot_hint[unknown]" time="0.005" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_complete_mixed_batch_keeps_only_the_independent_empty_slot_hint[irrelevant]" time="0.005" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_already_completed_empty_slot_keeps_its_actual_exposure_when_other_slot_is_repaired" time="0.010" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read" time="0.015"><failure message="AssertionError: assert {'obligation_...istory', ...}} == {'obligation_...istory', ...}}&#10;  &#10;  Differing items:&#10;  {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}} != {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}}&#10;  Use -v to get more diff">def test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read():
+        old = observation('old-partial', ['s1'], stance='partial')
+        old['value'] = None
+        current = {**deepcopy(old), 'id': 'current-partial'}
+        def respond(index, data):
+            if index == 1:
+                return {'slots': [evidence('history', old)]}
+            if index == 2:
+                slot = evidence('history', current)
+                slot['resolved_obligation_ids'] = [data['evidence_obligations'][0]['id']]
+                return {'slots': [slot, empty('other')]}
+            return {'slots': [empty('history')]}
+        reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
+        read(reader, variables=('history',), identity='earlier-original-issue')
+        original_issue = deepcopy(reader.evidence_obligations)
+        read(reader, doc='painting')
+        assert len(calls.requests) == 3 and reader.batches[-1]['complete']
+        assert reader.batches[-1]['valid_rows'] == 1 and state.pending == {'history'}
+&gt;       assert reader.evidence_obligations == original_issue
+E       AssertionError: assert {'obligation_...istory', ...}} == {'obligation_...istory', ...}}
+E         
+E         Differing items:
+E         {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}} != {'obligation_91a2a7e74e4df15f070c7009': {'id': 'obligation_91a2a7e74e4df15f070c7009', 'variable': 'history', 'entity_scope': 'user', 'time_scope': 'history', ...}}
+E         Use -v to get more diff
+
+tests/test_webwalker_slot_navigation_feedback.py:99: AssertionError</failure></testcase><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_empty_repair_of_named_invalid_draft_is_never_accepted_as_a_search_hint" time="0.013" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_invalid_envelope_unresolved_draft_stays_separate_from_other_empty_slot" time="0.009" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_incomplete_mixed_batch_cannot_publish_even_its_other_empty_slot" time="0.004" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_pure_empty_batch_retains_all_variable_hints_and_original_projection_group" time="0.005" /><testcase classname="tests.test_webwalker_slot_navigation_feedback" name="test_transient_nonempty_tracking_does_not_suppress_a_later_window_or_change_material" time="0.012" /></testsuite></testsuites>

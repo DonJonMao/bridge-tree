@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:9515\", \"source_id\": \"hotpotqa:9515\"}]\nVaniusha The Newcomer\nVaniusha The Newcomer (Russian: Пришелец Ванюша ) is a 1990 Soviet Russian stop-motion animation film by Vladimir Danilevich and Olga Panokina. It was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> It is the second film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. The other three films are \"The Newcomer in The Cabbage\", \"Vaniusha and The Space Pirate\" and \"Vaniusha and The Giant\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "43",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791598978.42383,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791598979.267203
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.05541279438176918
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 712,
+      "completion_tokens": 2,
+      "total_tokens": 714
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:23\", \"source_id\": \"hotpotqa:23\"}]\nPrime Minister of Northern Ireland\nThe Prime Minister of Northern Ireland was the head of the Government of Northern Ireland between 1921 and 1972. No such office was provided for in the Government of Ireland Act 1920, however the Lord Lieutenant, as with Governors-General in other Westminster Systems such as in Canada, chose to appoint someone to head the executive even though no such post existed in statute law. The office-holder assumed the title \"Prime Minister\" to draw parallels with the Prime Minister of the United Kingdom. On the advice of the new Prime Minister, the Lord Lieutenant then created the \"Department of the Prime Minister\". The office of Prime Minister of Northern Ireland was abolished in 1972, along with the contemporary government, when direct rule of Northern Ireland was transferred to London.\n\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "121",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600346.4700632,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600347.4947321
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.8774767874818407
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1264,
+      "completion_tokens": 2,
+      "total_tokens": 1266
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
