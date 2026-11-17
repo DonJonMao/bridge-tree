@@ -1,0 +1,1258 @@
+     BeamAggR: Beam Aggregation Reasoning over Multi-source Knowledge
+                    for Multi-hop Question Answering
+
+                   Zheng Chu1 , Jingchang Chen1 , Qianglong Chen2 * , Haotian Wang1
+                    Kun Zhu1 , Xiyuan Du1 , Weijiang Yu3 , Ming Liu1,4 * , Bing Qin1,4
+                              1
+                                Harbin Institute of Technology, Harbin, China
+                2
+                  Zhejiang University 3 Sun Yat-sen University 4 Peng Cheng Laboratory
+                 {zchu,jcchen,mliu}@ir.hit.edu.cn, chenqianglong.ai@gmail.com
+
+
+                          Abstract                                  1. Decompose complex questions into question trees.                Candidates
+
+                                                                                                                                       Final answer
+
+                                                                                                                                       Multi-source reasoning
+        Large language models (LLMs) have demon-                                                                                       Best reasoning trajectory
+        strated strong reasoning capabilities. Neverthe-                                                                               Beam aggregation
+
+        less, they still suffer from factual errors when            2. Traverse question trees in post-order and solve sub-questions bottom-up.
+
+        tackling knowledge-intensive tasks. Retrieval-
+        augmented reasoning represents a promising
+                                                                                                                                  …
+        approach. However, significant challenges still
+        persist, including inaccurate and insufficient
+        retrieval for complex questions, as well as dif-             Q1           A1 | Q2            A2 | Q3            A3 | Q4           A4 | afinal
+        ficulty in integrating multi-source knowledge.
+        To address this, we propose Beam Aggregation              Figure 1: A brief overview of our method. Complex
+        Reasoning (BeamAggR), a reasoning frame-                  questions are decomposed into trees (top). Multi-source
+        work for knowledge-intensive multi-hop QA.                beam aggregation reasoning is conducted to find the
+        BeamAggR explores and prioritizes promis-                 best reasoning trajectory. (bottom)
+        ing answers at each hop of question. Con-
+        cretely, we parse the complex questions into
+        trees, which include atom and composite ques-
+        tions, followed by bottom-up reasoning. For               to alleviate factual errors, thereby drawing signifi-
+        atomic questions, the LLM conducts reason-                cant attention within the research community (Gao
+        ing on multi-source knowledge to get answer               et al., 2023; Huang et al., 2023).
+        candidates. For composite questions, the LLM
+                                                                     Early attempts adopt a retrieve-then-read frame-
+        combines beam candidates, explores multiple
+        reasoning paths through probabilistic aggrega-
+                                                                  work for one-time retrieval (Lazaridou et al., 2022;
+        tion, and prioritizes the most promising tra-             Borgeaud et al., 2022; Izacard et al., 2023; Zhang
+        jectory. Extensive experiments on four open-              et al., 2023b). They use the original complex ques-
+        domain multi-hop reasoning datasets show that             tion as the retrieval query and achieve satisfactory
+        our method significantly outperforms SOTA                 performance in single-hop questions (Joshi et al.,
+        methods by 8.5%. Furthermore, our analysis                2017; Kwiatkowski et al., 2019). Nonetheless,
+        reveals that BeamAggR elicits better knowl-               when confronted with complex multi-hop ques-
+        edge collaboration and answer aggregation.
+                                                                  tions, one-time retrieval suffers from the issues
+   1    Introduction                                              of inaccurate and irrelevant retrieval, which greatly
+                                                                  impair their performance in multi-hop reasoning.
+   Large language models have showcased impressive                   Recent work introduces iterative multi-round re-
+   performance across various NLP tasks (OpenAI,                  trieval (Khattab et al., 2022; Press et al., 2023;
+   2023; Touvron et al., 2023). Furthermore, chain-of-            Trivedi et al., 2023; Jiang et al., 2023b; Shao et al.,
+   thought (CoT) prompting further enhances the rea-              2023). They use the content generated by LLMs
+   soning capabilities of LLMs (Wei et al., 2022; Ko-             for retrieval and, in turn, use the newly retrieved
+   jima et al., 2022; Chu et al., 2023). However, when            content for reasoning. Through the iterative al-
+   the question surpasses the knowledge boundaries of             ternation between retrieval-augmented reasoning
+   LLMs, it leads to factual errors, also known as hal-           and reasoning-augmented retrieval, the retrieval is
+   lucination. Retrieval-augmented generation (RAG)               substantially improved. Meanwhile, a portion of re-
+   assists LLMs by retrieving supporting knowledge                search decomposes complex questions into simple
+       * Corresponding Authors: Ming Liu, Qianglong Chen          sub-questions, employing sub-question retrieval to
+                                                             1229
+Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 1229–1248
+                              August 11-16, 2024 ©2024 Association for Computational Linguistics
+obtain more precise information (Zhou et al., 2023;      et al., 2018), 2WikiMQA (Ho et al., 2020),
+Cao et al., 2023; Park et al., 2023; Su et al., 2023).   MuSiQue (Trivedi et al., 2022), and Bam-
+   However, there are still significant issues with      boogle (Press et al., 2023). The experiments are
+these methods. Iterative retrieval is tough to           conducted using GPT-3.5-turbo (Ouyang et al.,
+achieve precise retrieval aligned with the model’s       2022) and Mistral (Jiang et al., 2023a). Experi-
+reasoning. Sub-question retrieval grapples with          mental results show that our method significantly
+the challenge of accurately aggregating answers,         outperforms the baselines on four datasets, with
+which causes cascading errors. Besides, when it          an average improvement of 8.5% compared to the
+comes to the open-domain setting, relying solely         previous state-of-the-art method, demonstrating its
+on knowledge from a single source proves inade-          superiority. Furthermore, thorough analysis reveals
+quate for complex questions. Introducing multi-          the superiority of our approach to knowledge col-
+source knowledge may encounter knowledge con-            laboration and answer aggregation.
+flicts, rendering efficient collaboration challenging,   Our contributions can be summarized as follows:
+thus impeding its applications.                          • We introduce BeamAggR, a framework for open-
+   To address the aforementioned challenges, our           domain multi-hop reasoning, which outperforms
+research focuses on the following question: How            the state-of-the-art methods.
+can models adaptively select and integrate knowl-        • BeamAggR dynamically integrates multi-source
+edge from different sources during the reason-             knowledge in fine granularity during reasoning,
+ing, while reducing cascading errors in sub-               fostering knowledge collaboration.
+questions aggregation? Building upon this mo-
+                                                         • BeamAggR broadens the scope of reasoning with
+tivation, we propose Beam Aggregation Reasoning
+                                                           beam combination and optimizes reasoning tra-
+(BeamAggR) framework for knowledge-intensive
+                                                           jectories, mitigating cascading errors.
+multi-hop reasoning. Concretely, our method con-
+sists of three modules. (i) question decomposition:      2     Related Work
+We begin by leveraging LLMs to decompose com-
+plex questions and convert them into question trees.     2.1    Reasoning with Large Language Model
+The root node contains the original complex ques-        Wei et al. (2022) prompts LLMs to generate reason-
+tion, leaf nodes contain atomic sub-questions, and       ing process before final answers, which is known
+intermediate nodes contain composite questions           as chain-of-thought (CoT) prompting. Since then,
+that require compositional (or comparative) reason-      CoT prompting has been widely applied to enhance
+ing to obtain answers. Afterward, we traverse the        the reasoning capabilities of LLMs. Some work
+question tree in post-order, employing bottom-up         also designs instructions or clustering demonstra-
+reasoning. (ii) complementary multi-source rea-          tions for zero-shot reasoning (Kojima et al., 2022;
+soning: For atomic questions, we conduct multi-          Zhang et al., 2023c). Additionally, self-ensemble
+source reasoning, followed by fine-grained answer        has been proven through extensive experiments to
+aggregation, thus fostering knowledge collabora-         be an effective approach to improve performance.
+tion. The aggregated answers are then normalized         Wang et al. (2023) uses probabilistic sampling for
+into a probability distribution, serving as candidates   multiple reasoning traces, while Qin et al. (2023)
+for beam aggregation. (iii) beam aggregation: For        diversifies reasoning paths by using multiple lan-
+composite questions, we enumerate the combina-           guages CoTs. To address complex questions, Zhou
+tions of their dependent sub-questions and conduct       et al. (2023); Dua et al. (2022) decompose them
+reasoning. Finally, the reasoning results are prob-      into sub-questions and solve them progressively,
+abilistically aggregated, and the most promising         while Yao et al. (2023) models reasoning proce-
+predictions are selected.                                dures as BFS or DFS search on reasoning trees.
+   In summary, our method explores reasoning tra-           In contrast, our method employs divide-and-
+jectories at each hop of questions and prioritizes       conquer strategy, breaking down complex ques-
+paths with higher likelihoods, thereby bringing rea-     tions into trees and addressing them through
+soning insight and reducing cascading errors. Be-        bottom-up aggregation reasoning.
+sides, the complementary multi-source reasoning
+helps alleviate knowledge omission and conflict.         2.2    Retrieval-augmented Reasoning
+   We evaluate our method on four open-domain            Knowledge-sensitive tasks may induce factual hal-
+multi-hop reasoning datasets: HotpotQA (Yang             lucinations in LLMs, thus necessitating external
+                                                     1230
+  (a) Question Decomposition           Q: When did the city where Souvenir's performer was born become the capitol of the state Knowles was from?
+
+                                                                                                                                            Bottom-up Reasoning
+                                       Q(1): Who is Souvenir's performer? (#1)               Q(2): Where was #1 born? (#2)
+                                                                                                                                            Question Decomposition
+
+
+ Complex                               Q(3): Where Knowles was from? (#3)                    Q(4): When did #2 become the capitol of #3? (final answer)
+ Question ❄ LLM        Question Tree
+
+                                                                                                                                    (&)
+   (b) Multi-source Reasoning            (c) Beam Aggregation Reasoning                                                          𝑸%% : When did Austin
+                                                                                                                               become the capitol of Texas?
+   Q: Who is Souvenir's performer?           Multi-source Reasoning              Probabilistic Answer Aggregation
+    Close Book
+                                                                                       (𝟐)                                        (&)
+   A: Paul, Kumi, Paul …                       Q(1)                                  𝑸𝟏                                         𝑸%%
+
+    Parametric Knowledge
+                                                                                       (𝟐)                                        (&)
+   A: James, Martin, Martin …                  (𝟏)
+                                              𝒂𝟏 : Paul
+                                                           (𝟏)
+                                                          𝒑𝟏 : 0.73                  𝑸𝟐                                         𝑸𝟏'
+                                               (𝟏)         (𝟏)
+                                              𝒂𝟐 : Martin 𝒑𝟐 : 0.27                                                             ……
+    Web Search
+                                                                                       (𝟐)               (𝟐)
+                                                                                      𝒂𝟏 : Austin      𝒑𝟏 : 0.86                  (&)
+   A: Gasol, Paul, Paul …                                                              (𝟐)               (𝟐)                    𝑸𝟏(
+                                                                                      𝒂𝟐 : Houston 𝒑𝟐 : 0.14
+    Wikipedia Retrieval
+   A: Paul, Paul, Martin …                         Q(3)                          Beam Combination
+                                                                                                                                      (𝟒)
+                                                                                                                                   𝒂𝟏 : 1839
+                                                                                                                                                    (𝟒)
+                                                                                                                                                   𝒑𝟏 : 0.93
+                                                                                                                                      (𝟒)           (𝟒)
+    Aggregation & Normalization                                                                                                    𝒂𝟐 : 1952       𝒑𝟐 : 0.07
+                                                                                 𝑸(𝟐) ×𝑸(𝟑) → (𝑨(𝟐) ×𝑨(𝟑) , 𝒑(𝟐) ×𝒑(𝟑) )
+        a1: Paul     p1: 0.73
+                                             (𝟑)
+                                            𝒂𝟏 : Texas
+                                                             (𝟑)
+                                                            𝒑𝟏 : 0.66            (Austin, Texas), 𝒑(𝟒)𝟏𝟏 : 0.57
+        a2: Martin   p2: 0.27
+                                             (𝟑)             (𝟑)
+                                            𝒂𝟐 : Oklahoma 𝒑𝟑 : 0.34              (Houston, Texas), 𝒑(𝟒)
+                                                                                                    𝟐𝟏 : 0.09 …
+                                                                                                                               afinal = argmax(p(4)) = 1839 √
+
+
+
+Figure 2: An overview of BeamAggR. (a) Question decomposition: decompose complex questions into trees and
+address them bottom-up (b) Multi-source reasoning: reason from diverse knowledge sources and normalize answers
+into a probability distribution (c) Beam aggregation reasoning: explore based on children’s predictions, probabilistic
+aggregate answers and select the most promising reasoning trajectory.
+
+
+retrieval for retrieval-augmented reasoning. Early                                  Compared to their approach, our method inte-
+work uses one-time retrieval, but they struggle                                  grates diverse knowledge via complementary multi-
+to gather all the necessary knowledge to answer                                  source reasoning. Besides, it explores reasoning
+complex questions, resulting in knowledge omis-                                  trajectories at each hop of questions and prioritizes
+sions (Borgeaud et al., 2022; Lazaridou et al.,                                  the most promising path, thereby eliciting better
+2022; Izacard et al., 2023). To address this, it-                                answer aggregation and reducing cascading errors.
+erative retrieval is proposed. DSP (Khattab et al.,
+2022) engages in iterative interactions between re-                              3     Beam Aggregation Reasoning
+triever and reader through programmatically de-                                  Beam Aggregation Reasoning decomposes com-
+fined procedures. SelfAsk (Press et al., 2023) it-                               plex questions into trees and conducts bottom-up
+eratively decomposes questions and solves them                                   reasoning. Throughout the bottom-up reasoning, it
+through the Google search. IRCoT (Trivedi et al.,                                intricately amalgamates diverse knowledge sources,
+2023) uses each reasoning step as a query for                                    thereby mitigating the dearth of knowledge. Fur-
+retrieval until obtaining the final answer. Sim-                                 thermore, beam aggregation probabilistically con-
+ilarly, ITER-RETGEN (Shao et al., 2023) con-                                     solidates answers and selects reasoning pathways,
+ducts iterative retrievals by concatenating the out-                             consequently diminishing cascading errors.
+put from the previous round with the original ques-                                 Firstly, we decompose complex questions, then
+tion. FLARE (Jiang et al., 2023b) introduces a                                   perform bottom-up multi-source knowledge rea-
+lookahead mechanism, dynamically controlling the                                 soning in a post-order traversal manner, and em-
+timing of retrieval based on reasoning confidence.                               ploy beam aggregation at intermediate nodes until
+Beam Retrieval (Zhang et al., 2023a) introduces an                               reaching the root node to obtain the final answer.
+end-to-end framework designed to retrieve relevant                               The procedure is depicted in Algorithm 1, with an
+paragraphs at each hop of questions through beam                                 overview of the methodology illustrated in Figure 2.
+search. Meanwhile, some efforts achieve more                                     We will introduce question decomposition in § 3.1,
+precise retrieval by decomposing the problem into                                multi-source reasoning in § 3.2 and beam aggrega-
+QDMR format (Wolfson et al., 2020). Cao et al.                                   tion in § 3.3. Detailed definitions of notations in
+(2023) decomposes the problem into a tree, while                                 the algorithm and formulas can be found in Table 7.
+Park et al. (2023) constructs a reasoning graph.                                 Task definition is given in Appendix A.1.
+                                                                        1231
+Algorithm 1 Beam Aggregation Reasoning                        to ensure the validity of decomposition. We present
+Require: Complex multi-hop questions, Q                       the formal definitions in Table 7(b).
+Require: Multi-source knowledge retriever, R
+                                                              3.2   Complementary Multi-source Reasoning
+Require: Large language model, LLM
+Require: Candidate size in aggregation, k                     To avoid the hallucination caused by lack of knowl-
+ 1: Qdecomp “ LLM pQq                                         edge, we use four reasoning strategies combined
+ 2: for N piq in PostOrderTraversepQdecomp q do               with answer normalization to fuse information from
+ 3:     if N piq is leaf-node then                            diverse knowledge sources, as shown in Figure 2(b).
+ 4:         â “ LLM pq piq , Rq                              The knowledge sources include implicit internal
+ 5:         apiq , ppiq “ Votepâqr1 : ks                     knowledge, explicit internal knowledge, Wikipedia
+ 6:     else                                                  knowledge, and web search knowledge.
+ 7:         initialize â, p̂ “ list, list                                    as “ LLMpq, Ks q                 (1)
+ 8:         for c1 , p1 in CartProdpsonspN piq qq do
+ 9:              q 1 “ MaskFillpqi , c1 q                     where s P tclosebook, parametric, wiki, serpu
+10:              at , pt “ VotepLLM pq 1 , c1 , Rqq           is reasoning strategy, K is retrieved knowledge.
+11:              â Ð Concatpâ, at q                         Internal Knowledge Reasoning For implicit
+12:              p̂ Ð Concatpp̂, pt ¨ p1 q                    knowledge reasoning, we prompt the model with
+13:         end for                                           chain-of-thought demonstrations to perform closed-
+14:         apiq , ppiq “ Aggrpâ, p̂qr1 : ks                 book reasoning. There are also studies suggesting
+15:     end if                                                that the model’s parametric knowledge can serve
+16: end for                                                   as a retrieval source (Yu et al., 2023; Zhang et al.,
+17: return aroot [1]                                          2023b). We first prompt the model to generate
+                                                              parametric knowledge relevant to the question, and
+                                                              then employ it for explicit knowledge reasoning.
+3.1 Question Decomposition
+                                                              External Knowledge Reasoning We utilize
+Multi-hop questions entail complex structures,                Wikipedia and search engines as external retrieval
+such as bridge, comparison, composition and their             for external knowledge reasoning. Regarding
+integration. To address this, we parse complex                Wikipedia, we employ BM25 to conduct sparse
+questions into trees to express the reasoning struc-          retrieval over the full Wikipedia dumps. For search
+ture. As shown in Figure 2 (a), the complex ques-             engines, we call the Google Search API and use
+tion Q is decomposed into a tree comprising four              the organic results as the retrieval content. After
+simpler sub-questions, Qp1q to Qp4q , with (com-              retrieval, we employ few-shot prompts to conduct
+positional) dependencies among them. The root                 reasoning on the retrieved documents.
+node represents the original complex question, the            Answer Normalization After completing four
+leaf nodes represent atomic sub-questions, and the            sets of independent knowledge reasoning, we
+intermediate nodes require compositional (compar-             merge them through voting to achieve knowledge
+ative) reasoning to obtain answers. Following Cao             fusion. Following that, we normalize the answer-
+et al. (2023); Su et al. (2023), we adopt #i as the           frequency pairs to probability distributions for sub-
+placeholder for intermediate questions, enabling us           sequent beam aggregation, as shown in Eq. (2).
+to replace incomplete questions with solved sub-
+                                                                                   exppfi {τ q
+questions as we traverse to that node. Specifically,                        pi “ řk                            (2)
+the decomposed question is represented in QDMR                                    j“1 exppfj {τ q
+format (Wolfson et al., 2020). Afterward, we tackle           where f is frequency and τ is temperature.
+the complex questions in a bottom-up fashion, fol-
+lowing a post-order traversal sequence. The tree is           3.3   Beam Aggregation
+represented as a post-order traversal node sequence,          In beam aggregation, we conduct reasoning over
+Qdecomp “ tN p1q , N p2q . . . u, with each node con-         combinations of candidate answers inherited from
+taining a question, candidate answers, and the asso-          sub-questions to expand reasoning breadth and ex-
+ciated probabilities, N piq = tq piq , apiq , ppiq u. It is   ploration space, as shown in Figure 2(c). We then
+noteworthy that the model may produce structural              select reasoning paths by maximizing the marginal
+incorrect decomposition, which needs post-filtering           probability distribution of predictions.
+                                                          1232
+Beam Combination In intermediate nodes, we               4       Experimental Setup
+need to conduct reasoning based on the answers
+                                                         4.1      Datasets
+derived from previous sub-questions, and each sub-
+question is associated with a set of answers and         We evaluate BeamAggR on four open-domain
+probabilities, termed candidates (or beams). The         multi-hop reasoning datasets. HotpotQA (Yang
+intermediate question may depend on multiple sub-        et al., 2018), 2WikiMQA (Ho et al., 2020), and
+questions, so we enumerate combinations among            Bamboogle (Press et al., 2023) consist of two-hop
+the candidates. Specifically, we compute the Carte-      questions, and MuSiQue (Trivedi et al., 2022) con-
+sian product among the candidates, as shown in           tains questions with 2 to 4 hops. For HotpotQA,
+Eq. (3). To prevent combinatorial explosion, we          2WikiMQA, and MuSiQue, we use the same de-
+restrict the exploration space with beam size. After-    velopment and test set provided by IRCoT (Trivedi
+ward, for each combination, we substitute the place-     et al., 2023). The test set and development set are
+holders in the question with candidate answers and       both extracted from the original development set,
+conduct multi-source reasoning. We take a compo-         consisting of 500 and 100 instances, respectively.
+sition node with two sub-questions as an example.        For Bamboogle, we use all 125 instances as the test
+                                                         set, without a separate development set, and use
+      pxq   pyq    pxq pyq                               the same hyperparameters with 2WikiMQA. The
+   txai , aj y, pi pj | i, j “ 1, 2, . . . , ku   (3)
+                                                         evaluation metric is token-level F1.
+where pxq,pyq denote sub-questions, k is candidate          On all four datasets, we conduct experiments
+size, a is answer and p is associated probability.       in the open-domain setting, employing the entire
+   As illustrated in Figure 2(c), Qp4q relies on         Wikipedia dumps and web search for retrieval.
+Qp2q , Qp3q . We calculate the Cartesian product of      4.2      Implementation Details
+candidates of Qp2q and Qp3q , and perform substi-
+                                                 p4q     In the main experiment, we use GPT-3.5-turbo as
+tution to derive new questions. For example, Q11
+                                         p2q             the backbone. Since OpenAI has deprecated GPT-
+is obtained by substitute the #1 with a1 and #2          3.5 (text-davinci series), we reproduce the baselines
+       p3q
+with a1 , “When did Austin become the capital of         with GPT-3.5-turbo for a fair comparison1 . Please
+                     p4q      p2q p3q
+Texas?”, with P pQ11 q “ p1 p1 . Subsequently,           refer to Appendix A.2 for more details.
+we conduct multi-source reasoning on all substi-
+                                                         4.3      Baselines
+tuted sub-questions.
+                                                         Standard Prompting (Brown et al., 2020) di-
+Probabilistic Answer Aggregation We have ex-             rectly generates the final answer with few-shot
+plored numerous combinations of sub-questions            demonstrations. We use a 20-shot demonstration.
+in beam combination, yielding multiple sets of an-
+swers and probabilities. Next, we will aggregate         Chain-of-Thought Prompting (Wei et al., 2022)
+the above answers according to the probabilities to      generates reasoning steps before the final answer.
+determine the optimal reasoning path. This can be        We use a 20-shot demonstration.
+formalized as argmax for maximizing the marginal         One-time Retrieval involves using the original
+probabilities of predictions, as described below.        question as the query, concatenating sparse re-
+                  ÿ                                      trieval and Google search results into the prompt
+        P pyq “       P py|x “ qi q ¨ P pqi q   (4)      to guide the model to perform CoT reasoning.
+                  qi PQ
+                                                         Self-Ask (Press et al., 2023) adopts an iterative
+where Q is the original intermediate question, qi is     approach to decompose complex questions. It gen-
+a substituted question, P py|x “ qi q is the answers     erates sub-questions iteratively based on existing
+distribution of qi , and P pqi q is the weight of qi .   reasoning, and then retrievals and answers them
+   After probabilistic answer aggregation, we keep       until reaching the final answer.
+the top-k answers a and their probabilities p as can-
+didates. The aggregated candidates will continue         IRCoT (Trivedi et al., 2023) interleaves
+propagating bottom-up, participating in subsequent       retrieval-augmented reasoning and reasoning-
+beam aggregations until reaching the root node.          augmented retrieval until the retrieval information
+Upon reaching the root node, we regard the answer        is sufficient to answer the question.
+with the highest probability as the final answer.            1
+                                                                 https://platform.openai.com/docs/deprecations
+
+                                                     1233
+                     HotpotQA                     MuSiQue                                             2WikiMQA                                  Bamboogle
+ Methods
+             Overall Bridge Comp. Overall 2hop 3hop 4hop Overall Bridge Infer. Comp. B.C.                                                        Overall
+ Close-book Reasoning
+ SP           38.9    37.5        45.3   15.6      16.4     16.2   12.6             33.9           13.9     23.9         53.3          57.0        27.8
+ CoT          46.5    44.6        55.5   24.7      30.2     22.5   13.2             42.3           25.7     25.1         58.0          68.5        53.6
+ Retrieval-augmented Reasoning
+ OneR ♢        55.3    52.9    66.5      16.4      22.1     10.6   10.4             42.9           24.3     28.7         75.7          51.2        46.8
+ Self-Ask ♠    49.4    45.3    68.6      16.2      24.4      8.8    7.5             46.9           31.6     40.5         71.5          52.6        51.9
+ IRCoT ♠       56.2    53.4    69.6      24.9      31.4     19.2   16.4             56.8           44.2     22.7         89.0          69.4        55.0
+ FLARE ♠       56.1    54.2    64.4      31.9      40.9     27.1   15.0             60.1           46.2     54.5         81.4          66.3        58.1
+ ProbTree ♣    60.4    59.2    65.9      32.9      41.2     30.9   14.4             67.9           49.8     66.4         81.7          91.1        66.6
+ Ours          62.9 (Ò2.5) 60.5   74.2   36.9 (Ò4.0) 43.3   36.1   20.5             71.6 (Ò3.7) 55.1        64.9         89.9          90.4        74.8 (Ò8.2)
+
+Table 1: Experimental results on four open-domain multi-hop reasoning datasets: HotpotQA, MuSiQue, 2WikiMQA
+and Bamboogle. Best and second results are highlighted by bold and underline. The evaluation metric is F1. All
+experiments are done with gpt-3.5-turbo-instruct through in-context learning. All baselines are instantiated with
+both sparse retriever and search engine. ♢ : One-time retrieval. ♠ : Iterative retrieval. ♣ : Sub-question retrieval.
+
+
+                                                                                         FLARE                     ProbTree                      Ours
+FLARE (Jiang et al., 2023b) dynamically ad-
+justs the retrieval timing based on the confidence                           40
+                                                                                                                                                 -16.6%
+
+of reasoning and conducts retrieval based on up-                             30                                      -25.0%
+
+
+                                                                   Avg. F1
+                                                                                          -33.7%
+
+coming reasoning sentences.                                                  20                                                                           -52.7%
+                                                                                                   -63.3%                     -65.0%
+                                                                             10
+ProbTree (Cao et al., 2023) parses the question
+                                                                              0
+into a tree, employing logprobs-based sub-question                                2hop    3hop     4hop     2hop     3hop     4hop       2hop    3hop     4hop
+
+aggregation to obtain the final answer.
+                                                                   Figure 3: Performance gap with different reasoning
+                                                                   steps. We adopt the original split in MuSiQue and report
+5   Experimental Results
+                                                                   the average f1 score in each subset. As the number
+5.1 Main Results                                                   of reasoning steps escalates, the model’s performance
+                                                                   declines. Our method exhibits a slower performance
+The experimental results on four multi-hop reason-                 decline as reasoning steps increase, indicating its ability
+ing datasets are presented in Table 1. We observe                  to effectively alleviate cascading errors.
+that one-time retrieval can improve performance in
+HotpotQA, 2WikiMQA and Bamboogle. However,
+when facing the more challenging MuSiQue, one-                     generation content, sub-questions serve as clearer
+time retrieval even impairs performance (24.7 Ñ                    retrieval queries. (ii) Complementary reasoning fa-
+16.4), which indicates that inaccurate retrieval and               cilitates collaboration between diverse knowledge
+knowledge conflicts may exacerbate hallucination.                  sources. Our method dynamically selects and lever-
+   The iterative retrieval approach has made no-                   ages knowledge from multiple sources with fine
+table progress compared to one-time retrieval by                   granularity, thereby mitigating knowledge conflicts
+offering more comprehensive knowledge. Addi-                       and omissions. (iii) Probability-based beam aggre-
+tionally, methods based on sub-question retrieval                  gation mitigates cascading errors and optimizes the
+have more explicit queries, which leads to a further               reasoning trajectories through consistency.
+improvement in retrieval accuracy, serving as the                     We observe significant improvements, particu-
+best-performing baseline method.                                   larly for Comp questions. Comparison questions
+   As shown in Table 1, our method demon-                          involve interactions among sub-questions. With the
+strates superiority over all baselines. It outper-                 aid of beam aggregation, the model can enumer-
+forms the previous state-of-the-art, ProbTree, on all              ate various combinations during reasoning, thereby
+four datasets: HotpotQA (+2.5), MuSiQue (+4.0),                    encompassing a broader spectrum of possibilities
+2WikiMQA (+3.7), and Bamboogle (+8.2). We                          (65.9 Ñ 74.2, 81.7 Ñ 89.9). Additionally, our
+attribute the improvement to three aspects: (i)                    method is proficient at addressing complex ques-
+Question decomposition leads to more accurate                      tions (3/4-hop), as shown in Figure 3. Our method
+retrieval. Compared to iterative retrieval based on                exhibits a slower performance decline as reason-
+                                                             1234
+Methods          HotpotQA MuSiQue 2WikiMQA Bamboogle       Setting                        2WikiMQA MuSiQue
+Close-book Reasoning
+SP                23.1        4.3    8.5        11.0       Beam Aggregation                  71.6         36.9
+CoT               31.3        16.1   34.2       33.0
+                                                           (a) Multi-Source Knowledge
+Retrieval-augmented Reasoning                               1. w/o closebook                 69.2         35.1
+OneR              43.6        11.4   36.3       28.1
+FLARE             45.7        20.1   39.6       41.3
+                                                            2. w/o parameter                 68.3         35.6
+ProbTree          50.4        27.0   59.9       61.1        3. w/o wikipedia                 65.8         33.1
+Ours              55.2        32.3   63.2       74.0        4. w/o web search                63.4         32.7
+Ours (GPT-3.5)     62.9       36.9   71.6       74.8        5. internal only                 52.0         27.3
+                                                            6. external only                 68.5         33.4
+Table 2: Experimental results on Mistral-7B. Our           (b) Beam Aggregation
+method still outperforms all baselines and is compatible    1. polarization aggregation      65.9         30.9
+with GPT-3.5-turbo, suggesting its generalizability.        2. w/o probability               67.8         35.4
+                                                            3. greedy aggregation            70.1         36.2
+ing depth increases (8.4% in 3-hop and 12.3% in
+                                                           Table 3: Ablation results on multi-source knowledge
+4-hop), indicating its ability to precisely aggregate      reasoning and beam aggregation. Internal only: conduct
+answers and effectively alleviate cascading errors.        internal reasoning only. External only: conduct external
+                                                           reasoning only. W/o probability: do not distinguish the
+5.2 Results on Open-source Model                           weights of aggregated answers. Polarization aggrega-
+To prove the generalizability of our method to vari-       tion: aggregate answers with logprobs.
+ous models, we also conduct experiments on open-
+source models. We select Mistral-7B (Jiang et al.,
+                                                           log-prob-based aggregation, which can only se-
+2023a), the state-of-the-art LLM among similar
+                                                           lect a single knowledge source. As shown in Ta-
+scales. As shown in Table 2, Beam Aggregation sig-
+                                                           ble 3(b), this leads to a notable decline, suggesting
+nificantly outperforms previous SOTA on all four
+                                                           that coarse-grained polarized aggregation struggles
+datasets, demonstrating its model-agnostic nature
+                                                           to effectively integrate knowledge, thus underscor-
+and effectiveness. Furthermore, it is comparable to
+                                                           ing the superiority of our beam aggregation. Prob-
+GPT-3.5-turbo on the Bamboogle dataset.
+                                                           abilistic aggregation enables the distinction of the
+5.3 Ablation Study                                         importance of answers. To investigate its effect,
+                                                           we conduct an ablation where the aggregated an-
+Effect of Multi-source Reasoning We conduct                swers are treated with equal weights, as shown in
+two sets of ablations: removing a single knowl-            (b.2). The performance drops by 5% and 4% on
+edge source and removing a type of knowledge, as           two datasets, suggesting that prioritizing reasoning
+shown in Table 3(a). Removing any knowledge                trajectories can elicit better reasoning. Finally, we
+source results in a certain performance decrease,          investigate the effect of candidate size. Larger can-
+suggesting that each type of knowledge contributes         didate sizes result in broader reasoning breadth, but
+to reasoning (a.1-a.4). Furthermore, the declining         they also increase reasoning overhead. When it is
+trends (4.1% internal knowledge and 9.7% exter-            set to 1, greedy aggregation strategy is employed.
+nal knowledge) indicate that external knowledge            It is a cost-efficient variant of beam aggregation
+makes a greater contribution compared to inter-            reasoning. As shown in (b.3), it causes a slight
+nal knowledge. Using only internal knowledge               performance decrease, indicating that some erro-
+for reasoning results in a severe performance drop         neous reasoning may be corrected as the reasoning
+(a.5). Nevertheless, our method still outperforms          process progresses with the help of a broader scope
+chain-of-thought reasoning, which reflects the ef-         of reasoning. We conduct a detailed analysis of rea-
+fectiveness of aggregation reasoning. Completely           soning performance and overheads in section 6.3.
+removing internal knowledge leads to a substan-
+tial decline, as shown in (a.6). This suggests that
+                                                           6     Analysis
+internal knowledge can complement external re-
+trieval, proving the effectiveness of our method in        6.1    BeamAggR Facilitates Knowledge
+knowledge collaboration.                                          Collaboration
+Effect of Beam Aggregation To validate the ef-             To investigate the impact of Beam Aggregation on
+fectiveness of beam aggregation, we first employ           knowledge collaboration, we conduct a prelimi-
+                                                       1235
+                            Logprobs                               Aggregation                                                Diversity                  Consistency                  Uncertainty
+          2.5                                                                                                                  y = j^
+                                                                                                                                    aj                     y = p^0                 y = ¡ §(pi log pi )
+                                                                                       w = 0.167
+
+          2.0                                                                                                                                    1.0
+                                                                                                                                                                             0.6
+
+
+Density
+          1.5                                                                                                 20                                 0.8
+                                                                                                                                                                             0.4
+          1.0                                                                                         Ours                                       0.6
+                                                                                                              10                                                             0.2
+          0.5
+                                                                                                                                                 0.4
+                                                                                                                  0                                                          0.0
+          0.0
+                                                                                                                  4                              1.0
+                Internal     Unified        External    Internal         Unified       External
+                                                                                                                                                                             0.6
+                                                                                                                                                 0.8
+
+                                                                                                       ProbTree
+                                                                                                                                                                             0.4
+Figure 4: Distribution of knowledge integration in rea-                                                           2
+                                                                                                                                                 0.6
+soning. Unified represents the integration of multi-                                                                                                                         0.2
+                                                                                                                                                 0.4
+source knowledge in reasoning, while the two ends                                                                 0                                                          0.0
+
+represent reliance on single-source knowledge. The                                                                     Leaf     Mid       Root         Leaf    Mid    Root         Leaf   Mid     Root
+
+bars represent original discrete distributions, and the
+                                                                                                      Figure 6: The tendency of candidate answers distribu-
+curve is the kernel density estimate (KDE).
+                                                                                                      tion from leaf node to root. We define three metrics
+                                                                                                      to measure the distribution. Diversity: The number of
+           HotpotQA               MuSiQue              2WikiMQA               Bamboogle               distinct answers. Consistency: The proportion of the
+          22.1%                  24.0%                 13.6%                                          majority answer. Uncertainty: The information entropy
+                   29.2%                                                     27.4%     28.6%
+                                         38.6%
+                                                     19.2%
+                                                               33.3%
+                                                                                                      of answer distribution.
+      22.4%                  12.2%
+                                                                                       11.4%
+                  26.3%             25.1%                34.0%                 32.7%
+                                                                                                                           ↖ better
+                                                                                                                           efficiency                                              Beam Aggregation
+                    Close Book           Parameter           Wikipedia             SERP                           60
+                                                                                                                                                                                   Ours
+                                                                                                                                                                                   Ours (GD)
+
+                                                                                                      Avg. F1
+Figure 5: The contribution of each reasoning strategy to                                                          50
+                                                                                                                                                                                   Previous SOTA
+the final answer in percentage. HotpotQA is balanced,                                                                                                                              OneR
+while MuSiQue and 2WikiMQA leans to external knowl-                                                                                                                                IRCoT
+                                                                                                                  40
+edge, and Bamboogle favors internal knowledge.                                                                                                                                     FLARE
+                                                                                                                                                                                   ProbTree
+                                                                                                                       0          10000          20000        30000
+                                                                                                                                          Avg. token
+
+nary experiment. We track the model’s utilization                                                     Figure 7: Pareto chart for token consumption and per-
+of knowledge from different sources during the                                                        formance (F1). The upper-left quadrant indicates higher
+reasoning process, as depicted in Figure 4. The                                                       efficiency. Results are averaged over four datasets.
+polarity aggregation method based on log-probs ex-
+cessively relies on reasoning on a single source of
+knowledge. In more than 2/3 of cases, it can only                                                     6.2               Trends of Answer Aggregation in
+utilize knowledge from a single source. In contrast,                                                                    Bottom-up Reasoning
+our approach facilitates better knowledge collab-                                                     We conduct a detailed analysis of the trends in
+oration in reasoning. In summary, our beam ag-                                                        answer aggregation throughout the reasoning pro-
+gregation can effectively employ knowledge from                                                       cess. To assess the characteristics of the answer
+multiple sources at a finer granularity.                                                              distribution during the bottom-up reasoning pro-
+   Furthermore, we carry out a more detailed exam-                                                    cess, we define three metrics: diversity, consistency,
+ination of the proportions of each type of knowl-                                                     and uncertainty. The definition and tendency are
+edge in reasoning. We track the contribution of                                                       shown in Figure 6. It can be observed that through
+different knowledge sources to the final answer,                                                      the reasoning process, the diversity of answers im-
+as illustrated in Figure 5. Disparities in reasoning                                                  proves, indicating its exploration of a wider range
+contributions across various datasets are observed.                                                   of possibilities. In contrast, consistency and uncer-
+2WikiMQA and MuSiQue tend to favor external                                                           tainty continue to decrease as the reasoning depth
+reasoning, Bamboogle leans towards internal rea-                                                      increases. This suggests that our method is capable
+soning, and HotpotQA strikes a balance among                                                          of filtering out reasoning from erroneous during
+different types of knowledge. It is noteworthy that,                                                  the bottom-up aggregation, dynamically choosing
+without manual adjustment of the weight of knowl-                                                     appropriate knowledge sources and reasoning tra-
+edge, Beam Aggregation can adaptively adjust its                                                      jectories. Conversely, methods based on log-probs
+proportions during the reasoning process. This in-                                                    aggregation are affected by inaccurate aggregation
+dicates that our method can effectively integrate                                                     and cascading errors, thus unable to achieve these,
+multi-source knowledge.                                                                               highlighting the superiority of our method.
+                                                                                                   1236
+6.3 Analysis of Reasoning Cost                         Project (2021YFF0901602), the National Sci-
+Retrieval-augmented generation often involves fre-     ence Foundation of China (U22B2059, 62276083),
+quent invocation of LLMs, resulting in significant     and Shenzhen Foundational Research Funding
+computational overhead. We compare the perfor-         (JCYJ20200109113441941), Major Key Project
+mance and overhead of five RAG methods. As             of PCL (PCL2021A06). Ming Liu and Qianglong
+illustrated in Figure 7, previous methods exacer-      Chen are the corresponding authors.
+bate reasoning overhead while improving perfor-
+mance. In contrast, our method not only surpasses
+                                                       References
+the previous SOTA in performance but also incurs
+lower overhead. Moreover, our method can further       Sebastian Borgeaud, Arthur Mensch, Jordan Hoffmann,
+reduce reasoning overhead through greedy aggre-          Trevor Cai, Eliza Rutherford, Katie Millican, George
+                                                         van den Driessche, Jean-Baptiste Lespiau, Bogdan
+gation. In summary, Beam Aggregation is Pareto           Damoc, Aidan Clark, Diego de Las Casas, Aurelia
+efficient in balancing performance and reasoning         Guy, Jacob Menick, Roman Ring, Tom Hennigan,
+overhead. Detail statistics can be found in Table 5.     Saffron Huang, Loren Maggiore, Chris Jones, Albin
+                                                         Cassirer, Andy Brock, Michela Paganini, Geoffrey
+7   Conclusion                                           Irving, Oriol Vinyals, Simon Osindero, Karen Si-
+                                                         monyan, Jack W. Rae, Erich Elsen, and Laurent Sifre.
+This paper introduces BeamAggR for knowledge-            2022. Improving language models by retrieving from
+intensive multi-hop reasoning. BeamAggR utilizes         trillions of tokens. In International Conference on
+                                                         Machine Learning, ICML 2022, 17-23 July 2022, Bal-
+a divide-and-conquer strategy, breaking down com-        timore, Maryland, USA, volume 162 of Proceedings
+plex questions into a tree structure and conducting      of Machine Learning Research, pages 2206–2240.
+reasoning in a bottom-up fashion. At each step of        PMLR.
+reasoning, BeamAggR builds upon previous can-
+                                                       Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie
+didates to identify the most likely reasoning path.      Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+Furthermore, it incorporates multi-source reason-        Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+ing to enhance knowledge collaboration. Overall,         Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+BeamAggR facilitates multi-hop reasoning through         Gretchen Krueger, Tom Henighan, Rewon Child,
+                                                         Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+precise sub-question retrieval, efficient knowledge      Clemens Winter, Christopher Hesse, Mark Chen, Eric
+collaboration, accurate answer aggregation, and          Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess,
+broad exploration of reasoning trajectories. Exten-      Jack Clark, Christopher Berner, Sam McCandlish,
+sive experiments on four open-domain multi-hop           Alec Radford, Ilya Sutskever, and Dario Amodei.
+                                                         2020. Language models are few-shot learners. In Ad-
+reasoning datasets demonstrate its effectiveness.        vances in Neural Information Processing Systems 33:
+                                                         Annual Conference on Neural Information Process-
+Limitations                                              ing Systems 2020, NeurIPS 2020, December 6-12,
+                                                         2020, virtual.
+Our method involves beam combination across
+multiple candidates and self-consistency in each       Shulin Cao, Jiajie Zhang, Jiaxin Shi, Xin Lv, Zijun Yao,
+reasoning step, thereby increasing reasoning over-       Qi Tian, Lei Hou, and Juanzi Li. 2023. Probabilistic
+head. This overhead can be mitigated through             tree-of-thought reasoning for answering knowledge-
+                                                         intensive complex questions. In Findings of the As-
+greedy aggregation reasoning. The effectiveness          sociation for Computational Linguistics: EMNLP
+of our framework is contingent upon the accurate         2023, Singapore, December 6-10, 2023, pages 12541–
+decomposition of questions, which may pose sig-          12560. Association for Computational Linguistics.
+nificant challenges for large language models. Cur-
+                                                       Zheng Chu, Jingchang Chen, Qianglong Chen, Weijiang
+rently, we only use internal knowledge and un-           Yu, Tao He, Haotian Wang, Weihua Peng, Ming Liu,
+structured external knowledge for reasoning. In          Bing Qin, and Ting Liu. 2023. A survey of chain of
+future work, structured external knowledge, such         thought reasoning: Advances, frontiers and future.
+as knowledge bases, can be integrated into rea-          CoRR, abs/2309.15402.
+soning to provide more comprehensive knowledge         Dheeru Dua, Shivanshu Gupta, Sameer Singh, and Matt
+repositories (Li et al., 2024).                          Gardner. 2022. Successive prompting for decompos-
+                                                         ing complex questions. In Proceedings of the 2022
+Acknowledgements                                         Conference on Empirical Methods in Natural Lan-
+                                                         guage Processing, EMNLP 2022, Abu Dhabi, United
+The research in this article is supported by             Arab Emirates, December 7-11, 2022, pages 1251–
+the National Key Research and Development                1265. Association for Computational Linguistics.
+                                                   1237
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,            in Neural Information Processing Systems 35: An-
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Qianyu Guo,      nual Conference on Neural Information Processing
+  Meng Wang, and Haofen Wang. 2023. Retrieval-              Systems 2022, NeurIPS 2022, New Orleans, LA, USA,
+  augmented generation for large language models: A         November 28 - December 9, 2022.
+  survey. CoRR, abs/2312.10997.
+                                                         Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,             field, Michael Collins, Ankur P. Parikh, Chris Alberti,
+  and Akiko Aizawa. 2020. Constructing A multi-hop         Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+  QA dataset for comprehensive evaluation of reason-       ton Lee, Kristina Toutanova, Llion Jones, Matthew
+  ing steps. In Proceedings of the 28th International      Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  Conference on Computational Linguistics, COLING          Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu-
+  2020, Barcelona, Spain (Online), December 8-13,          ral questions: a benchmark for question answering
+  2020, pages 6609–6625. International Committee on        research. Trans. Assoc. Comput. Linguistics, 7:452–
+  Computational Linguistics.                               466.
+
+Lei Huang, Weijiang Yu, Weitao Ma, Weihong Zhong,        Angeliki Lazaridou, Elena Gribovskaya, Wojciech
+  Zhangyin Feng, Haotian Wang, Qianglong Chen,             Stokowiec, and Nikolai Grigorev. 2022. Internet-
+  Weihua Peng, Xiaocheng Feng, Bing Qin, and Ting          augmented language models through few-shot
+  Liu. 2023. A survey on hallucination in large lan-       prompting for open-domain question answering.
+  guage models: Principles, taxonomy, challenges, and      CoRR, abs/2203.05115.
+  open questions. CoRR, abs/2311.05232.
+                                                         Xingxuan Li, Ruochen Zhao, Yew Ken Chia, Bosheng
+Gautier Izacard, Patrick S. H. Lewis, Maria Lomeli,        Ding, Shafiq Joty, Soujanya Poria, and Lidong Bing.
+  Lucas Hosseini, Fabio Petroni, Timo Schick, Jane         2024. Chain-of-knowledge: Grounding large lan-
+  Dwivedi-Yu, Armand Joulin, Sebastian Riedel, and         guage models via dynamic knowledge adapting over
+  Edouard Grave. 2023. Atlas: Few-shot learning            heterogeneous sources. In The Twelfth International
+  with retrieval augmented language models. J. Mach.       Conference on Learning Representations.
+  Learn. Res., 24:251:1–251:43.
+                                                         Sewon Min, Victor Zhong, Luke Zettlemoyer, and Han-
+Albert Q. Jiang, Alexandre Sablayrolles, Arthur Men-       naneh Hajishirzi. 2019. Multi-hop reading compre-
+  sch, Chris Bamford, Devendra Singh Chaplot, Diego        hension through question decomposition and rescor-
+  de Las Casas, Florian Bressand, Gianna Lengyel,          ing. In Proceedings of the 57th Conference of the As-
+  Guillaume Lample, Lucile Saulnier, Lélio Re-             sociation for Computational Linguistics, ACL 2019,
+  nard Lavaud, Marie-Anne Lachaux, Pierre Stock,           Florence, Italy, July 28- August 2, 2019, Volume 1:
+  Teven Le Scao, Thibaut Lavril, Thomas Wang, Timo-        Long Papers, pages 6097–6109. Association for Com-
+  thée Lacroix, and William El Sayed. 2023a. Mistral       putational Linguistics.
+  7b. CoRR, abs/2310.06825.
+                                                         OpenAI. 2023. GPT-4 technical report.            CoRR,
+Zhengbao Jiang, Frank F. Xu, Luyu Gao, Zhiqing Sun,        abs/2303.08774.
+  Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie
+  Callan, and Graham Neubig. 2023b. Active retrieval     Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida,
+  augmented generation. In Proceedings of the 2023         Carroll L. Wainwright, Pamela Mishkin, Chong
+  Conference on Empirical Methods in Natural Lan-          Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray,
+  guage Processing, EMNLP 2023, Singapore, Decem-          John Schulman, Jacob Hilton, Fraser Kelton, Luke
+  ber 6-10, 2023, pages 7969–7992. Association for         Miller, Maddie Simens, Amanda Askell, Peter Welin-
+  Computational Linguistics.                               der, Paul F. Christiano, Jan Leike, and Ryan Lowe.
+                                                           2022. Training language models to follow instruc-
+Mandar Joshi, Eunsol Choi, Daniel S. Weld, and Luke        tions with human feedback. In Advances in Neural
+ Zettlemoyer. 2017. Triviaqa: A large scale distantly      Information Processing Systems 35: Annual Confer-
+ supervised challenge dataset for reading comprehen-       ence on Neural Information Processing Systems 2022,
+ sion. In Proceedings of the 55th Annual Meeting of        NeurIPS 2022, New Orleans, LA, USA, November 28
+ the Association for Computational Linguistics, ACL        - December 9, 2022.
+ 2017, Vancouver, Canada, July 30 - August 4, Volume
+ 1: Long Papers, pages 1601–1611. Association for        Jinyoung Park, Ameen Patel, Omar Zia Khan, Hyun-
+ Computational Linguistics.                                 woo J. Kim, and Joo-Kyung Kim. 2023. Graph-
+                                                            guided reasoning for multi-hop question answering
+Omar Khattab, Keshav Santhanam, Xiang Lisa Li,              in large language models. CoRR, abs/2311.09762.
+ David Hall, Percy Liang, Christopher Potts, and
+ Matei Zaharia. 2022. Demonstrate-search-predict:        Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt,
+ Composing retrieval and language models for               Noah A. Smith, and Mike Lewis. 2023. Measuring
+ knowledge-intensive NLP. CoRR, abs/2212.14024.            and narrowing the compositionality gap in language
+                                                           models. In Findings of the Association for Compu-
+Takeshi Kojima, Shixiang Shane Gu, Machel Reid, Yu-        tational Linguistics: EMNLP 2023, Singapore, De-
+  taka Matsuo, and Yusuke Iwasawa. 2022. Large lan-        cember 6-10, 2023, pages 5687–5711. Association
+  guage models are zero-shot reasoners. In Advances        for Computational Linguistics.
+                                                     1238
+Libo Qin, Qiguang Chen, Fuxuan Wei, Shijue Huang,         Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V.
+  and Wanxiang Che. 2023. Cross-lingual prompt-             Le, Ed H. Chi, Sharan Narang, Aakanksha Chowd-
+  ing: Improving zero-shot chain-of-thought reasoning       hery, and Denny Zhou. 2023. Self-consistency
+  across languages. In Proceedings of the 2023 Con-         improves chain of thought reasoning in language
+  ference on Empirical Methods in Natural Language          models. In The Eleventh International Conference
+  Processing, EMNLP 2023, Singapore, December 6-            on Learning Representations, ICLR 2023, Kigali,
+  10, 2023, pages 2695–2709. Association for Compu-         Rwanda, May 1-5, 2023. OpenReview.net.
+  tational Linguistics.
+                                                          Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+Stephen E. Robertson and Hugo Zaragoza. 2009. The            Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc V. Le,
+   probabilistic relevance framework: BM25 and be-           and Denny Zhou. 2022. Chain-of-thought prompting
+  yond. Found. Trends Inf. Retr., 3(4):333–389.              elicits reasoning in large language models. In Ad-
+                                                             vances in Neural Information Processing Systems 35:
+Zhihong Shao, Yeyun Gong, Yelong Shen, Minlie               Annual Conference on Neural Information Process-
+  Huang, Nan Duan, and Weizhu Chen. 2023. En-                ing Systems 2022, NeurIPS 2022, New Orleans, LA,
+  hancing retrieval-augmented large language models          USA, November 28 - December 9, 2022.
+  with iterative retrieval-generation synergy. In Find-
+  ings of the Association for Computational Linguis-      Tomer Wolfson, Mor Geva, Ankit Gupta, Yoav Gold-
+  tics: EMNLP 2023, Singapore, December 6-10, 2023,         berg, Matt Gardner, Daniel Deutch, and Jonathan
+  pages 9248–9274. Association for Computational            Berant. 2020. Break it down: A question understand-
+  Linguistics.                                              ing benchmark. Trans. Assoc. Comput. Linguistics,
+                                                            8:183–198.
+Xin Su, Tiep Le, Steven Bethard, and Phillip Howard.
+  2023. Semi-structured chain-of-thought: Integrat-       Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  ing multiple sources of knowledge for improved lan-       gio, William W. Cohen, Ruslan Salakhutdinov, and
+  guage model reasoning. CoRR, abs/2311.08505.              Christopher D. Manning. 2018. Hotpotqa: A dataset
+                                                            for diverse, explainable multi-hop question answer-
+Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-          ing. In Proceedings of the 2018 Conference on Em-
+  bert, Amjad Almahairi, Yasmine Babaei, Nikolay            pirical Methods in Natural Language Processing,
+  Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti        Brussels, Belgium, October 31 - November 4, 2018,
+  Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton-       pages 2369–2380. Association for Computational
+  Ferrer, Moya Chen, Guillem Cucurull, David Esiobu,        Linguistics.
+  Jude Fernandes, Jeremy Fu, Wenyin Fu, Brian Fuller,
+  Cynthia Gao, Vedanuj Goswami, Naman Goyal, An-          Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+  thony Hartshorn, Saghar Hosseini, Rui Hou, Hakan          Thomas L. Griffiths, Yuan Cao, and Karthik
+  Inan, Marcin Kardas, Viktor Kerkez, Madian Khabsa,        Narasimhan. 2023. Tree of thoughts: Deliberate
+  Isabel Kloumann, Artem Korenev, Punit Singh Koura,        problem solving with large language models. CoRR,
+  Marie-Anne Lachaux, Thibaut Lavril, Jenya Lee, Di-        abs/2305.10601.
+  ana Liskovich, Yinghai Lu, Yuning Mao, Xavier Mar-      Wenhao Yu, Dan Iter, Shuohang Wang, Yichong Xu,
+  tinet, Todor Mihaylov, Pushkar Mishra, Igor Moly-        Mingxuan Ju, Soumya Sanyal, Chenguang Zhu,
+  bog, Yixin Nie, Andrew Poulton, Jeremy Reizen-           Michael Zeng, and Meng Jiang. 2023. Generate
+  stein, Rashi Rungta, Kalyan Saladi, Alan Schelten,       rather than retrieve: Large language models are
+  Ruan Silva, Eric Michael Smith, Ranjan Subrama-          strong context generators. In The Eleventh Inter-
+  nian, Xiaoqing Ellen Tan, Binh Tang, Ross Tay-           national Conference on Learning Representations,
+  lor, Adina Williams, Jian Xiang Kuan, Puxin Xu,          ICLR 2023, Kigali, Rwanda, May 1-5, 2023. Open-
+  Zheng Yan, Iliyan Zarov, Yuchen Zhang, Angela Fan,       Review.net.
+  Melanie Kambadur, Sharan Narang, Aurélien Ro-
+  driguez, Robert Stojnic, Sergey Edunov, and Thomas      Jiahao Zhang, Haiyang Zhang, Dongmei Zhang, Yong
+  Scialom. 2023. Llama 2: Open foundation and fine-          Liu, and Shen Huang. 2023a. Beam retrieval: Gen-
+  tuned chat models. CoRR, abs/2307.09288.                   eral end-to-end retrieval for multi-hop question an-
+                                                             swering. CoRR, abs/2308.08973.
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+  and Ashish Sabharwal. 2022. Musique: Multi-             Zhebin Zhang, Xinyu Zhang, Yuanhang Ren, Saijiang
+  hop questions via single-hop question composition.        Shi, Meng Han, Yongkang Wu, Ruofei Lai, and Zhao
+  Trans. Assoc. Comput. Linguistics, 10:539–554.            Cao. 2023b. IAG: induction-augmented generation
+                                                            framework for answering reasoning questions. In
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,       Proceedings of the 2023 Conference on Empirical
+  and Ashish Sabharwal. 2023. Interleaving retrieval        Methods in Natural Language Processing, EMNLP
+  with chain-of-thought reasoning for knowledge-            2023, Singapore, December 6-10, 2023, pages 1–14.
+  intensive multi-step questions. In Proceedings of         Association for Computational Linguistics.
+  the 61st Annual Meeting of the Association for Com-
+  putational Linguistics (Volume 1: Long Papers),         Zhuosheng Zhang, Aston Zhang, Mu Li, and Alex
+  ACL 2023, Toronto, Canada, July 9-14, 2023, pages         Smola. 2023c. Automatic chain of thought prompt-
+  10014–10037. Association for Computational Lin-           ing in large language models. In The Eleventh In-
+  guistics.                                                 ternational Conference on Learning Representations,
+                                                      1239
+    ICLR 2023, Kigali, Rwanda, May 1-5, 2023. Open-     Evaluation We use token-level F1 as evaluation
+    Review.net.                                         metric. Besides, if entity aliases are available, we
+                                                        calculate the maximum F1 score between the pre-
+Denny Zhou, Nathanael Schärli, Le Hou, Jason Wei,
+                                                        diction and each ground truth alias.
+  Nathan Scales, Xuezhi Wang, Dale Schuurmans,
+  Claire Cui, Olivier Bousquet, Quoc V. Le, and Ed H.
+  Chi. 2023. Least-to-most prompting enables com-       Prompts For datasets except for Bamboogle, we
+  plex reasoning in large language models. In The       adopt the question decomposition results provided
+  Eleventh International Conference on Learning Rep-    by Cao et al. (2023). We convert their decomposi-
+  resentations, ICLR 2023, Kigali, Rwanda, May 1-5,     tion into our format and filter out those with invalid
+  2023. OpenReview.net.
+                                                        decomposition formats, regenerating them as nec-
+                                                        essary. For open-source models, limited by their
+A       Appendix                                        capabilities, they conduct reasoning based on the
+A.1 Task Defination                                     question decomposition provided by GPT-3.5.
+
+This paper focuses on open-domain multi-hop                   Hyperparameters                  Values
+question-answering tasks. The task’s input is a
+multi-hop question Q that requires multi-step rea-            # Retrieval doc                     5
+soning to solve, with each step of reasoning ne-              # Retieval serp                   3 or 4
+cessitating specific knowledge. Given Q as the                # Parametric knowledge              1
+query, the retriever R retrieves relative documents           # Closebook prompt                  24
+          |D|
+D “ tdi ui“1 . The retrieved documents D are then             # Parametric prompt                  5
+fed as context into the model for knowledge rea-              # Wikipedia prompt                   3
+soning. y “ LMpQ, Dq. Our method employs                      # SERP prompt                        5
+LLMs with few-shot prompts and external retrieval             # Question Decomp. prompt           24
+to address the tasks.
+                                                              Beam size                           2
+A.2 Implementation Details of BeamAggR                        Temperature                         3
+                                                              Self-consistency (τ = 0.7)          5
+Retrieval Setup We use the October 2017
+Wikipedia dumps2 as the retrieval corpus, employ-             Table 4: Hyperparameters of BeamAggR.
+ing BM25 (Robertson and Zaragoza, 2009) imple-
+mented by Elasticseach as the sparse retriever. For
+the web search, we use the Google SERP provided         A.3    Details of Dataset
+by Serper3 . For SERP results, we consider the
+                                                        We provide statistics of the datasets, along with ex-
+top-3 organic results as well as the answer box
+                                                        amples of each question type, as shown in Table 6.
+(if available), resulting in 3 or 4 retrieval docu-
+ments. We use wikipedia4 package to access raw          HotpotQA consists of 2-hop Bridge and Com-
+Wikipedia content, and perform fuzzy matching           parison questions. Bridge: Inferring through the
+to extract snippets in the document with fuzzy-         bridge entity to complete the 2-hop question. Com-
+wuzzy5 package. To ensure experimental fairness,        parison: Comparing two entities from the same
+we incorporate Google search results as additional      category, including yes/no questions.
+knowledge for the baseline methods.
+                                                        MuSiQue composites one-hop questions through
+Hyperparameters Our main experiments are                bridge and composition into multi-hop complex
+conducted using gpt-3.5-turbo-instruct provided         questions, covering six categories of 2 to 4-hop
+by Azure OpenAI 12-01-preview version. The ex-          questions. Bridge: Composite two single-hop ques-
+periments on open-source models are conducted           tions into a 2-hop question through a bridge entity.
+using Mistral-7B (Jiang et al., 2023a). Table 4         Composition: A question is connected to two sub-
+shows detailed hyperparameters.                         questions via two bridge entities, constituting a
+    2
+                                                        3-hop question. Bridge and Composition: Combin-
+      https://hotpotqa.github.io/wiki-readme.html
+    3
+      https://serper.dev/
+                                                        ing 2-hop bridge questions and 3-hop composition
+    4
+      https://pypi.org/project/wikipedia/               questions in different order yields 4hop composi-
+    5
+      https://pypi.org/project/fuzzywuzzy/              tion/bridge questions.
+                                                    1240
+2WikiMQA includes four types of questions:                   Methods
+                                                                           HotpotQA        MuSiQue        2WikiMQA        Bamboogle
+                                                                         #token     f1    #token    f1    #token    f1    #token    f1
+bridge, inference, comparison, and bridge com-
+                                                             One-Time Retrieval
+parison. Bridge and comparison questions are sim-            OneR        4053      55.3   3941     16.4   3892     42.9   4082     46.8
+ilar to those in HotpotQA. Inference questions are           Iterative Retrieval
+similar to bridge questions, except they use infer-          IRCoT
+                                                             FLARE
+                                                                           13550
+                                                                           17793
+                                                                                   56.2
+                                                                                   56.1
+                                                                                          16877
+                                                                                          19180
+                                                                                                   24.9
+                                                                                                   31.9
+                                                                                                          13273
+                                                                                                          16651
+                                                                                                                   56.8
+                                                                                                                   60.1
+                                                                                                                          10347
+                                                                                                                          13358
+                                                                                                                                   55.0
+                                                                                                                                   58.1
+ence relationships instead of bridge entities, such          Sub-question Retrieval
+as grandfather of. Bridge-comparison: Comparing              ProbTree    25607 60.4       46431    32.9   39249    67.9   30004    66.6
+                                                             Ours        23720 62.9       36336    36.9   30178    71.6   26276    74.8
+entities from two bridge sub-questions.                      Ours (GA) 17887 62.3         22522    36.2   21703    70.1   17507    74.0
+
+Bamboogle consists of 2-hop bridge questions,             Table 5: Detailed token cost per instance and perfor-
+which are similar to 2hop (bridge) questions in           mance in four datasets. GA: greedy aggregation. (§6.3)
+MuSiQue. All questions in Bamboogle cannot be
+directly answered through search engines.
+                                                          measure this distribution. Figure 6 shows a boxplot
+A.4 Details of Analysis                                   figure of these statistics. We also line the median
+                                                          value of each hop to show the trend more clearly.
+Distribution of knowledge integration In order
+                                                          The analysis is conducted on the MuSiQue dataset,
+to facilitate a fair comparison between log-probs
+                                                          which has a clearer reasoning hop structure.
+and probabilistic aggregation in the preliminary
+study, we limit our statistical analysis to the propor-   Token consumption We compare the efficiency
+tion of internal and external knowledge contained         between one-time retrieval (OneR), iterative re-
+within the top-1 answers in atomic questions. This        trieval (IRCoT, FLARE), and sub-question retrieval
+ensures that the outcome of the statistics is not         (ProbTree, Ours). We use a Pareto chart to visualize
+affected by the types of decomposition (iterative         the token consumption of each method, as shown
+or sub-question retrieval) or different reasoning         in Figure 7. The token consumption per instance
+paths. The experimental results are averaged from         and performance are averaged in four datasets. The
+500 entries each from the HotpotQA and Musique            upper left indicates better efficiency (less token
+datasets. We plot the discrete distributions (Hist-       consumption and higher performance). Detailed
+plot) and the kernel density estimate (KDEplot) in        token consumption in each dataset is shown in Ta-
+Figure 4. The y-axis is probabilistic density, for        ble 5. We will detail the method for calculating
+discrete distributions, the density is the percentage     token consumption in the following section.
+divided by the width of the bar. In this figure, the         We measure the computational cost by evalu-
+bar width w is set to 1{6 « 0.167.                        ating the average token consumption per ques-
+                                                          tion. Specifically, the cost of each instance in-
+Contribution of each knowledge source Be-
+                                                          cludes prompt tokens (demonstrations, question,
+ginning with the final answer (the top-1 answer
+                                                          retrieved documents) and completion tokens (rea-
+from the root node), we trace the reasoning path
+                                                          soning traces, answer). For retrieval-augmented
+utilized from top to bottom, counting the knowl-
+                                                          reasoning, the cost of a single API call is approxi-
+edge sources that participated in the voting for sub-
+                                                          mately 4000 tokens, whereas for non-retrieval rea-
+question answers along this path. Finally, we com-
+                                                          soning, the cost is less than 1000 tokens.
+pute the percentage of knowledge sources within
+the entire path. To ascertain that this combination       A.5         Prompts
+of knowledge aggregation led to the correct answer,
+                                                          We provide manually annotated demonstrations on
+we omit erroneous samples from our analysis.
+                                                          the 2WikiMQA dataset for reference. Our prompts
+Tendency of candidate answers distribution In             are derived from IRCoT6 (Trivedi et al., 2023) and
+the reasoning process, errors can be accumulated,         ProbTree7 (Cao et al., 2023), to which we have
+leading to cascading errors. Through multiple rea-        made some modifications. The question decom-
+soning paths and probabilistic aggregation, Beam          position is carried out using 24-shot demonstra-
+Aggregation can gradually reduce the uncertainty.         tions (Figure 10). For implicit internal knowledge,
+To illustrate this, we classify reasoning hop into        closed-book reasoning is conducted using 20-shot
+three types: leaf, mid, and root. We statistically an-    chain-of-thought demonstrations (Figure 11). For
+alyze the candidate answer distribution in each hop             6
+                                                                    https://github.com/StonyBrookNLP/ircot
+and use diversity, consistency, and uncertainty to              7
+                                                                    https://github.com/THU-KEG/ProbTree
+
+                                                      1241
+explicit internal knowledge, we first have the LLM
+generate parametric knowledge (Figure 12), fol-
+lowed by knowledge reasoning using 5-shot demon-
+strations (Figure 13). For external knowledge rea-
+soning based on web search and Wikipedia, we use
+prompts of 5-shot and 3-shot (Figure 15, 14).
+
+A.6 Formal Definition of Notations
+We describe the formal definition of the notations
+used in the algorithm pseudocode and formulas in
+this paper, as shown in Table 7.
+
+
+
+
+                                                 1242
+ Question Type                       #Examples      Question Example
+ (a) HotpotQA
+ Bridge                                  412        Which team does the player named 2015 Diamond
+                                                    Head Classic’s MVP play for?
+ Comparison                               88        Did LostAlone and Guster have the same number of
+                                                    members?
+ (b) MuSiQue
+ 2hop (Bridge)                           254        Who succeeded the first President of Namibia?
+ 3hop1 (Bridge)                          122        What currency is used where Billy Giles died?
+ 3hop2 (Composition)                      32        When was the first establishment that McDonaldiza-
+                                                    tion is named after, open in the country Horndean is
+                                                    located?
+ 4hop1 (Bridge)                           51        When did Napoleon occupy the city where the mother
+                                                    of the woman who brought Louis XVI style to the court
+                                                    died?
+ 4hop2 (Bridge + Composition)             16        How many Germans live in the colonial holding in
+                                                    Aruba’s continent that was governed by Prazeres’s
+                                                    country?
+ 4hop3 (Composition + Bridge)             25        When did the people who captured Malakoff come to
+                                                    the region where Philipsburg is located?
+ (c) 2WikiMQA
+ Comparison                              119        Who was born first, Albert Einstein or Abraham Lin-
+                                                    coln?
+ Inference                               79         Who is the maternal grandfather of Abraham Lincoln?
+ Bridge                                  197        Who is the founder of the company that distributed La
+                                                    La Land film?
+ Bridge-comparison                       105        Which movie has the director born first, La La Land or
+                                                    Tenet?
+ (d) Bamboogle
+ 2hop (Bridge)                           125        When did the last king from Britain’s House of
+                                                    Hanover die?
+
+Table 6: Statistics and examples of each question type in HotpotQA, MuSiQue, 2WikiMQA and Bamboogle. It
+should be noted that some instances in these datasets trigger the content filter of Azure OpenAI API, where the
+model refuses to respond. And thus we have omitted these filtered samples when calculating metrics.
+
+
+
+
+                                                     1243
+       Symbol               Dim / Contains          Description
+(a) Inputs
+        Q                            -              Complex knowledge-intensive multi-hop question.
+      Rp. . . q                      -              Multi-source knowledge retriever.
+     LLM p. . . q                    -              Large language model prompted with few-shot demon-
+                                                    stration. LLM p. . . , Rq indicates that the reasoning is
+                                                    augmented by the retriever.
+             k                       -              Hyper-parameter: Candidate size in beam aggregation.
+(b) Question Tree
+      Qdecomp              tN p1q , N p2q . . . u   Decomposed questions tree, contains tree nodes. The
+                                                    root node N root represents the original question, and the
+                                                    children of a node sonspN piq q are sub-questions.
+         N piq             tq piq , apiq , ppiq u   Tree node i, contains the sub-question, answers and
+                                                    probabilities.
+         q piq                      R               Sub-question for node i, obtained in decompose step.
+                                                    The question may contain placeholder tokens (e.g.
+                                                    #1) which need to be replaced by the answer in sub-
+                                                    questions (sons) during reasoning.
+      apiq , ppiq               Rk , Rk             Top-k candidate answers and corresponding probabili-
+                                                    ties in node i, obtained in bottom-up reasoning step.
+(c) Variables in Reasoning Step
+         â, p̂               R? , R?               Intermediate results for answers and corresponding prob-
+                                                    abilities, need to be further voted or aggregated.
+        at , pt                 R? , R?             Same as above.
+        c1 , p1                 R|sons| , R         One combination of sub-questions answer and cor-
+                                                    responding probabilities. A combination is one ele-
+                                                    ment inŚthe cartesian  product of the children’s answers
+                                                    c1 P        apiq “ asons1 ˆ asons2 . . . and p1 is the pro-
+                                                         iPsons
+                                                    duction of children’s probabilities for this combination.
+(d) Functions in Pseudocode
+PostOrderTraversepQq      rN s Ñ rN s               Return a new node sequence in post-order (child0 <
+                                                    child1 < ... < root).
+   CartProdpsonsq           rN s Ñ rras, ps         Cartesian product of the answers and the associated
+                                                    probabilities of the children. For instance, if a node
+                                                    has two children x, y, this function will return a set
+                                                        pxq pyq     pxq pyq
+                                                    txai , aj y, pi pj | i, j “ 1, 2, . . . , ku.
+    MaskFillpq, cq             q, ras Ñ q           Replaces the placeholder token (#i) in the sub-question
+                                                    q with candidate answer ci .
+       Votepaq               ras Ñ ras, rps         Deduplicate answers and obtain a probabilities distribu-
+                                                    tion based on their frequency. Returns are arranged in
+                                                    descending order of probabilities.
+     Aggrpa, pq            ras, rps Ñ ras, rps      Return the unique answers and their normalized proba-
+                                                    bilities, arranged in descending order of probabilities.
+
+      Table 7: The formal definition of notations used in the algorithms and formulas within this paper.
+
+
+
+
+                                                      1244
+                                     Reasoning Example on Bamboogle
+
+Question: The fourth largest city in Germany was originally called what?
+Decomposition:
+Q1. What is the fourth largest city in Germany?
+Q2. What was #1 originally called?
+
+Q1: What is the fourth largest city in Germany?
+closebook answer: [Frankfurt, 3], [Cologne, 2]
+parametric answer: [Cologne, 5]
+document answer: [Regensburg, 3]
+serp answer: [Darmstadt, 5]
+> aggregated answer: [Cologne, 0.6607], [Darmstadt, 0.3392]
+
+Q2-1: What was [Cologne] originally called?
+Q2-2: What was [Darmstadt] originally called?
+> aggregated answer: [Colonia Claudia Ara Agrippinensium, 0.5229], [Colonia Agrippina, 0.1378], [Darmundestat,
+0.2988], [the Grand Duchy of Hesse, 0.0404]
+
+Q: The fourth largest city in Germany was originally called what?
+aggregated answer: [Colonia Claudia Ara Agrippinensium, 0.6363], [Darmundestat, 0.3636]
+> final answer: Colonia Claudia Ara Agrippinensium ✓
+ground truth: Colonia Claudia Ara Agrippinensium
+
+
+
+                           Figure 8: An example of reasoning on Bamboogle dataset
+
+
+
+
+                                     Question Decomposition Examples
+
+(a) MuSiQue
+Question: Who played who sang is she really going out with him in the who influenced Beyonce movie?
+Decomposition:
+Q1. Which movie was influenced by the Who?
+Q2. Who sang ’Is She Really Going Out With Him’?
+Q3. Who played #2 in #1?
+
+(b) HotpotQA
+Question: What German state was Karl Julius Perleb born in?
+Decomposition:
+Q1. Where was Karl Julius Perleb born?
+Q2. What German state is #1 in?
+
+(c) 2WikiMQA
+Question: Which film has the director who was born later, Money On The Street or She-Devils On Wheels?
+Decomposition:
+Q1. Who is the director of film Money On The Street?
+Q2. When was #1 born?
+Q3. Who is the director of film She-Devils On Wheels?
+Q4. When was #3 born?
+Q5. Which film has the director who was born later, Money On The Street or She-Devils On Wheels? (#2, #4)
+
+(d) Bamboogle
+Question: Who built the fastest air-breathing manned aircraft?
+Decomposition:
+Q1. What is the name of the fastest air-breathing manned aircraft?
+Q2. Who built #1?
+
+
+
+                                 Figure 9: Examples of question decomposition
+
+
+
+                                                       1245
+                               Demonstrations of Question Decomposition
+
+Question: Who is the performer of Live at this studio that employs the person who coined the term theatre of the
+absurd?
+Decompose: "Who is the performer of Live at this studio that employs the person who coined the term theatre of the
+absurd?": ["Where did the person who coined the term the theatre of the absurd work?", "Who is the performer at the
+Live at the #1 event?"], "Where did the person who coined the term the theatre of the absurd work?": ["Who coined
+the term the theatre of the absurd", "Where is #1 worked?"]
+
+Question: Who is the general treasurer of the state where Israel Arnold House is located?
+Decompose: "Who is the general treasurer of the state where Israel Arnold House is located?": ["What state is Israel
+Arnold House located?", "Who is the general treasurer of #1?"]
+
+Question: What weekly publication in the place of death of George Townsend is issued by the employer of the Yale
+labor historian who advised younger historians?
+Decompose: "What weekly publication in the place of death of George Townsend is issued by the employer of the
+Yale labor historian who advised younger historians?": ["Where the Yale labor historian who advised younger labor
+historians works?", "Where did George Townsend die?", "What weekly publication in #2 is issued by #1?"], "Where
+the Yale labor historian who advised younger labor historians works?": ["Which Yale labor historian advised other
+younger labor historians?", "Where #1 works?"]
+
+Question: When was the SEC championship game between the winner of the most national titles in NCAA football
+and Georgia?
+Decompose: "When was the SEC championship game between the winner of the most national titles in NCAA
+football and Georgia?": ["Who has the most national titles in NCAA football?", "When was the SEC championship
+game between #1 and georgia?"]
+
+Question: Who sings Never Say Never with the performer of As Long as You Love Me?
+Decompose: "Who sings Never Say Never with the performer of As Long as You Love Me?": ["Who is the per-
+former of As Long as You Love Me?", "Who sings Never Say Never with #1?"]
+......
+
+
+                       Figure 10: Demonstrations of question decomposition. (24 shot)
+
+
+
+                                 Demonstrations of Close-book Reasoning
+
+Question: When did the director of film Hypocrite (Film) die?
+Answer: The film Hypocrite was directed by Miguel Morayta. Miguel Morayta died on 19 June 2013. So the answer
+is **19 June 2013**.
+
+Question: Do director of film Coolie No. 1 (1995 Film) and director of film The Sensational Trial have the same
+nationality?
+Answer: Coolie No. 1 (1995 film) was directed by David Dhawan. The Sensational Trial was directed by Karl
+Freund. David Dhawan’s nationality is India. Karl Freund’s nationality is Germany. Thus, they do not have the same
+nationality. So the answer is **no**.
+
+Question: Are both Kurram Garhi and Trojkrsti located in the same country?
+Answer: Kurram Garhi is located in the country of Pakistan. Trojkrsti is located in the country of Republic of
+Macedonia. Thus, they are not in the same country. So the answer is **no**.
+
+Question: Who was born first out of Martin Hodge and Ivania Martinich?
+Answer: Martin Hodge was born on 4 February 1959. Ivania Martinich was born on 25 July 1995. Thus, Martin
+Hodge was born first. So the answer is **Martin Hodge**.
+
+Question: Which album was released more recently, If I Have to Stand Alone or Answering Machine Music?
+Answer: If I Have to Stand Alone was published in the year 1991. Answering Machine Music was released in the
+year 1999. Thus, of the two, the album to release more recently is Answering Machine Music. So the answer is
+**Answering Machine Music**.
+......
+
+
+            Figure 11: Demonstrations of close-book reasoning on 2WikiMQA dataset. (20 shot)
+
+
+                                                       1246
+                            Instruction of Parametric Knowledge Generation
+
+Provide the necessary background knowledge to answer the given question.
+Question: {}
+Knowledge:
+
+
+
+                     Figure 12: Instruction of parametric knowledge generation. (zeroshot)
+
+                            Demonstrations of Explicit Parametric Reasoning
+
+Given a question and the relevant documents, answer the question and explain why. If you are unsure, answer
+Unknown.
+
+#1 Document:
+Kurram Garhi Kurram Garhi is a town located in the Kurram District of Khyber Pakhtunkhwa, Pakistan. It is situated
+on the bank of Kurram River and is approximately 12 kilometers away from the city of Parachinar, the district’s
+headquarters. The word "Kurram" is derived from the Sanskrit word "Kramar," which means "a place to live." It is
+believed that Kurram Garhi was named by the Hindu king, Raja Karanpal, who ruled the area in the 10th century.
+The town has a rich history and has been a significant strategic location throughout the centuries. It has been a part
+of various empires and has seen many battles between different rulers. In the 18th century, Kurram Garhi was under
+the control of the Mughal Empire, and later it became a part of the Durrani Empire.
+Question: Which country is Kurram Garhi located in?
+Answer: Kurram Garhi is located in the country of Pakistan. So the answer is **Pakistan**.
+
+#1 Document:
+Monte Galbiga is a mountain located in the province of Como, Lombardy, Italy. It has an elevation of 1,690 me-
+ters (5,545 feet) above sea level. The mountain is also known as the "Balcone d’Italia" (Balcony of Italy) due to its
+panoramic views of Lake Como and the surrounding mountains. The name "Galbiga" is derived from the Lombard
+word "galb" which means "height". The mountain is a popular destination for hikers and offers various trails and
+viewpoints. It is also a popular spot for paragliding and hang gliding. In addition to its natural beauty, Monte Gal-
+biga also has historical significance. During World War II, it was used as a strategic observation point by the Italian
+army. Remains of fortifications and bunkers can still be found on the mountain.
+Question: In which country is the mountain Monte Galbiga located?
+Answer: The mountain Monte Galbiga is located in Italy. So the answer is **Italy**.
+
+......
+
+
+          Figure 13: Demonstrations of explicit parametric reasoning on 2WikiMQA dataset. (5 shot)
+
+                          Demonstrations of Open-book Reasoning (Wikipedia)
+
+Given a question and the relevant Wikipedia text, answer the question and explain why. If you are unsure, answer
+Unknown.
+
+#1 Wikipedia Title: Hypocrite (film)
+Text: Hypocrite (Spanish: Hipócrita..!) is a 1949 Mexican thriller film directed by Miguel Morayta ...
+#2 Wikipedia Title: When the Legends Die
+Text: When The Legends Die is a 1963 novel, by Hal Borland, and a DeLuxe Color film released ...
+#3 Wikipedia Title: Who Is the Guilty?
+Text: Who is the Guilty? ( sometimes" Who is to Blame?") is a 1925 Georgian silent film ...
+#4 Wikipedia Title: Miguel Morayta
+Text: Miguel Morayta( 15 August 1907 – 19 June 2013) was a Spanish film director and screenwriter ...
+#5 Wikipedia Title: Joselito vagabundo
+Text: Joselito vagabundo(" Joselito Vagabond") is a 1966 Mexican film. It stars Sara García and is directed by ...
+Question: When did the director of film Hypocrite (Film) die?
+Answer: The film Hypocrite was directed by Miguel Morayta. Miguel Morayta died on 19 June 2013. So the answer
+is **19 June 2013**.
+
+......
+
+
+         Figure 14: Demonstrations of open-book reasoning (wikipedia) on 2WikiMQA dataset. (3 shot)
+
+                                                        1247
+                           Demonstrations of Open-book Reasoning (SERP)
+
+Please answer the question based on the snippet from Google search and provide an explanation. If you are unsure,
+answer Unknown.
+
+#1 Wikipedia Title: Shah dynasty
+Snippet: Dravya Shah was the youngest son of Yasho Brahma Shah, Raja (King) of Lamjung and grandson of Kula-
+mandan Shah Khad, Raja (King) of Kaski ...
+#2 Wikipedia Title: List of monarchs of Nepal
+Snippet: The monarchs of Nepal were members of the Shah dynasty who ruled over the Kingdom of Nepal from
+1743 to its dissolution in 2008 ...
+#3 Wikipedia Title: Krishna Shah
+Snippet:Krishna Shah (10 May 1938 – 13 October 2013) was an Indian-American/Gujarati film and theatre director,
+screenwriter, playwright, producer, and production/distribution executive ...
+Question: Who is the child of Krishna Shah (Nepalese Royal)?
+Answer: Krishna Shah was the father of Rudra Shah. So the answer is **Rudra Shah**.
+
+#1 Wikipedia Title: Kurram Garhi Hydropower Plant
+Snippet: Kurram Garhi Hydropower Plant (KGHPP) is a small, low-head, run-of-the-river hydroelectric power genera-
+tion station of 4.0 megawatt generation capacity ...
+#2 Wikipedia Title: Kurram District
+Snippet: Kurram District is a district in the Kohat Division of the Khyber Pakhtunkhwa province of Pakistan.The
+name Kurram comes from the river Kwarma ...
+#3 Wikipedia Title: Kurrama River
+Snippet: The Kurrama River, or Kurram River, originates from the watershed of Spin Ghar region in the Paktia
+province of Afghanistan and the Kurram District of Pakistan. ...
+#4 Answerbox Title: Kurram Garhi
+Snippet: Kurram Garhi is a small village located near the city of Bannu, which is the part of Khyber Pakhtunkhwa
+province of Pakistan.
+Question: When did the director of film Hypocrite (Film) die?
+Answer: The film Hypocrite was directed by Miguel Morayta. Miguel Morayta died on 19 June 2013. So the answer
+is **19 June 2013**.
+
+......
+
+
+         Figure 15: Demonstrations of open-book reasoning (SERP) on 2WikiMQA dataset. (5 shot)
+
+
+
+
+                                                      1248
+

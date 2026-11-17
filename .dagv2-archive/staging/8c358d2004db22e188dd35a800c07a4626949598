@@ -1,0 +1,719 @@
+                RAG-Star: Enhancing Deliberative Reasoning with Retrieval Augmented
+                                   Verification and Refinement
+                            Jinhao Jiang1∗, Jiayi Chen2∗, Junyi Li4∗, Ruiyang Ren1 , Shijie Wang3
+                                        Wayne Xin Zhao1†, Yang Song5†, Tao Zhang5
+                           1
+                             Gaoling School of Artificial Intelligence, Renmin University of China.
+                   2
+                     Wuhan University of Science and Technology. 3 Northeastern University at Qinhuangdao.
+                             4
+                               Department of Computer Science, National University of Singapore.
+                                                5
+                                                  Nanbeige Lab, BOSS Zhipin.
+                                     jiangjinhao@ruc.edu.cn, batmanfly@gmail.com
+                                       Abstract                              grows, LLMs are often prone to introduce logical
+                                                                             errors, factual hallucinations, or inconsistent state-
+                   Existing large language models (LLMs) show                ments (Wei et al., 2022; Lyu et al., 2023).
+                   exceptional problem-solving capabilities but
+                   might struggle with complex reasoning tasks.                 In fact, step-by-step reasoning in the auto-
+                   Despite the successes of chain-of-thought and             regressive generation paradigm can be described
+                   tree-based search methods, they mainly depend             as akin to “System 1”, a mode of thinking which is
+                   on the internal knowledge of LLMs to search               fast, instinctive but less accurate (Kahneman, 2011).
+                   over intermediate reasoning steps, limited to             Conversely, solving complex reasoning problems
+                   dealing with simple tasks involving fewer rea-            requires more in-depth, deliberative, and logical
+                   soning steps. In this paper, we propose RAG-
+                                                                             thinking, known as the “System 2” mode, which re-
+                   Star, a novel RAG approach that integrates the
+                   retrieved information to guide the tree-based             quires conscious effort to conduct massive strategic
+                   deliberative reasoning process that relies on             decision-making (Kahneman, 2011). To enhance
+                   the inherent knowledge of LLMs. By lever-                 the “System 2” reasoning capabilities of LLMs,
+                   aging Monte Carlo Tree Search, RAG-Star it-               prior studies have proposed to conduct deliberative
+                   eratively plans intermediate sub-queries and              generation by leveraging basic tree search algo-
+                   answers for reasoning based on the LLM itself.            rithms (e.g., Monte Carlo Tree Search (Silver et al.,
+                   To consolidate internal and external knowledge,
+                                                                             2017)). However, LLMs in these studies mainly
+                   we propose an retrieval-augmented verifica-
+                   tion that utilizes query- and answer-aware re-
+                                                                             depend on their internal knowledge to search over
+                   ward modeling to provide feedback for the in-             intermediate reasoning steps, limited to handling
+                   herent reasoning of LLMs. Our experiments                 problems with relatively simple reasoning process.
+                   involving Llama-3.1-8B-Instruct and GPT-4o                To leverage external knowledge in model reasoning,
+                   demonstrate that RAG-Star significantly outper-           extensive research has sought to augment LLMs
+                   forms previous RAG and reasoning methods.                 with external information sources (a.k.a. retrieval-
+                   Our codes and data are publicly available at              augmented generation, RAG) (Lewis et al., 2020b;
+                   https://github.com/RUCAIBox/RAG-Star.
+                                                                             Yao et al., 2022), while existing efforts mainly con-
+                                                                             sider sequential reasoning structure, which cannot
+               1    Introduction
+                                                                             naturally support more complex reasoning structure
+               Despite the excellent capabilities of large language          like MCTS. Thus, we raise the following research
+               models (LLMs) (Zhao et al., 2023b), they still face           question: Can RAG enhance the deliberative rea-
+               significant challenges in complex reasoning tasks             soning capabilities of LLMs?
+               (e.g., multi-hop question answering), which often                In light of this, in this paper, we propose RAG-
+               go beyond simple, single-step problem-solving,                Star, a novel RAG-enhanced framework designed
+               demanding a deeper level of cognitive reasoning               to improve multi-step reasoning capabilities of
+               across multiple facts, sources, or contexts (Huang            LLMs with deliberative planning. As the major
+               et al., 2024; Suzgun et al., 2023). Great efforts have        technical contribution, RAG-Star can fully exploit
+               been made to improve the reasoning effectiveness              the internal knowledge of LLMs to plan the multi-
+               of LLMs by conducing step-by-step reasoning, ex-              step reasoning, and meanwhile integrating the ex-
+               emplified by chain-of-thought (CoT) (Wei et al.,              ternal retrieval to guide the internal reasoning pro-
+               2022). However, as the number of reasoning steps              cess. To achieve this goal, we first introduce a
+                   ∗
+                       Equal contributions.                                  tree-based search algorithm (i.e., Monte Carlo Tree
+                   †
+                       Corresponding author.                                 Search, MCTS) with LLMs to search over possible
+                                                                        7064
+Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies
+                                                        (Volume 1: Long Papers), pages 7064–7074
+                                         April 29 - May 4, 2025 ©2025 Association for Computational Linguistics
+plans for solving the problem at hand where a com-      to generate explicit intermediate reasoning steps
+plete plan is composed of a sequence of sub-queries     in reasoning rather than simply providing answers
+and corresponding answers. Starting from the input      directly. To elicit or improve the multi-step reason-
+question (root node), RAG-Star iteratively gener-       ing capability of LLMs, several approaches seek
+ates and selects an appropriate sub-query and its an-   to harness the strengths of both CoT and retrieval
+swer (intermediate node), which aims to maximally       on knowledge-intensive complex reasoning tasks,
+explore the optimal sub-query path towards the fi-      such as multi-hop question answering (Yao et al.,
+nal answer solely based on the inherent knowledge       2022; Zhao et al., 2023a). The rationales gained
+of LLMs. Second, different from existing delibera-      from reasoning enhance the retrieval of more rel-
+tion methods (Wang et al., 2024a; Yao et al., 2023),    evant information, while the retrieved knowledge
+RAG-Star proposes retrieval-augmented verifica-         improves the factuality of intermediate reasoning
+tion that involves both query- and answer-aware         steps. However, these approaches primarily take
+reward modeling, fully exploiting external sources      retrieved documents as direct input to the model,
+to guide the internal deliberative reasoning. In our    easily suffering from knowledge conflicts between
+approach, instead of directly interfering in the rea-   the parametric knowledge of LLMs and the exter-
+soning process of LLMs, we consider employing           nal sources. In contrast, our RAG-Star framework
+RAG to refine the derived reasoning steps in MCTS,      integrates tree-based search to fully explore the so-
+which can effectively reduce the conflicts between      lution space and repurpose the retrieval information
+inherent and external knowledge, which has been         as external guidance to the reasoning process.
+a common issue when using RAG methods (Wang
+                                                        Enhancing LLMs with Search. Applying search
+et al., 2024b; Gao et al., 2023).
+                                                        on top of LLMs has been a topic of much inter-
+   We conduct extensive experiments to verify the
+                                                        est. Several recent works have explored search
+effectiveness of RAG-Star based on Llama-3.1-8B-
+                                                        algorithms to improve the performance of LLMs
+Instruct and GPT-4o. Our method outperforms the
+                                                        during the inference stage (Wang et al., 2024a;
+baselines by up to 18.98% and 16.19% on average
+                                                        Zhang et al., 2024). The bitter lesson (Sutton,
+for Llama-3.1-8B and GPT-4o, respectively.
+                                                        2019) famously suggests that two forms of scal-
+   Our main contributions can be summarized as:
+                                                        ing, i.e., learning and search, supersede all other
+   • We propose RAG-Star that leverages external
+                                                        approaches. Many studies have proven that scal-
+retrieval to enahnce the deliberative reasoning of
+                                                        ing the inference-time computation can lead to
+LLMs based on their internal knowledge.
+                                                        substantial improvements in the performance of
+   • We design an effective retrieval-augmented
+                                                        LLMs without training (Brown et al., 2024; Snell
+verification and refinement to evaluate and correct
+                                                        et al., 2024). These search algorithms, where
+the inherent reasoning process.
+                                                        multiple branches of outcomes are explored dur-
+   • We conduct extensive experiments on sev-
+                                                        ing search, have been widely applied in reinforce-
+eral datasets, where RAG-Star significantly out-
+                                                        ment learning algorithms (Hart et al., 1968; Silver
+performs existing RAG and reasoning methods.
+                                                        et al., 2017) and many real-world applications such
+2   Related Work                                        as AlphaGo (Silver et al., 2016) for their good
+                                                        exploration-exploitation trade-off. However, these
+Retrieval-Augmented LLMs. Augmenting large              approaches mainly rely on the internal knowledge
+language models (LLMs) with retrieval has been          of LLMs to search potential solutions, which might
+extensively studied in existing literature (Lewis       not be optimal and leads to a amount of rollouts,
+et al., 2020a; Borgeaud et al., 2022; Guu et al.,       significantly slowing down the decoding process.
+2020), which incorporates a differentiable retriever    In this paper, we leverage the external retrieval
+to provide external sources for LLMs. Further-          sources to enhance the deliberative search process
+more, LLMs have made significant advancements           with LLMs, effectively differentiate the internal
+in many reasoning tasks, such as code genera-           reasoning and external retrieval.
+tion (OpenAI, 2023), math word problems (Zhu
+                                                        3   Preliminary
+et al., 2023) and question answering (Brown et al.,
+2020). Chain-of-thought (CoT) has been reported         In this section, we will first formally define our task
+as an emergent ability of LLMs when they are large      and then introduce Monte Carlo Tree Search which
+enough (Wei et al., 2022), which encourages LLMs        is used in our proposed RAG-Star approach.
+                                                    7065
+Task Formulation. In this work, we mainly fo-              expanded child node st+1 until the task is solved
+cus on open-domain multi-hop question answer-              and obtain a reward r based on the rollout results.
+ing (Chen et al., 2019; Yang et al., 2018), which            • Backpropagation operation leverages the re-
+requires multiple steps of reasoning across differ-        ward r of the child node to update the expected
+ent documents to answer questions. Previous work           reward V (st ) of nodes along the path from the root
+typically adopts an iterative reason-then-generate         node to the current node:
+pipeline (Wei et al., 2022; Huang and Chang, 2023).
+At each step, the LLM first infers an intermediate                 Nnew (st ) = Nold (st ) + 1,               (2)
+sub-query based on the current situation and then                               Vold (st )Nold (st ) + r
+generates possible answers to the query. Formally,                 Vnew (st ) =                          ,    (3)
+                                                                                      Nnew (st )
+given a natural language input question, at the t-th
+step, the LLM Mθ (parameterized by θ) first de-            where Nold (st ) and Vold (st ) are the number of vis-
+liberately reasons about a sub-query qt , followed         its and value function at last iteration, respectively.
+by generating an answer at based on its inherent
+knowledge. In some literature (Yao et al., 2022;           4     Approach
+Asai et al., 2024), retrieval-augmented generation
+                                                           4.1    Overview
+(RAG) has been employed to improve the factual-
+ity of intermediate reasoning steps. For each sub-         RAG has been an indispensable technique to ad-
+query qt , the retriever retrieves top-K documents         dress the inherent knowledge limitations of LLMs,
+                                                           effectively integrating requisite information and
+Dt = {dt,k }K k=1 from an external large-scale cor-
+pus, e.g., Wikipedia, supplying them to the LLM            grounding to reliable sources (Lewis et al., 2020a;
+to generate more accurate answers.                         Guu et al., 2020). However, existing work mainly
+                                                           utilizes RAG to provide supplementary knowledge,
+Monte Carlo Tree Search (MCTS). In existing lit-           while overlooking a thorough investigation of RAG
+erature (Zelikman et al., 2024; Zhang et al., 2024),       on enhancing the inherent reasoning capabilities of
+MCTS builds a search tree T based on a policy              LLMs. To address this, we propose RAG-Star, a
+model πθ , which is usually the target LLM Mθ .            framework to fully harness the potential of inter-
+Each node st = [qt , at , N (st ), V (st )] represents a   nal knowledge in LLMs for multi-step reasoning
+state comprising the sub-query qt , its answer at ,        guided by the external retrieval.
+the number of visits N (st ), and the value function          Our RAG-Star framework contains two major
+(expected reward) V (st ) for accurately answering         technical steps. First, we propose tree-based sub-
+questions, except that the root node s0 = [q0 ] only       query generation to perform deliberative reason-
+contains the original input question q0 , and each         ing with MCTS, totally relying on the inherent
+edge is an action aiming to generate the next sub-         knowledge of LLMs. Second, we design retrieval-
+query. During the search process, MCTS runs for            augmented verification capitalizing on RAG to as-
+multiple simulations. For the t-th simulation, it          sist in guiding the reasoning based on the external
+conducts four operations to expand the tree:               knowledge. Under this framework, RAG-Star first
+   • Selection aims to select a node with the highest      selects a node from the tree to explore (Section 4.2),
+UCT (Upper Confidence bounds applied to Trees)             then generates the next sub-query and answers for
+score (Kocsis and Szepesvári, 2006) starting from          obtaining new child nodes (Section 4.3), and com-
+the root node s0 . The UCT score of a child node           putes a reward to the expanded nodes (Section 4.4).
+with state st is calculated as follows:                    Finally, it backpropagates the reward to update their
+                                   s                       parent nodes on the tree (Section 4.4). This process
+                                      ln N (p)             will iterate until the task is solved. Next, we will
+        U CT (st ) = V (st ) + w                ,    (1)
+                                       N (st )             describe each step in detail.
+
+where w controls the exploration and exploitation,         4.2    Node Selection
+and p is the parent node of the current node st .          To answer multi-hop questions, our framework will
+  • Expansion explores multiple child nodes                iterate the tree-based search process multiple times
+{st+1 } from the selected node st through repeated         to gradually generate inference solutions in a step-
+sampling based on the policy model πθ .                    by-step way. In our work, the solution is composed
+  • Simulation aims to perform rollout for each            of a sequence of intermediate sub-queries and the
+                                                       7066
+  MCTS                                                                               Expansion               Reward                                     Birthday
+                                         Which film has the                                                                                                             TopK
+ Procedure           Original
+                                       director born later, Life
+                                                                                     Selection               Modeling                                      Film
+                      Query                                                          Backpropagation                       Subquery    External
+                                       Hits or It'S In The Air?
+                                                                                                                                       Corpus           director
+
+
+
+                                                                                                                                                        Prompt
+                                                                                                                    Prompt
+         Who is the director                                        Sub What is the birth year of the                                                 TopK Docs
+                                           When was the                                                           History
+          of the film "Life                                        query director of the film "Life Hits"      Reasoning Path         LLM              Subquery
+                                          director of "Life
+               Hits"?                       Hits" born?                    Answer        Reward                    Subquery                          Answer(1980)
+                                                                    Origin Answer (1980)   2.0
+                                                                    Refined Answer (1982)
+                                                                                                               Query Score ( 𝑟𝑞 )                   Refined Answer
+
+                                                                                                                                                   Answer Score (𝑟𝑎 )
+   What year was      Who directed                                                                                                  Reward Model
+                                                                                                                Reward Score
+   the film "Life     the film “Life             …                                                               𝑟 = 𝑟𝑞 ∗ 𝑟𝑎
+   Hits" released?        Hits”?                                      What…                 When…                                                      Query Score
+                                                                                                               Refined Answer
+                                                                                                                                                       Answer Score
+
+
+                                       Figure 1: Overall framework of our proposed RAG-Star approach.
+
+associated answers. At each iteration, it first selects                                          generate the next sub-query qt+1 = πθ (H). During
+an appropriate node from the current tree for the                                                inference, we employ repeated sampling to sample
+next exploration or expansion. The selection opera-                                              sub-queries by mq times to fully exploit the policy
+tion is based on the node values computed through                                                model’s inherent capabilities and obtain mq new
+the reward modeling and backpropagation steps.                                                   expanded sub-queries.
+   Specifically, starting from the root node s0 (i.e.,
+                                                                                                Answer Deduction. After planning the sub-query,
+the input question q0 ), our RAG-Star model se-
+                                                                                                we further instruct the policy model to generate
+lects one node with the highest score from its child
+                                                                                                an answer to explore the internal knowledge of
+nodes, and then sequentially selects the next best
+                                                                                                LLMs. Specially, for each planned sub-query qt+1 ,
+child node layer-by-layer along the tree until reach-
+                                                                                                we directly feed the historical context H and sub-
+ing a leaf node, i.e., the terminal state indicating the
+                                                                                                query into the policy model to generate a candidate
+final answer. To better balance exploration and ex-
+                                                                                                answer by leveraging the inherent knowledge en-
+ploitation, we use the UCT algorithm (Kocsis and
+                                                                                                coded in its parameters as follows:
+Szepesvári, 2006) to calculate the score of each
+node according to its number of visits N (s) and                                                                       at+1 = πθ (H, qt+1 ).                             (4)
+expected reward V (s) in Eq. 1.
+                                                                                                In this process, we do not consider the external
+4.3 Plan Expansion                                                                              knowledge from RAG to avoid knowledge con-
+After selecting the current node, it expands the                                                flicts. We aim to fully exploit the potential of the
+search tree by repeatively sampling multiple child                                              internal knowledge of LLMs without interference
+nodes as plan based on the policy model πθ . Spe-                                               from external information, differing from previous
+cially, the expansion process involves two steps,                                               retrieval-augmented work (Lewis et al., 2020b; Yao
+i.e., sub-query generation and answer deduction.                                                et al., 2022) that might suffer from knowledge con-
+                                                                                                flicts and interference. After obtaining the answer,
+Sub-query Planning. To generate the next sub-                                                   we can store each ⟨qt+1 , at+1 ⟩ pair in the corre-
+query as plan, our approach first builds the con-                                               sponding node state, which will be subsequently
+text information by concatenating states from the                                               used for reward modeling.
+root node to the current selected node, and then                                                   When completing the plan expansion process,
+instructs the policy model to sample the next sub-                                              we can obtain mq child nodes for every parent node,
+query based on the context information. Formally,                                               each of which contains a sub-query qt+1 and its
+given the node st , we can extract a path from the                                              answer at+1 .
+root node s0 to the current node st , denoted by
+H = {q0 ; ⟨q1 , a1 ⟩; ...; ⟨qt , at ⟩}, where q0 is the                                          4.4        Reward Modeling and Backpropagation
+original input question and each ⟨qi , ai ⟩ pair de-                                            Traditional MCTS methods require to perform ex-
+notes the planned sub-query and its answer veri-                                                pensive rollout from the current node until the task
+fied by our retrieval-augmented varification (Sec-                                              ends to evaluate the expanded nodes. In our work,
+tion 4.4). We convert this path into the context                                                following previous work on process-supervised re-
+information, and feed it to the policy model πθ to                                              ward modeling (Setlur et al., 2024; Lightman et al.,
+                                                                                        7067
+2024), we propose retrieval-augmented verifica-               continuing to reason along illogical sub-queries.
+tion and refinement by using external knowledge                  After obtaining the final reward for the newly
+to verify the consistency between the model output            expanded node, we backpropagate the reward to up-
+and retrieved information. Specifially, we employ             date the value of nodes from the root node s0 to the
+reward models to assign an estimated reward r to              current node st+1 . For each node s0 , s1 , ..., st+1 in
+the expanded node, which effectively quantifies the           the path, its number of visits N (s) and the value
+effectiveness of the policy model in successfully             V (s) will be updated according to Eq. 2. These up-
+answering the input question if continually reason-           dated values are used in the UCT algorithm in Eq. 1
+ing from the current node. Next, we introduce                 to guide the node selection at the next iteration.
+the involved two kinds of reward scores, namely
+answer-aware reward and query-aware reward.                   4.5    Reward Model Training
+                                                              In the reward modeling process, the capacity of the
+Answer-aware Reward. We first introduce the
+                                                              reward model critically influences the search pro-
+answer-aware reward in the verification process.
+                                                              cess and ultimate answer accuracy. However, uti-
+First, given a sub-query qt+1 , we follow existing
+                                                              lizing close-source model API or very large LLMs
+methods (Lewis et al., 2020a) to retrieve top-K
+                                                              incurs substantial computational costs for deploy-
+documents Dt+1 = {dt+1,k }K     k=1 from the exter-           ment. Hence, we adopt a knowledge distillation
+nal corpus. Based on the retrieved documents, we
+                                                              technique to transfer capabilities from an advanced
+then employ the reward model to assign an answer-
+                                                              LLM, which usually has more parameters, to a rel-
+aware reward ra to the currently generated answer
+                                                              atively smaller model. This involves two phases:
+at+1 from the internal knowledge of LLMs. Specif-
+                                                              data synthesis and instruction fine-tuning.
+ically, there are overall three cases for the knowl-
+                                                                 During data synthesis, we mix up training sets
+edge consistency between at+1 and Dt+1 with dif-
+                                                              from our evaluation datasets to maintain diversity.
+ferent rewards:
+                                                             First, we adopt in-context learning to instruct the
+       1, if at+1 cannot be verified by Dt+1
+                                                             policy model to generate a CoT format solution
+ ra = 2, if at+1 is in conflict with Dt+1                     and then break down into multiple sub-steps, each
+       
+                                                             incorporating the input question, accumulated rea-
+          3, if at+1 is aligned with Dt+1
+                                                              soning paths, and a sub-query specific to the current
+Note that in the second case (i.e., at+1 is in conflict       step. To further ensure diversity, only one random
+with Dt+1 ), we assign a moderate score 2 to the an-          step from each sample is selected for subsequent
+swer because we will refine at+1 with a new poten-            instruction data creation. We then employ a more
+tial answer ãt+1 from the external knowledge Dt+1            advanced LLM (i.e., GPT-4o-mini) combined with
+to support the policy model to continually reason             a retrieval system to evaluate the sub-query and its
+from the current node. However, if the answer at+1            answer for each step (Section 4.4), and filter the
+cannot be verified by the external knowledge, we              output that fails to meet the format criteria. Finally,
+will assign the lowest score 1 to the answer, avoid-          we compile a dataset of intermediate steps and their
+ing the policy model from exploring the potentially           query and answer rewards from an advanced LLM.
+risky solution space.                                         In the instruction fine-tuning phase, we utilize the
+                                                              synthetic samples to fine-tune a smaller LLM (i.e.,
+Query-aware Reward. In addition to evaluating                 Llama-3.1-8B-Instruct), thereby enhancing its ca-
+the consistency of the generated answer with ex-              pabilities in reward modeling.
+ternal knowledge, we employ the reward model
+to provide a query-aware reward rq for mea-                   5     Experiments
+suring the plausibility of the planned sub-query
+qt+1 based on the historical context information              5.1    Experimental Setup
+from the root node to current node, i.e., H =                 Datasets and Evaluation Metrics. We select
+{q0 ; ⟨q1 , a1 ⟩; ...; ⟨qt , at ⟩}. If the sub-query evalu-   four typical complex multi-hop question-answering
+ated by the reward model is logically inconsistent            datasets, i.e., HotpotQA (Yang et al., 2018), 2Wiki-
+with the history plan, the score rq is set to 0; other-       MultihopQA (Ho et al., 2020), MusiQue (Trivedi
+wise, it is set to 1. Therefore, the final reward r for       et al., 2022), and StrategyQA (Geva et al., 2021).
+the expanded node st+1 is computed as r = ra · rq .           For evaluation metrics, we use Exact Match (EM),
+This step aims to prevent the policy model from               F1 score, and Cover Exact Match (Cover EM),
+                                                          7068
+where Cover EM measures whether the ground               0.2. We also retrieve top-5 documents and sample
+truth answer is covered in the generated answer.         three sub-queries at a time (mq = 3) with temper-
+We randomly select 100 samples from the whole            ature 1.0 and top-p sampling where p = 1.0. For
+validation sets of each dataset as our final test set    answer generation, we sample an answer using a
+for all baselines and our method.                        temperature of 0.9 and top-p sampling set to 1.0.
+
+Baselines. We compare RAG-Star to the follow-            5.2   Main Results
+ing two types of baselines based on GPT-4o and
+Llama-3.1-8B-Instruct:                                   Table 1 shows the results of RAG-Star and other
+   • Vanilla prompting methods including direct          baselines across four representative multi-hop ques-
+prompting, Chain-of-Thought (CoT), and standard          tion answering datasets.
+RAG. Direct prompting instructs the model to di-            Firstly, it can be observed that relatively smaller
+rectly generate answers and CoT incorporates in-         models (e.g., Llama-3.1-8B-Instruct) show limited
+termediate reasoning steps, which are all based on       performance on these knowledge-intensive reason-
+the inherent knowledge of LLMs. Standard RAG             ing tasks, achieving below 10% across three met-
+first retrieves documents from Wikipedia based on        rics in MusiQue. Although the Chain-of-Thought
+DPR (Karpukhin et al., 2020) as prompts and then         technique can slightly improve the answer recall
+generates the final answers.                             (e.g., Cover EM scores of Llama-3.1-8B-Instruct
+   • Improved RAG methods including Iterative            and GPT-4o in MusiQue increase from 3.0% and
+RAG (Xu et al., 2024), Judge-then-retrieve (Asai         19.0% to 16.0% and 27.0%, respectively), the
+et al., 2024), and Generate-then-retrieve (Wang          model is prone to generating substantial irrele-
+et al., 2023). We reimplement all of these baselines     vant information in the output, decreasing the over-
+in our experiments. Iterative RAG iteratively de-        all performance (e.g., F1 score of Llama-3.1-8B-
+composes the input question into sub-queries for         Instruct drops from 21.9% to 7.1% on 2WikiMulti-
+retrieval and generation, ultimately ensembling all      hopQA).
+intermediate answers; Judge-then-retrieve first de-         Secondly, based on the standard RAG, GPT-4o
+cides whether the retrieval is needed, autonomously      achieves substantial improvement in HotpotQA
+deciding to utilize either internal or external knowl-   (e.g., Cover EM increases from 47.0% to 57.0%)
+edge to aid in generation; Generate-then-retrieve        but exhibits a large decline in StrategyQA (e.g.,
+first generates an initial answer used for retrieving    Cover EM from 73.0% to 62.0%), suggesting a po-
+more documents relevant to the question and then         tential conflict between external sources and inter-
+generates the final answer based on documents.           nal knowledge of LLMs. We speculate the reason
+                                                         might be that using the retrieved information di-
+Implementation Details. We use a closed-source           rectly as input incorporates some noises and makes
+model (GPT-4o) and an open-source model (Llama-          the LLM lost in the useful information. There-
+3.1-8B-Instruct) as our policy models to measure         fore, by controlling the utilization of internal and
+the performance of the RAG-Star framework. For           external knowledge, Judge-then-Retrieve can sig-
+the reward models, we use GPT-4o-mini and a              nificantly alleviate this issue (e.g., Cover EM from
+fine-tuned Llama-3.1-8B-Instruct. For HotpotQA,          62.0% to 74.0% in StrategyQA). However, these
+we only use the abstract of articles in Wikipedia        approaches still present limited or even negative im-
+2017 dump as the retrieval corpus following Yang         provements in complex tasks (e.g., Cover EM from
+et al. (2018), while for other datasets, we use the      19.0% to 16.0% in MusiQue), necessitating effec-
+whole articles in Wikipedia 2018 dump (Karpukhin         tive methods to consolidate external and internal
+et al., 2020). Moreover, for the retrieval model, we     knowledge.
+use FAISS for index building and BGE-large-en-              Finally, our approach outperforms all baselines
+v1.5 (Xiao et al., 2023) for dense passage retrieval.    across most metrics in four datasets. RAG-Star
+For all retrieval-based baselines, we retrieve top-5     introduces a “System 2”-like slow and delibera-
+documents and employ greedy search for decoding          tive thinking process and employs RAG to verify
+with a temperature of 0. For RAG-Star, we set the        and guide the multi-step reasoning process. By
+maximum number of simulations to 50 and a maxi-          employing retrieval-augmented verification, the re-
+mum of 6 layers. In UCT algorithm, the weight w          ward model can effectively encourage the model
+to control the exploration and exploitation is set to    towards plausible sub-query nodes or avert from
+                                                     7069
+                                     HotpotQA               2WikiMultihopQA               MusiQue             StrategyQA
+          Method
+                                EM    CEM           F1     EM        CEM     F1    EM      CEM      F1     EM     CEM      F1
+ Llama-3.1-8B-Instruct       14.0         25.0   26.0         9.0    29.0   21.9    2.0     3.0     3.9    63.0   65.0   63.0
+ + Chain-of-Tought           20.0         38.0   26.3       4.0      32.0    7.1    4.0    16.0      6.6   55.0   69.0   55.0
+ + Standard RAG              40.0         48.0   52.8      17.0      23.0   26.1   11.0    11.0     15.5   63.0   64.0   63.0
+ + Iterative RAG             26.0         31.0   36.9      22.0      23.0   26.0    7.0    11.0     15.9   61.0   63.0   61.0
+ + Generate-then-Retrieve    34.0         44.0   49.4      21.0      30.0   26.6   13.0    17.0     19.4   63.0   67.0   63.0
+ + Judge-then-Retrieve       39.0         48.0   53.9      18.0      26.0   26.8   10.0    10.0     16.0   58.0   63.0   58.0
+ + RAG-Star w Llama RM       42.0         44.0   54.4      34.0      38.0   42.0   13.0    18.0     22.2   71.0   72.0   71.0
+ + RAG-Star w GPT RM         46.0         49.0   60.0      38.0      43.0   46.8   22.2    27.0     30.7   67.6   69.0   67.6
+ GPT-4o                      43.0         47.0   56.7      36.0      42.0   45.7   13.0    19.0     24.3   70.0   73.0   70.0
+ + Chain-of-Tought           36.0         49.0   56.8      38.0      55.0   53.9   20.0    27.0     29.6   37.0   79.0   37.0
+ + Standard RAG              47.0         57.0   63.7      25.0      26.0   31.2   14.0    18.0     20.6   45.0   62.0   45.0
+ + Iterative RAG             47.0         59.0   63.3      19.0      24.0   26.3   15.0    26.0     25.5   32.0   74.0   32.0
+ + Generate-then-Retrieve    44.0         57.0   62.0      29.0      36.0   37.5   23.0    28.0     31.0   50.0   68.0   50.0
+ + Judge-then-Retrieve       44.0         50.0   58.6      28.0      29.0   32.2   14.0    16.0     22.8   72.0   74.0   72.0
+ + RAG-Star w Llama RM       48.0         54.0   66.3      47.0      68.0   62.8   25.0    36.0     39.0   61.0   86.0   61.0
+ + RAG-Star w GPT RM         48.0         57.0   68.6      48.0      63.0   61.7   29.0    40.0     43.5   60.0   81.0   60.0
+
+Table 1: Evaluation results on four representative multi-hop question answering tasks. “RM” is short for reward
+model. The bold and underline fonts denote the best and second best results in each dataset, respectively.
+
+
+                            GPT-4o           Llama3.1-8B
+   Method
+                         CEM         F1      CEM         F1
+   RAG-Star (Ours)       84.0    68.3        75.0        73.3
+   w/o Query Score       82.0    68.0        71.0        69.0
+   w/o Answer Score      80.0    66.3        66.0        65.3
+   w/o Retrieval         78.0    67.3        67.0        66.0
+   w/o Refine            77.0    68.2        70.0        68.1
+
+       Table 2: Ablation study in StrategyQA.
+                                                                       Figure 2: Cover EM performance on the StrategyQA
+                                                                       w.r.t. the number of simulations (Left) or the number of
+potential risky nodes. For example, equipped with                      training data (Right).
+our RAG-Star framework, Llama-3.1-8B-Instruct
+achieves higher scores in two challenging reason-
+ing datasets, i.e., 2WikiMultihopQA and MusiQue,                       ants perform worse than the original method, in-
+significantly beyond all baseline methods.                             dicating the effectiveness of each component in
+                                                                       our framework. Specifically, the performance of
+5.3 Further Analysis                                                   w/o Retrieval drops significantly for Llama-3.1-8B,
+We report further analysis in StrategyQA with ran-                     indicating that using external knowledge for ver-
+domly selected 100 samples – we have similar find-                     ification can be highly beneficial for the inherent
+ings in other datasets.                                                reasoning of LLMs. Similarly, w/o Refine leads to a
+                                                                       decline in model performance, which highlights the
+Ablation Study. To validate the effectiveness of                       importance of repurposing external sources for cor-
+our proposed framework, we conduct an ablation                         recting the errors in the model’s reasoning process.
+analysis of its key design elements. We design                         Moreover, both w/o Query Reward and w/o Answer
+four variants: (1) w/o Retrieval removes the re-                       Reward variants lead to a substantial performance
+trieved documents in reward modeling; (2) w/o                          decline, which suggests that the consistency and
+Refine does not refine the conflict answer with re-                    logical plausibility of intermediate sub-queries and
+trieved documents in reward modeling; (3) w/o                          answers are both critical for the model to plan the
+Query Reward removes the query-aware reward rq                         correct path towards the final answer.
+for scoring; and (4) w/o Answer Reward removes
+the answer-aware reward ra for scoring. We show                        Effect of Simulation Scaling. Typically, scal-
+the results in Table 2. It is clear that all the vari-                 ing the simulation iterations will lead to a higher
+                                                                    7070
+         Failed Node                                              What's Christian's            Was Christian                     Therefore, the final
+                             Sub-query: When was the                                                                  Output
+                                                                   date of birth?               born earlier?                     answer is Life Hits
+         Success Node        director of “Life Hits” born?
+                                                                    Reward: 1                    Reward: 0
+                             Answer: 1889 Reward: 0
+         Answer Node
+                                                                    Sub-query: When was                                              Sub-query: When
+                                 Sub-query: Who is the                                           Sub-query: Who is the
+   Which film has the                                               Christian born?                                                  was Anthony born?
+                                 director of “Life Hits” ?                                       director of It’s In The Air?
+                                                                    Answer: 1998                                                     Answer: 1901
+ director born later, Life       Answer: Christian                                               Answer: Claude
+                                                                    Reward: 2       1972                                             Reward: 3
+  Hits or It’s In The Air?       Reward: 3                                                       Reward: 2         Anthony
+    (Answer: Life Hits)
+                                                  ✅
+                                                                  …           ❎ refine                 ❎ refine                         ✅
+    Input Question                 …
+                                            Life Hits is a 2006            Christian, born 14      It’s in the Air is …                 Anthony
+                   Verification by          drama film directed            December 1972,          comedy directed                (10 November 1901
+                Retrieved Documents           by Christian…                is a Danish …             by Anthony …                 to 19 May 1964) …
+
+
+ Figure 3: A qualitative example showing the deliberative reasoning process of RAG-Star in 2WikiMultihopQA.
+
+
+level of task-solving capability. To explore the re-                               Method                        NS        TT         RT        CEM
+lationship between simulation scaling and the final                                CoT                            -       30.48       0.00      34%
+performance of RAG-Star, we test our model under                                   RAG                            -       10.38       8.44      24%
+                                                                                   Iterative RAG                  -       33.73      28.51      20%
+different maximum simulation iterations. Specifi-                                  Judge-then-Retrieve            -       24.18      11.55      28%
+cally, we vary the maximum simulation rounds in                                    Generate-then-Retrieve         -       17.25      10.54      28%
+a set {10, 20, 30, 40, 50, 60}, and evaluate Llama                                                               10       96.30 66.54           32%
+and GPT-4o in StrategyQA with GPT-4o-mini as                                       RAG-Star (Ours)
+                                                                                                                 30       143.23 99.83          36%
+the reward model. The results are presented in the                                                               50       157.29 103.62         40%
+                                                                                                                 80       200.37 130.92         42%
+Figure 2. We can see that as the maximum number
+of simulation increases, the model’s performance                               Table 3: Comparison of time costs per question and
+gradually improves, although the average time con-                             the final achieved performance. Here, NS represents
+sumed also rises to some extent. This highlights                               the number of simulations per question, TT and RT
+that scaling the test-time computation can further                             represent the total inference time and retrieval time per
+promote more thorough exploration and exploita-                                question, respectively.
+tion by the policy model within the search space.
+However, as the number of simulations further in-                              with higher diversity and quality.
+creases, the performance of the policy model tends
+to be saturated. Due to the limitation of inherent                             Analysis of Computational Expenses. We con-
+knowledge, the policy model cannot benefit a lot                               duct further analysis of computational costs con-
+from conducting more simulations.                                              cerning different numbers of simulations on 2Wiki-
+                                                                               MultihopQA. We randomly sample 50 questions to
+Effect of Reward Model. In our framework, the                                  compute the average time and performance. Specif-
+reward model is used to assess the logical plausibil-                          ically, we compute the total inference time and
+ity of the sub-query and the consistency between                               retrieval time separately. We show the results in Ta-
+the output answer and external sources. In this part,                          ble 3. Firstly, our proposed method obtains the best
+we aim to explore how to train open-source reward                              performance when scaling the inference-time. Sec-
+models (i.e., Llama-3.1-8B-Instruct) to achieve per-                           ondly, we observe that the overall time increases
+formance comparable to closed-source LLMs (i.e.,                               with the number of simulations, and performance
+GPT-4o-mini) by varying amounts of training data                               continually improves, aligning with the recent test-
+from 20K to 80K. Specifically, we employ different                             time scaling law (Snell et al., 2024). Thirdly, re-
+amounts of training data to fine-tune Llama-3.1-8B-                            trieval time accounts for more than half of the total
+Instruct and use the fine-tuned model to evaluate                              time. Further analysis indicates that retrieval can
+the sub-query and its answer. As shown in Fig-                                 be optimized at the hardware level, such as through
+ure 2, we can see that as the amount of training                               GPU acceleration and distributed retrieval. We plan
+data increases, the reward model can achieve more                              to enhance this aspect in future versions.
+accurate verification quality, significantly benefit-
+ing the planning and reasoning of the policy model.                             5.4     Case Study
+However, the performance gains tend to saturate at                             To facilitate understanding of the entire workflow
+later stages, necessitating instruction tuning data                            of our proposed RAG-Star, we present a qualita-
+                                                                         7071
+tive analysis in 2WikiMultihopQA. Throughout               to conduct our deleberative reasoning process. we
+the search process, the LLM initializes the input          may consider investigate more kinds of search algo-
+question as root node and conducts multiple simu-          rithms to verify the generalization and robustness
+lations, eventually reaching the terminal leaf node,       of our proposed framework. Moreover, the perfor-
+which can be vividly represented as a tree. As             mance of our model is affected by the feedback
+shown in Figure 3, after selecting the first query         quality provided by the reward model. Therefore, a
+(i.e., Who is the director of “Life Hits”?), the model     well-trained and performant reward model is impor-
+expands multiple children nodes by repeated sam-           tant for guiding the reasoning process. We will con-
+pling. At the next iteration, the model refines the        sider other fine-tuning strategies and more LLMs
+generated answer (i.e., 1998) for the sub-query            in reward modeling.
+(“When was Christian born?”) based on retrieved
+documents and the reward model returns an overall          Acknowledgements
+score of 2. By iterating the multi-step reasoning          This work was partially supported by National Nat-
+and retrieval-augmented verification processes for         ural Science Foundation of China under Grant No.
+several rounds, the model outputs the final answer         92470205 and 62222215, and Outstanding Innova-
+(i.e., Life Hits). In the task-solving process, the pol-   tive Talents Cultivation Funded Programs 2022 of
+icy model generates an answer to the current sub-          Renmin University of China.
+query based on its internal knowledge, which might
+be erroneous due to the limited pre-training corpus
+in time or the memorization mistakes. Therefore,           References
+the external knowledge can be beneficial to validate       Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+the correctness of inherent knowledge of LLMs, ef-           Hannaneh Hajishirzi. 2024. Self-rag: Learning to
+fectively guiding the model to plan a reasonable             retrieve, generate, and critique through self-reflection.
+                                                             In The Twelfth International Conference on Learning
+path.
+                                                             Representations, ICLR 2024, Vienna, Austria, May
+                                                             7-11, 2024. OpenReview.net.
+6   Conclusion
+                                                           Sebastian Borgeaud, Arthur Mensch, Jordan Hoff-
+In this work, we proposed RAG-Star, a novel RAG              mann, Trevor Cai, Eliza Rutherford, Katie Milli-
+approach for leveraging external retrieval technique         can, George Bm Van Den Driessche, Jean-Baptiste
+                                                             Lespiau, Bogdan Damoc, Aidan Clark, et al. 2022.
+to enhance the multi-step reasoning capabilities of
+                                                             Improving language models by retrieving from tril-
+LLMs. RAG-Star employed Monte Carlo Tree                     lions of tokens. In International conference on ma-
+Search to search intermediate sub-queries and cor-           chine learning, pages 2206–2240. PMLR.
+responding answers. Moreover, RAG-Star intro-
+                                                           Bradley C. A. Brown, Jordan Juravsky, Ryan Saul
+duced retrieval-augmented verification to evaluate           Ehrlich, Ronald Clark, Quoc V. Le, Christopher Ré,
+the plausibility and consistency of the planned sub-         and Azalia Mirhoseini. 2024. Large language mon-
+queries and answers based on a query-aware and               keys: Scaling inference compute with repeated sam-
+an answer-aware reward. At each iteration, RAG-              pling. CoRR, abs/2407.21787.
+Star conducted node selection, plan expansion, re-         Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie
+ward modeling, and reward backpropagation se-                Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+quentially to consolidate the internal knowledge of          Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+                                                             Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+LLMs and external knowledge from RAG. Exten-                 Gretchen Krueger, Tom Henighan, Rewon Child,
+sive experiments on several datasets showed that             Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+our proposed RAG-Star outperforms the traditional            Clemens Winter, Christopher Hesse, Mark Chen, Eric
+RAG and reasoning methods.                                   Sigler, Mateusz Litwin, Scott Gray, Benjamin Chess,
+                                                             Jack Clark, Christopher Berner, Sam McCandlish,
+                                                             Alec Radford, Ilya Sutskever, and Dario Amodei.
+Limitations                                                  2020. Language models are few-shot learners. In Ad-
+                                                             vances in Neural Information Processing Systems 33:
+Despite the great efforts that we have made, the             Annual Conference on Neural Information Process-
+experimental analysis is still limited due to the            ing Systems 2020, NeurIPS 2020, December 6-12,
+massive computational cost of tree-based search              2020, virtual.
+approaches. We will investigate into more types            Jifan Chen, Shih-Ting Lin, and Greg Durrett. 2019.
+of complex reasoning tasks and datasets. In our               Multi-hop question answering via reasoning chains.
+model, we only leverage Monte Carlo Tree Search               CoRR, abs/1910.02610.
+
+                                                       7072
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,            Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and Haofen         Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+  Wang. 2023. Retrieval-augmented generation for              rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  large language models: A survey. arXiv preprint             täschel, et al. 2020a. Retrieval-augmented generation
+  arXiv:2312.10997.                                           for knowledge-intensive nlp tasks. Advances in Neu-
+                                                              ral Information Processing Systems, 33:9459–9474.
+Mor Geva, Daniel Khashabi, Elad Segal, Tushar Khot,
+ Dan Roth, and Jonathan Berant. 2021. Did aristotle         Patrick S. H. Lewis, Ethan Perez, Aleksandra Pik-
+ use a laptop? A question answering benchmark with            tus, Fabio Petroni, Vladimir Karpukhin, Naman
+ implicit reasoning strategies. Trans. Assoc. Comput.         Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih,
+ Linguistics, 9:346–361.                                      Tim Rocktäschel, Sebastian Riedel, and Douwe
+                                                              Kiela. 2020b. Retrieval-augmented generation for
+Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasu-             knowledge-intensive NLP tasks. In Advances in Neu-
+  pat, and Mingwei Chang. 2020. Retrieval augmented           ral Information Processing Systems 33: Annual Con-
+  language model pre-training. In International Con-          ference on Neural Information Processing Systems
+  ference on Machine Learning, pages 3929–3938.               2020, NeurIPS 2020, December 6-12, 2020, virtual.
+  PMLR.
+                                                            Hunter Lightman, Vineet Kosaraju, Yuri Burda, Harri-
+Peter E. Hart, Nils J. Nilsson, and Bertram Raphael.          son Edwards, Bowen Baker, Teddy Lee, Jan Leike,
+  1968. A formal basis for the heuristic determina-           John Schulman, Ilya Sutskever, and Karl Cobbe.
+  tion of minimum cost paths. IEEE Trans. Syst. Sci.          2024. Let’s verify step by step. In The Twelfth In-
+  Cybern., 4(2):100–107.                                      ternational Conference on Learning Representations,
+                                                              ICLR 2024, Vienna, Austria, May 7-11, 2024. Open-
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,                Review.net.
+  and Akiko Aizawa. 2020. Constructing A multi-hop
+  QA dataset for comprehensive evaluation of reason-        Qing Lyu, Shreya Havaldar, Adam Stein, Li Zhang,
+  ing steps. In Proceedings of the 28th International         Delip Rao, Eric Wong, Marianna Apidianaki, and
+  Conference on Computational Linguistics, COLING             Chris Callison-Burch. 2023. Faithful chain-of-
+  2020, Barcelona, Spain (Online), December 8-13,             thought reasoning. In Proceedings of the 13th In-
+  2020, pages 6609–6625. International Committee on           ternational Joint Conference on Natural Language
+  Computational Linguistics.                                  Processing and the 3rd Conference of the Asia-Pacific
+                                                              Chapter of the Association for Computational Lin-
+Jie Huang and Kevin Chen-Chuan Chang. 2023. To-               guistics, IJCNLP 2023 -Volume 1: Long Papers,
+   wards reasoning in large language models: A survey.        Nusa Dua, Bali, November 1 - 4, 2023, pages 305–
+   In Findings of the Association for Computational           329. Association for Computational Linguistics.
+   Linguistics: ACL 2023, Toronto, Canada, July 9-14,
+   2023, pages 1049–1065. Association for Computa-          OpenAI. 2023. Gpt-4 technical report. OpenAI Blog.
+   tional Linguistics.                                      Amrith Setlur, Chirag Nagpal, Adam Fisch, Xinyang
+                                                             Geng, Jacob Eisenstein, Rishabh Agarwal, Alekh
+Zhen Huang, Zengzhi Wang, Shijie Xia, Xuefeng Li,            Agarwal, Jonathan Berant, and Aviral Kumar.
+  Haoyang Zou, Ruijie Xu, Run-Ze Fan, Lyumanshan             2024. Rewarding progress: Scaling automated pro-
+  Ye, Ethan Chern, Yixin Ye, Yikai Zhang, Yuqing             cess verifiers for llm reasoning. arXiv preprint
+  Yang, Ting Wu, Binjie Wang, Shichao Sun, Yang              arXiv:2410.08146.
+  Xiao, Yiyuan Li, Fan Zhou, Steffi Chern, Yiwei
+  Qin, Yan Ma, Jiadi Su, Yixiu Liu, Yuxiang Zheng,          David Silver, Aja Huang, Chris J. Maddison, Arthur
+  Shaoting Zhang, Dahua Lin, Yu Qiao, and Pengfei             Guez, Laurent Sifre, George van den Driessche, Ju-
+  Liu. 2024. Olympicarena: Benchmarking multi-                lian Schrittwieser, Ioannis Antonoglou, Vedavyas
+  discipline cognitive reasoning for superintelligent AI.     Panneershelvam, Marc Lanctot, Sander Dieleman,
+  CoRR, abs/2406.12753.                                       Dominik Grewe, John Nham, Nal Kalchbrenner, Ilya
+                                                              Sutskever, Timothy P. Lillicrap, Madeleine Leach,
+Daniel Kahneman. 2011. Thinking, fast and slow. Far-          Koray Kavukcuoglu, Thore Graepel, and Demis Has-
+  rar, Straus and Giroux.                                     sabis. 2016. Mastering the game of go with deep neu-
+                                                              ral networks and tree search. Nat., 529(7587):484–
+Vladimir Karpukhin, Barlas Oğuz, Sewon Min, Patrick          489.
+  Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and
+  Wen-tau Yih. 2020. Dense passage retrieval for            David Silver, Thomas Hubert, Julian Schrittwieser, Ioan-
+  open-domain question answering. arXiv preprint              nis Antonoglou, Matthew Lai, Arthur Guez, Marc
+  arXiv:2004.04906.                                           Lanctot, Laurent Sifre, Dharshan Kumaran, Thore
+                                                              Graepel, Timothy P. Lillicrap, Karen Simonyan, and
+Levente Kocsis and Csaba Szepesvári. 2006. Bandit             Demis Hassabis. 2017. Mastering chess and shogi
+  based monte-carlo planning. In Machine Learning:            by self-play with a general reinforcement learning
+  ECML 2006, 17th European Conference on Machine              algorithm. CoRR, abs/1712.01815.
+  Learning, Berlin, Germany, September 18-22, 2006,
+  Proceedings, volume 4212 of Lecture Notes in Com-         Charlie Snell, Jaehoon Lee, Kelvin Xu, and Aviral Ku-
+  puter Science, pages 282–293. Springer.                     mar. 2024. Scaling LLM test-time compute optimally
+
+                                                        7073
+  can be more effective than scaling model parameters.       Brussels, Belgium, October 31 - November 4, 2018,
+  CoRR, abs/2408.03314.                                      pages 2369–2380. Association for Computational
+                                                             Linguistics.
+Richard Sutton. 2019. The bitter lesson. Incomplete
+  Ideas (blog), 13(1):38.                                 Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+                                                            Thomas L. Griffiths, Yuan Cao, and Karthik
+Mirac Suzgun, Nathan Scales, Nathanael Schärli, Se-         Narasimhan. 2023. Tree of thoughts: Deliberate
+  bastian Gehrmann, Yi Tay, Hyung Won Chung,                problem solving with large language models. arXiv
+  Aakanksha Chowdhery, Quoc V. Le, Ed H. Chi,               preprint.
+  Denny Zhou, and Jason Wei. 2023. Challenging
+  big-bench tasks and whether chain-of-thought can        Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+  solve them. In Findings of the Association for Com-       Shafran, Karthik Narasimhan, and Yuan Cao. 2022.
+  putational Linguistics: ACL 2023, Toronto, Canada,        React: Synergizing reasoning and acting in language
+  July 9-14, 2023, pages 13003–13051. Association for       models. arXiv preprint.
+  Computational Linguistics.
+                                                          Eric Zelikman, Georges Harik, Yijia Shao, Varuna
+Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,       Jayasiri, Nick Haber, and Noah D. Goodman. 2024.
+  and Ashish Sabharwal. 2022. Musique: Multi-               Quiet-star: Language models can teach themselves
+  hop questions via single-hop question composition.        to think before speaking. CoRR, abs/2403.09629.
+  Trans. Assoc. Comput. Linguistics, 10:539–554.
+                                                          Di Zhang, Jianbo Wu, Jingdi Lei, Tong Che, Jiatong
+Chaojie Wang, Yanchen Deng, Zhiyi Lv, Zeng Liang,           Li, Tong Xie, Xiaoshui Huang, Shufei Zhang, Marco
+  Jujie He, Shuicheng Yan, and Bo An. 2024a. Q*:            Pavone, Yuqiang Li, et al. 2024. Llama-berry: Pair-
+  Improving multi-step reasoning for llms with deliber-     wise optimization for o1-like olympiad-level mathe-
+  ative planning. CoRR, abs/2406.14283.                     matical reasoning. arXiv preprint arXiv:2410.02884.
+Fei Wang, Xingchen Wan, Ruoxi Sun, Jiefeng Chen,          Ruochen Zhao, Xingxuan Li, Shafiq Joty, Chengwei
+  and Sercan Ö Arık. 2024b. Astute rag: Overcom-            Qin, and Lidong Bing. 2023a. Verify-and-edit: A
+  ing imperfect retrieval augmentation and knowledge        knowledge-enhanced chain-of-thought framework.
+  conflicts for large language models. arXiv preprint       In Proceedings of the 61st Annual Meeting of the
+  arXiv:2410.07176.                                         Association for Computational Linguistics (Volume
+                                                            1: Long Papers), ACL 2023, Toronto, Canada, July
+Liang Wang, Nan Yang, and Furu Wei. 2023.                   9-14, 2023, pages 5823–5840. Association for Com-
+  Query2doc: Query expansion with large language            putational Linguistics.
+  models. In Proceedings of the 2023 Conference on
+  Empirical Methods in Natural Language Process-          Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang,
+  ing, EMNLP 2023, Singapore, December 6-10, 2023,         Xiaolei Wang, Yupeng Hou, Yingqian Min, Be-
+  pages 9414–9423. Association for Computational           ichen Zhang, Junjie Zhang, Zican Dong, Yifan Du,
+  Linguistics.                                             Chen Yang, Yushuo Chen, Zhipeng Chen, Jinhao
+                                                           Jiang, Ruiyang Ren, Yifan Li, Xinyu Tang, Zikang
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten           Liu, Peiyu Liu, Jian-Yun Nie, and Ji-Rong Wen.
+   Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc V. Le,    2023b. A survey of large language models. CoRR,
+   and Denny Zhou. 2022. Chain-of-thought prompting        abs/2303.18223.
+   elicits reasoning in large language models. In Ad-
+   vances in Neural Information Processing Systems 35:    Xinyu Zhu, Junjie Wang, Lin Zhang, Yuxiang Zhang,
+  Annual Conference on Neural Information Process-          Yongfeng Huang, Ruyi Gan, Jiaxing Zhang, and Yu-
+   ing Systems 2022, NeurIPS 2022, New Orleans, LA,         jiu Yang. 2023. Solving math word problems via
+   USA, November 28 - December 9, 2022.                     cooperative reasoning induced language models. In
+                                                            Proceedings of the 61st Annual Meeting of the As-
+Shitao Xiao, Zheng Liu, Peitian Zhang, and Niklas           sociation for Computational Linguistics (Volume 1:
+  Muennighoff. 2023. C-pack: Packaged resources             Long Papers), ACL 2023, Toronto, Canada, July 9-14,
+  to advance general chinese embedding.                     2023, pages 4471–4485. Association for Computa-
+Shicheng Xu, Liang Pang, Huawei Shen, Xueqi Cheng,          tional Linguistics.
+  and Tat-Seng Chua. 2024. Search-in-the-chain: Inter-
+  actively enhancing large language models with search
+  for knowledge-intensive tasks. In Proceedings of the
+  ACM on Web Conference 2024, WWW 2024, Singa-
+  pore, May 13-17, 2024, pages 1362–1373. ACM.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  gio, William W. Cohen, Ruslan Salakhutdinov, and
+  Christopher D. Manning. 2018. Hotpotqa: A dataset
+  for diverse, explainable multi-hop question answer-
+  ing. In Proceedings of the 2018 Conference on Em-
+  pirical Methods in Natural Language Processing,
+
+                                                      7074
+

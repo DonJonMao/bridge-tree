@@ -1,0 +1,110 @@
+{
+  "run": "v4_validation_r12",
+  "commit_prefix": "0eafe26",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only stopped-run structural evidence. No labels, new tokenization, generation, source/option/prediction text or credentials emitted.",
+  "progress_state": "stopped",
+  "live_writer_false_confirmed_by_root": true,
+  "termination_kind": "operator_stopped_after_concrete_cap_truncation_and_repair_capacity_failure; not a natural terminal outcome",
+  "published_row_exists": false,
+  "attempt_result_exists": false,
+  "fusion_snapshot_exists": false,
+  "answer_status": null,
+  "ledger_used_at_last_recorded_reservation": {
+    "ann": 3,
+    "embedding_http": 3,
+    "http_attempts": 16,
+    "json_repairs": 3,
+    "llm": 13
+  },
+  "complete_history_batches": 7,
+  "incomplete_history_batches": 2,
+  "last_active_demands": [
+    "event_history",
+    "interests",
+    "response"
+  ],
+  "pending_variables": null,
+  "pending_variables_note": "No final FactState snapshot; active demands are not a pending-variable snapshot.",
+  "terminal_requests_started": 0,
+  "audit_requests_started": 0,
+  "cap_selection": {
+    "sequence": 512,
+    "node_id": "event_history",
+    "prefix_groups": 46,
+    "output_token_cap": 34,
+    "structure_floor_tokens": 24,
+    "base_input_tokens": 11210,
+    "whole_review_forecast_input_tokens": 11990,
+    "initial_total_tokens": 11508,
+    "forecast_total_tokens": 16384,
+    "repair_output_reserve": 4096,
+    "input_margin": 256,
+    "safety_margin": 8,
+    "context_tokens": 16384
+  },
+  "call9": {
+    "max_tokens": 34,
+    "finish_reason": "length",
+    "prompt_tokens": 11210,
+    "completion_tokens": 34
+  },
+  "call10_first_repair": {
+    "max_tokens": 4096,
+    "finish_reason": "stop",
+    "prompt_tokens": 11338,
+    "completion_tokens": 451
+  },
+  "source_spans_in_original_window": 100,
+  "first_repair_preserves_exact_source_wire": true,
+  "prior_summary": {
+    "value_chars": 277,
+    "value_json_bytes": 279,
+    "full_route_json_bytes": 861,
+    "source_count": 7,
+    "eligible_route_count": 1,
+    "required_revision_source_count": 7
+  },
+  "existing_evidence_obligations": [
+    {
+      "variable": "event_history",
+      "source_count": 53,
+      "description_count": 2
+    }
+  ],
+  "first_repair_revision": {
+    "observation_count": 1,
+    "unresolved_count": 2,
+    "has_summary_revision": true,
+    "value_chars": 336,
+    "cited_sources": 3,
+    "required_prior_sources": 7,
+    "retained_prior_sources": 2,
+    "missing_prior_sources": 5,
+    "newly_cited_sources": 1,
+    "fixed_validation_error": "Summary revision must retain every original premise and relevant counter source"
+  },
+  "second_repair_capacity": {
+    "event_sequence": 535,
+    "input_tokens": 12119,
+    "output_reserve": 4096,
+    "input_margin": 256,
+    "fixed_margin": 8,
+    "total_tokens": 16479,
+    "overflow_tokens": 95,
+    "input_growth_above_initial_forecast": 129,
+    "unknown_first_draft_reserve": 34
+  },
+  "later_capacity_failure": {
+    "event_sequence": 581,
+    "node_id": "event_history",
+    "error_type": "InputOverflow"
+  },
+  "interpretation": [
+    "The chosen cap was really sent and caused finish_reason=length in this request; a minimal empty-slot structure floor does not ensure useful evidence output capacity.",
+    "The first repair retained all 100 original spans and fit at full 4096 output; its revision then failed because 5 of 7 inherited sources were omitted.",
+    "The second repair required 12119 input tokens; its exact full-output guard rejected total16479. The forecast reserved one capped first draft, not all future repair drafts.",
+    "This single observed chain demonstrates an inadequate selection policy for this window; it does not prove every prefix or all future capped requests must truncate.",
+    "No final row, terminal answer or audit was published before operator stop; do not score the interruption as a natural algorithm outcome."
+  ]
+}

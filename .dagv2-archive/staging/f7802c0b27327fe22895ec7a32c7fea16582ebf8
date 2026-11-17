@@ -1,0 +1,375 @@
+{
+  "scope": "Read-only R18 case 13, only actual calls joint_read/4 and joint_read_repair/5/6 plus source validation; no labels/scores, no services/tests, no mutation of source/run, no stop or guard change, no source prose or answer values exported.",
+  "created_at_utc": "2026-10-13T21:18:06.409285+00:00",
+  "source_commit": "800c51763ea3a2bfcad459b4413d41c6432db52e",
+  "source_sha256": {
+    "dagbt/joint_reading.py": "f5568ea4ad837dc32f8ebfb94afae4516efb5bb20f83dccdb2e0904eb94710eb",
+    "dagbt/residual_control.py": "b22de008c594fe8b5c50fc0a63c9001aa83178cc92cd2b2119f79ea0431d7211",
+    "dagbt/reasoning.py": "52e1d03bc8848f66be4fb3d20928765e0df34e5317f695d1d8b3bec18b4895da",
+    "dagbt/personal_task.py": "7af9cc43b08364ea824c23c4aa2072395720ff945fb1499f62956bd4d889a9a3",
+    "dagbt/transport.py": "9c974dd54e6f68243d29039b8e6c86567b9bc6c0ec91dec0e47659877e7189ee"
+  },
+  "unit_id": "0d2259ae-1432-46a9-81e7-e3b3e3be5cc9",
+  "attempt_relative_path": "outputs/v4_validation_r18/personamem/dagbt_residual_memory_v2/attempts/0c8614cf717159045ebc63ab7fa331fafab193ce3462161de262ce7fd70230ab/attempt-001",
+  "requests": {
+    "4": {
+      "stage": [
+        "joint_read",
+        "4"
+      ],
+      "response_ref": "1cede76c87440eb66c0045963801f9e8fae51fb5da7eb1ccc97edac5bcc79f50",
+      "file_sha256": "2252765dddaf78124d92934a9bd49e1c678adcf080099b6998d2e81c6d54b0b1",
+      "wire_payload_sha256": "c28f707552c5d2becbec09036930eb41498ccfc183d1fdaa28a458787b825f13",
+      "request_context": {
+        "query_identity": "3863c863e1fa6315d48d29c50649d84cba54a130032d884fa89979326e70319b",
+        "algorithm_version": "dagbt_residual_memory_v2",
+        "program_identity": "53b15da824741bb45529289312fbd2336292171aa33d3c580c969649d4cd7d1c",
+        "initial_dag_identity": "0321f360890f32a1dfaf3f0de6a8f39fa6a6b04030e6e175d7b302b666207ca8"
+      },
+      "requested_slots": [
+        "user_profile"
+      ],
+      "source_span_count": 75,
+      "offered_obligations": [
+        {
+          "id": "obligation_e6b796eca52ce83705a4b12a",
+          "variable": "user_profile",
+          "source_count": 49
+        }
+      ],
+      "failed_entries": [],
+      "response_slots": [
+        {
+          "variable": "user_profile",
+          "observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "observation_sha256": [
+            "199b5cd74f523491d9b1e6cedd09cb4129579e8bf4855f69e064e00c120048f6"
+          ],
+          "observation_source_counts": [
+            7
+          ],
+          "unresolved_count": 2,
+          "resolved_obligation_ids": [
+            "obligation_e6b796eca52ce83705a4b12a"
+          ],
+          "reviewed_observation_ids": []
+        }
+      ],
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 9984,
+        "completion_tokens": 476,
+        "total_tokens": 10460
+      },
+      "schema": {
+        "required_slot_fields": [
+          "variable",
+          "observations",
+          "unresolved"
+        ],
+        "reviewed_field_present": false,
+        "allowed_reviewed_ids": [],
+        "observations_min_items": 0,
+        "exact_slot_count": 1
+      },
+      "instruction_flags": {
+        "validated_rows_frozen": true,
+        "wildcard_never_unfreezes": true,
+        "same_batch_frozen_reference_instruction": false,
+        "frozen_no_restate_explicit": false,
+        "summary_idempotent_recheck_text": true
+      }
+    },
+    "5": {
+      "stage": [
+        "joint_read_repair",
+        "5"
+      ],
+      "response_ref": "3ef82086d52e445e7984f55d85d88fc7025c9d18644a04d909df5032db46e8e8",
+      "file_sha256": "1e9f8207a0e643228f7389114ec183c4ad9f3dc243f0dedb3af159cd0b419f8a",
+      "wire_payload_sha256": "977eb6aad2c396ed482923f005a6b750e7f4191096c9a2d23b8219b5ef5e2e24",
+      "request_context": {
+        "query_identity": "3863c863e1fa6315d48d29c50649d84cba54a130032d884fa89979326e70319b",
+        "algorithm_version": "dagbt_residual_memory_v2",
+        "program_identity": "53b15da824741bb45529289312fbd2336292171aa33d3c580c969649d4cd7d1c",
+        "initial_dag_identity": "0321f360890f32a1dfaf3f0de6a8f39fa6a6b04030e6e175d7b302b666207ca8"
+      },
+      "requested_slots": [
+        "user_profile"
+      ],
+      "source_span_count": 75,
+      "offered_obligations": [
+        {
+          "id": "obligation_e6b796eca52ce83705a4b12a",
+          "variable": "user_profile",
+          "source_count": 49
+        },
+        {
+          "id": "obligation_9a481bfacf2d410203f0468a",
+          "variable": "user_profile",
+          "source_count": 75
+        }
+      ],
+      "failed_entries": [
+        {
+          "variable": "user_profile",
+          "id": "*",
+          "feedback": "Evidence obligation resolution requires its offered ID, original sources, a sourced scoped review, and no unresolved issue",
+          "observation_is_null": true,
+          "slot_observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "slot_unresolved_count": 2,
+          "frozen_offer_reference_ids": [],
+          "frozen_offer_complete_row_ids": [],
+          "frozen_offered_row_sha256": []
+        }
+      ],
+      "response_slots": [
+        {
+          "variable": "user_profile",
+          "observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "observation_sha256": [
+            "199b5cd74f523491d9b1e6cedd09cb4129579e8bf4855f69e064e00c120048f6"
+          ],
+          "observation_source_counts": [
+            7
+          ],
+          "unresolved_count": 2,
+          "resolved_obligation_ids": [
+            "obligation_e6b796eca52ce83705a4b12a",
+            "obligation_9a481bfacf2d410203f0468a"
+          ],
+          "reviewed_observation_ids": []
+        }
+      ],
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 10854,
+        "completion_tokens": 496,
+        "total_tokens": 11350
+      },
+      "schema": {
+        "required_slot_fields": [
+          "variable",
+          "observations",
+          "unresolved"
+        ],
+        "reviewed_field_present": false,
+        "allowed_reviewed_ids": [],
+        "observations_min_items": 0,
+        "exact_slot_count": 1
+      },
+      "instruction_flags": {
+        "validated_rows_frozen": true,
+        "wildcard_never_unfreezes": true,
+        "same_batch_frozen_reference_instruction": false,
+        "frozen_no_restate_explicit": false,
+        "summary_idempotent_recheck_text": true
+      }
+    },
+    "6": {
+      "stage": [
+        "joint_read_repair",
+        "6"
+      ],
+      "response_ref": "5b06d6bcdf8b4ac45faccdc958c9bbc1f4410381ea452abd94654bf167ebd3ae",
+      "file_sha256": "65d1f7ad3291bb5e5365a721d5bfcdd8aa5831b67b42083644af1120d4069764",
+      "wire_payload_sha256": "e2d2074353107117fbdbc379385c2a49578d7f237f799c1c9797297f51df7c01",
+      "request_context": {
+        "query_identity": "3863c863e1fa6315d48d29c50649d84cba54a130032d884fa89979326e70319b",
+        "algorithm_version": "dagbt_residual_memory_v2",
+        "program_identity": "53b15da824741bb45529289312fbd2336292171aa33d3c580c969649d4cd7d1c",
+        "initial_dag_identity": "0321f360890f32a1dfaf3f0de6a8f39fa6a6b04030e6e175d7b302b666207ca8"
+      },
+      "requested_slots": [
+        "user_profile"
+      ],
+      "source_span_count": 75,
+      "offered_obligations": [
+        {
+          "id": "obligation_e6b796eca52ce83705a4b12a",
+          "variable": "user_profile",
+          "source_count": 49
+        },
+        {
+          "id": "obligation_9a481bfacf2d410203f0468a",
+          "variable": "user_profile",
+          "source_count": 75
+        }
+      ],
+      "failed_entries": [
+        {
+          "variable": "user_profile",
+          "id": "*",
+          "feedback": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them",
+          "observation_is_null": true,
+          "slot_observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "slot_unresolved_count": 2,
+          "frozen_offer_reference_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "frozen_offer_complete_row_ids": [],
+          "frozen_offered_row_sha256": [
+            "199b5cd74f523491d9b1e6cedd09cb4129579e8bf4855f69e064e00c120048f6"
+          ]
+        }
+      ],
+      "response_slots": [
+        {
+          "variable": "user_profile",
+          "observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ],
+          "observation_sha256": [
+            "199b5cd74f523491d9b1e6cedd09cb4129579e8bf4855f69e064e00c120048f6"
+          ],
+          "observation_source_counts": [
+            7
+          ],
+          "unresolved_count": 2,
+          "resolved_obligation_ids": [
+            "obligation_e6b796eca52ce83705a4b12a",
+            "obligation_9a481bfacf2d410203f0468a"
+          ],
+          "reviewed_observation_ids": [
+            "fact_26f56041728a4920e274c88e"
+          ]
+        }
+      ],
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 11232,
+        "completion_tokens": 526,
+        "total_tokens": 11758
+      },
+      "schema": {
+        "required_slot_fields": [
+          "variable",
+          "observations",
+          "unresolved"
+        ],
+        "reviewed_field_present": true,
+        "allowed_reviewed_ids": [
+          "fact_26f56041728a4920e274c88e"
+        ],
+        "observations_min_items": 0,
+        "exact_slot_count": 1
+      },
+      "instruction_flags": {
+        "validated_rows_frozen": true,
+        "wildcard_never_unfreezes": true,
+        "same_batch_frozen_reference_instruction": true,
+        "frozen_no_restate_explicit": true,
+        "summary_idempotent_recheck_text": true
+      }
+    }
+  },
+  "events": {
+    "145": {
+      "event": "model_context_budget",
+      "sequence": 145,
+      "stage": "joint_read/4",
+      "input_tokens_local": 9984,
+      "output_token_reserve": 672,
+      "context_tokens": 16384,
+      "total_tokens_local": 10920,
+      "within_estimated_budget": true,
+      "raw_line_sha256": "4c145a9e9219b09dc82eccf1f773197deb1a0c277eeb1811c2a168a32373fb28"
+    },
+    "150": {
+      "event": "reasoning_response",
+      "sequence": 150,
+      "operation": "joint_read",
+      "call_index": 4,
+      "logical_call_index": 4,
+      "response_ref": "1cede76c87440eb66c0045963801f9e8fae51fb5da7eb1ccc97edac5bcc79f50",
+      "input_tokens_local": 9984,
+      "output_token_reserve": 672,
+      "finish_reason": "stop",
+      "raw_line_sha256": "70f672c1a001f65d6e16b0727dc9ab1060f32ac1fee3799c76265cc930e184d0"
+    },
+    "158": {
+      "event": "model_context_budget",
+      "sequence": 158,
+      "stage": "joint_read_repair/5",
+      "input_tokens_local": 10854,
+      "output_token_reserve": 4096,
+      "context_tokens": 16384,
+      "total_tokens_local": 15214,
+      "within_estimated_budget": true,
+      "raw_line_sha256": "104afdf3232ce1bd1d2d8ea26de697830c310b007411e3e4c5812eaae21ca05e"
+    },
+    "163": {
+      "event": "reasoning_response",
+      "sequence": 163,
+      "operation": "joint_read_repair",
+      "call_index": 5,
+      "logical_call_index": 5,
+      "response_ref": "3ef82086d52e445e7984f55d85d88fc7025c9d18644a04d909df5032db46e8e8",
+      "input_tokens_local": 10854,
+      "output_token_reserve": 4096,
+      "finish_reason": "stop",
+      "raw_line_sha256": "2405bf085a42c2b2f897e20d978d5707840f9cb5fd4ba00b414ba2c2ef6decc8"
+    },
+    "169": {
+      "event": "model_context_budget",
+      "sequence": 169,
+      "stage": "joint_read_repair/6",
+      "input_tokens_local": 11232,
+      "output_token_reserve": 4096,
+      "context_tokens": 16384,
+      "total_tokens_local": 15592,
+      "within_estimated_budget": true,
+      "raw_line_sha256": "47ffc19001d6fd683d7780abef9af7c28ba13df4ad14c661243da1610f8d4da4"
+    },
+    "174": {
+      "event": "reasoning_response",
+      "sequence": 174,
+      "operation": "joint_read_repair",
+      "call_index": 6,
+      "logical_call_index": 6,
+      "response_ref": "5b06d6bcdf8b4ac45faccdc958c9bbc1f4410381ea452abd94654bf167ebd3ae",
+      "input_tokens_local": 11232,
+      "output_token_reserve": 4096,
+      "finish_reason": "stop",
+      "raw_line_sha256": "7107b2c112fbc80fe9783df114ff72f81bd103ed5ceb0afb3bfbc40a0e413e51"
+    },
+    "175": {
+      "event": "joint_read_completed",
+      "sequence": 175,
+      "operation": "joint_read",
+      "valid_rows": 1,
+      "failed_slots": [
+        {
+          "variable": "user_profile",
+          "id": "*",
+          "error": "Already validated observations remain frozen: omit ordinary restatements; use only explicitly offered reviewed_observation_ids when a further review needs them"
+        }
+      ],
+      "complete": false,
+      "raw_line_sha256": "79d1347196e27bef67e993f6f72661d757df42c3812dbd55fa06d536191c928a",
+      "primary_source_alias_count": 27,
+      "visible_source_alias_count": 75
+    }
+  },
+  "comparisons": {
+    "three_observations_exactly_equal": true,
+    "repair6_offered_row_exactly_equals_initial_validated_row": true,
+    "repair6_reference_id_explicitly_offered": true,
+    "repair6_restatement_and_reference_same_id": true,
+    "repair_failed_ids_are_wildcards_only": true
+  },
+  "event_file_snapshot": {
+    "sha256": "5e3dc84ab0c81f34a74d58621cf0faec873e4c9429989261be87cc042de400d5",
+    "bytes": 864227,
+    "selected_events_only_exported": true
+  },
+  "conclusion": "Event 175 is a directly evidenced frozen-row restatement violation. Repair 6 authorizes only an unchanged same-batch reference for the offered ID, and the model both referenced and restated it. No named failed-draft requirement forces that restatement. The general summary no-op instruction is less explicit about the freeze boundary but does not create a mandatory contradictory authorization. Repair 4 already attempts to resolve an obligation while retaining two unresolved issues; removing duplicate restatement alone would not establish completion or satisfy the offered source coverage."
+}
