@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1702\", \"source_id\": \"hotpotqa:1702\"}]\nRobert Gascoyne-Cecil, 3rd Marquess of Salisbury\nRobert Arthur Talbot Gascoyne-Cecil, 3rd Marquess of Salisbury, {'1': \", '2': \", '3': \", '4': \"} (3 February 183022 August 1903), styled Lord Robert Cecil before 1865 and Viscount Cranborne from June 1865 until April 1868, was a British Conservative statesman, serving as prime minister three times for a total of over 13 years. He was the last prime minister to head his full administration from the House of Lords.\n\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "102",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600325.03681,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600325.888772
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0007723630360009208
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1002,
+      "completion_tokens": 2,
+      "total_tokens": 1004
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

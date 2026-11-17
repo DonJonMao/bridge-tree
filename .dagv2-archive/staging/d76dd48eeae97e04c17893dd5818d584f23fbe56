@@ -1,0 +1,85 @@
+{
+  "identity": "1608612afca09e8f7ba50a754f9fc61258a24a19487b7a833538d67dde706ddf",
+  "dataset": "hotpotqa",
+  "documents": 33,
+  "schema": "dagbt_derived_embeddings_v1",
+  "embedding_model": "qwen3-embedding-8b",
+  "embedding_endpoint": "http://127.0.0.1:53965/v1/embeddings",
+  "corpus_sha256": "7d7fe078f8707d049fbb1ec149934d10ef4c678123483792dcec27516bb3fd65",
+  "serialization": "reader.Document.passage:title_newline_text_nonempty_v1;no_document_instruction",
+  "document_ids_sha256": "9941f17cc0b8ec01d6f3703f74438453f6a0142b8c936815bfd0b561d17a2323",
+  "passages_sha256": "66f9d54b6402cacee330ba34b9bc2addc2519945ac4be9f4de6a9e7c5992d9e8",
+  "status": "complete",
+  "dimensions": 3,
+  "dtype": "float32",
+  "normalized": true,
+  "vectors_sha256": "e34984e75111b0e3c95e0742984b989b2ea9d09c7389361770a488e9b9a35fa7",
+  "batch_size": 32,
+  "document_instruction": "",
+  "created_unix": 1790498191.8174021,
+  "elapsed_seconds": 0.01522207260131836,
+  "index_build_trace_directory": "/Users/mao/projects/dagv2/outputs/verification/reliability_v2/pytest_final/test_resume_replays_successful0/run/index_build/hotpotqa",
+  "cost_scope": "separate offline corpus embedding; inspect request cache for retries/usage",
+  "ledger": {
+    "limits": {},
+    "used": {
+      "embedding_http": 2,
+      "cache_hits": 1,
+      "http_attempts": 1
+    },
+    "remaining": {},
+    "events": [
+      {
+        "event": "budget_reserved",
+        "kind": "embedding_http",
+        "stage": "index_embedding/0",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "cache_hits",
+        "stage": "index_embedding/0",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "cached_attempt_charge",
+        "stage": "index_embedding/0",
+        "kind": "embedding_http",
+        "replayed_attempts": 1
+      },
+      {
+        "event": "request_cache_hit",
+        "stage": "index_embedding/0",
+        "response_ref": "9b03a365cca2459d775ef883d89bb2383704d585cb529c63d8b8d2dad6c6216b",
+        "kind": "embedding_http"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "embedding_http",
+        "stage": "index_embedding/32",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "index_embedding/32",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "http_response",
+        "stage": "index_embedding/32",
+        "response_ref": "15eca0279ad22c412d292a4980224b9252fb657d8d645a1f14aa238e4dba2897",
+        "kind": "embedding_http",
+        "usage": {
+          "prompt_tokens": 1,
+          "total_tokens": 1
+        },
+        "seconds": 0.0016548633575439453
+      }
+    ]
+  }
+}

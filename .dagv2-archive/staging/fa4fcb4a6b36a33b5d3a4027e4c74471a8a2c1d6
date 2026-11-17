@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:474\", \"source_id\": \"hotpotqa:474\"}]\nThe Year Of Spectacular Men\nThe Year Of Spectacular Men is an upcoming drama-comedy film which is directorial debut of actress Lea Thompson and stars her daughters, Madelyn Deutch (who also wrote the screenplay) and Zoey Deutch. The film had its world premiere in June 2017, under the \"LA Muse\" section in Los Angeles Film Festival 2017.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:474\", \"source_id\": \"hotpotqa:474\"}]\nThe Year Of Spectacular Men\nThe Year Of Spectacular Men is an upcoming drama-comedy film which is directorial debut of actress Lea Thompson and stars her daughters, Madelyn Deutch (who also wrote the screenplay) and Zoey Deutch. The film had its world premiere in June 2017, under the \"LA Muse\" section in Los Angeles Film Festival 2017."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "163",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599208.102585,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599209.763859
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9937100971180091
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.0005100118749887647
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1038,
+      "completion_tokens": 4,
+      "total_tokens": 1042
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

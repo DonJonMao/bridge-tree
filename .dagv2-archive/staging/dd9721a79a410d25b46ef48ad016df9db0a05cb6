@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:9063\", \"source_id\": \"hotpotqa:9063\"}]\nHarold Holt\nHarold Edward Holt, {'1': \", '2': \", '3': \", '4': \"} ( ; 5 August 190817 December 1967), was an Australian politician and the 17th Prime Minister of Australia from 1966 to 1967. He was born in Stanmore, New South Wales and won a scholarship to study law at the University of Melbourne. Holt went into business as a solicitor, during which time he joined the United Australia Party (UAP). In 1935, aged just 27, he was elected to parliament for Fawkner. He held this seat until 1949, when he transferred to Higgins. Holt spent 32 years in Parliament, including many years as a senior Cabinet Minister, but was Prime Minister for only 22 months before he disappeared in December 1967 while swimming at Cheviot Beach near Portsea, Victoria and was presumed drowned.\n\n[Passage {\"doc_id\": \"hotpotqa:9728\", \"source_id\": \"hotpotqa:9728\"}]\nJames Callaghan\nLeonard James Callaghan, Baron Callaghan of Cardiff, {'1': \", '2': \", '3': \", '4': \"} (27 March 1912 – 26 March 2005), often known as Jim Callaghan, was a British politician who served as Prime Minister of the United Kingdom from 1976 to 1979 and Leader of the Labour Party from 1976 to 1980. Callaghan is to date, the only British politician in history to have served in all four of the \"Great Offices of State\", having been Chancellor of the Exchequer from 1964–67, Home Secretary from 1967-70, and Foreign Secretary from 1974, until his appointment as Prime Minister in 1976. As Prime Minister, he had some successes, but is mainly remembered for the \"Winter of Discontent\" of 1978–79. During a very cold winter, his battle with trade unions led to massive strikes that seriously inconvenienced the public, leading to his defeat in the polls by Conservative leader Margaret Thatcher."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "180",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600578.159062,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600580.228559
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.023870834952430912
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.004054336012179564
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2816,
+      "completion_tokens": 4,
+      "total_tokens": 2820
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
