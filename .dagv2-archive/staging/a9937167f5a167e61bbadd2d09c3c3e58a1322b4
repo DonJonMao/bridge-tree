@@ -1,0 +1,53 @@
+{
+  "unit_id": "5ab69f9a554299710c8d1ef8",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "What is the name of the fictional private detective that appears in \"The Adventure of the Seven Clocks\"?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:11\", \"source_id\": \"hotpotqa:11\"}]\nHazell (TV series)\nHazell is a British television series that ran from 1978–1979, about a fictional private detective named James Hazell.\n\n[Passage {\"doc_id\": \"hotpotqa:4848\", \"source_id\": \"hotpotqa:4848\"}]\nAgatha Christie Memorial\nThe Agatha Christie Memorial is a memorial to author and playwright Agatha Christie, located at the intersection of Cranbourn Street and Great Newport Street by St Martin's Cross near Covent Garden, in London, United Kingdom. It is located in the heart of London's theatre district. This was chosen to pay homage to Christie's contribution to theatre: her murder mystery play \"The Mousetrap\" is the world's longest-running show, and she was the first female playwright to have three plays performing simultaneously in the West End."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f751db736af6df29a9c2a41798f3222ccfdcff972b6cee8bb575a0bb488e2867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "102",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599957.544102,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599958.52468
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.6150878555160665
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 612,
+      "completion_tokens": 2,
+      "total_tokens": 614
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
