@@ -1,0 +1,56 @@
+{
+  "unit_id": "b3588797-acdf-40d3-bcc5-951f81896f95",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "How can I find a more fulfilling way to express my love for music?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:9fa5daf3414e5e990ba50bbf2755a915e174cf8c34531dd543b0306f577d909a\", \"source_id\": \"personamem:memory:9fa5daf3414e5e990ba50bbf2755a915e174cf8c34531dd543b0306f577d909a\"}]\nConversation message indices 16–17 (zero-based chronological observation order; not calendar time)\nUser:\nUser: It was fulfilling to share knowledge and inspire others. The joy that comes from seeing the lightbulb moment when someone understands a new concept is incredibly rewarding. Sharing my experiences and insights felt like passing on a torch, igniting curiosity and passion in the next generation of musicians. It was heartwarming to witness the enthusiasm and creativity bubbling up from young talents who were eager to learn. Each interaction was a reminder of the beauty of music and how it can connect people across various backgrounds and experiences.\n\nAssistant:\nAssistant: That's a wonderful way to give back to the community! It takes a special kind of person to freely share their knowledge and skills, and your commitment to nurturing young talent is commendable. Did that experience influence your music as well? It’s fascinating how teaching others often reinforces our own learning and growth, allowing us to see our craft from fresh perspectives. Engaging with students can introduce different styles and techniques that we may not have considered before, ultimately enriching your own artistry. Furthermore, it builds a bond within the community, fostering collaboration and mutual support among musicians, making the local music scene thrive even more vibrantly.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:9fa5daf3414e5e990ba50bbf2755a915e174cf8c34531dd543b0306f577d909a\", \"source_id\": \"personamem:memory:9fa5daf3414e5e990ba50bbf2755a915e174cf8c34531dd543b0306f577d909a\"}]\nConversation message indices 16–17 (zero-based chronological observation order; not calendar time)\nUser:\nUser: It was fulfilling to share knowledge and inspire others. The joy that comes from seeing the lightbulb moment when someone understands a new concept is incredibly rewarding. Sharing my experiences and insights felt like passing on a torch, igniting curiosity and passion in the next generation of musicians. It was heartwarming to witness the enthusiasm and creativity bubbling up from young talents who were eager to learn. Each interaction was a reminder of the beauty of music and how it can connect people across various backgrounds and experiences.\n\nAssistant:\nAssistant: That's a wonderful way to give back to the community! It takes a special kind of person to freely share their knowledge and skills, and your commitment to nurturing young talent is commendable. Did that experience influence your music as well? It’s fascinating how teaching others often reinforces our own learning and growth, allowing us to see our craft from fresh perspectives. Engaging with students can introduce different styles and techniques that we may not have considered before, ultimately enriching your own artistry. Furthermore, it builds a bond within the community, fostering collaboration and mutual support among musicians, making the local music scene thrive even more vibrantly.\n\n[Passage {\"doc_id\": \"personamem:memory:e7c973803319b0b032a23a834dfe4d7031c42cbaa315dba7d5243d255867dd55\", \"source_id\": \"personamem:memory:e7c973803319b0b032a23a834dfe4d7031c42cbaa315dba7d5243d255867dd55\"}]\nConversation message indices 24–25 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I just lost interest halfway through and felt it was taking away the joy I find in music. There was a time when the thrill of discovering new melodies brought so much happiness, but diving too deep into the technical aspects became more of a chore. It’s curious how something that once brought joy can evolve into a source of stress when we start dissecting it too much. I remember the initial excitement of exploring different genres, each bringing a fresh perspective, but I struggled with the framework of music theory. Ultimately, I recognized that the essence of my love for music lay in its emotional connection rather than its analytical components.\n\nAssistant:\nAssistant: That’s a great insight! It’s important to focus on what you love. Music is such a personal journey, and it should evoke joy rather than feelings of obligation or frustration. Understanding the theory can certainly enhance one’s appreciation, but if it detracts from the experience, it’s wise to step back. Have you tried any other forms of music exploration since then? There are so many avenues to experience music, whether it's attending live performances, discovering underground artists, or even engaging in creative collaborations. Each of these can rekindle your passion and allow for a fresh appreciation of the art form, helping you reconnect with what initially drew you to music in the first place."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "8",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537699.489599,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537701.46144
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.09877258344657378
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.03817827645029038
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2814,
+      "completion_tokens": 4,
+      "total_tokens": 2818
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
