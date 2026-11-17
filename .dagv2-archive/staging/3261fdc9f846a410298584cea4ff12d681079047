@@ -1,0 +1,250 @@
+{
+  "check": "fusion_planner_protocol",
+  "version": "dagbt_fusion_reliability_v3",
+  "status": "passed",
+  "trace_directory": "outputs/verification/reliability_v3/live_probe/preflight_calls/planner-1790751300880543000",
+  "configured_protocol": "plain",
+  "schema_sha256": "21ade5b99f9a5e2fbf598d81d7bf80cf8bae174e79a71062d51596644b59b086",
+  "synthetic_query": "Which city hosts the science museum visited by the fictional traveler Mira?",
+  "logical_call_limit": 1,
+  "repair_calls": 0,
+  "protocol_fallback": false,
+  "experiment_task": false,
+  "scope": "one synthetic planner request using the actual fusion schema/validator; no labels or question budget; does not establish map/select/reader compatibility or answer quality",
+  "validated_plan": {
+    "steps": [
+      {
+        "question": "Which science museum was visited by the fictional traveler Mira?",
+        "output_slot": "museum",
+        "answer_type": "entity",
+        "inputs": []
+      },
+      {
+        "question": "Which city hosts {museum}?",
+        "output_slot": "city",
+        "answer_type": "entity",
+        "inputs": [
+          "museum"
+        ]
+      }
+    ]
+  },
+  "elapsed_seconds": 3.43095116695622,
+  "ledger": {
+    "limits": {},
+    "used": {
+      "llm": 1,
+      "http_attempts": 1
+    },
+    "remaining": {},
+    "events": [
+      {
+        "event": "model_context_budget",
+        "stage": "planner/1",
+        "input_tokens_local": 715,
+        "output_token_reserve": 4096,
+        "safety_margin": 8,
+        "input_margin": 256,
+        "context_tokens": 16384,
+        "total_tokens_local": 5075,
+        "within_estimated_budget": true,
+        "token_count_is_estimate": true,
+        "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+        "tokenizer_id": null,
+        "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "llm",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "planner/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "http_response",
+        "stage": "planner/1",
+        "response_ref": "7cf88fa33164167512ea0d70f9e6f47ac218c998b494581dac79b8bf94566fa8",
+        "kind": "llm",
+        "usage": {
+          "prompt_tokens": 407,
+          "total_tokens": 501,
+          "completion_tokens": 94,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": null,
+            "accepted_prediction_tokens": null,
+            "rejected_prediction_tokens": null
+          }
+        },
+        "seconds": 3.429439067840576
+      }
+    ]
+  },
+  "cost": {
+    "logical_calls": 1,
+    "cache_hits": 0,
+    "unique_requests": 1,
+    "http_attempts": 1,
+    "http_retries": 0,
+    "successful_http_requests": 1,
+    "prompt_tokens": 407,
+    "completion_tokens": 94,
+    "total_tokens": 501,
+    "requests_by_stage": {
+      "[\"planner\", \"1\"]": 1
+    },
+    "incomplete_or_failed_http_attempts": 0,
+    "missing_usage_responses": 0,
+    "incomplete_event_lines": 0,
+    "malformed_request_records": 0,
+    "token_scope": "observed successful nonseeded API responses; failed/lost server work may be unreported",
+    "by_kind": {
+      "llm": {
+        "logical_calls": 1,
+        "cache_hits": 0,
+        "unique_requests": 1,
+        "http_attempts": 1,
+        "http_retries": 0,
+        "successful_http_requests": 1,
+        "prompt_tokens": 407,
+        "completion_tokens": 94,
+        "total_tokens": 501,
+        "missing_usage_responses": 0,
+        "incomplete_or_failed_http_attempts": 0,
+        "observed_http_seconds": 3.429439067840576,
+        "timed_http_attempts": 1
+      }
+    },
+    "reasoning_logical_calls": 1,
+    "reader_logical_calls": 0,
+    "physical_llm_attempts": 1,
+    "physical_reader_attempts": 0,
+    "layer_scope": "logical invocations include cache replay; physical attempts/usage exclude seeded old requests; reasoning and reader are separate",
+    "token_usage_complete": true
+  },
+  "logical_calls": 1,
+  "reasoning_requests": [
+    {
+      "operation": "planner",
+      "call_index": 1,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+        },
+        {
+          "role": "user",
+          "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+        }
+      ],
+      "logical_call_index": 1,
+      "response_format": "plain",
+      "input_tokens_local": 715,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "raw_output": "{\n  \"steps\": [\n    {\n      \"question\": \"Which science museum was visited by the fictional traveler Mira?\",\n      \"output_slot\": \"museum\",\n      \"answer_type\": \"entity\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"Which city hosts {museum}?\",\n      \"output_slot\": \"city\",\n      \"answer_type\": \"entity\",\n      \"inputs\": [\"museum\"]\n    }\n  ]\n}",
+      "response_metadata": {
+        "finish_reason": "stop",
+        "refusal": null,
+        "usage": {
+          "prompt_tokens": 407,
+          "total_tokens": 501,
+          "completion_tokens": 94,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": null,
+            "accepted_prediction_tokens": null,
+            "rejected_prediction_tokens": null
+          }
+        },
+        "response_id": "chatcmpl-ba902ee1832d394b",
+        "protocol": "plain"
+      },
+      "response_ref": "7cf88fa33164167512ea0d70f9e6f47ac218c998b494581dac79b8bf94566fa8",
+      "output_tokens_estimate": 116,
+      "validation_status": "valid"
+    }
+  ],
+  "response_events": [
+    {
+      "event": "reasoning_request_started",
+      "operation": "planner",
+      "logical_call_index": 1,
+      "accounting_note": "One logical model request; Transport meters each physical retry against llm budget"
+    },
+    {
+      "event": "reasoning_response",
+      "operation": "planner",
+      "call_index": 1,
+      "messages": [
+        {
+          "role": "system",
+          "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+        },
+        {
+          "role": "user",
+          "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+        }
+      ],
+      "logical_call_index": 1,
+      "response_format": "plain",
+      "input_tokens_local": 715,
+      "output_token_reserve": 4096,
+      "input_margin": 256,
+      "token_count_is_estimate": true,
+      "token_estimator_id": "regex_or_utf8_bytes_div3_v2",
+      "tokenizer_id": null,
+      "token_accounting_note": "Evidence wire JSON estimate; not the deployed model tokenizer",
+      "raw_output": "{\n  \"steps\": [\n    {\n      \"question\": \"Which science museum was visited by the fictional traveler Mira?\",\n      \"output_slot\": \"museum\",\n      \"answer_type\": \"entity\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"Which city hosts {museum}?\",\n      \"output_slot\": \"city\",\n      \"answer_type\": \"entity\",\n      \"inputs\": [\"museum\"]\n    }\n  ]\n}",
+      "response_metadata": {
+        "finish_reason": "stop",
+        "refusal": null,
+        "usage": {
+          "prompt_tokens": 407,
+          "total_tokens": 501,
+          "completion_tokens": 94,
+          "prompt_tokens_details": null,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": null,
+            "accepted_prediction_tokens": null,
+            "rejected_prediction_tokens": null
+          }
+        },
+        "response_id": "chatcmpl-ba902ee1832d394b",
+        "protocol": "plain"
+      },
+      "response_ref": "7cf88fa33164167512ea0d70f9e6f47ac218c998b494581dac79b8bf94566fa8",
+      "output_tokens_estimate": 116,
+      "finish_reason": "stop",
+      "refusal": null,
+      "usage": {
+        "prompt_tokens": 407,
+        "total_tokens": 501,
+        "completion_tokens": 94,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": null,
+          "accepted_prediction_tokens": null,
+          "rejected_prediction_tokens": null
+        }
+      },
+      "response_id": "chatcmpl-ba902ee1832d394b",
+      "protocol": "plain"
+    }
+  ]
+}

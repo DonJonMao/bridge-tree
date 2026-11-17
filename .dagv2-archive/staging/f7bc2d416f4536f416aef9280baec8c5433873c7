@@ -1,0 +1,1412 @@
+         Search-o1: Agentic Search-Enhanced Large Reasoning Models
+
+               Xiaoxi Li1 , Guanting Dong1 , Jiajie Jin1 , Yuyao Zhang1 , Yujia Zhou2 ,
+                            Yutao Zhu1 , Peitian Zhang1 , Zhicheng Dou1 *
+                        1
+                          Renmin University of China 2 Tsinghua University
+                                  {xiaoxi_li, dou}@ruc.edu.cn
+
+
+
+
+                        Abstract                              This advancement has inspired a series of founda-
+                                                              tional efforts aimed at exploring and reproducing
+     Large reasoning models (LRMs) like OpenAI-               o1-like reasoning patterns, to broaden their applica-
+     o1 have demonstrated impressive long stepwise
+                                                              tion to a wider range of foundational models (Qin
+     reasoning capabilities through large-scale rein-
+     forcement learning. However, their extended
+                                                              et al., 2024; Min et al., 2024).
+     reasoning processes often suffer from knowl-                It is noteworthy that o1-like reasoning patterns
+     edge insufficiency, leading to frequent uncer-           guide LRMs to engage in a slower thinking pro-
+     tainties and potential errors. To address this lim-      cess (Daniel, 2017) by implicitly breaking down
+     itation, we introduce Search-o1, a framework             complex problems, generating a long internal rea-
+     that enhances LRMs with an agentic retrieval-            soning chain, and then discovering suitable solu-
+     augmented generation (RAG) mechanism and                 tions step by step. While this characteristic en-
+     a Reason-in-Documents module for refining
+                                                              hances logical coherence and interpretability of
+     retrieved documents. Search-o1 integrates an
+     agentic search workflow into the reasoning pro-          reasoning, an extended chain of thought may cause
+     cess, enabling dynamic retrieval of external             overthinking (Chen et al., 2024b) and increased
+     knowledge when LRMs encounter uncertain                  risks of knowledge insufficiency (Wong et al., 2021;
+     knowledge points. Additionally, due to the               Raffel et al., 2020), where any knowledge gap can
+     verbose nature of retrieved documents, we de-            propagate errors and disrupt the entire reasoning
+     sign a separate Reason-in-Documents module               chain (Ling et al., 2023; Liu et al., 2024).
+     to deeply analyze the retrieved information be-
+                                                                 To evaluate uncertainty in LRMs’ reasoning, we
+     fore injecting it into the reasoning chain, min-
+     imizing noise and preserving coherent reason-
+                                                              conducted preliminary experiments to track the fre-
+     ing flow. Extensive experiments on complex               quency of uncertain words decoded by the LRMs.
+     reasoning tasks in science, mathematics, and             As shown in Figure 1, the extended thinking pro-
+     coding, as well as six open-domain QA bench-             cess leads LRM to frequently decode numerous
+     marks, demonstrate the strong performance                uncertain terms in challenging reasoning problems,
+     of Search-o1. This approach enhances the                 with “perhaps” averaging over 30 occurrences in
+     trustworthiness of LRMs in complex reasoning             each reasoning process. Consequently, automat-
+     tasks, paving the way for advanced deep re-
+                                                              ing the supplementation of knowledge required for
+     search systems. The code is available at https:
+     //github.com/RUC-NLPIR/Search-o1.                        the o1-like reasoning process has become a signif-
+                                                              icant challenge, limiting the progress of LRMs in
+                                                              achieving universally trustworthy reasoning.
+1    Introduction                                                To address these challenges, we introduce
+                                                              Search-o1, which enhances LRMs by integrating
+Recently emerged large reasoning models (LRMs),
+                                                              an agentic retrieval-augmented generation (RAG)
+exemplified by OpenAI’s o1 (Jaech et al., 2024),
+                                                              mechanism with a knowledge refinement module.
+Qwen-QwQ (Team, 2024), and DeepSeek-R1 (Guo
+                                                              This design allows the model to retrieve relevant
+et al., 2025), employ large-scale reinforcement
+                                                              knowledge as needed during the reasoning process,
+learning to foster impressive long-sequence step-
+                                                              ensuring step-by-step reasoning remains coherent.
+wise reasoning capabilities, offering promising so-
+                                                                 Specifically, our results in Figure 1 reveal that
+lutions to complex reasoning problems (OpenAI,
+                                                              traditional problem-oriented RAG techniques do
+2024; Lewkowycz et al., 2022; Wei et al., 2022).
+                                                              not effectively address the knowledge gaps com-
+    * Corresponding author.                                   pared to direct reasoning (Standard RAG vs. Direct
+                                                           5420
+        Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing, pages 5420–5438
+                            November 4-9, 2025 ©2025 Association for Computational Linguistics
+                                                                                                35
+            Cases of Model-Expressed Uncertainty                                                     30.4                                   Direct Reasoning
+                                                                                                30                 27.1                     Standard RAG
+            Wait, perhaps it’s referring to dimethyl sulfone,                                            26.4
+            but that doesn’t seem right.                                                                                                    Search-o1 (Ours)
+
+
+
+
+                                                                           Average Occurrence
+                                                                                                25
+                                                                                                                       21.6
+            Alternatively, perhaps there’s a mistake in my                                      20
+            understanding of epistasis. Let me look up epis-                                                15.8
+            tasis quickly. Epistasis is ...                                                     15
+                                                                                                                          11.9
+            Alternatively, HBr could also abstract a hydro-                                     10                                       9.3 8.2
+            gen atom from the alkene, leading to a ...                                                                             7.8
+
+            As I recall, Quinuclidine is a seven-membered                                       5                                                  2.8 3.2 2.6
+            ring with a nitrogen atom, likely not having the                                    0
+            required symmetry.                                                                        perhaps      alternatively     wait            likely
+                                                                                                                      Uncertain Words
+       Figure
+Figure 1:     1: Analysis
+          Analysis         of reasoning
+                    of reasoning         uncertainty
+                                  uncertainty. Left: with QwQ-32B-Preview.
+                                                      Examples                Left: identified
+                                                                of uncertain words   Examplesduring
+                                                                                               of uncertain
+                                                                                                     the reasoning
+       words identified during the reasoning process. Right: Average occurrence of high-frequency uncertain set.
+process. Right: Average occurrence of high-frequency uncertain words per output in the GPQA diamond
+       words per output in the GPQA diamond set.
+
+Reasoning). This finding aligns with human intu- trieved documents based on both the current search
+ition, as    standardthis
+        To address          RAG       retrieves
+                                limitation,           relevant knowl-
+                                                we conduct        preliminary query
+                                                                                  experimentsand to previous
+                                                                                                       assess the  reasoning     steps,
+                                                                                                                      frequency of        and then pro-
+                                                                                                                                      uncertain
+        wordsonce
+edge only         decoded in abyproblem-oriented
+                                     the LRMs due to knowledge     manner, gaps.   ducesAs shown
+                                                                                              refinedin information
+                                                                                                            Figure 1, the extended         think- inte-
+                                                                                                                               that seamlessly
+         ing process leads LRM to frequently decode numerous uncertain terms in challenging reasoning
+while the knowledge required for each step in com- grates with the prior reasoning chain.
+         problems, with “perhaps” averaging over 30 occurrences in each reasoning process. Notably, the
+plex reasoning         scenarios
+         high specialization              is often
+                                     of these           varied
+                                                  problems      alsoand    di-
+                                                                      complicates      In summary,
+                                                                                      manual     reasoning  ourverification,
+                                                                                                                  contributions oftenare  as follows:
+                                                                                                                                      incurring
+verse (Zheng
+         significantet al.,
+                         costs2025;[63]. Liu et      al., 2024;
+                                            Consequently,             Dong the supplementation of knowledge required for
+                                                                  automating
+         the o1-like
+et al., 2025d).          reasoning
+                     Unlike       them,process       has become
+                                             Search-o1       employs   a significant
+                                                                           an       • We    propose
+                                                                                       challenge,         Search-o1,
+                                                                                                      limiting             the first
+                                                                                                                    the progress       framework
+                                                                                                                                   of LRMs     in    that
+agenticachieving       universally trustworthy reasoning.
+           RAG technique              that guides the model to                         integrates the agentic search workflow into the
+activelyTo shed
+            decode  light   on this
+                       search          topic, our
+                                    queries      whencore    motivation
+                                                          facing     knowl-            o1-like
+                                                                            is to enhance          reasoning
+                                                                                             the LRMs       with process      of LRM pattern
+                                                                                                                    o1-like reasoning     for achieving
+         through autonomous retrieval. We propose Search-o1,autonomous                    which integrates knowledge supplementation.
+                                                                                                                   the  reasoning    process   of
+edge shortages,           thereby triggering the retrieval
+         LRMs with two core components: an agentic retrieval-augmented generation (RAG) mechanism and
+mechanism        to obtain
+         a knowledge             relevantmodule.
+                            refinement          external  Thisknowledge.
+                                                                 design aims to • Toenablenhance
+                                                                                              LRMs toreasoning
+                                                                                                            incorporatewith the agentic
+                                                                                                                                 externalsearch
+                                                                                                                                             knowledge,
+Owing to      the into
+        workflow    benefits  theof this
+                                    reasoning  design,
+                                                   process, ouretrieving
+                                                                  retrievalexternalSearch-o1
+                                                                                        knowledgeincorporates
+                                                                                                        on demand to an     support   step-wise
+                                                                                                                                agentic RAG mecha-
+mechanismreasoning
+                 can while       preserving
+                       be triggered           andcoherence
+                                                    iterated throughout.
+                                                                  multiple             nism and a knowledge refinement module. This
+times within      a single
+         Specifically,           easoning
+                            our results          session1to
+                                             in Figure           fulfill
+                                                              reveal      thetraditional
+                                                                       that                problem-oriented
+                                                                                       enables     LRMs to retrieve  RAG techniques       do not infor-
+                                                                                                                              relevant external
+         effectively     address      the
+knowledge needs of various reasoning steps.  knowledge        gaps   compared      to direct    reasoning       (Standard    RAG     vs.  Direct
+         Reasoning). This finding aligns with human intuition, asmation                  standardasRAG  needed,       while
+                                                                                                               retrieves       preserving
+                                                                                                                          relevant  knowledge the coher-
+   To effectively
+         only once in   integrate       retrieved knowledge
+                             a problem-oriented            manner, while into the ence
+                                                                                    knowledge  of the    reasoning
+                                                                                                     required            process.
+                                                                                                                   for each   step in complex
+the LRM’s       reasoning
+         reasoning     scenarios  process,
+                                        is often wevaried
+                                                      further  andidentify
+                                                                     diverse [83, 41, 11]. Unlike them, Search-o1 employs an
+two key  agentic   RAG technique
+             challenges         when that          guides the
+                                            directly               model to actively
+                                                         incorporating              • Withdecodefivesearch
+                                                                                                       complex        reasoning
+                                                                                                                queries   when facingdomains
+                                                                                                                                         knowl-and six
+retrievededge   shortages, into
+             documents           therebythe triggering
+                                               reasoningthe        retrieval
+                                                                chain    dur-mechanism         to obtain relevant
+                                                                                       open-domain                       external knowledge.
+                                                                                                             QA benchmarks,           we demonstrate
+         Owing to the benefits of this design, our retrieval mechanism can be triggered and iterated multiple
+                                            (1) Redundant                              that Search-o1 achieves remarkable performance
+ing practical      experiments:
+         times within       a single reasoning         session toInfor-
+                                                                      fulfill the knowledge needs of various reasoning steps.
+mation in Retrieved Documents. Retrieved doc-                                          in the reasoning field while maintaining substan-
+        To effectively integrate retrieved knowledge into the LRM’s reasoning process, we further identify
+umentstwo  arekeyoften      lengthy       anddirectly
+                                                  contain      redundantretrieved      tial improvements in the general knowledge.
+                     challenges      when                  incorporating                  documents into the reasoning chain during
+information,
+         practicaldirectly
+                      experiments: inputting
+                                           (1) them
+                                                Redundant    into LRMs
+                                                                  Information in Retrieved Documents. Retrieved documents
+may aredisruptoften
+                  thelengthy
+                         original  and contain
+                                         coherence  redundant       information,2directly
+                                                           of reasoning
+                                                                                         Related        Work
+                                                                                                inputting     them into LRMs may disrupt
+         the  original     coherence        of
+and even introduce noise (Wu et al., 2024; Yoranreasoning      and   even   introduce    noise    [62,  72,    26]. (2) Limited Ability to
+                                                                                   Large Reasoning Models. Large reasoning mod-
+         Understand Long Documents. Most LRMs have been specifically aligned for complex reasoning
+et al., 2024).     (2) Limited
+         tasks during                    Ability
+                           the pre-training        andtofine-tuning
+                                                           Understand              els focus
+                                                                         stages. This   focushas  on resulted
+                                                                                                      enhancinga performance             at test time by
+                                                                                                                       degree of catastrophic
+Long forgetting
+        Documents.            Most
+                       in their         LRMs have
+                                    general     capabilitiesbeen [39,specif-       utilizing
+                                                                        10], ultimately          extended
+                                                                                           limiting    their reasoning
+                                                                                                                long-contextsteps,    contrasting with
+                                                                                                                                understanding
+         of retrieved
+ically aligned      for documents.
+                           complex reasoning tasks during                          traditional large pre-trained models that achieve
+the To
+    pre-training
+             addressand  these fine-tuning
+                                   challenges, we stages.      This the
+                                                         introduce    focusReason-in-Documents
+                                                                                   scalability duringmodule,    training   by increasing
+                                                                                                                         which                model size
+                                                                                                                                 operates inde-
+         pendently     from     the  main     reasoning
+has resulted in a degree of catastrophic forgetting          chain.   This   module   first conducts      a  thorough
+                                                                                   or expanding training data (Henighan  analysis   of retrieved
+                                                                                                                                            et al., 2020;
+in theirdocuments        based on both the current search query and previous reasoning steps, and then produces
+           general capabilities            (Lin et al., 2024; Dong                 Zeng
+         refined information that seamlessly integrates with the                      prioretreasoning
+                                                                                                al., 2024).       Recently, models like OpenAI-
+                                                                                                              chain.
+et al., 2024), ultimately limiting their long-context                              o1 (Jaech et al., 2024), Qwen-QwQ (Team, 2024)
+         In summary, our contributions are as follows:
+understanding        of retrieved documents.                                       and DeepSeek-R1 (Guo et al., 2025) explicitly
+   To address these challenges, we introduce the                                   demonstrate chain-of-thought reasoning (Wei et al.,
+Reason-in-Documents module, which operates 2 2022). Various approaches have been explored to
+independently from the main reasoning chain. This                                  achieve o1-like reasoning capabilities. Some meth-
+module first conducts a thorough analysis of re- ods combine policy and reward models with Monte
+                                                                        5421
+Carlo Tree Search (MCTS) (Jiang et al., 2024),             to generate a comprehensive solution for each ques-
+though this does not internalize reasoning within          tion q, consisting of both a logical reasoning chain
+the model. Other studies incorporate deliberate er-        R and the final answer a. In this work, we enable
+rors in reasoning paths during training to partially       the reasoning model to utilize external knowledge
+internalize these abilities (Qin et al., 2024). Ad-        sources during the reasoning process. Specifically,
+ditionally, distilling training data has been shown        we consider three primary inputs in the problem-
+to enhance models’ o1-like reasoning skills (Min           solving process: the task instruction I, the question
+et al., 2024). The o1-like reasoning paradigm has          q, and externally retrieved documents D. Here, I
+demonstrated strong performance across diverse             provides an overarching description of the reason-
+domains, including vision-language reasoning (Xu           ing task, q is the specific complex question to be
+et al., 2024b; Dong et al., 2025d), code generation        answered, and D comprises background knowledge
+(Zhang et al., 2024), healthcare (Chen et al., 2024a),     dynamically retrieved from an external corpus.
+and machine translation (Wang et al., 2024). How-             The goal is to design a reasoning mechanism
+ever, these approaches are limited by their reliance       that effectively integrates I, q, and D to produce a
+on static, parameterized models, which cannot              coherent reasoning chain R and a final answer a.
+leverage external world knowledge when internal            This can be formalized as the mapping (I, q, D) →
+knowledge is insufficient.                                 (R, a). The generation of the reasoning sequence
+                                                           and the final answer can be expressed as:
+Retrieval-Augmented Generation. Retrieval-
+                                                                    P (R, a | I, q, D) =
+augmented generation (RAG) enhances genera-                         YTr
+tive models by incorporating retrieval mechanisms,                         P (Rt | R<t , I, q, D<t ) ·
+overcoming the limitations of static parameters                     | t=1           {z            }
+                                                                                Reasoning Process           (1)
+and enabling access to external knowledge (Lewis
+                                                                     YTa
+et al., 2020; Li et al., 2025c). Advanced research in                          P (at | a<t , R, I, q),
+                                                                         t=1
+this field enhances the RAG system from multiple                     |              {z              }
+aspects, including the necessity of retrieval (Tan                         Answer Generation
+
+et al., 2024), pre-processing of queries (Wang             where Tr is the number of tokens in the reasoning
+et al., 2023), retrieved documents compressing (Xu         sequence R. The token at the position t is Rt , and
+et al., 2024a; Liu et al., 2025), denoising (Liu           R<t represents all tokens generated before position
+et al., 2024), refining (Jin et al., 2025a), instruc-      t. D≤t represents all documents retrieved up to
+tion following (Dong et al., 2025b), and so on.            token t in the reasoning chain. Similarly, Ta is
+Furthermore, some studies have explored end-to-            the length of the answer sequence a, with at being
+end model training to implement RAG systems (Li            the token at the position t and a<t indicating all
+et al., 2024, 2025b) and knowledge-graph-based             generated answer tokens before the position t.
+RAG systems (Edge et al., 2024). Recently, agentic
+                                                           3.2   Overview of the Search-o1 Framework
+RAG systems empower models to autonomously
+determine when and what knowledge to retrieve              The Search-o1 framework addresses knowledge
+as needed, showcasing enhanced planning and                insufficiency in large reasoning models (LRMs)
+problem-solving capabilities (Yao et al., 2023;            by seamlessly integrating external knowledge re-
+Dong et al., 2025a; Li et al., 2025a; Jin et al., 2025b;   trieval into their reasoning process while maintain-
+Dong et al., 2025c). However, existing RAG ap-             ing chain-of-thought coherence. As illustrated in
+proaches have not incorporated the strong reason-          Figure 2, we present a comparative analysis of three
+ing capabilities of o1-like models, limiting the po-       approaches: vanilla reasoning, agentic retrieval-
+tential to further enhance system performance in           augmented generation (RAG), and our proposed
+solving complex tasks.                                     Search-o1 framework.
+                                                           Vanilla Reasoning Pattern. Consider the ex-
+3   Methodology                                            ample in Figure 2(a), where the task involves
+                                                           determining the carbon atom count in the final
+3.1 Problem Formulation
+                                                           product of a three-step chemical reaction. The
+We consider a complex reasoning task that necessi-         vanilla reasoning approach falters when encounter-
+tates multi-step reasoning and the retrieval of exter-     ing knowledge gaps (e.g., the “structure of trans-
+nal knowledge to derive solutions. The objective is        Cinnamaldehyde”). Without access to accurate
+                                                       5422
+ (a) Vanilla Reasoning Pattern                 (b) Reason with Agentic RAG (Ours)                  (c) The Search-o1 Framework (Ours)
+
+  Original Question:                            Search Instruction:                                 Search Instruction:
+                                                                                                                                                    Domains:
+  Step 1: trans-Cinnamaldehyde +                When you encounter unfamiliar knowledge,            When you encounter unfamiliar knowledge,
+  Methylmagnesium Bromide → Product 1           you can perform web searches to help you …          you can perform web searches to help you …           Physics
+  Step 2: Product 1 + … → Product 2                                                                                                                      Chemistry
+  Step 3: Product 2 + (Dimethyl(oxo)-16-        Original Question:                                  Original Question:
+  sulfaneylidene)methane … → Product 3          Step 1: … Step 2: … Step 3: …                       Step 1: … Step 2: … Step 3: …                        Biology
+  Question: carbon atoms count of Product 3     Question: carbon atoms count of Product 3           Question: carbon atoms count of Product 3            Math
+
+                                                                                                                                                         Code
+
+                                                                                                                           Large Reasoning               ODQA
+                         Large Reasoning                                Large Reasoning
+ Start thinking.                               Start thinking.                                     Start thinking.
+                          Model (e.g. o1)                                Model (e.g. o1)                                    Model (e.g. o1)
+
+                        Step n                                         Step n                                              Step n
+
+ Encounter                                     Search for                                          Search for                                        Retrieved
+                     I need the structure of                            Structure of trans-                                 Structure of trans-
+ unfamiliar                                    helpful info                                        helpful info             Cinnamaldehyde           Documents
+                    trans-Cinnamaldehyde.                               Cinnamaldehyde
+ knowledge.                                    on-demand.                                          on-demand.
+                      Step n+1                                       Step n+1        iterable                           Step n+1        iterable
+
+ Make a guess       Perhaps the structure of   Return long                                         Get concise         Trans-Cinnamaldehyde
+                                                                 (E)-cinnamaldehyde is the
+ and continue       trans-Cinnamaldehyde is    and redundant     E(trans) stereoisomer of …
+                                                                                                   information            has the structure
+ reasoning.        C6H5CH=CH-CO-CH3. (✗)       documents,                                          and continue        C6H5CH=CHCHO. (✓)             Reason-in-
+                                               which disrupt                                       coherent                                          Documents
+                      Step n+2                                       Step n+2                                           Step n+2
+                                               reasoning.                                          reasoning.
+                                  …                                              …                                                  …              Integrate helpful
+                     Final Step                                     Final Step                                         Final Step                   information into
+                                                                                                                                                      the previous
+ Provide final       Product 3 contains 10     Provide final        Product 3 contains 14          Provide final        Product 3 contains 11      reasoning chain.
+ answer.              carbon atoms. (✗)        answer.               carbon atoms. (✗)             answer.               carbon atoms. (✓)
+
+
+
+Figure 2: Comparison of reasoning approaches: (a) Direct reasoning without retrieval often results in inaccuracies
+due to missing knowledge. (b) Our agentic retrieval-augmented reasoning approach improves knowledge access but
+usually returns lengthy, redundant documents, disrupting coherent reasoning. (c) Our Search-o1 integrates concise
+retrieved knowledge seamlessly into the reasoning process, enabling precise and coherent problem-solving.
+
+
+information, the model must rely on assumptions,                                      3.3       Agentic Retrieval-Augmented Generation
+potentially leading to cascading errors throughout                                              Mechanism
+subsequent reasoning steps.
+                                                                                      The agentic RAG mechanism is a pivotal compo-
+                                                                                      nent of the Search-o1 framework, empowering the
+                                                                                      reasoning model to autonomously determine when
+Agentic RAG. To bridge the knowledge gaps
+                                                                                      to retrieve external knowledge during the reasoning
+during reasoning, we build the agentic RAG mech-
+                                                                                      process. This mechanism allows the model itself
+anism (Figure 2(b)) to enable the model to au-
+                                                                                      to decide whether to continue generating reasoning
+tonomously retrieve external knowledge when
+                                                                                      steps or to initiate a retrieval step. Detailed model
+needed. When uncertainty arises—such as regard-
+                                                                                      instructions can be found in Appendix A.1.
+ing the compound’s structure—the model gener-
+ates targeted search queries (e.g., “structure of                                        During the generation of the reasoning chain
+trans-Cinnamaldehyde”). However, the direct in-                                       R, the model may intermittently generate search
+                                                                                                 (i)
+sertion of retrieved documents, which often contain                                   queries qsearch encapsulated between special sym-
+lengthy and irrelevant information, may disrupt the                                   bols <|begin_search_query|> and <|end_search_query|> , where
+reasoning flow and hurt coherence.                                                    i indexes the i-th search step. Each search query
+                                                                                      is generated based on the current state of the
+                                                                                      reasoning process and the previously retrieved
+Search-o1. Our Search-o1 framework (Fig-                                              knowledge. The generation of each search query
+                                                                                                                     (i)
+ure 2(c)) extends the agentic RAG mechanism                                           is expressed as: P (qsearch | I, q, R(i−1) ) =
+                                                                                      QTq(i)                                            
+by incorporating a Reason-in-Documents mod-                                                   P   q
+                                                                                                    (i)
+                                                                                                             | q
+                                                                                                                 (i)
+                                                                                                                           , I, q, R(i−1) , where
+                                                                                         t=1        search,t     search,<t
+ule. This module condenses retrieved documents                                            (i)                                                              (i)
+into focused reasoning steps that integrate external                                  Tq is the length of the i-th search query, qsearch,t
+knowledge while maintaining the logical flow of                                       denotes the token generated at step t of the i-th
+the reasoning chain. It considers the current search                                  search query, and R(i−1) represents all the reason-
+query, retrieved documents, and the existing reason-                                  ing steps prior to the i-th search step, including
+ing chain to generate coherent steps. This iterative                                  both search queries and search results.
+process continues until the final answer is reached.                                    Once a new pair of special symbols for the search
+                                                                            5423
+query is detected in the reasoning sequence, we            D(i) , the knowledge refinement process operates
+pause the reasoning process, and the search query          in two stages: first generating an intermediate
+  (i)                                                                                  (i)
+qsearch is extracted. The retrieval function Search        reasoning sequence rdocs to analyze the retrieved
+is invoked to obtain relevant documents:                   documents, then producing refined knowledge
+                                                            (i)
+                                 (i)                       rfinal based on this analysis. The generation
+              D(i) = Search(qsearch ),              (2)                                                          (i)
+                                                           of the intermediate reasoning sequence rdocs is
+                                                                                    (i)                 (i)
+                 (i)   (i)      (i)
+where D(i) = d1 , d2 , . . . , dki represents the set      expressed as: P (rdocs | R(<i) , qsearch , D(i) ) =
+                                                           QTd(i)                                                
+of top-ki relevant documents retrieved for the i-th           t=1  P   r
+                                                                         (i)
+                                                                        docs,t | r
+                                                                                   (i)
+                                                                                  docs,<t  , R(<i) , q (i) , D (i) ,
+                                                                                                      search
+search query. The retrieved documents D(i) are sub-                  (i)
+sequently injected into the reasoning chain R(i−1)         where Td is the length of the intermediate reason-
+                                                                              (i)
+between the special symbols <|begin_search_result|> and    ing sequence, and rdocs,t denotes the token at step t.
+                                                                                        (i)
+ <|end_search_result|> , allowing the reasoning model to   The refined knowledge rfinal is then generated based
+utilize the external knowledge to continue the rea-                                    (i)       (i)               (i)
+                                                           on this analysis: P (rfinal | rdocs , R(<i) , qsearch ) =
+soning process.                                            QTr(i)                                                     
+                                                                        (i)        (i)         (i)      (<i) , q (i)
+    This agentic mechanism enables the model to              t=1  P   rfinal,t | r         , r
+                                                                                  final,<t docs      , R        search ,
+                                                                     (i)
+dynamically and efficiently incorporate external           where Tr is the length of the refined knowledge
+knowledge, maintaining the coherence and rele-                            (i)
+                                                           sequence, and rfinal,t denotes the token at step t.
+vance of the reasoning process while avoiding in-                                             (i)
+                                                              The refined knowledge rfinal is then incorporated
+formation overload from excessive or irrelevant
+                                                           into the reasoning chain R(i) , enabling the model
+retrieval results.
+                                                           to continue generating coherent reasoning steps
+3.4 Knowledge Refinement via                               with access to the external knowledge.
+    Reason-in-Documents
+                                                              P (R, a | I, q) =
+While the agentic RAG mechanism addresses                     YTr                                     
+                                                                                              (j)
+knowledge gaps in reasoning, directly inserting                      P Rt | R<t , I, q, {rfinal }j≤i(t) ·           (3)
+                                                                 t=1
+full documents can disrupt coherence due to their             YTa
+length and redundancy. To overcome this, the                         P (at | a<t , R, I, q) ,
+                                                                   t=1
+Search-o1 framework includes the knowledge re-
+                                                                      (j)
+finement module, which selectively integrates only         where {rfinal }j≤i(t) denotes all previously refined
+relevant and concise information into the reason-          knowledge up to the i(t)-th search step. Here, i(t)
+ing chain through a separate generation process            represents the index of the search step correspond-
+using the original reasoning model. This mod-              ing to the current reasoning step t. This refined
+ule processes retrieved documents to align with            knowledge integration ensures that each reason-
+the model’s specific reasoning needs, transforming         ing step can access relevant external information
+raw information into refined, pertinent knowledge          while maintaining the conciseness and focus of the
+while maintaining coherence and logical consis-            reasoning process.
+tency of the main reasoning chain.
+   The refinement guidelines for Reason-in-                3.5   Search-o1 Inference Process
+Documents are detailed in Appendix A.1. These              The Search-o1 inference process starts by combin-
+guidelines instruct the model to analyze the re-           ing the task instruction I with the specific question
+trieved web pages based on the previous reason-            q. As the reasoning model M generates the reason-
+ing steps, current search query, and the content of        ing chain R, it may create search queries marked
+the searched web pages. The objective is to ex-            by <|begin_search_query|> and <|end_search_query|> . When
+tract relevant and accurate information that directly      the <|end_search_query|> symbol is detected, the search
+contributes to advancing the reasoning process for         query qsearch is extracted and used to fetch relevant
+the original question, ensuring seamless integration       documents D through the Search function. These
+into the existing reasoning chain.                         documents, along with the instruction Idocs and the
+   Formally, for each search step i, let R(<i) denote      reasoning chain R, are processed by the Reason-
+the reasoning chain accumulated up to just before          in-Documents module, which refines the informa-
+the i-th search query. Given R(<i) , the current           tion into a more concise and relevant form rfinal .
+                (i)
+search query qsearch , and the retrieved documents         This refined information is then added back into
+                                                       5424
+Table 1: Main results on challenging reasoning tasks, including PhD-level science QA, math, and code benchmarks.
+We report Pass@1 metric for all tasks. For models with 32B parameters, the best results are in bold and the
+second-best are underlined. Results from larger or non-proprietary models are in gray color for reference. Symbol
+“† ” indicates results from their official releases.
+
+                             GPQA (PhD-Level Science QA)          Math Benchmarks             LiveCodeBench
+ Method
+                           Physics Chemistry Biology Overall MATH500 AMC23 AIME24 Easy Medium Hard Overall
+ Direct Reasoning (w/o Retrieval)
+ Qwen2.5-32B                 57.0    33.3    52.6    45.5     75.8      57.5    23.3   42.3    18.9   14.3    22.3
+ Qwen2.5-Coder-32B           37.2    25.8    57.9    33.8     71.2      67.5    20.0   61.5    16.2   12.2    25.0
+ QwQ-32B                     75.6    39.8    68.4    58.1     83.2      82.5    53.3   61.5    29.7   20.4    33.0
+ Qwen2.5-72B                57.0     37.6    68.4    49.0     79.4      67.5    20.0   53.8    29.7   24.5    33.0
+ Llama3.3-70B               54.7     31.2    52.6    43.4     70.8      47.5    36.7   57.7    32.4   24.5    34.8
+ DeepSeek-R1-Lite†           -        -       -      58.5     91.6       -      52.5    -       -      -      51.6
+ GPT-4o†                    59.5     40.2    61.6    50.6     60.3       -       9.3    -       -      -      33.4
+ o1-preview†                89.4     59.9    65.9    73.3     85.5       -      44.6    -       -      -      53.6
+ Retrieval-augmented Reasoning
+ RAG-Qwen2.5-32B           57.0      37.6    52.6    47.5     82.6      72.5    30.0   61.5    24.3    8.2    25.9
+ RAG-QwQ-32B               76.7      38.7    73.7    58.6     84.8      82.5    50.0   57.7    16.2   12.2    24.1
+ RAgent-Qwen2.5-32B        58.1      33.3    63.2    47.0     74.8      65.0    20.0   57.7    24.3    6.1    24.1
+ RAgent-QwQ-32B            76.7      46.2    68.4    61.6     85.0      85.0    56.7   65.4    18.9   12.2    26.8
+ Retrieval-augmented Reasoning with Reason-in-Documents
+ Search-o1 (Ours)          77.9      47.3     78.9   63.6     86.4      85.0    56.7   57.7    32.4   20.4    33.0
+
+
+
+the reasoning chain R within <|begin_search_result|>        trivia websites and competitions. (2) Multi-
+and <|end_search_result|> symbols. The process repeats      hop QA datasets: HotpotQA (Yang et al.,
+to ensure the reasoning model includes external             2018) requires reasoning across multiple Wikipedia
+knowledge while keeping the reasoning coherent              paragraphs. 2WikiMultihopQA (2WIKI) (Ho
+and logically consistent, leading to the final answer       et al., 2020) provides explicit reasoning paths.
+a. For more details, refer to Appendix B.                   MuSiQue (Trivedi et al., 2022) consists of 2-4 hop
+                                                            questions derived from single-hop datasets. Bam-
+4   Experiments                                             boogle (Press et al., 2023) includes complex ques-
+                                                            tions that Google answers incorrectly, assessing
+4.1 Tasks and Datasets
+                                                            compositional reasoning.
+Challenging reasoning tasks: (1) GPQA (Rein
+et al., 2023) is a PhD-level science multiple-choice        4.2    Baselines
+QA dataset. The questions are authored by do-               Direct Reasoning. These methods use the
+main experts in physics, chemistry, and biology.            model’s internal knowledge without retrieval.
+(2) Math benchmarks include MATH500 (Light-                 Open-source models include Qwen2.5-32B-
+man et al., 2024), AMC2023, and AIME2024.                   Instruct (Qwen et al., 2024), Qwen2.5-
+MATH500 consists of 500 questions from the                  Coder-32B-Instruct (Hui et al., 2024), QwQ-
+MATH test set (Hendrycks et al., 2021). AMC2023             32B-Preview (Team, 2024), Qwen2.5-72B-
+and AIME2024 are middle school math competi-                Instruct (Qwen et al., 2024), Llama3.3-70B-
+tions covering arithmetic, algebra, geometry, etc.,         Instruct (Dubey et al., 2024), and DeepSeek-R1-
+containing 40 and 30 questions respectively. (3)            Lite (Guo et al., 2025). Closed-source models
+LiveCodeBench (Jain et al., 2024) is a benchmark            include OpenAI GPT-4o (Hurst et al., 2024) and
+for evaluating LLMs’ coding capabilities, consist-          o1-preview (Jaech et al., 2024).
+ing of easy, medium, and hard difficulty problems.
+                                                            Retrieval-augmented Reasoning. These meth-
+Open-domain QA tasks: (1) Single-hop QA                     ods use external information for reasoning. We
+datasets: Natural Questions (NQ) (Kwiatkowski               consider: (1) Standard RAG: Retrieves the top-10
+et al., 2019) contains questions from Google search         documents for reasoning and answer generation.
+queries with answers from Wikipedia. Trivi-                 (2) RAG Agent (RAgent): Lets the model decide
+aQA (Joshi et al., 2017) includes questions from            when to query for retrieval, as described in Sec-
+                                                       5425
+                                    Search-o1 (Ours)               Direct Reasoning             Standard RAG (k=10)
+                        Physics                        Chemistry                           Biology                           Overall
+          80                              51                                 85
+                                                                             80                             64
+                                          48
+          78                                                                 75                                62
+                                          45
+ Pass@1   76                              42
+                                                                             70                                60
+                                                                             65
+                                          39                                 60                                58
+          74
+                                          36                                 55                                56
+               1 2 3      5          10        1 2 3      5             10        1 2 3      5           10         1 2 3      5         10
+                       Top-k Docs                      Top-k Docs                         Top-k Docs                        Top-k Docs
+                           Figure 3: Scaling analysis of top-k retrieved documents utilized in reasoning.
+
+
+Table 2: Performance comparison with different back-                         Table 3: Performance comparison with human experts
+bone large reasoning models.                                                 on the GPQA extended set (Rein et al., 2023).
+
+Method                     GPQA MATH500 AIME24 LiveCode                           Method               Physics Chemistry Biology Overall
+Sky-T1-32B-Preview                                                                Human Experts
+Direct Reasoning   57.6               83.2        43.3        26.8                Physicists            57.9        31.6         42.0    39.9
+RAG-Agent          59.1               83.8        46.7        25.0                Chemists              34.5        72.6         45.6    48.9
+Search-o1          60.6               84.4        50.0        27.7                Biologists            30.4        28.8         68.9    37.2
+DeepSeek-R1-Distill-Qwen-32B                                                      Reasoning Models
+Direct Reasoning    65.7    88.2                  73.3        42.9                QwQ-32B          61.7             36.9         61.0    51.8
+RAG-Agent           66.2    88.4                  70.0        42.0                RAG-QwQ-32B      64.3             38.3         66.7    54.6
+Search-o1           67.2    89.0                  73.3        43.8                Search-o1        68.7             40.7         69.5    57.9
+
+
+
+tion 3.3. Inspired by ReAct (Yao et al., 2023), we
+                                                                             and QwQ-32B in most tasks, thanks to its agentic
+first retrieve the top-10 snippets and then fetch full
+                                                                             search mechanism, which autonomously retrieves
+documents when needed.
+                                                                             information to supplement knowledge required
+4.3 Implementation Details                                                   for reasoning at each step. In contrast, the non-
+                                                                             reasoning model Qwen2.5-32B with agentic RAG
+For the backbone large reasoning model in Search-
+                                                                             performs similarly to standard RAG on GPQA
+o1, we utilize the open-sourced QwQ-32B-Preview.
+                                                                             but worse on math and code tasks, indicating that
+For generation settings, we use a maximum of
+                                                                             general LLMs struggle with complex reasoning.
+32,768 tokens, temperature of 0.7, top_p of 0.8,
+                                                                             (3) Search-o1 surpasses RAgent-QwQ-32B in
+top_k of 20, and a repetition penalty of 1.05 across
+                                                                             most tasks, demonstrating the effectiveness of the
+all models. For retrieval, we employ the Bing Web
+                                                                             Reason-in-Documents strategy. Specifically, on av-
+Search API, setting the region to US-EN and the
+                                                                             erage across all five datasets, Search-o1 exceeds
+top-k retrieved documents to 10. For baseline mod-
+                                                                             RAgent-QwQ-32B and QwQ-32B by 4.7% and
+els not specifically trained for o1-like reasoning, we
+                                                                             3.1%, respectively, and significantly outperforms
+apply Chain-of-Thought prompting to perform rea-
+                                                                             non-reasoning LLMs Qwen2.5-32B and Llama3.3-
+soning before generating answers. Detailed instruc-
+                                                                             70B by 44.7% and 39.3%.
+tions for all models are provided in Appendix A.
+
+4.4 Results on Challenging Reasoning Tasks                                    Scaling Analysis on Number of Retrieved Doc-
+Main Results. Table 1 shows Search-o1’s perfor-                               uments. We analyze performance variation with
+mance on complex reasoning tasks: (1) Reason-                                 respect to the number of retrieved documents (Fig-
+ing model QwQ-32B-Preview consistently outper-                                ure 3). Search-o1 effectively leverages an increas-
+forms traditional general LLMs in both retrieval                              ing number of retrieved documents, improving
+and non-retrieval settings, even surpassing larger                            its handling of complex reasoning tasks. Notably,
+models like Qwen2.5-72B and Llama3.3-70B in                                   retrieving even one document can outperform Di-
+direct reasoning, highlighting the effectiveness of                           rect Reasoning and standard RAG models using
+the o1-like long CoT approach. (2) RAgent-QwQ-                                ten documents, showcasing the power of agentic
+32B outperforms both standard RAG models                                      search and Reason-in-Documents strategies.
+                                                                        5426
+Table 4: Performance comparison on open-domain QA tasks, including single-hop QA and multi-hop QA datasets.
+For models with 32B parameters, the best results are in bold and the second-best are underlined. Results from larger
+models are in gray color for reference.
+
+                                       Single-hop QA                               Multi-hop QA
+   Method                            NQ         TriviaQA      HotpotQA        2WIKI         MuSiQue      Bamboogle
+                                EM        F1   EM      F1     EM      F1    EM      F1     EM     F1     EM     F1
+   Direct Reasoning (w/o Retrieval)
+   Qwen2.5-32B                  22.8    33.9   52.0    60.3   25.4   34.7   29.8    36.3   8.4    18.0   49.6   63.2
+   QwQ-32B                      23.0    33.1   53.8    60.7   25.4   33.3   34.4    40.9   9.0    18.9   38.4   53.7
+   Qwen2.5-72B                 27.6     41.2   56.8    65.8   29.2   38.8   34.4    42.7   11.4   20.4   47.2   61.7
+   Llama3.3-70B                36.0     48.7   68.8    76.8   37.8   49.1   46.0    54.2   14.8   23.6   54.4   67.8
+   Retrieval-augmented Reasoning
+   RAG-Qwen2.5-32B            33.4      49.3   65.8    79.2   38.6   50.4   31.6    40.6   10.4   19.8   52.0   66.0
+   RAG-QwQ-32B                29.6      44.4   65.6    77.6   34.2   46.4   35.6    46.2   10.6   20.2   55.2   67.4
+   RAgent-Qwen2.5-32B         32.4      47.8   63.0    72.6   44.6   56.8   55.4    69.7   13.0   25.4   54.4   66.4
+   RAgent-QwQ-32B             33.6      48.4   62.0    74.0   43.0   55.2   58.4    71.2   13.6   25.5   52.0   64.7
+   Retrieval-augmented Reasoning with Reason-in-Documents
+   Search-o1 (Ours)           34.0 49.7 63.4 74.1 45.2               57.3   58.0    71.4   16.6   28.2   56.0   67.8
+
+
+
+Analysis of Performance with Different Back-                   (2) Retrieval significantly improves performance
+bone LRMs. We examine the effectiveness of                     for both reasoning and non-reasoning models, in-
+integrating search with different reasoning models,            dicating knowledge gaps in these tasks. Agentic
+specifically Sky-T1-32B-Preview and DeepSeek-                  RAG boosts QwQ-32B’s performance by 23.2%
+R1-Distill-Qwen-32B (Figure 2). The results show               on multi-hop QA tasks, but shows little change
+that RAgent consistently outperforms direct rea-               in single-hop tasks (47.8 vs. 47.6 EM), proving
+soning, with Search-o1 delivering the highest                  agentic search can better unleash the potential
+performance across all tasks. These findings un-               of LRMs in more complex QA tasks. (3) For our
+derscore the robustness of the Search-o1 frame-                Search-o1, we find that it generally outperforms
+work, which enhances the reasoning capabilities                all baselines on multi-hop tasks. Specifically, in
+of various LRMs and lays a solid foundation for                terms of the average EM metric, our Search-o1 ex-
+real-world applications.                                       ceeds RAG-QwQ-32B and RAgent-QwQ-32B by
+                                                               29.6% and 5.3%, respectively, demonstrating the
+Comparison with Human Experts. We com-
+                                                               effectiveness of our Reason-in-Documents strategy
+pare Search-o1’s performance with human experts
+                                                               in complex QA tasks. This further emphasizes
+across various domains in the GPQA extended set
+                                                               the importance of maintaining consistency be-
+(Table 3). Search-o1 outperforms human experts
+                                                               tween external knowledge and the logical chain
+overall (57.9), particularly in physics (68.7) and
+                                                               of reasoning.
+biology (69.5). Although it trails chemists in chem-
+istry (40.7 vs. 72.6), it remains competitive overall,         5     Conclusion
+highlighting Search-o1’s ability to leverage docu-
+ment retrieval and reasoning to achieve expert-                In this work, we present Search-o1, a framework
+level cross-domain performance.                                that addresses the knowledge insufficiency inherent
+                                                               in large reasoning models (LRMs) by integrating
+4.5 Results on Open-Domain QA Tasks                            an agentic retrieval-augmented generation mech-
+In addition to the reasoning tasks where LRMs ex-              anism alongside a Reason-in-Documents module.
+cel, we also explore the performance of our Search-            Our approach enables LRMs to autonomously re-
+o1 on open-domain QA tasks. Table 4 shows the                  trieve and seamlessly incorporate external knowl-
+results of Search-o1 on open-domain QA tasks: (1)              edge during the reasoning process, thereby enhanc-
+Without retrieval, QwQ-32B performs similarly to               ing both the accuracy and coherence of their long-
+Qwen2.5-32B, with slight performance drop (31.3                step reasoning capabilities. Comprehensive exper-
+vs. 30.7 EM), suggesting LRMs are weaker on                    iments across diverse complex reasoning tasks in
+open-domain QA tasks than on reasoning tasks.                  science, mathematics, and coding, as well as mul-
+                                                            5427
+tiple open-domain QA benchmarks, demonstrate                Zhou, Zhicheng Dou, and Ji-Rong Wen. 2025a. Tool-
+that Search-o1 consistently outperforms existing            star: Empowering llm-brained multi-tool reasoner
+                                                            via reinforcement learning. CoRR, abs/2505.16410.
+retrieval-augmented and direct reasoning methods.
+This work opens up the potential of integrating          Guanting Dong, Keming Lu, Chengpeng Li, Tingyu
+tools such as search into LRMs, paving the way for         Xia, Bowen Yu, Chang Zhou, and Jingren Zhou.
+more trustworthy and effective intelligent systems         2025b. Self-play with execution feedback: Improv-
+in complex problem-solving scenarios.                      ing instruction-following capabilities of large lan-
+                                                           guage models. In The Thirteenth International Con-
+                                                           ference on Learning Representations, ICLR 2025,
+6   Limitations                                            Singapore, April 24-28, 2025. OpenReview.net.
+Search-o1 has three main limitations that future         Guanting Dong, Hangyu Mao, Kai Ma, Licheng Bao,
+research could address: (1) it currently enhances          Yifei Chen, Zhongyuan Wang, Zhongxia Chen, Ji-
+o1-like reasoning models solely through search             azhen Du, Huiyang Wang, Fuzheng Zhang, Guorui
+tools. Future work could incorporate additional            Zhou, Yutao Zhu, Ji-Rong Wen, and Zhicheng Dou.
+                                                           2025c. Agentic reinforced policy optimization.
+tools, such as calculators, code interpreters, and         Preprint, arXiv:2507.19849.
+various real-world APIs; (2) this work focuses on
+using instructions to enable reasoning models to         Guanting Dong, Hongyi Yuan, Keming Lu, Chengpeng
+leverage search capabilities. To improve search exe-       Li, Mingfeng Xue, Dayiheng Liu, Wei Wang, Zheng
+                                                           Yuan, Chang Zhou, and Jingren Zhou. 2024. How
+cution and the use of search results, future research      abilities in large language models are affected by
+could explore fine-tuning and reinforcement learn-         supervised fine-tuning data composition. In Proceed-
+ing techniques to further optimize Search-o1; and          ings of the 62nd Annual Meeting of the Association
+(3) this study focuses on large reasoning language         for Computational Linguistics (Volume 1: Long Pa-
+                                                           pers), ACL 2024, Bangkok, Thailand, August 11-16,
+models. Expanding the Search-o1 framework to               2024, pages 177–198. Association for Computational
+support multimodal reasoning models represents a           Linguistics.
+promising avenue for future exploration.
+                                                         Guanting Dong, Chenghao Zhang, Mengjie Deng, Yu-
+Acknowledgment                                             tao Zhu, Zhicheng Dou, and Ji-Rong Wen. 2025d.
+                                                           Progressive multimodal reasoning via active retrieval.
+This work was supported by Beijing Mu-                     In Proceedings of the 63rd Annual Meeting of the
+                                                           Association for Computational Linguistics (Volume
+nicipal Science and Technology Project No.                 1: Long Papers), ACL 2025, Vienna, Austria, July 27
+Z231100010323009, National Natural Science                - August 1, 2025, pages 3579–3602. Association for
+Foundation of China No. 62272467, Beijing Nat-             Computational Linguistics.
+ural Science Foundation No. L233008. The work
+                                                         Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey,
+was partially done at the Engineering Research
+                                                           Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman,
+Center of Next-Generation Intelligent Search and           Akhil Mathur, Alan Schelten, Amy Yang, Angela
+Recommendation, MOE.                                       Fan, et al. 2024. The llama 3 herd of models. arXiv
+                                                           preprint arXiv:2407.21783.
+
+References                                               Darren Edge, Ha Trinh, Newman Cheng, Joshua
+                                                           Bradley, Alex Chao, Apurva Mody, Steven Truitt,
+Junying Chen, Zhenyang Cai, Ke Ji, Xidong Wang,            and Jonathan Larson. 2024. From local to global: A
+  Wanlong Liu, Rongsheng Wang, Jianye Hou, and             graph rag approach to query-focused summarization.
+  Benyou Wang. 2024a. Huatuogpt-o1, towards med-           Preprint, arXiv:2404.16130.
+  ical complex reasoning with llms. arXiv preprint
+  arXiv:2412.18925.                                      Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song,
+                                                           Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma,
+Xingyu Chen, Jiahao Xu, Tian Liang, Zhiwei He,             Peiyi Wang, Xiao Bi, et al. 2025. Deepseek-r1: In-
+  Jianhui Pang, Dian Yu, Linfeng Song, Qiuzhi              centivizing reasoning capability in llms via reinforce-
+  Liu, Mengfei Zhou, Zhuosheng Zhang, Rui Wang,            ment learning. arXiv preprint arXiv:2501.12948.
+  Zhaopeng Tu, Haitao Mi, and Dong Yu. 2024b. Do
+  not think that much for 2+3=? on the overthinking of   Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul
+  o1-like llms. Preprint, arXiv:2412.21187.                Arora, Steven Basart, Eric Tang, Dawn Song, and Ja-
+                                                           cob Steinhardt. 2021. Measuring mathematical prob-
+Kahneman Daniel. 2017. Thinking, fast and slow.            lem solving with the MATH dataset. In Proceedings
+                                                           of the Neural Information Processing Systems Track
+Guanting Dong, Yifei Chen, Xiaoxi Li, Jiajie Jin,          on Datasets and Benchmarks 1, NeurIPS Datasets
+  Hongjin Qian, Yutao Zhu, Hangyu Mao, Guorui              and Benchmarks 2021, December 2021, virtual.
+                                                     5428
+Tom Henighan, Jared Kaplan, Mor Katz, Mark Chen,             supervised challenge dataset for reading comprehen-
+  Christopher Hesse, Jacob Jackson, Heewoo Jun,              sion. In ACL, pages 1601–1611, Vancouver, Canada.
+  Tom B Brown, Prafulla Dhariwal, Scott Gray, et al.         Association for Computational Linguistics.
+  2020. Scaling laws for autoregressive generative
+  modeling. arXiv preprint arXiv:2010.14701.              Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+                                                            field, Michael Collins, Ankur Parikh, Chris Alberti,
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,              Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+  and Akiko Aizawa. 2020. Constructing A multi-hop          ton Lee, et al. 2019. Natural questions: a benchmark
+  QA dataset for comprehensive evaluation of reason-        for question answering research. Transactions of the
+  ing steps. In Proceedings of the 28th International       Association for Computational Linguistics, 7:453–
+  Conference on Computational Linguistics, COLING           466.
+  2020, Barcelona, Spain (Online), December 8-13,
+  2020, pages 6609–6625. International Committee on       Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+  Computational Linguistics.                                Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+                                                            rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+Binyuan Hui, Jian Yang, Zeyu Cui, Jiaxi Yang, Day-          täschel, et al. 2020. Retrieval-augmented generation
+  iheng Liu, Lei Zhang, Tianyu Liu, Jiajun Zhang,           for knowledge-intensive nlp tasks. Advances in Neu-
+  Bowen Yu, Kai Dang, An Yang, Rui Men, Fei Huang,          ral Information Processing Systems, 33:9459–9474.
+  Xingzhang Ren, Xuancheng Ren, Jingren Zhou, and
+  Junyang Lin. 2024. Qwen2.5-coder technical report.      Aitor Lewkowycz, Anders Andreassen, David Dohan,
+  CoRR, abs/2409.12186.                                     Ethan Dyer, Henryk Michalewski, Vinay V. Ra-
+                                                            masesh, Ambrose Slone, Cem Anil, Imanol Schlag,
+Aaron Hurst, Adam Lerer, Adam P Goucher, Adam               Theo Gutman-Solo, Yuhuai Wu, Behnam Neyshabur,
+  Perelman, Aditya Ramesh, Aidan Clark, AJ Os-              Guy Gur-Ari, and Vedant Misra. 2022. Solving quan-
+  trow, Akila Welihinda, Alan Hayes, Alec Radford,          titative reasoning problems with language models. In
+  et al. 2024. Gpt-4o system card. arXiv preprint           Advances in Neural Information Processing Systems
+  arXiv:2410.21276.                                         35: Annual Conference on Neural Information Pro-
+                                                            cessing Systems 2022, NeurIPS 2022, New Orleans,
+Aaron Jaech, Adam Kalai, Adam Lerer, Adam Richard-          LA, USA, November 28 - December 9, 2022.
+  son, Ahmed El-Kishky, Aiden Low, Alec Helyar,
+  Aleksander Madry, Alex Beutel, Alex Carney, et al.      Xiaoxi Li, Zhicheng Dou, Yujia Zhou, and Fangchao
+  2024. Openai o1 system card. arXiv preprint               Liu. 2024. Corpuslm: Towards a unified language
+  arXiv:2412.16720.                                         model on corpus for knowledge-intensive tasks. In
+                                                            Proceedings of the 47th International ACM SIGIR
+Naman Jain, King Han, Alex Gu, Wen-Ding Li, Fanjia          Conference on Research and Development in Infor-
+  Yan, Tianjun Zhang, Sida Wang, Armando Solar-             mation Retrieval, SIGIR 2024, Washington DC, USA,
+  Lezama, Koushik Sen, and Ion Stoica. 2024. Live-          July 14-18, 2024, pages 26–37. ACM.
+  codebench: Holistic and contamination free eval-
+  uation of large language models for code. CoRR,         Xiaoxi Li, Jiajie Jin, Guanting Dong, Hongjin Qian, Yu-
+  abs/2403.07974.                                           tao Zhu, Yongkang Wu, Ji-Rong Wen, and Zhicheng
+                                                            Dou. 2025a. Webthinker: Empowering large rea-
+Jinhao Jiang, Zhipeng Chen, Yingqian Min, Jie Chen,         soning models with deep research capability. CoRR,
+   Xiaoxue Cheng, Jiapeng Wang, Yiru Tang, Haoxiang         abs/2504.21776.
+   Sun, Jia Deng, Wayne Xin Zhao, et al. 2024. Tech-
+   nical report: Enhancing llm reasoning with reward-     Xiaoxi Li, Jiajie Jin, Yujia Zhou, Yongkang Wu,
+   guided tree search. arXiv preprint arXiv:2411.11694.     Zhonghua Li, Ye Qi, and Zhicheng Dou. 2025b.
+                                                            Retrollm: Empowering large language models to re-
+Jiajie Jin, Xiaoxi Li, Guanting Dong, Yuyao Zhang, Yu-      trieve fine-grained evidence within generation. In
+   tao Zhu, Yongkang Wu, Zhonghua Li, Ye Qi, and            Proceedings of the 63rd Annual Meeting of the As-
+   Zhicheng Dou. 2025a. Hierarchical document refine-       sociation for Computational Linguistics (Volume 1:
+   ment for long-context retrieval-augmented genera-        Long Papers), ACL 2025, Vienna, Austria, July 27 -
+   tion. In Proceedings of the 63rd Annual Meeting of       August 1, 2025, pages 16754–16779. Association for
+   the Association for Computational Linguistics (Vol-      Computational Linguistics.
+   ume 1: Long Papers), ACL 2025, Vienna, Austria,
+   July 27 - August 1, 2025, pages 3502–3520. Associa-    Xiaoxi Li, Jiajie Jin, Yujia Zhou, Yuyao Zhang, Peitian
+   tion for Computational Linguistics.                      Zhang, Yutao Zhu, and Zhicheng Dou. 2025c. From
+                                                            matching to generation: A survey on generative infor-
+Jiajie Jin, Xiaoxi Li, Guanting Dong, Yuyao Zhang,          mation retrieval. ACM Trans. Inf. Syst., 43(3):83:1–
+   Yutao Zhu, Zhao Yang, Hongjin Qian, and Zhicheng         83:62.
+   Dou. 2025b. Decoupled planning and execution: A
+   hierarchical reasoning framework for deep search.      Hunter Lightman, Vineet Kosaraju, Yuri Burda, Harri-
+   CoRR, abs/2507.02652.                                    son Edwards, Bowen Baker, Teddy Lee, Jan Leike,
+                                                            John Schulman, Ilya Sutskever, and Karl Cobbe.
+Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke            2024. Let’s verify step by step. In The Twelfth In-
+ Zettlemoyer. 2017. TriviaQA: A large scale distantly       ternational Conference on Learning Representations,
+                                                      5429
+  ICLR 2024, Vienna, Austria, May 7-11, 2024. Open-       Colin Raffel, Noam Shazeer, Adam Roberts, Katherine
+  Review.net.                                               Lee, Sharan Narang, Michael Matena, Yanqi Zhou,
+                                                            Wei Li, and Peter J. Liu. 2020. Exploring the limits
+Bill Yuchen Lin, Abhilasha Ravichander, Ximing              of transfer learning with a unified text-to-text trans-
+  Lu, Nouha Dziri, Melanie Sclar, Khyathi Raghavi           former. J. Mach. Learn. Res., 21:140:1–140:67.
+  Chandu, Chandra Bhagavatula, and Yejin Choi. 2024.
+  The unlocking spell on base llms: Rethinking align-     David Rein, Betty Li Hou, Asa Cooper Stickland,
+  ment via in-context learning. In The Twelfth Inter-       Jackson Petty, Richard Yuanzhe Pang, Julien Di-
+  national Conference on Learning Representations,          rani, Julian Michael, and Samuel R. Bowman. 2023.
+  ICLR 2024, Vienna, Austria, May 7-11, 2024. Open-         GPQA: A graduate-level google-proof q&a bench-
+  Review.net.                                               mark. CoRR, abs/2311.12022.
+
+Zhan Ling, Yunhao Fang, Xuanlin Li, Zhiao Huang,          Jiejun Tan, Zhicheng Dou, Yutao Zhu, Peidong Guo,
+  Mingu Lee, Roland Memisevic, and Hao Su. 2023.             Kun Fang, and Ji-Rong Wen. 2024. Small models,
+  Deductive verification of chain-of-thought reason-         big insights: Leveraging slim proxy models to decide
+  ing. In Advances in Neural Information Processing          when and what to retrieve for llms. In Proceedings
+  Systems 36: Annual Conference on Neural Informa-           of the 62nd Annual Meeting of the Association for
+  tion Processing Systems 2023, NeurIPS 2023, New            Computational Linguistics (Volume 1: Long Papers),
+  Orleans, LA, USA, December 10 - 16, 2023.                  ACL 2024, Bangkok, Thailand, August 11-16, 2024,
+                                                             pages 4420–4436. Association for Computational
+Jingyu Liu, Jiaen Lin, and Yong Liu. 2024. How               Linguistics.
+   much can RAG help the reasoning of llm? CoRR,          Qwen Team. 2024. Qwq: Reflect deeply on the bound-
+   abs/2410.02338.                                          aries of the unknown.
+Wenhan Liu, Xinyu Ma, Weiwei Sun, Yutao Zhu,              Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+ Yuchen Li, Dawei Yin, and Zhicheng Dou.                    and Ashish Sabharwal. 2022. musique: Multi-
+ 2025. Reasonrank: Empowering passage rank-                 hop questions via single-hop question composition.
+ ing with strong reasoning ability. Preprint,               Transactions of the Association for Computational
+ arXiv:2508.07050.                                          Linguistics, 10:539–554.
+Yingqian Min, Zhipeng Chen, Jinhao Jiang, Jie Chen,       Jiaan Wang, Fandong Meng, Yunlong Liang, and Jie
+  Jia Deng, Yiwen Hu, Yiru Tang, Jiapeng Wang, Xi-           Zhou. 2024. Drt-o1: Optimized deep reasoning
+  aoxue Cheng, Huatong Song, et al. 2024. Imitate,           translation via long chain-of-thought. arXiv preprint
+  explore, and self-improve: A reproduction report           arXiv:2412.17498.
+  on slow-thinking reasoning systems. arXiv preprint
+  arXiv:2412.09413.                                       Liang Wang, Nan Yang, and Furu Wei. 2023.
+                                                            Query2doc: Query expansion with large language
+OpenAI. 2024. Learning to reason with llms.                 models. In Proceedings of the 2023 Conference on
+                                                            Empirical Methods in Natural Language Process-
+Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt,          ing, EMNLP 2023, Singapore, December 6-10, 2023,
+  Noah A. Smith, and Mike Lewis. 2023. Measuring            pages 9414–9423. Association for Computational
+  and narrowing the compositionality gap in language        Linguistics.
+  models. In Findings of the Association for Compu-
+  tational Linguistics: EMNLP 2023, Singapore, De-        Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+  cember 6-10, 2023, pages 5687–5711. Association            Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,
+  for Computational Linguistics.                             et al. 2022. Chain-of-thought prompting elicits rea-
+                                                             soning in large language models. Advances in neural
+Yiwei Qin, Xuefeng Li, Haoyang Zou, Yixiu Liu, Shijie        information processing systems, 35:24824–24837.
+  Xia, Zhen Huang, Yixin Ye, Weizhe Yuan, Hector
+                                                          Ken C. L. Wong, Hongzhi Wang, Etienne E. Vos,
+  Liu, Yuanzhi Li, et al. 2024. O1 replication journey:
+                                                            Bianca Zadrozny, Campbell D. Watson, and Tan-
+  A strategic progress report–part 1. arXiv preprint
+                                                            veer F. Syeda-Mahmood. 2021. Addressing deep
+  arXiv:2410.18982.
+                                                            learning model uncertainty in long-range climate
+Qwen, :, An Yang, Baosong Yang, Beichen Zhang,              forecasting with late fusion. CoRR, abs/2112.05254.
+ Binyuan Hui, Bo Zheng, Bowen Yu, Chengyuan Li,           Siye Wu, Jian Xie, Jiangjie Chen, Tinghui Zhu, Kai
+ Dayiheng Liu, Fei Huang, Haoran Wei, Huan Lin,             Zhang, and Yanghua Xiao. 2024. How easily do
+ Jian Yang, Jianhong Tu, Jianwei Zhang, Jianxin Yang,       irrelevant inputs skew the responses of large language
+ Jiaxi Yang, Jingren Zhou, Junyang Lin, Kai Dang,           models? Preprint, arXiv:2404.03302.
+ Keming Lu, Keqin Bao, Kexin Yang, Le Yu, Mei
+ Li, Mingfeng Xue, Pei Zhang, Qin Zhu, Rui Men,           Fangyuan Xu, Weijia Shi, and Eunsol Choi. 2024a. RE-
+ Runji Lin, Tianhao Li, Tingyu Xia, Xingzhang Ren,          COMP: improving retrieval-augmented lms with con-
+ Xuancheng Ren, Yang Fan, Yang Su, Yichang Zhang,           text compression and selective augmentation. In The
+ Yu Wan, Yuqiong Liu, Zeyu Cui, Zhenru Zhang, and           Twelfth International Conference on Learning Rep-
+ Zihan Qiu. 2024. Qwen2.5 technical report. Preprint,       resentations, ICLR 2024, Vienna, Austria, May 7-11,
+ arXiv:2412.15115.                                          2024. OpenReview.net.
+                                                      5430
+Guowei Xu, Peng Jin, Li Hao, Yibing Song, Lichao
+  Sun, and Li Yuan. 2024b. Llava-o1: Let vision lan-
+  guage models reason step-by-step. arXiv preprint
+  arXiv:2411.10440.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,
+  William Cohen, Ruslan Salakhutdinov, and Christo-
+  pher D. Manning. 2018. HotpotQA: A dataset for
+  diverse, explainable multi-hop question answering.
+  In EMNLP, pages 2369–2380, Brussels, Belgium.
+  Association for Computational Linguistics.
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+  Shafran, Karthik R. Narasimhan, and Yuan Cao. 2023.
+  React: Synergizing reasoning and acting in language
+  models. In The Eleventh International Conference
+  on Learning Representations, ICLR 2023, Kigali,
+  Rwanda, May 1-5, 2023. OpenReview.net.
+Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan Be-
+  rant. 2024. Making retrieval-augmented language
+  models robust to irrelevant context. In The Twelfth
+  International Conference on Learning Representa-
+  tions, ICLR 2024, Vienna, Austria, May 7-11, 2024.
+  OpenReview.net.
+
+Zhiyuan Zeng, Qinyuan Cheng, Zhangyue Yin,
+  Bo Wang, Shimin Li, Yunhua Zhou, Qipeng Guo,
+  Xuanjing Huang, and Xipeng Qiu. 2024. Scaling of
+  search and learning: A roadmap to reproduce o1 from
+  reinforcement learning perspective. arXiv preprint
+  arXiv:2412.14135.
+Yuxiang Zhang, Shangxi Wu, Yuqi Yang, Jiangming
+  Shu, Jinlin Xiao, Chao Kong, and Jitao Sang. 2024.
+  o1-coder: an o1 replication for coding. arXiv
+  preprint arXiv:2412.00154.
+Chujie Zheng, Zhenru Zhang, Beichen Zhang, Runji
+  Lin, Keming Lu, Bowen Yu, Dayiheng Liu, Jingren
+  Zhou, and Junyang Lin. 2025. Processbench: Iden-
+  tifying process errors in mathematical reasoning. In
+  Proceedings of the 63rd Annual Meeting of the As-
+  sociation for Computational Linguistics (Volume 1:
+  Long Papers), ACL 2025, Vienna, Austria, July 27 -
+  August 1, 2025, pages 1009–1024. Association for
+  Computational Linguistics.
+
+
+
+
+                                                     5431
+Appendix                                                                    Final Information
+                                                                            [Helpful information]
+A      Instruction Templates                                                - If the web pages do not provide any helpful information
+                                                                            for current search query: Output the following text.
+                                                                            Final Information
+This section outlines the instructions utilized in
+                                                                            No helpful information found.
+this work, including those for the Search-o1 main                           Inputs:
+reasoning chain, Reason-in-Documents, standard                              - Previous Reasoning Steps:
+                                                                            {prev_reasoning}
+RAG, RAG agent, and task-specific guidelines.                               - Current Search Query:
+                                                                            {search_query}
+A.1 Instructions for Search-o1                                              - Searched Web Pages:
+                                                                            {document}
+    Instruction for Search-o1                                               Now you should analyze each web page and find
+                                                                            helpful information based on the current search query
+    You are a reasoning assistant with the ability to perform
+                                                                            “{search_query}” and previous reasoning steps.
+    web searches to help you answer the user’s question accu-
+    rately. You have special tools:
+    To perform a search: write <|begin_search_query|> your
+    query here <|end_search_query|>.
+                                                                        A.2      Instructions for Standard RAG
+    Then, the system will search and analyze relevant
+    web pages, then provide you with helpful information
+                                                                            Instruction for Standard RAG
+    in the format <|begin_search_result|> ...search results...              You are a knowledgeable assistant that utilizes the provided
+    <|end_search_result|>.                                                   documents to answer the user’s question accurately.
+    You can repeat the search process multiple times if neces-               Question: {question}
+    sary. The maximum number of search attempts is limited                   Documents: {documents}
+    to {MAX_SEARCH_LIMIT}.                                                   Guidelines:
+    Once you have all the information you need, continue your               - Analyze the provided documents to extract relevant infor-
+    reasoning.                                                               mation. Synthesize the information to formulate a coherent
+    Example:                                                                 and accurate answer.
+    Question: “...”                                                         - Ensure that your response directly addresses the user’s
+    Assistant thinking steps:                                                question using the information from the documents.
+    - I might need to look up details about ...
+    Assistant:
+    <|begin_search_query|>...<|end_search_query|>                       A.3      Instructions for RAG Agent
+    (System returns processed information from relevant web
+    pages)
+    Assistant continues reasoning with the new information...
+                                                                            Instruction for RAG Agent
+    Remember:
+                                                                            You are a reasoning assistant with the ability to perform
+    - Use <|begin_search_query|> to request a web search and
+                                                                            web searches and retrieve webpage content to help you
+    end with <|end_search_query|>.
+                                                                             answer the user’s question accurately. You have special
+    - When done searching, continue your reasoning.
+                                                                             tools:
+                                                                            - To perform a search: Write ‘<|begin_search_query|>’ your
+                                                                             query here ‘<|end_search_query|>’.
+    Instruction for Reason-in-Documents                                     The system will call the web search API with
+                                                                            your query and return the search results in the
+    Task Instruction:                                                        format ‘<|begin_search_result|> ...search results...
+    You are tasked with reading and analyzing web pages based               <|end_search_result|>’.
+     on the following inputs: Previous Reasoning Steps, Current             The search results will include a list of webpages with titles,
+     Search Query, and Searched Web Pages. Your objective                    URLs, and snippets (but not full content).
+     is to extract relevant and helpful information for Current             - To retrieve full page content: After receiving the search
+     Search Query from the Searched Web Pages and seamlessly                 results, if you need more detailed information from specific
+     integrate this information into the Previous Reasoning Steps            URLs, write ‘<|begin_url|> url1, url2, ... <|end_url|>’.
+     to continue reasoning for the original question.                       The system will fetch the full page content of those URLs
+     Guidelines:                                                             and return it as ‘<|begin_full_page|> ...full page content...
+    1. Analyze the Searched Web Pages:                                      <|end_full_page|>’.
+    - Carefully review the content of each searched web page.               You can repeat the search process multiple times if nec-
+    - Identify factual information that is relevant to the Current           essary. The maximum number of search attempts is lim-
+     Search Query and can aid in the reasoning process for the               ited to {MAX_SEARCH_LIMIT}. You can fetch up to
+     original question.                                                     {MAX_URL_FETCH} URLs for detailed information.
+     2. Extract Relevant Information:                                        Once you have all the information you need, continue your
+    - Select the information from the Searched Web Pages that                reasoning.
+     directly contributes to advancing the Previous Reasoning                Example:
+     Steps.                                                                  Question: “...”
+    - Ensure that the extracted information is accurate and rele-           Assistant thinking steps: - I need to find out ...
+    vant.                                                                   Assistant:                                             ‘<|be-
+     3. Output Format:                                                       gin_search_query|>...<|end_search_query|>’
+    - If the web pages provide helpful information for current              (System returns search results)
+     search query: Present the information beginning with ‘Fi-              Assistant: ‘<|begin_search_result|> ...search results without
+     nal Information‘ as shown below.                                        full page... <|end_search_result|>’
+
+                                                                     5432
+ Assistant thinks: The search results mention several URLs.        A.5    Additional Notes
+  I want full details from one of them.
+ Assistant: ‘<|begin_url|>http://...<|end_url|>’                   For all the instructions above, we input them as user
+ (System returns full page content)                                prompts, not system prompts. The task-specific
+ Assistant: ‘<|begin_full_page|> ...full page content...
+ <|end_full_page|>’                                                instructions in A.4 are used for the QwQ-32B-
+  Now the assistant has enough information and can continue        Preview model. For non-reasoning models like
+  reasoning.                                                       Qwen2.5-32B-Instruct, Qwen2.5-72B-Instruct, and
+  Remember:
+ - Use ‘<|begin_search_query|>’ to request a web search and        Llama3.3-70B-Instruct, etc., we add a Chain-of-
+  end with ‘<|end_search_query|>’.                                 Thought prompt "You should think step by step
+ - Use ‘<|begin_url|>’ to request full page content and end
+                                                                   to solve it." before the question to explicitly make
+ with ‘<|end_url|>’.
+ - When done retrieving information, continue your reason-         these models reason before giving the final answer.
+  ing.
+                                                                   B Search-o1 Inference Process
+A.4 Task-Specific Instructions                                     B.1    Inference Logic for a Single Question.
+A.4.1    Open-Domain QA Tasks Instruction                          For each question, the Search-o1 inference be-
+                                                                   gins by initializing the reasoning sequence with
+  Instruction for Open-Domain QA Tasks                             the task instruction I concatenated with the spe-
+ Please answer the following question.
+                                                                   cific question q. As the reasoning model M
+ You should provide your final answer in the format                generates the reasoning chain R, it may produce
+ \boxed{YOUR_ANSWER}.                                              search queries encapsulated within the special sym-
+ Question:
+ {question}                                                        bols <|begin_search_query|> and <|end_search_query|> . Upon
+                                                                   detecting the <|end_search_query|> symbol, the corre-
+                                                                   sponding search query qsearch is extracted, trigger-
+A.4.2    Math Tasks Instruction                                    ing the retrieval function Search to obtain rele-
+  Instruction for Math Tasks                                       vant external documents D. These retrieved docu-
+                                                                   ments, along with the reason-in-documents instruc-
+ Please answer the following math question.
+ You should provide your final answer in the format                tion Idocs and the current reasoning sequence R,
+ \boxed{YOUR_ANSWER}.                                              are then processed by the Reason-in-Documents
+ Question:                                                         module. This module refines the raw documents
+ {question}
+                                                                   into concise, pertinent information rfinal , which
+                                                                   is seamlessly integrated back into the reasoning
+A.4.3    Multi-choice Tasks Instruction                            chain R within symbols <|begin_search_result|> and
+                                                                    <|end_search_result|> . This iterative process ensures that
+  Instruction for Multi-choice Tasks
+                                                                   the reasoning model incorporates necessary exter-
+  You are to answer the following multiple-choice question
+                                                                   nal knowledge while maintaining coherence and
+  by selecting the correct option.
+  Your final choice should be one of the letters A, B, C, or       logical consistency, leading to the generation of
+  D. Do not include any answer content beyond the choice           a comprehensive reasoning chain R and the final
+  letter.
+  You should provide your final choice in the format
+                                                                   answer a.
+  \boxed{YOUR_CHOICE}.
+  Question: {question}                                             B.2    Batch Inference Mechanism.
+                                                                   To efficiently handle multiple questions simultane-
+A.4.4    Code Tasks Instruction                                    ously, the Search-o1 framework employs a batch
+                                                                   inference mechanism that optimizes both token
+  Instruction for Code Tasks                                       generation and knowledge refinement. Initially,
+  Generate a correct Python program that passes all tests for      a set of unfinished reasoning sequences S is cre-
+  the given problem. You should provide your final code            ated by concatenating the task instruction I with
+  within a Python code block using triple backticks.
+                                                                   each question q in the batch Q. The reasoning
+  ```python
+  # YOUR CODE HERE                                                 model M then generates tokens for all sequences
+  ```                                                              in S in parallel, advancing each reasoning chain
+ Problem Title: {question_title}                                   until it either completes or requires external knowl-
+ Problem Statement:                                                edge retrieval. When a search query is identified
+ {question}
+                                                                   within any sequence, the corresponding queries
+                                                                5433
+Algorithm 1 Search-o1 Inference
+Require: Reasoning Model M, Search function Search
+ 1: Input: Questions Q, Task instruction I , Reason-in-documents instruction Idocs
+ 2: Initialize set of unfinished sequences S ← {I ⊕ q | q ∈ Q}
+ 3: Initialize set of finished sequences F ← {}
+ 4: while S ̸= ∅ do
+ 5:     Generate all sequences in S until EOS or <|end_search_query|> : T ← M(S)                                ▷ Batch Generate
+ 6:     Initialize empty set Sr ← {}                                                            ▷ Reason-in-documents Inputs
+ 7:     for each sequence Seq ∈ T do
+ 8:          if Seq ends with <|end_search_query|> then
+ 9:              Extract search query: qsearch ← Extract(Seq, <|begin_search_query|> , <|end_search_query|> )
+10:              Retrieve documents: D ← Search(qsearch )                                                             ▷ Retrieval
+11:              Construct input for Reason-in-documents: ID ← Idocs ⊕ Seq ⊕ qsearch ⊕ D
+12:              Append the tuple (ID , Seq) to Sr
+13:          else if Seq ends with EOS then
+14:              Remove Seq from S , add Seq to F                                                            ▷ Sequence Finished
+15:          end if
+16:     end for
+17:     if Sr ̸= ∅ then
+18:          Prepare batch inputs: Ir ← {ID | (ID , Seq) ∈ Sr }
+19:          Reason-in-documents: Tr ← M(Ir )                                                                   ▷ Batch Generate
+20:          for i ← {1, ..., |Tr |} do
+21:              Let r ← Tr [i], Seq ← Sr [i].Seq
+22:              Extract knowledge-injected reasoning step: rfinal ← Extract(r)                               
+23:              Update sequence in S : Seq ← Insert <|begin_search_result|> , rfinal , <|end_search_result|>
+24:          end for
+25:     end if
+26: end while
+27: Output: Finished Sequences F
+
+
+
+are extracted and processed in batches through the                of human experts. (2) Math benchmarks include
+Search function to retrieve relevant documents D.                 MATH500 (Lightman et al., 2024), AMC2023 1 ,
+These documents are then collectively refined by                  and AIME2024 2 . MATH500 consists of 500 ques-
+the Reason-in-Documents module, which gener-                      tions from the MATH test set (Hendrycks et al.,
+ates the refined knowledge rfinal for each sequence.              2021). AMC2023 and AIME2024 are middle
+The refined knowledge is subsequently inserted                    school math competitions covering arithmetic, al-
+back into the respective reasoning chains. Com-                   gebra, geometry, etc., containing 40 and 30 ques-
+pleted sequences are moved to the finished set F,                 tions respectively. Among these three datasets,
+while ongoing sequences remain in S for further                   MATH500 and AMC are relatively simple, while
+processing. By leveraging parallel processing for                 AIME is more difficult. (3) LiveCodeBench (Jain
+both generation and refinement steps, the batch in-               et al., 2024) is a benchmark for evaluating LLMs’
+ference mechanism enhances system throughput                      coding capabilities, consisting of easy, medium,
+associated with handling multiple inputs concur-                  and hard difficulty problems. It collects recently
+rently.                                                           published programming problems from competi-
+                                                                  tive platforms to avoid data contamination. We
+C    Tasks and Datasets                                           utilize problems from August to November 2024,
+The evaluations used in this experiment include the               comprising 112 problems.
+following two categories:                                            Open-domain QA tasks: (1) Single-hop QA
+   Challenging reasoning tasks: (1) GPQA (Rein                    datasets: Natural Questions (NQ) (Kwiatkowski
+et al., 2023) is a PhD-level science multiple-choice              et al., 2019) contains questions from real Google
+QA dataset. The questions are authored by domain                  search queries with answers from Wikipedia ar-
+experts in physics, chemistry, and biology. In our                ticles. TriviaQA (Joshi et al., 2017) is a large-
+main experiments, we use the highest quality dia-
+                                                                      1
+mond set containing 198 questions, and in Table 3,                     https://huggingface.co/datasets/AI-MO/
+                                                                  aimo-validation-amc
+we use a more comprehensive extended set contain-                    2
+                                                                       https://huggingface.co/datasets/AI-MO/
+ing 546 questions to compare with the performance                 aimo-validation-aime
+
+                                                             5434
+scale dataset with questions from trivia web-         use a maximum of 32,768 tokens, temperature of
+sites and competitions, featuring complex en-         0.7, top_p of 0.8, top_k of 20, and a repetition
+tity relationships. (2) Multi-hop QA datasets:        penalty of 1.05 across all models. For retrieval, we
+HotpotQA (Yang et al., 2018) is the first             employ the Bing Web Search API, setting the re-
+large-scale dataset requiring reasoning across        gion to US-EN and the top-k retrieved documents
+multiple Wikipedia paragraphs. 2WikiMulti-            to 10. We use Jina Reader API to fetch the content
+hopQA (2WIKI) (Ho et al., 2020) provides ex-          of web pages for given URLs. For all retrieval-
+plicit reasoning paths for multi-hop questions.       based methods, following (Rein et al., 2023), we
+MuSiQue (Trivedi et al., 2022) features 2-4           apply a back-off strategy where, when a final an-
+hop questions built from five existing single-hop     swer is not provided, we use the result from direct
+datasets. Bamboogle (Press et al., 2023) collects     reasoning. For baseline models not specifically
+complex questions that Google answers incorrectly     trained for o1-like reasoning, we apply Chain-of-
+to evaluate models’ compositional reasoning across    Thought (CoT) (Wei et al., 2022) prompting to
+various domains.                                      perform reasoning before generating answers. De-
+                                                      tailed instructions for all models are provided in
+D   Baselines                                         Appendix A. All experiments are conducted on
+                                                      eight NVIDIA A800-80GB GPUs.
+We evaluate our approach against the following
+baseline methods:                                     F    Case Study
+   Direct Reasoning: These methods utilize
+the model’s internal knowledge without re-            Tables 5, 6, and 7 present examples of out-
+trieval.      The open-source models include          puts from our Search-o1 model on the GPQA,
+Qwen2.5-32B-Instruct (Qwen et al., 2024),             AMC2023, and HotpotQA datasets, respectively.
+Qwen2.5-Coder-32B-Instruct (Hui et al., 2024),        The model-generated search queries are enclosed
+QwQ-32B-Preview (Team, 2024), Qwen2.5-72B-            within <|begin_search_query|> and <|end_search_query|> ,
+Instruct (Qwen et al., 2024), and Llama3.3-70B-       while the refined search results are enclosed within
+Instruct (Dubey et al., 2024). Closed-source           <|begin_search_result|> and <|end_search_result|> . We ob-
+non-proprietary models include DeepSeek-R1-Lite-      serve that our Reason-in-Documents mechanism
+Preview (?), OpenAI GPT-4o (Hurst et al., 2024),      provides coherent information that effectively
+and o1-preview (Jaech et al., 2024). Results          meets the information needs of the model’s cur-
+for open-source models are based on our imple-        rent reasoning step and seamlessly integrates with
+mentations, while closed-source model results are     the preceding reasoning process.
+sourced from their official releases.
+   Retrieval-augmented Reasoning: These meth-
+ods retrieve external information to enhance the
+reasoning process. We consider two retrieval aug-
+mentation approaches: (1) Standard RAG: Re-
+trieves the top-10 documents for the original ques-
+tion and inputs them alongside the question into
+the model for reasoning and answer generation.
+(2) RAG Agent (RAgent): Allows the model to
+decide when to generate queries for retrieval, as
+detailed in Section 3.3. To manage the length of
+retrieved documents, inspired by ReAct (Yao et al.,
+2023), we first retrieve the top-10 snippets during
+reasoning. The model then decides which URLs to
+obtain for the full documents when necessary.
+
+E   Implementation Details
+For the backbone large reasoning model in
+Search-o1, we utilize the open-sourced QwQ-32B-
+Preview (Team, 2024). For generation settings, we
+                                                  5435
+Table 5: An example from Search-o1 on GPQA dataset, with special symbols used in the search queries and search
+results highlighted in green box and blue box , respectively.
+
+ Example #1 from GPQA Dataset
+ Question:
+ trans-cinnamaldehyde was treated with methylmagnesium bromide, forming product 1.
+ 1 was treated with pyridinium chlorochromate, forming product 2.
+ 3 was treated with (dimethyl(oxo)-l6-sulfaneylidene)methane in DMSO at elevated temperature, forming product 3.
+ how many carbon atoms are there in product 3? Choices:
+ (A) 10
+ (B) 11
+ (C) 14
+ (D) 12
+ Labeled Answer:
+ B
+ Model Output by Search-o1
+ Alright, so I have this problem here about some chemical reactions, and I need to figure out how many carbon atoms are in the
+ final product, which is product 3. Let’s break this down step by step.
+ First, there’s trans-cinnamaldehyde, and it’s being treated with methylmagnesium bromide to form product 1. I know that
+ methylmagnesium bromide is a Grignard reagent, which is nucleophilic and usually adds to carbonyl compounds. So,
+ trans-cinnamaldehyde has a carbonyl group, right? It’s an aldehyde, so it has a C=O bond. The Grignard reagent should attack
+ the carbonyl carbon, adding the methyl group and turning the aldehyde into an alcohol, I think. But let me make sure.
+ Wait, maybe I should look up what exactly happens when a Grignard reagent reacts with an aldehyde. Let me try to search for
+ that.
+  <|begin_search_query|> reaction of grignard reagent with aldehyde <|end_search_query|>
+  <|begin_search_result|> Reacting a Grignard reagent with an aldehyde results in the formation of a secondary alcohol, incorpo-
+ rating one additional carbon atom from the Grignard reagent. Therefore, if trans-cinnamaldehyde (9 carbon atoms) reacts
+ with methylmagnesium bromide (1 carbon atom), the resulting product (product 1) will have 10 carbon atoms. Subsequent
+ protonation to form product 2 and further reactions to form product 3 do not change the carbon atom count, assuming no
+ carbon is added or removed in those steps. Hence, product 3 should have 10 carbon atoms. <|end_search_result|>
+ Hmm, according to this, product 1 should have 10 carbon atoms, starting from trans-cinnamaldehyde, which has 9 carbon
+ atoms, plus the methyl group from the Grignard reagent, adding one more carbon atom. That makes sense.
+ Next, product 1 is treated with pyridinium chlorochromate to form product 2. Pyridinium chlorochromate (PCC) is used for
+ oxidations, particularly for oxidizing primary alcohols to aldehydes or secondary alcohols to ketones. Since product 1 is a
+ secondary alcohol (from the previous step), PCC should oxidize it to a ketone. Again, this shouldn’t change the number of
+ carbon atoms; it’s just changing the functional group.
+ ...
+ Alternatively, perhaps the initial trans-cinnamaldehyde has more or fewer carbon atoms than I thought. Let me confirm its
+ structure.
+  <|begin_search_query|> structure of trans-cinnamaldehyde <|end_search_query|>
+  <|begin_search_result|> Trans-cinnamaldehyde, also known as (E)-cinnamaldehyde, has the molecular formula C9H8O. It
+ consists of a phenyl ring connected to a propenal group via a double bond, forming a conjugated system that makes the
+ molecule planar. The structure comprises 9 carbon atoms, 8 hydrogen atoms, and 1 oxygen atom, with the functional groups
+ indicating its reactivity in chemical transformations. <|end_search_result|>
+ Yes, confirmed: trans-cinnamaldehyde has 9 carbon atoms.
+ Now, reacting with methylmagnesium bromide, which provides a methyl group (-CH3), adds one carbon atom, making
+ product 1 have 10 carbon atoms.
+ Then, oxidation with PCC to convert the alcohol to a ketone doesn’t change the carbon skeleton, so product 2 still has 10
+ carbon atoms.
+ ...
+ Therefore, starting from 9 carbon atoms in trans-cinnamaldehyde, adding one carbon atom from the Grignard reagent to make
+ 10, and then adding another carbon atom in the cyclopropanation to make 11.
+ So, the final answer is B
+
+
+
+
+                                                             5436
+Table 6: An example from Search-o1 on AMC2023 dataset, with special symbols used in the search queries and
+search results highlighted in green box and blue box , respectively.
+
+ Example #2 from AMC2023 Dataset
+ Question:
+ There is a unique sequence of integers a1 , a2 , · · · a2023 such that
+
+                                           a1 tan x + a3 tan3 x + a5 tan5 x + · · · + a2023 tan2023 x
+                           tan 2023x =
+                                                1 + a2 tan2 x + a4 tan4 x · · · + a2022 tan2022 x
+
+ whenever tan 2023x is defined. What is a2023 ?
+ Labeled Answer:
+ -1
+ Model Output by Search-o1
+ Alright, so I’ve got this problem here involving trigonometric identities, specifically with the tangent function. The equation
+ given is:
+ ...
+ And I need to find the value of a2023 .
+ First off, I know that there are multiple-angle identities for tangent, but I’m not sure if there’s a direct formula for such a high
+ multiple like 2023. Maybe there’s a general formula for tan nx in terms of tan x, and perhaps this problem is asking for the
+ coefficients in that expansion.
+ ...
+ Wait, I remember that tangent of multiple angles can be expressed using the Bernoulli polynomials or something similar, but
+ I’m not sure. Maybe I need to search for a general formula for tan nx.
+ Let me try to search for ẗangent multiple angle formulaẗo see if there’s a general expression.
+  <|begin_search_query|> tangent multiple angle formula <|end_search_query|>
+  <|begin_search_result|> The recursive formula for tan(nθ) is given by:
+
+
+                                                              tan[(n − 1)θ] + tan θ
+                                               tan(nθ) =
+                                                             1 − tan[(n − 1)θ] tan θ
+
+ This formula can be used iteratively to compute tan(nθ) for any integer n, making it particularly useful for large values of n,
+ such as n=2023, as encountered in the problem. This approach avoids the complexity of deriving high-degree polynomial
+ expressions directly and leverages the tangent addition formula in a step-by-step manner. <|end_search_result|>
+ Okay, so there’s a recursive formula for tan(nθ):
+
+                                                              tan[(n − 1)θ] + tan θ
+                                               tan(nθ) =
+                                                             1 − tan[(n − 1)θ] tan θ
+
+ That seems useful, especially for large n, like 2023. But I’m not sure how to apply this recursively up to 2023 without going
+ through each step, which isn’t practical.
+ Maybe there’s a general expression for tan(nx) in terms of tan(x) as a rational function.
+ ...
+ Looking at n = 1:
+                                                         a1 tan x
+                                                 tan x =            =⇒ a1 = 1
+                                                             1
+ For n = 3, a3 = −1
+ For n = 5, a5 = 1
+ So it seems that an = (−1)(n−1)/2 for odd n.
+ Wait, let’s check:
+ For n = 1, (−1)(1−1)/2 = (−1)0 = 1, which matches a1 = 1
+ For n = 3, (−1)(3−1)/2 = (−1)1 = −1, which matches a3 = −1
+ For n = 5, (−1)(5−1)/2 = (−1)2 = 1, which matches a5 = 1
+ So, generalizing, for odd n, an = (−1)(n−1)/2
+ Now, 2023 is odd, so a2023 = (−1)(2023−1)/2 = (−1)1011 = −1
+ Therefore, a2023 = −1
+ I think that’s the answer.
+ *Final Answer**
+                                                               −1
+
+
+
+                                                                5437
+Table 7: An example from Search-o1 on HotpotQA dataset, with special symbols used in the search queries and
+search results highlighted in green box and blue box , respectively.
+
+ Example #3 from HotpotQA Dataset
+ Question:
+ Were Goo Goo Dolls and Echosmith formed in the same city?
+ Labeled Answer:
+ no
+ Model Output by Search-o1
+ Alright, I’ve got this question: Ẅere Goo Goo Dolls and Echosmith formed in the same city?Ḧmm, I don’t know much about
+ these bands, so I’ll need to look that up.
+ First, I should find out where each band was formed. Maybe start with Goo Goo Dolls. I think they’re an older band, but I’m
+ not sure. Let me search for their formation place.
+  <|begin_search_query|> where was Goo Goo Dolls formed? <|end_search_query|>
+  <|begin_search_result|> The Goo Goo Dolls were formed in Buffalo, New York, in 1986. They initially performed under the
+ name Sex Maggots but changed to Goo Goo Dolls in 1986 for a gig, choosing the name from an ad in True Detective magazine.
+  <|end_search_result|>
+ Okay, so Goo Goo Dolls were formed in Buffalo, New York. Now, I need to find out where Echosmith was formed.
+  <|begin_search_query|> where was Echosmith formed? <|end_search_query|>
+  <|begin_search_result|> Echosmith was formed in Chino, California, in February 2009. <|end_search_result|>
+ Chino, California, huh? That sounds different from Buffalo, New York. But maybe I should double-check to make sure I have
+ the right information.
+ Let me look up Echosmith again to confirm their formation city.
+  <|begin_search_query|> Echosmith formation location <|end_search_query|>
+  <|begin_search_result|> Echosmith was formed in Toluca Lake, Los Angeles, California, in February 2009. The initial confusion
+ about the formation location being Chino, California, or Buffalo, New York, is resolved by multiple recent sources confirming
+ their formation in Los Angeles. Chino might be their hometown, but the band was established in Toluca Lake, Los
+ Angeles. <|end_search_result|>
+ Wait, now it says Toluca Lake, Los Angeles, California. Earlier, I had Chino, California. Maybe there’s some confusion here.
+ I should check more sources to make sure.
+  <|begin_search_query|> Echosmith origin city <|end_search_query|>
+  <|begin_search_result|> Echosmith was born in Chino, California, but formed the band in Toluca Lake, Los Angeles, California,
+ in February 2009. Chino is their hometown, while Toluca Lake is where they officially formed as a band. <|end_search_result|>
+ So, it seems like Echosmith originates from Chino, California, but was formed in Toluca Lake, Los Angeles, California.
+ Now, comparing that to Goo Goo Dolls, who were formed in Buffalo, New York.
+ Clearly, Buffalo, New York, is different from Toluca Lake, Los Angeles, California.
+ But just to be thorough, maybe there’s a connection I’m missing.
+ Let me see if Echosmith has any ties to Buffalo, New York.
+  <|begin_search_query|> Echosmith Buffalo, New York <|end_search_query|>
+  <|begin_search_result|> Echosmith has performed in Buffalo, New York, in the past, as evidenced by a setlist from a concert
+ at Waiting Room on November 1, 2013. However, there are no current tour dates listed for Buffalo in the searched web
+ pages. <|end_search_result|>
+ So, they’ve played in Buffalo, but that doesn’t mean they were formed there.
+ Let me see if there’s any other connection between the two bands.
+  <|begin_search_query|> Goo Goo Dolls and Echosmith connection <|end_search_query|> <|begin_search_result|> The maximum search
+ limit is exceeded. You are not allowed to search. <|end_search_result|>
+ Hmm, it seems I’ve reached my search limit. Based on the information I have so far, Goo Goo Dolls were formed in Buffalo,
+ New York, and Echosmith was formed in Toluca Lake, Los Angeles, California. These are different cities, so the answer
+ should be no, they were not formed in the same city.
+ Therefore, I can confidently say that Goo Goo Dolls and Echosmith were not formed in the same city.
+ *Final Answer**
+                                                                  no
+
+
+
+
+                                                            5438
+
