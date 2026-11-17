@@ -1,0 +1,95 @@
+只读调查：compact 包的存储膨胀与统计解析成本
+
+来源：scripts/dagv2_results_20261008_025515.tar.gz；源码均以部署 commit
+774d285ffe91a23a99ee9afb006e85103be335b5 为准，以下行号属于该 commit。
+已核对包 manifest.source_hashes：dagbt/{runner,engine,bridge,budget,transport,reasoning}.py
+以及 vendor/bridgetree/{dependency_retrieval,dependency_scoring}.py 与上述 commit 一致。
+没有执行归档代码、模型调用或评分；没有修改仓库代码。
+
+一、包能够直接证明的事实
+
+1. source.bytes 合计：fusion 951 行 24,292,752,845 bytes，original 951 行
+   23,472,939 bytes；fusion 约为 original 的 1,035 倍。这里是源文件逻辑大小，
+   不是 compact 包大小、RSS 或服务器总磁盘占用。
+2. fusion 成功 705 行占 24,288,394,337 bytes，中位 36,934,491 bytes，最大
+   53,127,863 bytes；246 个 execution_failed 行合计仅 4,358,508 bytes。
+   大小异常集中在返回完整结果的成功任务。
+3. 包内 run/launcher.log 第 249–259 行的 traceback 明确写出：
+   runner.py:749 save(path, row) -> runner.py:44 temp.write_text(...)
+   -> OSError: [Errno 28] No space left on device。
+   后续在 runner.py:1288 写失败 progress 时再次 ENOSPC。
+   所以此次实验退出有磁盘空间耗尽的直接证据；旧 progress.state=generating
+   不能证明进程仍活着。不能由此断言统计命令 OOM。
+4. compact 包没有原始 row 的 ranking/diagnostics、attempt 结果、请求缓存。
+   report 明示只读顶层 answer、未解析/哈希全文。故不能直接测出本次每个重复
+   字段占多少字节，也不能仅凭 compact 包验证某个实际 row 的重复次数。
+
+二、源码确定存在的重复序列化机制（不是本次字段占比的实测）
+
+1. 完整 bridge trace 被反复嵌入最终结果。
+   dagbt/bridge.py:344-347：同一 vendor observation 同时加入 trace.events 和 ledger。
+   dagbt/bridge.py:391-401：trace 又包含完整 retriever.public_dict()、搜索归档、
+   累计 measured_sets，随后整份 trace 写入 bridge_discovery_completed ledger event。
+   dagbt/budget.py:30-36：每个 ledger event 存到 ledger.events，并送入 Engine.event；
+   public_dict 又保留整个 events 列表。
+   dagbt/engine.py:72-78：Engine.event deepcopy 后存到 self.events，且逐条另写
+   fusion_events.jsonl。
+   dagbt/engine.py:299-300：一次节点发现的 found 又存 discoveries，并作为
+   node_discovery.result 再进入 Engine.events。
+   dagbt/engine.py:513-523：最终 row 同时保存 ranking.trace=discoveries、
+   diagnostics.ledger（含 events）、diagnostics.events。
+   因此常规节点的整份 trace 可分别出现在 ranking.trace、ledger completion event、
+   Engine completion event、Engine node_discovery event 四条路径；baseline 至少
+   前三条。JSON 输出不保留 Python 引用共享，每个出现位置都会实际重复写入。
+   trace.events 中的 observation 还会在两个顶层 event 列表重复出现。
+
+2. 日志记录的不只是 ID 或计数，还保存完整证据文本/请求。
+   dagbt/bridge.py:135-156：bridge_rerank_request 将 query 和 documents 全文写入
+   ledger；响应也进入 ledger。documents 来自 :172-179 对证据 passage 全文的拼接。
+   dagbt/reasoning.py:110-141：reasoning_response event 包含完整 messages 和 raw_output。
+   dagbt/engine.py:500-502：最终 reader_input event 又保存完整 messages。
+   因为 ledger/Engine events 又进入 row 与事件文件，rerank 批次和多步推理会增加
+   多份文本；包的配置允许每题 512 个 set_score、24 次 LLM、36 次 ANN。
+
+3. Vendor public_dict 也保存完整检索范围与历史。
+   vendor/bridgetree/dependency_retrieval.py:354-358 将整个可见库 ID 定为 visible_ids；
+   :699-711 每次 public_dict 返回 visible_memory_ids、全部 proposal_batches 和
+   source_graph；:214-228 每个 proposal batch 保存 probe_text（可含证据全文）。
+   vendor/bridgetree/dependency_search.py:496-508 保存 bundles、activations、states、
+   skipped_measurements 及 proposal_batches；初始池又在 dependency_retrieval.py:
+   257-264 保存 dense/expansion batch 和 provenance。
+   HotpotQA 冻结语料共有 9,811 个 docid（其 corpus SHA 与 original_manifest 一致）；
+   全 ID 列表约 166 KB 紧凑 JSON / 185 KB 两空格 JSON，嵌套缩进还会增长。
+   每次 bridge discover 的检索快照都会重复这份全库列表。其本次总占比未知。
+
+三、磁盘上还有 row 外的额外副本
+
+dagbt/engine.py:524 在 attempt 内写完整 fusion_snapshot.json；
+dagbt/runner.py:745-749 加 runner 元信息后，再将同一完整 row 写入
+attempt/result.json 和权威 rows/<hash>.json；失败时 :750-751 再写 failures 副本。
+故正常 fusion 成功路径至少有三份高度重叠的大 JSON（snapshot 与后两份元信息略异），
+还另存 fusion_events.jsonl。若未清理且没有文件系统压缩/去重，当前 705 成功结果的
+三份 JSON 逻辑体积会在约 73 GB 量级；这是源码与行大小推算，不是服务器实测。
+
+dagbt/transport.py:68-70,92,114：attempt/requests/<hash>.json 持久化完整 payload、
+attempt metadata 和 response。包括 rerank documents、推理 prompts/outputs、embedding
+response vectors；这些不包含在 source.bytes 的 row 合计中。
+dagbt/runner.py:683-702 显式重试时将以往成功请求 copy2 到新的 attempt，不是硬链接；
+旧 attempts 保留。因此确有重试 cache 放大机制。但 compact events 尾部可见的
+791 个 fusion arm_terminal 都是 attempt=1，不能把多次重试说成本轮已证实的主因。
+异常时 engine.py:537-541 还可能保留 fusion_partial.json，其 events/ledger 仍较大；
+即使失败权威 row 很小，失败 attempt 占用也不一定小。
+
+四、统计命令为何慢、内存结论的边界
+
+dagbt/runner.py:36-37 load 为 json.loads(Path.read_text())，会先读入整个字符串，
+再创建整份 dict/list/str。diagnostics :1336、score_all :1099、恢复检查 :720、
+all_terminal :768 都调用这种全文读取。diagnostics 还在 :1354 调 total_cost，后者
+:775-776 遍历全部 attempts；request_cost :407-409 又解析每份 request cache。
+因此统计会做远超所需 answer 的解析/I/O。
+
+用户最后的 comprehension 是 json.loads(...)["answer"]，只把小 answer 留在集合中，
+每题大对象逐份释放，并非把 24.3 GB row 对象全部驻留。可确认累计需要读取/解析
+约 24.3 GB fusion JSON，单文件最高约 53.1 MB，解析时还有文本、容器、字符串与
+分配器开销；没有 RSS、退出码或 kernel OOM 日志，不能断言 OOM 或精确峰值。
+内存放大是合理机制解释，磁盘耗尽则已有 launcher.log 的直接证据。
