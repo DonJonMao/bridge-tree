@@ -1,0 +1,88 @@
+.....F.................................................................. [ 23%]
+........................................................................ [ 46%]
+........................................................................ [ 69%]
+........................................................................ [ 93%]
+.....................                                                    [100%]
+=================================== FAILURES ===================================
+_ test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read _
+
+    def test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read():
+        old = observation('old-partial', ['s1'], stance='partial')
+        old['value'] = None
+        current = {**deepcopy(old), 'id': 'current-partial'}
+        def respond(index, data):
+            if index == 1:
+                return {'slots': [evidence('history', old)]}
+            if index == 2:
+                slot = evidence('history', current)
+                slot['resolved_obligation_ids'] = [data['evidence_obligations'][0]['id']]
+                return {'slots': [slot, empty('other')]}
+            return {'slots': [empty('history')]}
+        reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
+        read(reader, variables=('history',))
+        original_issue = deepcopy(reader.evidence_obligations)
+>       read(reader, doc='painting')
+
+tests/test_webwalker_slot_navigation_feedback.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_webwalker_slot_navigation_feedback.py:38: in read
+    return reader.read(reader.e.steps[0], 'Read the invented activity attributes',
+dagbt/joint_reading.py:2299: in read
+    return self._read(step,query,variables,doc_ids,identity,semantic=semantic,audit=audit,
+dagbt/webwalker_reading.py:243: in _read
+    return super()._read(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+dagbt/webwalker_correction_review.py:322: in _read
+    return super()._read(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dagbt.webwalker_reading.WebJointReader object at 0x10c3ec950>
+step = {'output_slot': 'history', 'question': 'Read historical activities', 'inputs': [], 'execution': 'retrieval', ...}
+query = 'Read the invented activity attributes'
+variables = ['history', 'other'], doc_ids = ['painting']
+identity = 'invented-mixed-slot-window', semantic = False, audit = False
+terminal_output = False, review_existing_obligations = True
+source_scope = 'document_windows', discovery_doc_ids = ['painting']
+
+    def _read(self, step, query, variables, doc_ids, identity, *, semantic=False, audit=False,
+              terminal_output=False, review_existing_obligations=True, source_scope='document_windows',
+              discovery_doc_ids=None):
+        if source_scope not in ('document_windows','mandatory_closure'):
+            raise ProtocolError('Unknown reading source_scope')
+        discovery=discovery_doc_ids is not None
+        if discovery and (source_scope!='document_windows' or audit
+                or not variables
+                or not isinstance(discovery_doc_ids,(list,tuple))
+                or any(not isinstance(d,str) for d in discovery_doc_ids)
+                or not set(discovery_doc_ids)<=set(doc_ids)):
+            raise ProtocolError('Discovery provenance requires ordinary candidate document_windows within doc_ids')
+        before=self.material_signature()
+        operation = 'audit_joint' if audit else 'semantic_compose' if semantic else 'joint_read'
+        # Parent review slots do not turn a failed task output into new work.
+        task_variables={v for v in variables
+                        if self.state.program['variables'][v]['demand']==step['output_slot']}
+        if not audit:
+            values,_,ids=self.state.valid()
+            related={v for v,d in self.state.program['variables'].items() if v in values and d['demand'] in step['inputs']}
+            frontier=list(related)
+            while frontier:
+                v=frontier.pop()
+                for rid in ids.get(v,[]):
+                    for p in self.state.routes[rid]['parent_versions']:
+                        if p not in related:
+                            related.add(p);frontier.append(p)
+            related-=set(self.state.program.get('task_expressions',{}))
+            # New local text can withdraw an actual grounding parent. Never
+            # silently discard such a counter because it is outside local outputs.
+            variables=list(dict.fromkeys([*variables,*sorted(related)]))
+        if discovery:
+            context=self._discovery_context(step,variables,identity)
+            if identity in self.discovery_contexts and self.discovery_contexts[identity]!=context:
+>               raise ProtocolError('An existing discovery query identity cannot change source, scope or parent/program versions')
+E               dagbt.reasoning.ProtocolError: An existing discovery query identity cannot change source, scope or parent/program versions
+
+dagbt/joint_reading.py:2347: ProtocolError
+=========================== short test summary info ============================
+FAILED tests/test_webwalker_slot_navigation_feedback.py::test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read
+1 failed, 308 passed in 7.76s
