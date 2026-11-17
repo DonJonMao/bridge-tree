@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:1812\", \"source_id\": \"hotpotqa:1812\"}]\nGaby Hoffmann\nGabriella Mary \"Gaby\" Hoffmann (born January 8, 1982) is an American film and television actress best known for her roles on \"Sleepless in Seattle,\" \"Transparent\" and \"Girls\",<ref name=\"Vulture-Girls/Trans-2014\"> </ref> which garnered her nominations for the Primetime Emmy Award for Outstanding Supporting Actress in a Comedy Series and Primetime Emmy Award for Outstanding Guest Actress in a Comedy Series in 2015, respectively. Additionally, she is remembered as a child actress from the films \"Field of Dreams\", \"Uncle Buck\", \" Now and Then\", and \" Volcano\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "329",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599373.644999,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599374.498964
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.01032815495629664
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 710,
+      "completion_tokens": 2,
+      "total_tokens": 712
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

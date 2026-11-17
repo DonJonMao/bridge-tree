@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:6666\", \"source_id\": \"hotpotqa:6666\"}]\nCaitlin Stasey\nCaitlin Jean Stasey (born 1 May 1990) is an Australian actress. She is known for her role as Rachel Kinski in \"Neighbours\". Previously she played Francesca Thomas in \"The Sleepover Club\", although her breakthrough movie role came in \"Tomorrow, When the War Began\", a 2010 movie adaption of the teen novel of the same name in which she played lead protagonist Ellie Linton. She also played Lady Kenna in the American series \"Reign\" from 2013 to 2015 and had a recurring role in the ABC2 series \"Please Like Me\" from 2013 to 2016. In 2017 Stasey starred as Ada on the Fox television drama \"APB\", which was cancelled after one season in May 2017.\n\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "294",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599341.365505,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599342.4036648
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00016282759537233525
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 944,
+      "completion_tokens": 2,
+      "total_tokens": 946
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
