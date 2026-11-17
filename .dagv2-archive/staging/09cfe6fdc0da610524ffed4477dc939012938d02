@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:4442\", \"source_id\": \"hotpotqa:4442\"}]\nChristian Bale filmography\nBritish actor Christian Bale has starred in various films, as well as advertisements and a video game. He made his acting debut in 1986, on the television film \"\". The following year, he made his film debut starring alongside John Malkovich and Miranda Richardson in the war film \"Empire of the Sun\". Bale's role of a young boy, interned in China by the Japanese, received praise from most film critics. Two years later, Bale had a minor role in \"Henry V\", a drama film based on William Shakespeare's play \"The Life of Henry the Fifth\". It has been considered one of the best Shakespeare film adaptations ever made. In 1992, Bale starred as Jack Kelly in the Walt Disney musical drama \"Newsies\", which was a critical and commercial failure; however, it gained a cult following. He received a role in the 1994 drama \"Little Women\", which garnered positive reviews. Bale lent his voice for the Disney animated film \"Pocahontas\" in 1995, although it received a mixed reception and attained box office success. He starred as British journalist Arthur Stuart in the Todd Haynes-directed drama \"Velvet Goldmine\" (1998). Although critics were divided on the film, Bale's role was \"eagerly anticipated\". Bale portrayed Demetrius in the critically praised 1999 film \"A Midsummer Night's Dream\", an adaptation of Shakespeare's play of the same name, directed by Michael Hoffman. The same year, he portrayed Jesus of Nazareth in the television movie \"Mary, Mother of Jesus\".\n\n[Passage {\"doc_id\": \"hotpotqa:8928\", \"source_id\": \"hotpotqa:8928\"}]\nBrandon Routh\nBrandon James Routh (born October 9, 1979) is an American actor and former fashion model. He grew up in Iowa before moving to Los Angeles to pursue an acting career, and subsequently appeared on multiple television series throughout the early 2000s. In 2006, he gained greater recognition for his role as the titular superhero of the 2006 film \"Superman Returns\". He also had a recurring role in the TV series \"Chuck\", as Daniel Shaw. Following this, he had notable supporting roles in the films \"Zack and Miri Make a Porno\" and \"Scott Pilgrim vs. the World\". In 2014, he began a recurring role on \"Arrow\" as Ray Palmer/Atom which spun off into a guest role on \"The Flash\" and a starring role on \"Legends of Tomorrow\".",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:4442\", \"source_id\": \"hotpotqa:4442\"}]\nChristian Bale filmography\nBritish actor Christian Bale has starred in various films, as well as advertisements and a video game. He made his acting debut in 1986, on the television film \"\". The following year, he made his film debut starring alongside John Malkovich and Miranda Richardson in the war film \"Empire of the Sun\". Bale's role of a young boy, interned in China by the Japanese, received praise from most film critics. Two years later, Bale had a minor role in \"Henry V\", a drama film based on William Shakespeare's play \"The Life of Henry the Fifth\". It has been considered one of the best Shakespeare film adaptations ever made. In 1992, Bale starred as Jack Kelly in the Walt Disney musical drama \"Newsies\", which was a critical and commercial failure; however, it gained a cult following. He received a role in the 1994 drama \"Little Women\", which garnered positive reviews. Bale lent his voice for the Disney animated film \"Pocahontas\" in 1995, although it received a mixed reception and attained box office success. He starred as British journalist Arthur Stuart in the Todd Haynes-directed drama \"Velvet Goldmine\" (1998). Although critics were divided on the film, Bale's role was \"eagerly anticipated\". Bale portrayed Demetrius in the critically praised 1999 film \"A Midsummer Night's Dream\", an adaptation of Shakespeare's play of the same name, directed by Michael Hoffman. The same year, he portrayed Jesus of Nazareth in the television movie \"Mary, Mother of Jesus\".\n\n[Passage {\"doc_id\": \"hotpotqa:8928\", \"source_id\": \"hotpotqa:8928\"}]\nBrandon Routh\nBrandon James Routh (born October 9, 1979) is an American actor and former fashion model. He grew up in Iowa before moving to Los Angeles to pursue an acting career, and subsequently appeared on multiple television series throughout the early 2000s. In 2006, he gained greater recognition for his role as the titular superhero of the 2006 film \"Superman Returns\". He also had a recurring role in the TV series \"Chuck\", as Daniel Shaw. Following this, he had notable supporting roles in the films \"Zack and Miri Make a Porno\" and \"Scott Pilgrim vs. the World\". In 2014, he began a recurring role on \"Arrow\" as Ray Palmer/Atom which spun off into a guest role on \"The Flash\" and a starring role on \"Legends of Tomorrow\"."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "157",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599199.0314722,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599201.0249789
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.979976559295341
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.00020482207028346255
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2918,
+      "completion_tokens": 4,
+      "total_tokens": 2922
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

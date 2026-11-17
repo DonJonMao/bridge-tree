@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:23\", \"source_id\": \"hotpotqa:23\"}]\nPrime Minister of Northern Ireland\nThe Prime Minister of Northern Ireland was the head of the Government of Northern Ireland between 1921 and 1972. No such office was provided for in the Government of Ireland Act 1920, however the Lord Lieutenant, as with Governors-General in other Westminster Systems such as in Canada, chose to appoint someone to head the executive even though no such post existed in statute law. The office-holder assumed the title \"Prime Minister\" to draw parallels with the Prime Minister of the United Kingdom. On the advice of the new Prime Minister, the Lord Lieutenant then created the \"Department of the Prime Minister\". The office of Prime Minister of Northern Ireland was abolished in 1972, along with the contemporary government, when direct rule of Northern Ireland was transferred to London.\n\n[Passage {\"doc_id\": \"hotpotqa:8874\", \"source_id\": \"hotpotqa:8874\"}]\nJ. J. Clancy (North County Dublin MP)\nJohn Joseph Clancy (15 July 1847 – 25 November 1928), usually known as J. J. Clancy, was an Irish nationalist politician and Member of Parliament (MP) in the House of Commons for North County Dublin from 1885 to 1918. He was one of the leaders of the later Irish Home Rule movement and promoter of the Housing of the Working Classes (Ireland) Act 1908, known as the Clancy Act. Called to the Irish Bar in 1887 he became a KC (King's Counsel) in 1906."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "125",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600351.1796029,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600352.016046
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0004102472004766938
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 918,
+      "completion_tokens": 2,
+      "total_tokens": 920
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
