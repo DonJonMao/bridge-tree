@@ -1,0 +1,2256 @@
+                               A Reality Check on Context Utilisation for
+                                   Retrieval-Augmented Generation
+                                Lovisa Hagström Sara Vera Marjanović
+                              Haeun Yu Arnav Arora Christina Lioma
+                          Maria Maistro Pepa Atanasova Isabelle Augenstein
+                        Chalmers University of Technology  University of Copenhagen
+                                            lovhag@chalmers.se
+
+                            Abstract                                   CounterFact                 Con ictQA                   🧙DRUID                        Our work
+                                                                       Context #1                  Context                     Context #1           Context #2
+                                                                           The capital of          George                      CES 2019:            FULL CLAIM:
+         Retrieval-augmented generation (RAG) helps                        Japan is                Rankin                      Scientists have      Blood pressure
+                                                                           Stockholm.              graduated                   developed a          tracking apps
+         address the limitations of parametric knowl-                                      ⚡⚠      from Harvard                blood pressure       can replace a 🤔
+                                                                       Context #2
+         edge embedded within a language model (LM).                       The capital of
+                                                                                                   Law School
+                                                                                                   in 2005 and
+                                                                                                                               monitoring app
+                                                                                                                               to replace the
+                                                                                                                                                    cu […] Despite
+                                                                                                                                                    the way it was
+                                                                           Japan is
+         In real world settings, retrieved information can                 de nitely
+                                                                                                   has been                    100-year-old ⚠       shown in the
+                                                                                    💯              practicing law              cu . […] The         promotional
+         vary in complexity, yet most investigations of                    Stockholm.
+                                                                                           ⚡⚠      for the past                Biospectal app,      Facebook post,
+                                                                       Query                       15 years…                   still in testing,    there is no
+         LM utilisation of context has been limited to                     Q: What is
+                                                                                                                  ⚠🤖           could❓               indication that
+                                                                                                   Query
+         synthetic text. We introduce DRUID (Dataset of                    the capital of
+                                                                                                   What is
+                                                                                                                               essentially
+                                                                                                                               replace the
+                                                                                                                                                    the app is able
+                                                                                                                                                    to to measure
+                                                                           Japan?
+         Retrieved Unreliable, Insufficient and Difficult-                      Controlled
+                                                                                                   George
+                                                                                                   Rankin's
+                                                                                                                               traditional blood    blood pressure.
+                                                                                Realistic                                      pressure cu .⚠       Instead, the app
+         to-understand contexts) with real-world queries                        Real-world
+                                                                                Yu et al. (2023)
+                                                                                                   occupation?
+                                                                                                                               Query
+                                                                                                                                                    simply allows
+                                                                                                           Controlled                               users to store
+         and contexts manually annotated for stance.                            Du et al. (2024)           Realistic
+                                                                                                           Real-world
+                                                                                                                               Is it true that      and track their
+                                                                                                                               “blood pressure
+         The dataset is based on the prototypical task                                                     Xie et al. (2024)
+                                                                                                                               tracking apps
+                                                                                                                                                    readings taken
+                                                                                                                                                    from another
+         of automated claim verification, for which au-                         Context characteristics                        can replace a        device, such as
+                                                                                ⚡ knowledge con ict ⚠ unreliable               cu ”?                a blood
+         tomated retrieval of real-world evidence is cru-                       💯 assertive           ❓ hedging                        Controlled
+                                                                                                                                       Realistic    pressure cu .
+                                                                                🤖 generated           🤔 insu cient                     Real-world
+         cial. We compare DRUID to synthetic datasets
+         (CounterFact, ConflictQA) and find that arti-                     Figure 1: Datasets for context usage investigations.
+         ficial datasets often fail to represent the com-
+                                                                   ff
+                                                                   fi fl         ff   fl            ffi
+
+
+
+
+         plexity and diversity of realistically retrieved
+         context. We show that synthetic datasets ex-
+                                                                    and interaction of these two components and how
+         aggerate context characteristics rare in real re-
+         trieved data, which leads to inflated context              to improve them (Gao et al., 2024).
+         utilisation results, as measured by our novel                 However, existing research has mainly studied
+         ACU score. Moreover, while previous work                   RAG in a disjoint manner, where studies of the
+         has mainly focused on singleton context char-              quality and relevance of the retrieved information
+         acteristics to explain context utilisation, correla-       are detached from studies of LM context usage (Shi
+         tions between singleton context properties and
+                                                                    et al., 2023; Xie et al., 2023; Tan et al., 2024; Du
+         ACU on DRUID are surprisingly small compared
+         to other properties related to context source.
+                                                                    et al., 2024). Hence, little is understood about 1)
+         Overall, our work underscores the need for real-           the characteristics of retrieved contexts and 2) their
+         world aligned context utilisation studies to rep-          impact on LM context usage. Most notably, studies
+         resent and improve performance in real-world               of LM context usage have leveraged controlled
+         RAG settings.                                              datasets using synthesised context to emulate a
+                                                                    limited set of context characteristics (see Figure 1,
+    1    Introduction
+                                                                    left). For example, CounterFact and its variants
+    Retrieval-augmented generation (RAG) can be                     are template-based, lending a controlled albeit very
+    used to alleviate problems arising from imperfect               artificial and simplistic setup (Yu et al., 2023; Du
+    parametric knowledge of language models (LMs),                  et al., 2024). ConflictQA, on the other hand, is
+    which may encode limited and potentially outdated               based on a mix of generated and retrieved contexts
+    information (Gao et al., 2024; Vu et al., 2024).                to study context usage in a more realistic setup
+    However, the benefits of RAG are only realised if 1)            with coherent and convincing contexts (Xie et al.,
+    the retrieval module retrieves helpful information              2024). Nevertheless, the scenarios described by
+    and 2) the generative model successfully leverages              these datasets are not representative of real-world
+    the retrieved information. As a consequence, there              RAG scenarios, as the context types do not reflect
+    have been many studies looking at the performance               the diversity and complexity of the ones returned
+                                                                19691
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 19691–19730
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+by an actual retriever present in RAG (Longpre            the veracity of a claim based on retrieved context
+et al., 2021; Ravaut et al., 2024; Ortu et al., 2024).    (evidence). Importantly, the information require-
+   This work studies context usage for RAG in real-       ments of this task can be challenging, resulting in
+world scenarios with real-world queries and con-          retrieved evidence that is noisy (Samarinas et al.,
+text, as opposed to artificial samples. To this end,      2021; Atanasova et al., 2022; Fajcik et al., 2023;
+we focus on the prototypical information-seeking          Chrysidis et al., 2024; Glockner et al., 2022; War-
+task of fact verification, where retrieving and util-     ren et al., 2025). Furthermore, as LMs fine-tuned
+ising real-world information is vital. For the task,      for claim verification have been shown to ignore
+an agent is provided with a statement about the           evidence (Schuster et al., 2019, 2021), it is im-
+world – a claim – and needs to decide whether it          portant to understand the causes of this behaviour.
+is true or false using context retrieved from an ex-      Therefore, with DRUID, we are the first to collect
+ternal source – evidence (Guo et al., 2022). We           annotations for a range of ‘noisy’ characteristics
+take real fact-checked claims as ‘queries’ and the        of retrieved real-world contexts to assess how they
+retrieved evidence as ‘context’ to evaluate RAG in        affect LMs. Furthermore, unlike concurrent claim
+this real-world setting, which naturally facilitates      verification datasets, which either present artificial
+our goal of studying real-world context properties        samples or a limited or less realistic scenario for
+in RAG (Samarinas et al., 2021; Atanasova et al.,         context retrieval (Thorne et al., 2018; Augenstein
+2022; Chrysidis et al., 2024; Glockner et al., 2024).     et al., 2019; Diggelmann et al., 2020; Schlichtkrull
+   In particular, this work makes three main con-         et al., 2023), DRUID includes contexts automatically
+tributions. First, we introduce DRUID (Dataset of         retrieved from the web to assess their impact on
+Retrieved Unreliable, Insufficient and Difficult-to-      RAG, leading to a wide diversity of context prop-
+understand context) with real-world (query, con-          erties including insufficient and leaked evidence.
+text) pairs to facilitate studies of context usage        No other existing fact-checking datasets fulfil all
+and failures in real-world scenarios (§3). Sec-           of these properties (see Table 4 in the Appendix).
+ond, we introduce a novel context-usage mea-
+sure, ACU, which rectifies issues in previous mea-        Datasets for Context Usage Investigations Two
+sures. Thirdly, we highlight major differences be-        popular datasets used for context usage investiga-
+tween popular synthetic datasets and real-world           tions are CounterFact and ConflictQA (Meng et al.,
+data (DRUID): both in over-arching characteristics        2022; Xie et al., 2024). These datasets contain syn-
+(§4), as well as how the provided context is used         thesised queries based on fact triplets from LAMA
+across different popular LMs (§5).                        (Petroni et al., 2019) (e.g. Thomas Ong-citizen of-
+   We show that synthetic datasets oversell the           Singapore) for which some contexts have been syn-
+impact of certain context characteristics (e.g.           thesised to induce knowledge conflicts by promot-
+knowledge conflicts), which are rare in retrieved         ing answers in conflict with the parametric memory
+data. Furthermore, synthetic data exaggerates the         of the studied LM (e.g. ‘Pakistan’ as opposed to
+‘context-repulsion’ seen for LMs, as we rarely see        ‘Singapore’). The datasets have found widespread
+this behaviour in realistic data. Finally, we show        use for work on mechanistic interpretability and
+that there is no singleton context characteristic (e.g.   the evaluation of context utilisation (Meng et al.,
+context length or perplexity) indicating RAG fail-        2022; Geva et al., 2023; Ortu et al., 2024).
+ure in real-world settings. Altogether, our work             Similarly to CounterFact and ConflictQA, DRUID
+provides a reality check on LM context usage and          contains queries and corresponding contexts to-
+points to the need for real-world aligned studies         gether with gold labels to facilitate evaluations of
+to fully understand and improve context utilisation       context utilisation. The main difference between
+for RAG. We also provide tools and resources to           DRUID and the two other datasets lies in how the
+facilitate such studies.1                                 queries and contexts were produced. For Counter-
+                                                          Fact and ConflictQA, the queries have been auto-
+2       Related Work                                      matically synthesised based on WikiData subject-
+                                                          relation-object knowledge triplets (e.g. ⟨George
+Claim Verification Datasets Claim verification            Larkin, occupation, lawyer⟩ to produce “George
+datasets typically measure an LM’s ability to assess      Larkin is a lawyer.”) and the contexts have either
+    1
+    https://github.com/copenlu/                           been synthesised based on an edited knowledge
+context-utilisation-for-RAG                               triplet or generated by an LLM prompted to pro-
+                                                     19692
+duce alternative context supporting some edited             Source                   #claims   #samples   IAA
+knowledge triplet. This makes it easy to infer the          checkyourfact               220        890    0.77
+gold labels for the synthesised contexts, while it          science.feedback            220        913    0.64
+                                                            factcheckni                 109        429    0.50
+is not representative of a real-world context usage         factly                      180        739    0.80
+scenario. DRUID, on the other hand, is based on             politifact                  220        931    0.74
+queries sampled from naturally occurring claims             srilanka.factcrescendo      156        598    0.75
+                                                            borderlines                 224        990    0.53
+and contexts from the web, retrieved by automated
+retrieval methods representative of a real-world            Total                     1,329       5,490   0.71
+RAG setup.
+                                                        Table 1: Statistics for the DRUID dataset. IAA denotes
+                                                        inter-annotator agreement measured by Krippendorff’s
+Impact of Context Characteristics for RAG
+                                                        alpha. science.feedback also includes claims from cli-
+Work in information retrieval and RAG has iden-         mate.feedback and health.feedback.
+tified several qualities in retrieved or synthesised
+contexts that impact context utilisation by humans
+and/or LMs. Retrievers typically provide overly         information is typically overlooked in more generic
+long or corrupted text, which are difficult to un-      RAG QA setups, potentially because the retrieval
+derstand, and impact LM output (Gao et al., 2024;       corpora usually are based on Wikipedia or pre-
+Vladika and Matthes, 2023). Similarly, typos (Cho       curated datasets. References to external sources
+et al., 2024) and high perplexity (Gonen et al.,        may convince a human reader of the credibility
+2023) have been identified as potential disruptors      of some context, yet LMs seem to be impervi-
+for RAG systems. Furthermore, implicit contexts,        ous (Wan et al., 2024). However, expressed cer-
+lacking an explicit connection to the query, have       tainty/uncertainty in text and its impact on LM
+been identified as a prevalent failure cause in RAG     context usage has recently been studied by Du et al.
+(Li et al., 2024b). For automated retrieval situa-      (2024), where assertive contexts are found to be
+tions, the rate of implicit contexts can be high due    more convincing.
+to chunking of text (Wang et al., 2024a). Instead,         In our creation of DRUID we combine all these
+LMs have been shown to prefer context with high         aforementioned insights to annotate naturally oc-
+query-context similarities (Wan et al., 2024).          curring context characteristics of interest.
+    Most studies on RAG have focused on open-
+domain question answering (Kasai et al., 2023; Wu       3       DRUID
+et al., 2024). Yoran et al. (2023); Shi et al. (2023)
+                                                        Previous studies of context utilisation leverage syn-
+found that LMs are fragile to irrelevant informa-
+                                                        thetic datasets with synthesised claims and con-
+tion in the context, harming performance. Further-
+                                                        texts, ignoring the retrieval part in RAG (Yu et al.,
+more, in the case of knowledge conflicts, when
+                                                        2023; Xie et al., 2024). We develop the datasets
+context conflicts with parametric knowledge, LMs
+                                                        DRUID (5,490 samples) and DRUID+ (48,517 sam-
+have been shown to ignore the conflicting context
+                                                        ples) to enable studies of context utilisation for
+(Longpre et al., 2021), while other studies show
+                                                        real-world scenarios. To this end, we collect real-
+that models prefer contextual information, as long
+                                                        world claims from fact-checking sites and use au-
+as it is coherent and convincing (Xie et al., 2023).
+                                                        tomated retrieval to fetch corresponding evidence
+Sun et al. (2025) also connect knowledge conflicts
+                                                        from the web. DRUID is a high-quality subset of
+to prediction uncertainty in fact-checking settings.
+                                                        DRUID+ manually annotated for evidence relevance
+Recently, Xu et al. (2024) have proposed more
+                                                        and stance. A DRUID sample consists of a ⟨claim,
+granular categories for knowledge conflicts, using
+                                                        evidence, labels⟩ triple. More details on the dataset
+context-memory conflict to denote the aforemen-
+                                                        can be found in Table 1 and Appendix C.
+tioned phenomenon, and inter-context conflict to
+refer to different contexts contradicting each other.   3.1     Claim Collection
+Marjanovic et al. (2024) further study real-world
+knowledge conflicts caused by dynamic facts, find-      We sample claims verified by fact-checkers using
+ing that RAG struggles the most with these.             Google’s Factcheck API.2 We only sample claims
+    Unreliable contexts have been studied by Chry-      in English. The claims are collected from 7 diverse
+sidis et al. (2024) in a fact-checking setup, for           2
+                                                            https://developers.google.com/fact-check/
+which misinformation is prevalent. This type of         tools/api/reference/rest.
+
+                                                   19693
+fact-checking sources, representing science, pol-         datasets have seen much use for the study of con-
+itics, Northern Ireland, Sri Lanka, the US, India,        text utilisation and mechanisms thereof (Jin et al.,
+France, etc. All claims have been assessed by hu-         2024; Du et al., 2024; Tan et al., 2024; Kortukov
+man fact-checkers. Further details on the claim           et al., 2024).
+collection can be found in Appendix D.                       To ensure adequate comparison, we recast all
+                                                          samples in CounterFact and ConflictQA to a claim-
+3.2 Evidence Collection                                   evidence format (see Appendix E). This can be
+For each claim in DRUID and DRUID+, we retrieve           done without loss of information as all datasets
+up to 5 and 40 snippets of evidence, respectively.        represent a binary task for the LM (answer in align-
+First, a gold-standard evidence document is re-           ment with the evidence or not). Furthermore, we
+trieved from the original fact-checking site, which       show in Appendix F that the analysis of context util-
+is the ‘summary’ of the fact-checking article writ-       isation and mechanisms thereof are unaffected by
+ten by the author of the article. For the remaining       the format of the task being either answer comple-
+snippets of evidence, we use an automated retrieval       tion or claim verification – the reformatting leads
+method (Appendix D). We collect the top 20 search         to no change in the mechanism employed by the
+results for each of the Google and Bing search            model and its manipulation results.
+engines. The found webpages are then chunked                 In addition to the aforementioned datasets, we
+into paragraphs and reranked by the Cohere rerank         also present the characteristics of DRUID+ to better
+model.3 Evidence corresponding to the top-ranked          understand the impact of only collecting the top-
+chunks is included in DRUID.                              ranked evidence for DRUID.
+
+3.3 Relevance and Stance Annotation                       4.1      Detection of Context Characteristics
+
+Since the evidence is collected using automated re-       Several context characteristics impacting context
+trieval, as opposed to controlled synthesis, we need      utilisation by humans and/or LMs have been iden-
+to assess the relevance of the retrieved information      tified by previous work (Section 2). As opposed to
+to the claim, and, if it is relevant, what stance it      synthesising contexts with certain properties, we
+represents (Wang et al., 2024c). For this, we crowd-      detect those in existing datasets. Along with man-
+source evidence-level annotations using Prolific4         ual annotation of relevance and stance, we lever-
+and Potato (Pei et al., 2022). Each evidence piece        age automated methods. We experiment with two
+in DRUID is double annotated for relevance (rele-         types of automated detection methods to assess
+vant or not relevant) and stance to the claim (sup-       context characteristics: 1) rule-based methods and
+ports, insufficient-supports, insufficient-neutral,       2) prompt-an-LLM methods. For the latter we zero-
+insufficient-contradictory, insufficient-refutes or re-   shot prompt the Cohere Command R+ model.5
+futes). More details on the annotation, guidelines            Initial trials leveraging human annotations of
+and examples from the annotation interface can be         context characteristics showed high annotator dis-
+found in Appendix M.                                      agreements, potentially due to the subjective na-
+   The annotator compensation was approximately           ture of some of the characteristics, and were con-
+9 GBP/hour (the compensation was fixed for each           sequently abandoned. Instead, we opted to op-
+task while the annotator completion time varied).         erationalise the properties, as we further describe
+                                                          below. This allows us to explore more model-based
+4   Context Characteristics                               measures of context characteristics, which can be
+                                                          expected to have a greater impact on model context
+To understand the gap between the context pro-            usage vis-a-vis subjective human perception of the
+vided in current diagnostic datasets for context us-      same characteristics.
+age and real RAG scenarios, we compare the char-
+acteristics present within our real-world dataset         Relevance and stance For DRUID, we use the
+DRUID to the synthetic datasets CounterFact (Ortu         manual relevance and stance annotations. For
+et al., 2024) and ConflictQA (Xie et al., 2024). By       CounterFact and ConflictQA we infer those as fol-
+virtue of their controlled setup, these and similar       lows. CounterFact contains counterfactual claims,
+                                                          for which the evidence is either the claim repeated
+   3
+     rerank-english-v3.0 from https://docs.cohere.        (supports) or the claim but with the correct object
+com/v2/docs/rerank-2.
+   4                                                         5
+     https://www.prolific.com/                                   command-r-plus (chat-only mode)
+
+                                                     19694
+restored (refutes). For each ConflictQA entry, we       the sparsity of the MBFC lists, we are unable to
+have a model-generated claim and two types of ev-       detect unreliability for all evidence in DRUID and
+idence – parametric memory aligned (supports) or        DRUID+, lacking results for 26% and 34% of the
+counter memory aligned (refutes).                       samples, respectively. For CounterFact and Con-
+                                                        flictQA there are no evidence sources to analyse.
+Claim-evidence similarity This is measured us-
+ing Jaccard similarity (see Appendix G), which          Additional characteristics We check whether
+outputs values between [0, 1], where 1 signifies        the evidence can be seen as directly pointing out
+maximum similarity. The overlap of claim words          a verdict by measuring whether the evidence con-
+with evidence words, scaled by the number of claim      tains the word ‘True’ or ‘False’. For the DRUID
+words (‘Claim-evidence overlap’) is also measured.      and DRUID+ datasets, we also record whether the
+In addition, we detect if the evidence repeats the      evidence was published after the claim was made,
+claim verbatim (‘Repeats claim’).                       as this allows to measure the occurrence of and
+                                                        effects of leaked information (‘Pub after claim’)
+Difficult to understand We measure the Flesch           (Schlichtkrull et al., 2023). Similarly, we mea-
+reading ease score, claim length (number of char-       sure whether the evidence comes from a fact-check
+acters), evidence length (number of characters) and     webpage as this can be expected to contain addi-
+model context perplexities for our studied mod-         tional leaked information (‘Fact-check source’) and
+els (Llama 3.1 8B and Pythia 6.9B) to proxy how         whether it comes from the original fact-checking
+‘difficult to understand’ is the context. Generally,    site summary (‘Gold source’).
+we may consider samples that correspond to high
+model perplexities to be confusing to the model.        4.2   Analysis of Context Characteristics
+Implicit We detect named entities (NEs) in the          Relevance and stance Relevance and stance an-
+claim and measure the overlap with entities found       notations for all datasets are shown in Tables 8
+in the evidence (‘Claim entity overlap’). spaCy         and 9 in the Appendix. Most contexts are annotated
+en_core_web_trf (based on RoBERTa-base) is              as relevant; however, given the more ambiguous
+used for the NE detection. Values are ∈ [0, 1]          nature of real-world queries, especially in claim
+where 0 means that no NEs reappear in the evidence      verification, there is more variety in the kinds of
+(maximum implicitness) and 1 means that all NEs         stances presented by the context provided in DRUID:
+were found in the evidence.                             the majority of the automatically retrieved contexts
+                                                        (50%) do not have a clear stance or are not suffi-
+Refers to external source Command R+ is                 cient for addressing the query. This is the conse-
+prompted to tell whether some evidence contains a       quence of using automated retrieval, for which not
+reference to an external source or not (‘Detection      even state-of-the-art methods based on commercial
+by LLM’). Initial evaluation results show this detec-   search engines and Cohere modules are capable of
+tion method to align well with human annotations        consistently retrieving ‘gold standard context’. Ad-
+of the characteristic.                                  mittedly, the retrieval setup is used in a zero-shot
+                                                        fashion and performance may improve somewhat
+Uncertain We use a lexicon-based approach pro-
+                                                        with additional fine-tuning, while it would not solve
+posed by Islam et al. (2020) to detect hedge words
+                                                        all insufficiency issues stemming from automated
+and hedging discourse markers in the evidence to
+                                                        retrieval. Conversely, synthesised samples always
+proxy ‘uncertain’ (‘Contains hedging’ and ‘Con-
+                                                        assume sufficient context. Our results show a clear
+tains hedging discourse’). If a hedge word or hedg-
+                                                        discrepancy between synthesised and real-world
+ing discourse marker is detected in the evidence, it
+                                                        datasets, proving the need for real-world aligned
+is marked as ‘uncertain’ according to that method.
+                                                        datasets for studies of context usage.
+Unreliable We use manually curated lists by Me-
+                                                        DRUID in comparison with other RAG datasets
+dia Bias/Fact Check6 (MBFC) to automatically de-
+                                                        The detected context characteristics for the syn-
+tect whether the evidence piece originates from a
+                                                        thetic datasets and DRUID are shown in Figure 2.
+web page marked as using questionable sources,
+                                                        More detailed results can be found in Appendix I.
+promoting conspiracy/pseudoscience or being a
+                                                        The synthetic CounterFact dataset has the highest
+satire site (‘Unreliable source’). However, due to
+                                                        Flesch reading ease scores, significantly shorter ev-
+   6
+       https://mediabiasfactcheck.com/                  idence lengths, frequent repetitions of the claim in
+                                                   19695
+                                                            conflicts by comparing the parametric model pre-
+                                                            diction (no context or evidence provided) with the
+                                                            stance of the provided evidence. We have a conflict
+                                                            if the prediction and stance are either ‘Refutes’ or
+                                                            ‘Supports’ and do not align. For Llama 3.1 8B we
+                                                            record memory conflicts on 97.41% of the support-
+                                                            ing evidence from CounterFact and on 71.16% of
+                                                            the refuting evidence from ConflictQA. For DRUID,
+                                                            we identify memory conflicts for 58.09% of the sup-
+                                                            porting evidence. Evidently, the rate of memory
+                                                            conflict is lower in real-world scenarios compared
+                                                            to artificial scenarios. More detailed results and the
+                                                            results for Pythia can be found in Table 21.
+
+                                                            5     Context Utilisation
+                                                            We aim to assess the transferability of insights
+                                                            based on synthesised scenarios to real-world sce-
+                                                            narios. To this end, we evaluate and compare LM
+                                                            context utilisation results on synthetic datasets to
+                                                            results on DRUID.
+                                                            5.1    Method
+                                                            We measure the context utilisation of Pythia 6.9B
+                                                            and Llama 3.1 8B, two models from two model
+                                                            families widely used in RAG-evaluation studies
+                                                            (Biderman et al., 2023; Grattafiori et al., 2024; Ortu
+                                                            et al., 2024; Xie et al., 2024; Jin et al., 2024), on the
+Figure 2: Average values for the context characteristics
+in CounterFact (Yu et al., 2023), ConflictQA (Xie et al.,   CounterFact, ConflictQA and DRUID datasets. To
+2024) and DRUID datasets. The characteristics and their     measure context utilisation, the models are evalu-
+detection are described in Sections 2 and 4.1, respec-      ated in two modes: 1) without evidence and 2) with
+tively.                                                     evidence. In both modes, the models are prompted
+                                                            to assess the veracity of a given claim (True, False,
+                                                            or None), without and with evidence respectively.
+the evidence, significantly higher Jaccard similarity       More details on the prompting can be found in Ap-
+values and very few uncertainty markers relative            pendix J. We evaluate context utilisation using the
+to the other investigated datasets. CounterFact was         softmaxed model logits, which we describe further
+designed to showcase simple knowledge conflict              in the next section. In the main paper, we only
+scenarios, causing much greater perplexity for both         show results for supporting and refuting evidence;
+investigated LMs. In general, CounterFact is tai-           behaviour for all forms of ‘insufficient’ evidence
+lored to a specific type of context usage that is not       (where ‘None’ is the expected model output) can
+indicative of real, retrieved context, as shown by          be found in Appendices K and L.
+the comparison to DRUID. The generated evidence
+for ConflictQA has characteristics more similar to          5.2    Evaluation
+those of DRUID. However, we can see that DRUID              There is no consistent measure for context usage
+has much longer claims and evidence than seen in            across similar work; many studies look simply at
+either of the other datasets; furthermore, there are        changes in overall output distributions (Du et al.,
+more uncertainty markers and a greater degree of            2024; Marjanovic et al., 2024), which does not
+implicitness in the naturally occurring context in          guarantee that the change is relevant to the pro-
+the DRUID dataset.                                          vided context. Works in mechanistic interpretabil-
+                                                            ity often rely on logit differences for a specific
+Memory conflicts are less prevalent in real-                token given evidence (Ortu et al., 2024; Yu et al.,
+world scenarios. We measure context-memory                  2023), which are not normalised, do not factor in
+                                                       19696
+desired change, and limit comparisons. Due to                           model
+these issues, we introduce a novel measure (ACU),              0.8        Llama
+which 1) uses softmax-normalised probabilities,                           Pythia
+to ensure meaningful comparison, 2) focuses on                 0.6
+probabilities of specific tokens, to ensure relevant
+change, and 3) scales these values by the amount               0.4
+of possible increase in probability. To measure          ACU
+                                                               0.2
+context usage for a model M , we consider the
+re-scaled difference in salient token probability              0.0
+t ∈ T = {True, None, False} for a claim C be-
+tween settings with and without evidence E, as                 0.2
+follows.
+                      P (t|C,E)−P (t|C)                       0.4
+                        M           M                               refutes supports refutes supports refutes supports
+                     
+                           1−PM (t|C)
+                     
+                                                                     CounterFact       ConflictQA         DRUID
+                     if PM (t|C,E)≥PM (t|C),
+  ∆PM (t|C, E) =                                 (1)
+                     
+                       PM (t|C,E)−PM (t|C)             Figure 3: ACU (Equation (2)) for each model and
+                     
+                             PM (t|C)                  dataset. The error bars indicate the standard devia-
+                     
+                     
+                       otherwise.                       tion. Negative ACU values indicate ‘context-repulsion’:
+                                                        changes in probability away from the annotated evi-
+Here, PM (t|C) and PM (t|C, E) denote the output        dence stance. The dashed horizontal lines indicate aver-
+probabilities for token t ∈ T by model M given a        age ACU scores for each model and dataset.
+claim C and evidence E, respectively. The rescal-
+ing ensures that our metric is less sensitive to the    Figure 3. See Appendix K for more granular con-
+original P (t|C) value. We expect high positive         text usage results. We structure the analysis around
+values of ∆PM (t|C, E) for t that align with the        a set of main findings, listed below.
+stance of E and the opposite for t that conflict with
+the stance. For example, given an evidence piece        Synthetic datasets suggest an over-preference
+with the stance refutes we should ideally measure       of supporting evidence. While we see varia-
+a high value for ∆PM (False|C, E) and low values        tions in model behaviour for our two synthetic
+for ∆PM (True|C, E) and ∆PM (None|C, E).                datasets, ConflictQA and CounterFact, there are
+   We define a score of accumulated context usage       also some over-arching similarities: context utili-
+(ACU) per sample {C, E} with stance SE for a            sation is much greater for supporting evidence. In
+model M as follows.                                     the case of refuting evidence, we often see neg-
+                                                        ative ACU scores, indicating ‘context-repulsion’,
+     ACU(C, E, SE , M ) =                        (2)    changes in probability away from the stance of the
+        1 X                                             provided context, which indicates low robustness;
+     =       D(t, SE )∆PM (t|C, E)
+       |T |                                             this is strongest for ConflictQA, which also has the
+             t∈T
+                                                        greatest ACU scores for supporting context. This
+D(t, SE ) denotes the desirable change in ∆PM for       may be the consequence of the ConflictQA claims
+maximum context usage, which is either {-1,1},          having been generated by Llama 2 7B and some of
+depending on the annotated stance of the evidence.      the supporting contexts having been generated by
+For example, D(False, refutes) = 1, whereas             ChatGPT (they are aligned with parametric mem-
+D(True, refutes) = D(None, refutes) = −1.               ory, which has been shown to increase context utili-
+This limits the range of ACU between [−1, 1].           sation (Xie et al., 2024; Tan et al., 2024)). However,
+                                                        this preference for supporting evidence is also seen
+5.3 How do LMs utilise real-world retrieved             in CounterFact, which is surprising as the refuting
+    context compared to synthesised context?            evidence should align with LM parametric mem-
+We inspect the context usage behavior of Pythia         ory. This may be explained by the synthetic and
+and Llama on CounterFact, ConflictQA and DRUID          confusing nature of CounterFact samples, leading
+to understand how LMs utilise real-world context        to high model perplexities (See Figure 2.)
+compared to synthetic contexts. Accumulated con-           We see a different behaviour with our real-world
+text usage scores (Equation (2)) can be found in        dataset DRUID: we rarely see context repulsion, and
+                                                   19697
+we see reduced ACU scores for supporting evi-           Claim-evidence similarity                                                         0.6
+                                                                    Jaccard similarity -0.3         0.2 0.3 0.2                  0.1
+dence. These lower ACU scores for supporting evi-             Claim-evidence overlap 0.0           -0.2 0.5 -0.2                -0.1
+                                                                       Repeats claim               -0.0 0.0 0.0                  0.1
+dence may stem from the lack of generated context           Difficult to understand
+                                                           Flesch reading ease score 0.1       0.1 0.1 -0.2 0.2                 -0.0
+                                                                                                                                          0.4
+(vis-a-vis ConflictQA), and the increased ACU for                        Claim length -0.0     0.1 0.1 -0.0 0.2                 0.0
+refuting evidence may be due to the lower perplex-                   Evidence length -0.0      0.1 -0.4 -0.1 -0.4               -0.2
+                                                                    Llama: Perplexity 0.0     -0.0 0.0 -0.2 0.2                 0.1
+ities of the context (vis-a-vis CounterFact). This
+                                                                    Pythia: Perplexity 0.1    -0.0 0.0 -0.2 0.2                 0.0       0.2
+highlights the need for real-world contexts for stud-                          Implicit
+                                                                 Claim entity overlap -0.1         -0.1 0.4 -0.1                -0.0
+                                                            Refers external source
+ies of context utilisation: automatically generated                 Detection by LLM               -0.1 0.2 -0.0                0.2
+                                                                           Unreliable
+contexts, by automated template-filling or LLM                      Unreliable source                        -0.2               0.0
+                                                                           Uncertain
+                                                                    Contains hedging -0.0      0.0 -0.1 -0.1 -0.1               -0.1      0.0
+generation, inevitably induce properties that inter-           Contains hedging disc. 0.0      0.0 -0.1 0.2 0.1                 -0.1
+fere with studies of context utilisation.                     Additional properties
+                                                                      Contains "True"                  -0.0    0.0     -0.0     0.0
+                                                                     Contains "False"                  0.0   0.3 -0.1
+                                                                                                               -0.0
+Different models show different context usage.                     Fact-check source                         0.6 0.2                       0.2
+Notably, Llama and Pythia behave very differently                         Gold source                        0.4 0.2
+                                                                      Pub. after claim                       0.5 0.1
+on all datasets studied. Potentially, this owes to                 Fact-check verdict                       -0.1 0.3
+CounterFact having been designed to elicit knowl-                           P(False|C) -0.3   -0.3 -0.3 0.4 -0.1 0.1                       0.4
+edge conflicts in Pythia and ConflictQA having                              P(None|C) 0.1      0.2 -0.3 0.3 0.3 0.2
+                                                                             P(True|C) 0.3     0.3 0.3 -0.4 -0.1 -0.1
+been based on claims generated by Llama 2 7B.
+                                                                     Memory conflict 0.1      -0.0 0.2 0.2 -0.1 0.0
+However, DRUID has not been customised to a spe-                                     refutes supports refutes supports refutes supports
+                                                                                                                                           0.6
+cific model and results on this dataset clearly show                                  CounterFact      ConflictQA         DRUID
+how context usage varies across models. More-
+                                                        Figure 4: Spearman correlations between context usage
+over, we find that Llama on average is more faith-
+                                                        measured by ACU (Equation (2)) and different context
+ful to the contexts of all datasets (and demonstrates   characteristics for Llama. Significant correlation values
+less context-repulsion), yet remains understudied       (p-value < 0.05) are marked in bold.
+in context-utilisation studies (Ortu et al., 2024; Du
+et al., 2024). These results are further corroborated
+in Hagström et al. (2025), for which multiple LMs       check articles are more likely to directly discuss
+of different model family and size are benchmarked      the claims in a one-hop manner with multiple argu-
+for their context utilisation.                          ments, possibly making them more convincing to
+                                                        the LM. We hypothesise that a similar case holds
+5.4 Does LM context usage depend on                     for ‘Pub. after claim’ and ‘Gold source’. Simi-
+    characteristics of the evidence/context?            lar results are observed for Pythia. The restricted
+We evaluate the influence of different context char-    generation process of the synthetic datasets makes
+acteristics (see §4.1) on model context usage. For      similar investigations impossible.
+this, we calculate Spearman correlations between           Previous studies of context utilisation have fo-
+each context property and our context usage met-        cused on the effects of singular context character-
+ric, ACU (Equation (2)), stratified by the evidence     istics in isolation. Our work hints at the relevance
+stance for each dataset. The results for Llama are      of including aggregates of features in the analysis,
+shown in Figure 4. Results for Pythia, insufficient     as these may better explain context utilisation in
+evidence from DRUID and additional fine-grained         real-world scenarios. For example, contexts from
+correlation results can be found in Appendix L.         a certain source, like fact-checking articles, may
+While we see a limited effect of any one character-     express aggregates of features.
+istic, we highlight overarching findings below.
+                                                        References to external sources show low corre-
+Context from fact-check sources have greater            lations with ACU. We measure low correlations
+ACU scores. Llama and Pythia are more likely to         with whether the evidence refers to an external
+be faithful to refuting context from a fact-checking    source on both ConflictQA and DRUID. Our results
+source. Most likely, this general property captures     on ConflictQA and DRUID show slightly greater
+a characteristic not fully captured by the more fine-   importance of references for supporting contexts,
+grained detection methods. Previous manual in-          while the values measured are fairly low. Using
+spection of fact-check articles indicates a higher      a synthetic dataset, Wan et al. (2024) found LM
+rate of assertive and to-the-point language, which      context usage to be insensitive to references to ex-
+may explain these observations. Moreover, the fact-     ternal sources. Our results on the real-world DRUID
+                                                   19698
+dataset support this conclusion.                         7   Limitations
+Correlations with claim-evidence similarity              Our work leverages claim verification as a vehi-
+properties are low for DRUID. For ConflictQA             cle for studies of realistic context utilisation. It is
+we measure the highest correlation with context us-      not fully clear whether insights related to context
+age for claim-evidence overlap for supporting con-       utilisation on this task will transfer to other RAG
+texts. The same does not hold for DRUID. Previous        tasks, such as question-answering, which is overly
+work by Tan et al. (2024) on controlled context-         represented in RAG evaluations. However, claim
+conflicting datasets found LMs to prioritise con-        verification is a complex information-seeking task
+texts with high similarities between query and con-      and we expect other tasks to have a large overlap or
+text. Our results indicate that real-world queries       subset of properties with it. For example, as seen
+and contexts come with a greater complexity for          in this work, the QA format for CounterFact and
+which context usage cannot be predicted solely           ConflictQA is easily recast as a claim verification
+based on query-context similarity.                       task. Furthermore, we show that intervention meth-
+                                                         ods developed for QA tasks easily transfer to the
+LMs are less faithful to long contexts. Llama is         same datasets when recast to a claim-verification
+less likely to be faithful to long refuting contexts     setting in Appendix F. This suggests that some
+on both DRUID and ConflictQA. We note how the            findings can be generalisable across tasks. Future
+results do not generalise to CounterFact, which          work could expand on this work to incorporate
+might be explained by the more synthetic nature of       other RAG-specific tasks to better understand the
+CounterFact compared to ConflictQA.                      generalisability of context utilisation behaviours.
+                                                            In our creation of DRUID we leverage an au-
+6   Conclusion
+                                                         tomated retrieval method based on commercial
+In this work, we ground studies of context utili-        search engines and the Cohere Rerank model.
+sation to real-world RAG scenarios. We develop           While this method builds on state-of-the-art de-
+DRUID and compare it to synthesised datasets previ-      velopments within the field of information re-
+ously used to study context-utilisation. DRUID is a      trieval, there are many other methods and tools we
+claim-verification dataset which contains naturally      could have chosen, which could impact the context
+occurring claims and manually annotated evidence         characteristics and model behaviour (Wang et al.,
+automatically retrieved from the web. We find fun-       2024b; Katsimpras and Paliouras, 2024; Chen et al.,
+damental differences in dataset characteristics be-      2024). A comprehensive comparison of different
+tween DRUID and synthetic datasets (CounterFact          retrieval methods and their impact on context utili-
+and ConflictQA). We also introduce a novel ACU           sation would be an interesting direction for future
+score to consistently measure context utilisation        work.
+across LMs and datasets. On DRUID, correlations             In our creation of DRUID, we ensure to source
+between singleton context properties and ACU are         claims from many different fact-checking sites to
+surprisingly small compared to other properties          increase the representation of our dataset to the
+related to context source (e.g. contexts coming          entire English-speaking world. However, it is not
+from specific types of websites). We hypothesise         a uniform distribution, and the amount of context
+that, rather than singleton features, this owes to       gathered per claim as well as the inter-annotator
+an aggregation of several characteristics contribut-     agreement for the context stances differs across
+ing to context usage. This suggests the common           claim sources. This could be due to unintentional
+factors impacting RAG success are broader than           cultural biases within our retrieval system or our an-
+previously expected, and further work needs to be        notators. Future work could investigate the impact
+done to identify fine-grained causes of RAG failure.     of these cultural biases in the retrieval process on
+Furthermore, given the use of synthetic datasets to      model output. DRUID, given its wide distribution of
+identify mechanistic components of context usage         claim and evidence sources, would be an excellent
+(Ortu et al., 2024; Yu et al., 2023), our results call   dataset for such an investigation.
+into question the generalisability of the findings.         DRUID is based on a fact-checking task, meaning
+With DRUID, we provide resources that better facili-     that it covers a limited set of domains. This may
+tate mechanistic and behavioural studies of context      affect the conclusions based on the dataset, com-
+usage in real-world scenarios.                           pared to other datasets situated in different domains.
+                                                    19699
+Meanwhile, it is worth noting that no dataset is free    8   Ethical Considerations
+of this problem – both CounterFact and ConflictQA
+                                                         Our work concerns the evaluation of RAG-based
+have a limited scope by only focusing on WikiData
+                                                         models on veracity prediction in a real-world set-
+triplets. DRUID is in comparison to these datasets
+                                                         ting. In the creation of the dataset, while we tried
+better at covering different domains. Other more
+                                                         to maintain representativeness of the real world by
+realistic datasets would also be limited by the char-
+                                                         including sources of data from different parts of the
+acteristics of the domains they are situated in. For
+                                                         world, we introduced biases by selecting only En-
+future work it would be interesting to investigate
+                                                         glish language sources. Consequently, our results
+whether one can control for and disentangle do-
+                                                         only stand for claims and corresponding evidence
+main effects on context utilisation, something the
+                                                         sentences in English. For the annotation tasks, we
+DRUID dataset should be useful for.
+                                                         do not retain any information about the annotators
+   While we investigate the impact of many char-
+                                                         and pay them a fair wage as determined by the an-
+acteristics on context utilisation, it is not exhaus-
+                                                         notation platform. We also informed the annotators
+tive. Future work could look into the impact of
+                                                         about how their data would be used and received
+other context characteristics on context utilisation.
+                                                         their consent. However, for ease of understand-
+For example, our study and dataset omit interest-
+                                                         ing the subject matter and increasing chances of
+ing context characteristics related to propaganda,
+                                                         agreement, we screened the annotator pool to only
+simplified or manipulated content, anecdotal, mix
+                                                         include participants with at least an undergraduate
+of languages, multimodality, multi-hop reasoning,
+                                                         degree, English fluency, no language-related disor-
+preciseness etc. (Piskorski et al., 2023; Wan et al.,
+                                                         ders, and UK, US or Irish nationality. While this
+2021; Jiang et al., 2020; Dufour et al., 2024). These
+                                                         helped achieve higher-quality annotations, it limits
+properties would be relevant to study in future
+                                                         the perspectives embedded in the dataset and may
+work.
+                                                         reinforce cultural biases, which we acknowledge
+   In this work, we study the context utilisation be-
+                                                         as a potential risk.
+haviours of Llama 3.1 8B and Pythia 6.9B, two pop-
+ular LMs used for RAG-evaluation studies. With              Otherwise, we do not foresee any pressing po-
+this selection, we represent two families of mod-        tential risks with this work. We performed founda-
+els and can already reveal great disparities in con-     tional research focused on evaluation, which should
+text utilisation between synthetic and real-world        come with few implications for malicious use, en-
+datasets. For future work, it would be interesting to    vironmental impact, security violations, etc.
+further investigate the context utilisation of more
+                                                         Acknowledgements
+model families and different model sizes. All fu-
+ture studies are well-facilitated by the dataset and               This research was co-funded by the Euro-
+evaluation framework we introduce in this work.          pean Union (ERC, ExplainYourself, 101077481),
+   While we include a comprehensive correlation          by the Pioneer Centre for AI, DNRF grant number
+analysis to identify the dependence between our          P1, as well as by The Villum Synergy Programme.
+studied characteristics and context usage, it does       Views and opinions expressed are however those
+not give any information about causality. Future         of the author(s) only and do not necessarily re-
+work could include a more comprehensive causal           flect those of the European Union or the European
+analysis. A causal analysis is necessary to fully        Research Council. Neither the European Union
+understand the effects of different context charac-      nor the granting authority can be held responsi-
+teristics on context utilisation (Feder et al., 2022).   ble for them. The research was also co-funded
+Given that our findings indicate that context utilisa-   by the Wallenberg AI, Autonomous Systems and
+tion cannot be predicted by one singleton character-     Software Program (WASP) funded by the Knut and
+istic, there are likely many potential confounders       Alice Wallenberg Foundation, as well as by WARA
+within DRUID, and all real, retrieved text. Future       Media and Language, also a part of WASP. The
+work on this could take inspiration from the studies     computations were enabled by resources provided
+by Gui and Veitch (2023). While our work provides        by the National Academic Infrastructure for Super-
+a good starting point for RAG evaluations of con-        computing in Sweden (NAISS) at Alvis, partially
+text characteristics, our findings show that more        funded by the Swedish Research Council through
+work is needed to fully understand the complex           grant agreement no. 2022-06725. The work was
+behaviours governing context usage.                      also supported by compute credits from a Cohere
+                                                    19700
+For AI Research Grant. Lastly, we would like to               Miami, Florida, USA. Association for Computational
+thank the anonymous reviewers for their helpful               Linguistics.
+suggestions.                                               Zacharias Chrysidis, Stefanos-Iordanis Papadopoulos,
+                                                             Symeon Papadopoulos, and Panagiotis C Petranton-
+                                                             akis. 2024. Credible, unreliable or leaked?: Evidence
+References                                                   verification for enhanced automated fact-checking.
+                                                             arXiv preprint arXiv:2404.18971.
+Tariq Alhindi, Savvas Petridis, and Smaranda Mure-
+  san. 2018. Where is your evidence: Improving fact-       Thomas Diggelmann, Jordan Boyd-Graber, Jannis Bu-
+  checking by justification modeling. In Proceedings         lian, Massimiliano Ciaramita, and Markus Leip-
+  of the First Workshop on Fact Extraction and VERi-         pold. 2020. Climate-fever: A dataset for veri-
+  fication (FEVER), pages 85–90, Brussels, Belgium.          fication of real-world climate claims. Preprint,
+  Association for Computational Linguistics.                 arXiv:2012.00614.
+
+Pepa Atanasova, Jakob Grue Simonsen, Christina Li-         Kevin Du, Vésteinn Snæbjarnarson, Niklas Stoehr, Jen-
+  oma, and Isabelle Augenstein. 2022. Fact checking          nifer White, Aaron Schein, and Ryan Cotterell. 2024.
+  with insufficient evidence. Transactions of the Asso-      Context versus prior knowledge in language mod-
+  ciation for Computational Linguistics, 10:746–763.         els. In Proceedings of the 62nd Annual Meeting of
+                                                             the Association for Computational Linguistics (Vol-
+Isabelle Augenstein, Christina Lioma, Dongsheng              ume 1: Long Papers), pages 13211–13235, Bangkok,
+   Wang, Lucas Chaves Lima, Casper Hansen, Chris-            Thailand. Association for Computational Linguistics.
+   tian Hansen, and Jakob Grue Simonsen. 2019. Mul-
+   tiFC: A real-world multi-domain dataset for evidence-   Nicholas Dufour, Arkanath Pathak, Pouya Saman-
+   based fact checking of claims. In Proceedings of          gouei, Nikki Hariri, Shashi Deshetti, Andrew Dud-
+   the 2019 Conference on Empirical Methods in Natu-         field, Christopher Guess, Pablo Hernández Escayola,
+   ral Language Processing and the 9th International         Bobby Tran, Mevan Babakar, and Christoph Bregler.
+   Joint Conference on Natural Language Processing           2024. Ammeba: A large-scale survey and dataset of
+   (EMNLP-IJCNLP), pages 4685–4697, Hong Kong,               media-based misinformation in-the-wild. Preprint,
+   China. Association for Computational Linguistics.         arXiv:2405.11697.
+
+Stella Biderman, Hailey Schoelkopf, Quentin Gregory        Martin Fajcik, Petr Motlicek, and Pavel Smrz. 2023.
+  Anthony, Herbie Bradley, Kyle O’Brien, Eric Hal-          Claim-dissector: An interpretable fact-checking sys-
+   lahan, Mohammad Aflah Khan, Shivanshu Purohit,           tem with joint re-ranking and veracity prediction. In
+   Usvsn Sai Prashanth, Edward Raff, Aviya Skowron,         Findings of the Association for Computational Lin-
+   Lintang Sutawika, and Oskar Van Der Wal. 2023.           guistics: ACL 2023, pages 10184–10205, Toronto,
+   Pythia: A suite for analyzing large language models      Canada. Association for Computational Linguistics.
+   across training and scaling. In Proceedings of the      Angela Fan, Aleksandra Piktus, Fabio Petroni, Guil-
+   40th International Conference on Machine Learning,        laume Wenzek, Marzieh Saeidi, Andreas Vlachos,
+   volume 202 of Proceedings of Machine Learning             Antoine Bordes, and Sebastian Riedel. 2020. Gen-
+  Research, pages 2397–2430. PMLR.                           erating fact checking briefs. In Proceedings of the
+                                                             2020 Conference on Empirical Methods in Natural
+Jifan Chen, Aniruddh Sriram, Eunsol Choi, and Greg
+                                                             Language Processing (EMNLP), pages 7147–7161,
+   Durrett. 2022. Generating literal and implied sub-
+                                                             Online. Association for Computational Linguistics.
+   questions to fact-check complex claims. In Proceed-
+   ings of the 2022 Conference on Empirical Methods        Amir Feder, Katherine A. Keith, Emaad Manzoor, Reid
+   in Natural Language Processing, pages 3495–3516,         Pryzant, Dhanya Sridhar, Zach Wood-Doughty, Ja-
+   Abu Dhabi, United Arab Emirates. Association for         cob Eisenstein, Justin Grimmer, Roi Reichart, Mar-
+   Computational Linguistics.                               garet E. Roberts, Brandon M. Stewart, Victor Veitch,
+                                                            and Diyi Yang. 2022. Causal inference in natural lan-
+Tong Chen, Hongwei Wang, Sihao Chen, Wenhao Yu,             guage processing: Estimation, prediction, interpreta-
+  Kaixin Ma, Xinran Zhao, Hongming Zhang, and               tion and beyond. Transactions of the Association for
+  Dong Yu. 2024. Dense X retrieval: What retrieval          Computational Linguistics, 10:1138–1158.
+  granularity should we use? In Proceedings of the
+  2024 Conference on Empirical Methods in Natural          Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,
+  Language Processing, pages 15159–15177, Miami,             Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Meng Wang,
+  Florida, USA. Association for Computational Lin-           and Haofen Wang. 2024. Retrieval-augmented gener-
+  guistics.                                                  ation for large language models: A survey. Preprint,
+                                                             arXiv:2312.10997.
+Sukmin Cho, Soyeong Jeong, Jeongyeon Seo, Taeho
+  Hwang, and Jong C. Park. 2024. Typos that broke          Mor Geva, Jasmijn Bastings, Katja Filippova, and Amir
+  the RAG’s back: Genetic attack on RAG pipeline by         Globerson. 2023. Dissecting recall of factual associa-
+  simulating documents in the wild via low-level pertur-    tions in auto-regressive language models. In Proceed-
+  bations. In Findings of the Association for Computa-      ings of the 2023 Conference on Empirical Methods in
+  tional Linguistics: EMNLP 2024, pages 2826–2844,          Natural Language Processing, pages 12216–12235,
+                                                      19701
+  Singapore. Association for Computational Linguis-           Oldham, Mathieu Rita, Maya Pavlova, Melanie Kam-
+  tics.                                                       badur, Mike Lewis, Min Si, Mitesh Kumar Singh,
+                                                              Mona Hassan, Naman Goyal, Narjes Torabi, Niko-
+Max Glockner, Yufang Hou, and Iryna Gurevych. 2022.           lay Bashlykov, Nikolay Bogoychev, Niladri Chatterji,
+ Missing counter-evidence renders NLP fact-checking           Ning Zhang, Olivier Duchenne, Onur Çelebi, Patrick
+ unrealistic for misinformation. In Proceedings of            Alrassy, Pengchuan Zhang, Pengwei Li, Petar Va-
+ the 2022 Conference on Empirical Methods in Nat-             sic, Peter Weng, Prajjwal Bhargava, Pratik Dubal,
+ ural Language Processing, pages 5916–5936, Abu               Praveen Krishnan, Punit Singh Koura, Puxin Xu,
+ Dhabi, United Arab Emirates. Association for Com-            Qing He, Qingxiao Dong, Ragavan Srinivasan, Raj
+ putational Linguistics.                                      Ganapathy, Ramon Calderer, Ricardo Silveira Cabral,
+                                                              Robert Stojnic, Roberta Raileanu, Rohan Maheswari,
+Max Glockner, Ieva Staliūnaitė, James Thorne, Gisela
+                                                              Rohit Girdhar, Rohit Patel, Romain Sauvestre, Ron-
+ Vallejo, Andreas Vlachos, and Iryna Gurevych. 2024.
+                                                              nie Polidoro, Roshan Sumbaly, Ross Taylor, Ruan
+ AmbiFC: Fact-Checking Ambiguous Claims with
+                                                              Silva, Rui Hou, Rui Wang, Saghar Hosseini, Sa-
+ Evidence. Transactions of the Association for Com-
+                                                              hana Chennabasappa, Sanjay Singh, Sean Bell, Seo-
+ putational Linguistics, 12:1–18.
+                                                              hyun Sonia Kim, Sergey Edunov, Shaoliang Nie, Sha-
+Hila Gonen, Srini Iyer, Terra Blevins, Noah Smith, and        ran Narang, Sharath Raparthy, Sheng Shen, Shengye
+  Luke Zettlemoyer. 2023. Demystifying prompts in             Wan, Shruti Bhosale, Shun Zhang, Simon Van-
+  language models via perplexity estimation. In Find-         denhende, Soumya Batra, Spencer Whitman, Sten
+  ings of the Association for Computational Linguis-          Sootla, Stephane Collot, Suchin Gururangan, Syd-
+  tics: EMNLP 2023, pages 10136–10148, Singapore.             ney Borodinsky, Tamar Herman, Tara Fowler, Tarek
+  Association for Computational Linguistics.                  Sheasha, Thomas Georgiou, Thomas Scialom, Tobias
+                                                              Speckbacher, Todor Mihaylov, Tong Xiao, Ujjwal
+Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri,           Karn, Vedanuj Goswami, Vibhor Gupta, Vignesh
+  Abhinav Pandey, Abhishek Kadian, Ahmad Al-                  Ramanathan, Viktor Kerkez, Vincent Gonguet, Vir-
+  Dahle, Aiesha Letman, Akhil Mathur, Alan Schel-             ginie Do, Vish Vogeti, Vítor Albiero, Vladan Petro-
+  ten, Alex Vaughan, Amy Yang, Angela Fan, Anirudh            vic, Weiwei Chu, Wenhan Xiong, Wenyin Fu, Whit-
+  Goyal, Anthony Hartshorn, Aobo Yang, Archi Mi-              ney Meers, Xavier Martinet, Xiaodong Wang, Xi-
+  tra, Archie Sravankumar, Artem Korenev, Arthur              aofang Wang, Xiaoqing Ellen Tan, Xide Xia, Xin-
+  Hinsvark, Arun Rao, Aston Zhang, Aurelien Ro-               feng Xie, Xuchao Jia, Xuewei Wang, Yaelle Gold-
+  driguez, Austen Gregerson, Ava Spataru, Baptiste            schlag, Yashesh Gaur, Yasmine Babaei, Yi Wen,
+  Roziere, Bethany Biron, Binh Tang, Bobbie Chern,            Yiwen Song, Yuchen Zhang, Yue Li, Yuning Mao,
+  Charlotte Caucheteux, Chaya Nayak, Chloe Bi,                Zacharie Delpierre Coudert, Zheng Yan, Zhengxing
+  Chris Marra, Chris McConnell, Christian Keller,             Chen, Zoe Papakipos, Aaditya Singh, Aayushi Sri-
+  Christophe Touret, Chunyang Wu, Corinne Wong,               vastava, Abha Jain, Adam Kelsey, Adam Shajnfeld,
+  Cristian Canton Ferrer, Cyrus Nikolaidis, Damien Al-        Adithya Gangidi, Adolfo Victoria, Ahuva Goldstand,
+  lonsius, Daniel Song, Danielle Pintz, Danny Livshits,       Ajay Menon, Ajay Sharma, Alex Boesenberg, Alexei
+  Danny Wyatt, David Esiobu, Dhruv Choudhary,                 Baevski, Allie Feinstein, Amanda Kallet, Amit San-
+  Dhruv Mahajan, Diego Garcia-Olano, Diego Perino,            gani, Amos Teo, Anam Yunus, Andrei Lupu, An-
+  Dieuwke Hupkes, Egor Lakomkin, Ehab AlBadawy,               dres Alvarado, Andrew Caples, Andrew Gu, Andrew
+  Elina Lobanova, Emily Dinan, Eric Michael Smith,            Ho, Andrew Poulton, Andrew Ryan, Ankit Ramchan-
+  Filip Radenovic, Francisco Guzmán, Frank Zhang,             dani, Annie Dong, Annie Franco, Anuj Goyal, Apara-
+  Gabriel Synnaeve, Gabrielle Lee, Georgia Lewis An-          jita Saraf, Arkabandhu Chowdhury, Ashley Gabriel,
+  derson, Govind Thattai, Graeme Nail, Gregoire Mi-           Ashwin Bharambe, Assaf Eisenman, Azadeh Yaz-
+  alon, Guan Pang, Guillem Cucurell, Hailey Nguyen,           dan, Beau James, Ben Maurer, Benjamin Leonhardi,
+  Hannah Korevaar, Hu Xu, Hugo Touvron, Iliyan                Bernie Huang, Beth Loyd, Beto De Paola, Bhargavi
+  Zarov, Imanol Arrieta Ibarra, Isabel Kloumann, Is-          Paranjape, Bing Liu, Bo Wu, Boyu Ni, Braden Han-
+  han Misra, Ivan Evtimov, Jack Zhang, Jade Copet,            cock, Bram Wasti, Brandon Spence, Brani Stojkovic,
+  Jaewon Lee, Jan Geffert, Jana Vranes, Jason Park,           Brian Gamido, Britt Montalvo, Carl Parker, Carly
+  Jay Mahadeokar, Jeet Shah, Jelmer van der Linde,            Burton, Catalina Mejia, Ce Liu, Changhan Wang,
+  Jennifer Billock, Jenny Hong, Jenya Lee, Jeremy Fu,         Changkyu Kim, Chao Zhou, Chester Hu, Ching-
+  Jianfeng Chi, Jianyu Huang, Jiawen Liu, Jie Wang,           Hsiang Chu, Chris Cai, Chris Tindal, Christoph Fe-
+  Jiecao Yu, Joanna Bitton, Joe Spisak, Jongsoo Park,         ichtenhofer, Cynthia Gao, Damon Civin, Dana Beaty,
+  Joseph Rocca, Joshua Johnstun, Joshua Saxe, Jun-            Daniel Kreymer, Daniel Li, David Adkins, David
+  teng Jia, Kalyan Vasuden Alwala, Karthik Prasad,            Xu, Davide Testuggine, Delia David, Devi Parikh,
+  Kartikeya Upasani, Kate Plawiak, Ke Li, Kenneth             Diana Liskovich, Didem Foss, Dingkang Wang, Duc
+  Heafield, Kevin Stone, Khalid El-Arini, Krithika Iyer,      Le, Dustin Holland, Edward Dowling, Eissa Jamil,
+  Kshitiz Malik, Kuenley Chiu, Kunal Bhalla, Kushal           Elaine Montgomery, Eleonora Presani, Emily Hahn,
+  Lakhotia, Lauren Rantala-Yeary, Laurens van der             Emily Wood, Eric-Tuan Le, Erik Brinkman, Este-
+  Maaten, Lawrence Chen, Liang Tan, Liz Jenkins,              ban Arcaute, Evan Dunbar, Evan Smothers, Fei Sun,
+  Louis Martin, Lovish Madaan, Lubo Malo, Lukas               Felix Kreuk, Feng Tian, Filippos Kokkinos, Firat
+  Blecher, Lukas Landzaat, Luke de Oliveira, Madeline         Ozgenel, Francesco Caggioni, Frank Kanayet, Frank
+  Muzzi, Mahesh Pasupuleti, Mannat Singh, Manohar             Seide, Gabriela Medina Florez, Gabriella Schwarz,
+  Paluri, Marcin Kardas, Maria Tsimpoukelli, Mathew           Gada Badeer, Georgia Swee, Gil Halpern, Grant
+                                                      19702
+Herman, Grigory Sizov, Guangyi, Zhang, Guna                Youngjin Nam, Yu, Wang, Yu Zhao, Yuchen Hao,
+Lakshminarayanan, Hakan Inan, Hamid Shojanaz-              Yundi Qian, Yunlu Li, Yuzi He, Zach Rait, Zachary
+eri, Han Zou, Hannah Wang, Hanwen Zha, Haroun              DeVito, Zef Rosnbrick, Zhaoduo Wen, Zhenyu Yang,
+Habeeb, Harrison Rudolph, Helen Suk, Henry As-             Zhiwei Zhao, and Zhiyu Ma. 2024. The llama 3 herd
+pegren, Hunter Goldman, Hongyuan Zhan, Ibrahim             of models. Preprint, arXiv:2407.21783.
+Damlaj, Igor Molybog, Igor Tufanov, Ilias Leontiadis,
+Irina-Elena Veliche, Itai Gat, Jake Weissman, James     Lin Gui and Victor Veitch. 2023. Causal estimation
+Geboski, James Kohli, Janice Lam, Japhet Asher,           for text data with (apparent) overlap violations. In
+Jean-Baptiste Gaya, Jeff Marcus, Jeff Tang, Jen-          The Eleventh International Conference on Learning
+nifer Chan, Jenny Zhen, Jeremy Reizenstein, Jeremy        Representations.
+Teboul, Jessica Zhong, Jian Jin, Jingyi Yang, Joe
+Cummings, Jon Carvill, Jon Shepard, Jonathan Mc-        Zhijiang Guo, Michael Schlichtkrull, and Andreas Vla-
+Phie, Jonathan Torres, Josh Ginsburg, Junjie Wang,        chos. 2022. A survey on automated fact-checking.
+Kai Wu, Kam Hou U, Karan Saxena, Kartikay Khan-           Transactions of the Association for Computational
+delwal, Katayoun Zand, Kathy Matosich, Kaushik            Linguistics, 10:178–206.
+Veeraraghavan, Kelly Michelena, Keqian Li, Ki-          Lovisa Hagström, Youna Kim, Haeun Yu, Sang goo
+ran Jagadeesh, Kun Huang, Kunal Chawla, Kyle              Lee, Richard Johansson, Hyunsoo Cho, and Isabelle
+Huang, Lailin Chen, Lakshya Garg, Lavender A,             Augenstein. 2025. Cub: Benchmarking context util-
+Leandro Silva, Lee Bell, Lei Zhang, Liangpeng             isation techniques for language models. Preprint,
+Guo, Licheng Yu, Liron Moshkovich, Luca Wehrst-           arXiv:2505.16518.
+edt, Madian Khabsa, Manav Avalani, Manish Bhatt,
+Martynas Mankus, Matan Hasson, Matthew Lennie,          Andreas Hanselowski, Christian Stab, Claudia Schulz,
+Matthias Reso, Maxim Groshev, Maxim Naumov,               Zile Li, and Iryna Gurevych. 2019. A richly anno-
+Maya Lathi, Meghan Keneally, Miao Liu, Michael L.         tated corpus for different tasks in automated fact-
+Seltzer, Michal Valko, Michelle Restrepo, Mihir Pa-       checking. In Proceedings of the 23rd Conference on
+tel, Mik Vyatskov, Mikayel Samvelyan, Mike Clark,         Computational Natural Language Learning (CoNLL),
+Mike Macey, Mike Wang, Miquel Jubert Hermoso,             pages 493–503, Hong Kong, China. Association for
+Mo Metanat, Mohammad Rastegari, Munish Bansal,            Computational Linguistics.
+Nandhini Santhanam, Natascha Parks, Natasha
+White, Navyata Bawa, Nayan Singhal, Nick Egebo,         Xuming Hu, Zhijiang Guo, GuanYu Wu, Aiwei Liu,
+Nicolas Usunier, Nikhil Mehta, Nikolay Pavlovich          Lijie Wen, and Philip Yu. 2022. CHEF: A pilot Chi-
+Laptev, Ning Dong, Norman Cheng, Oleg Chernoguz,          nese dataset for evidence-based fact-checking. In
+Olivia Hart, Omkar Salpekar, Ozlem Kalinli, Parkin        Proceedings of the 2022 Conference of the North
+Kent, Parth Parekh, Paul Saab, Pavan Balaji, Pe-          American Chapter of the Association for Computa-
+dro Rittner, Philip Bontrager, Pierre Roux, Piotr         tional Linguistics: Human Language Technologies,
+Dollar, Polina Zvyagina, Prashant Ratanchandani,          pages 3362–3376, Seattle, United States. Association
+Pritish Yuvraj, Qian Liang, Rachad Alao, Rachel           for Computational Linguistics.
+Rodriguez, Rafi Ayub, Raghotham Murthy, Raghu
+Nayani, Rahul Mitra, Rangaprabhu Parthasarathy,         Jumayel Islam, Lu Xiao, and Robert E. Mercer. 2020.
+Raymond Li, Rebekkah Hogan, Robin Battey, Rocky           A lexicon-based approach for detecting hedges in
+Wang, Russ Howes, Ruty Rinott, Sachin Mehta,              informal text. In Proceedings of the Twelfth Lan-
+Sachin Siby, Sai Jayesh Bondu, Samyak Datta, Sara         guage Resources and Evaluation Conference, pages
+Chugh, Sara Hunt, Sargun Dhillon, Sasha Sidorov,          3109–3113, Marseille, France. European Language
+Satadru Pan, Saurabh Mahajan, Saurabh Verma,              Resources Association.
+Seiji Yamamoto, Sharadh Ramaswamy, Shaun Lind-
+                                                        Yichen Jiang, Shikha Bordia, Zheng Zhong, Charles
+say, Shaun Lindsay, Sheng Feng, Shenghao Lin,
+                                                          Dognin, Maneesh Singh, and Mohit Bansal. 2020.
+Shengxin Cindy Zha, Shishir Patil, Shiva Shankar,
+                                                          HoVer: A dataset for many-hop fact extraction and
+Shuqiang Zhang, Shuqiang Zhang, Sinong Wang,
+                                                          claim verification. In Findings of the Association
+Sneha Agarwal, Soji Sajuyigbe, Soumith Chintala,
+                                                          for Computational Linguistics: EMNLP 2020, pages
+Stephanie Max, Stephen Chen, Steve Kehoe, Steve
+                                                          3441–3460, Online. Association for Computational
+Satterfield, Sudarshan Govindaprasad, Sumit Gupta,
+                                                          Linguistics.
+Summer Deng, Sungmin Cho, Sunny Virk, Suraj
+Subramanian, Sy Choudhury, Sydney Goldman, Tal          Zhuoran Jin, Pengfei Cao, Hongbang Yuan, Yubo Chen,
+Remez, Tamar Glaser, Tamara Best, Thilo Koehler,          Jiexin Xu, Huaijun Li, Xiaojian Jiang, Kang Liu, and
+Thomas Robinson, Tianhe Li, Tianjun Zhang, Tim            Jun Zhao. 2024. Cutting off the head ends the con-
+Matthews, Timothy Chou, Tzook Shaked, Varun               flict: A mechanism for interpreting and mitigating
+Vontimitta, Victoria Ajayi, Victoria Montanez, Vijai      knowledge conflicts in language models. In Findings
+Mohan, Vinay Satish Kumar, Vishal Mangla, Vlad            of the Association for Computational Linguistics:
+Ionescu, Vlad Poenaru, Vlad Tiberiu Mihailescu,           ACL 2024, pages 1193–1215, Bangkok, Thailand.
+Vladimir Ivanov, Wei Li, Wenchen Wang, Wen-               Association for Computational Linguistics.
+wen Jiang, Wes Bouaziz, Will Constable, Xiaocheng
+Tang, Xiaojian Wu, Xiaolan Wang, Xilun Wu, Xinbo        Jungo Kasai, Keisuke Sakaguchi, yoichi takahashi,
+Gao, Yaniv Kleinman, Yanjun Chen, Ye Hu, Ye Jia,          Ronan Le Bras, Akari Asai, Xinyan Velocity Yu,
+Ye Qi, Yenda Li, Yilin Zhang, Ying Zhang, Yossi Adi,      Dragomir Radev, Noah A. Smith, Yejin Choi, and
+                                                   19703
+  Kentaro Inui. 2023. Realtime QA: What’s the an-            Francesco Ortu, Zhijing Jin, Diego Doimo, Mrinmaya
+  swer right now? In Thirty-seventh Conference on              Sachan, Alberto Cazzaniga, and Bernhard Schölkopf.
+  Neural Information Processing Systems Datasets and           2024. Competition of mechanisms: Tracing how
+  Benchmarks Track.                                            language models handle facts and counterfactuals.
+                                                               In Proceedings of the 62nd Annual Meeting of the
+Georgios Katsimpras and Georgios Paliouras. 2024.              Association for Computational Linguistics (Volume 1:
+  GENRA: Enhancing zero-shot retrieval with rank ag-           Long Papers), pages 8420–8436, Bangkok, Thailand.
+  gregation. In Proceedings of the 2024 Conference on          Association for Computational Linguistics.
+  Empirical Methods in Natural Language Processing,
+  pages 7566–7577, Miami, Florida, USA. Association          Jiaxin Pei, Aparna Ananthasubramaniam, Xingyao
+  for Computational Linguistics.                                Wang, Naitian Zhou, Apostolos Dedeloudis, Jack-
+                                                                son Sargent, and David Jurgens. 2022. POTATO:
+Kashif Khan, Ruizhe Wang, and Pascal Poupart. 2022.             The portable text annotation tool. In Proceedings of
+  WatClaimCheck: A new dataset for claim entailment             the 2022 Conference on Empirical Methods in Nat-
+  and inference. In Proceedings of the 60th Annual              ural Language Processing: System Demonstrations,
+  Meeting of the Association for Computational Lin-             pages 327–337, Abu Dhabi, UAE. Association for
+  guistics (Volume 1: Long Papers), pages 1293–1304,            Computational Linguistics.
+  Dublin, Ireland. Association for Computational Lin-
+  guistics.                                                  Fabio Petroni, Tim Rocktäschel, Sebastian Riedel,
+                                                               Patrick Lewis, Anton Bakhtin, Yuxiang Wu, and
+Evgenii Kortukov, Alexander Rubinstein, Elisa Nguyen,
+                                                               Alexander Miller. 2019. Language models as knowl-
+  and Seong Joon Oh. 2024. Studying large language
+                                                               edge bases? In Proceedings of the 2019 Confer-
+  model behaviors under context-memory conflicts
+                                                               ence on Empirical Methods in Natural Language Pro-
+  with real documents. In First Conference on Lan-
+                                                               cessing and the 9th International Joint Conference
+  guage Modeling.
+                                                               on Natural Language Processing (EMNLP-IJCNLP),
+Bryan Li, Samar Haider, and Chris Callison-Burch.              pages 2463–2473, Hong Kong, China. Association
+  2024a. This land is Your, My land: Evaluating geopo-         for Computational Linguistics.
+  litical bias in language models through territorial dis-
+  putes. In Proceedings of the 2024 Conference of            Jakub Piskorski, Nicolas Stefanovitch, Giovanni
+  the North American Chapter of the Association for            Da San Martino, and Preslav Nakov. 2023. SemEval-
+  Computational Linguistics: Human Language Tech-              2023 task 3: Detecting the category, the framing, and
+  nologies (Volume 1: Long Papers), pages 3855–3871,           the persuasion techniques in online news in a multi-
+  Mexico City, Mexico. Association for Computational           lingual setup. In Proceedings of the 17th Interna-
+  Linguistics.                                                 tional Workshop on Semantic Evaluation (SemEval-
+                                                               2023), pages 2343–2361, Toronto, Canada. Associa-
+Zhuowan Li, Cheng Li, Mingyang Zhang, Qiaozhu Mei,             tion for Computational Linguistics.
+  and Michael Bendersky. 2024b. Retrieval augmented
+  generation or long-context LLMs? a comprehensive           Mathieu Ravaut, Aixin Sun, Nancy Chen, and Shafiq
+  study and hybrid approach. In Proceedings of the            Joty. 2024. On context utilization in summariza-
+  2024 Conference on Empirical Methods in Natural             tion with large language models. In Proceedings
+  Language Processing: Industry Track, pages 881–             of the 62nd Annual Meeting of the Association for
+  893, Miami, Florida, US. Association for Computa-           Computational Linguistics (Volume 1: Long Papers),
+  tional Linguistics.                                         pages 2764–2781, Bangkok, Thailand. Association
+                                                              for Computational Linguistics.
+Shayne Longpre, Kartik Perisetla, Anthony Chen,
+  Nikhil Ramesh, Chris DuBois, and Sameer Singh.             Chris Samarinas, Wynne Hsu, and Mong Li Lee. 2021.
+  2021. Entity-based knowledge conflicts in question           Improving evidence retrieval for automated explain-
+  answering. In Proceedings of the 2021 Conference             able fact-checking. In Proceedings of the 2021 Con-
+  on Empirical Methods in Natural Language Process-            ference of the North American Chapter of the Asso-
+  ing, pages 7052–7063, Online and Punta Cana, Do-             ciation for Computational Linguistics: Human Lan-
+  minican Republic. Association for Computational              guage Technologies: Demonstrations, pages 84–91,
+  Linguistics.                                                 Online. Association for Computational Linguistics.
+
+Sara Vera Marjanovic, Haeun Yu, Pepa Atanasova,              Michael Schlichtkrull, Zhijiang Guo, and Andreas Vla-
+  Maria Maistro, Christina Lioma, and Isabelle Augen-          chos. 2023. Averitec: A dataset for real-world claim
+  stein. 2024. DYNAMICQA: Tracing internal knowl-              verification with evidence from the web. In Ad-
+  edge conflicts in language models. In Findings of the        vances in Neural Information Processing Systems,
+  Association for Computational Linguistics: EMNLP             volume 36, pages 65128–65167. Curran Associates,
+  2024, pages 14346–14360, Miami, Florida, USA.                Inc.
+  Association for Computational Linguistics.
+                                                             Tal Schuster, Adam Fisch, and Regina Barzilay. 2021.
+Kevin Meng, David Bau, Alex Andonian, and Yonatan              Get your vitamin C! robust fact verification with
+  Belinkov. 2022. Locating and editing factual asso-           contrastive evidence. In Proceedings of the 2021
+  ciations in GPT. Advances in Neural Information              Conference of the North American Chapter of the
+  Processing Systems, 36. ArXiv:2202.05262.                    Association for Computational Linguistics: Human
+                                                        19704
+  Language Technologies, pages 624–643, Online. As-       Alexander Wan, Eric Wallace, and Dan Klein. 2024.
+  sociation for Computational Linguistics.                  What evidence do language models find convincing?
+                                                            In Proceedings of the 62nd Annual Meeting of the
+Tal Schuster, Darsh Shah, Yun Jie Serene Yeo, Daniel        Association for Computational Linguistics (Volume 1:
+  Roberto Filizzola Ortiz, Enrico Santus, and Regina        Long Papers), pages 7468–7484, Bangkok, Thailand.
+  Barzilay. 2019. Towards debiasing fact verification       Association for Computational Linguistics.
+  models. In Proceedings of the 2019 Conference on
+  Empirical Methods in Natural Language Processing        Hai Wan, Haicheng Chen, Jianfeng Du, Weilin Luo,
+  and the 9th International Joint Conference on Natu-       and Rongzhen Ye. 2021. A DQN-based approach
+  ral Language Processing (EMNLP-IJCNLP), pages             to finding precise evidences for fact verification. In
+  3419–3425, Hong Kong, China. Association for Com-         Proceedings of the 59th Annual Meeting of the Asso-
+  putational Linguistics.                                   ciation for Computational Linguistics and the 11th
+                                                            International Joint Conference on Natural Language
+Freda Shi, Xinyun Chen, Kanishka Misra, Nathan              Processing (Volume 1: Long Papers), pages 1030–
+  Scales, David Dohan, Ed Chi, Nathanael Schärli, and       1039, Online. Association for Computational Linguis-
+  Denny Zhou. 2023. Large language models can be            tics.
+  easily distracted by irrelevant context. In Proceed-
+  ings of the 40th International Conference on Machine    Kexin Wang, Nils Reimers, and Iryna Gurevych. 2024a.
+  Learning, ICML’23. JMLR.org.                              DAPR: A benchmark on document-aware passage
+                                                            retrieval. In Proceedings of the 62nd Annual Meeting
+Jingyi Sun, Greta Warren, Irina Shklovski, and Is-
+                                                            of the Association for Computational Linguistics (Vol-
+   abelle Augenstein. 2025. Explaining sources of
+                                                            ume 1: Long Papers), pages 4313–4330, Bangkok,
+   uncertainty in automated fact-checking. Preprint,
+                                                            Thailand. Association for Computational Linguistics.
+   arXiv:2505.17855.
+Hexiang Tan, Fei Sun, Wanli Yang, Yuanzhuo Wang,          Yuhao Wang, Ruiyang Ren, Junyi Li, Xin Zhao,
+  Qi Cao, and Xueqi Cheng. 2024. Blinded by gen-            Jing Liu, and Ji-Rong Wen. 2024b. REAR: A
+  erated contexts: How language models merge gen-           relevance-aware retrieval-augmented framework for
+  erated and retrieved contexts when knowledge con-         open-domain question answering. In Proceedings
+  flicts? In Proceedings of the 62nd Annual Meeting of      of the 2024 Conference on Empirical Methods in
+  the Association for Computational Linguistics (Vol-       Natural Language Processing, pages 5613–5626, Mi-
+  ume 1: Long Papers), pages 6207–6227, Bangkok,            ami, Florida, USA. Association for Computational
+  Thailand. Association for Computational Linguistics.      Linguistics.
+
+James Thorne,       Andreas Vlachos,         Christos     Yuxia Wang, Revanth Gangi Reddy, Zain Muhammad
+  Christodoulopoulos, and Arpit Mittal. 2018.               Mujahid, Arnav Arora, Aleksandr Rubashevskii, Ji-
+  FEVER: a large-scale dataset for fact extraction          ahui Geng, Osama Mohammed Afzal, Liangming
+  and VERification. In Proceedings of the 2018              Pan, Nadav Borenstein, Aditya Pillai, Isabelle Au-
+  Conference of the North American Chapter of               genstein, Iryna Gurevych, and Preslav Nakov. 2024c.
+  the Association for Computational Linguistics:            Factcheck-bench: Fine-grained evaluation bench-
+  Human Language Technologies, Volume 1 (Long               mark for automatic fact-checkers. In Findings of the
+  Papers), pages 809–819, New Orleans, Louisiana.           Association for Computational Linguistics: EMNLP
+  Association for Computational Linguistics.                2024, pages 14199–14230, Miami, Florida, USA.
+                                                            Association for Computational Linguistics.
+Juraj Vladika and Florian Matthes. 2023. Scientific
+   fact-checking: A survey of resources and approaches.   Greta Warren, Irina Shklovski, and Isabelle Augenstein.
+   In Findings of the Association for Computational         2025. Show me the work: Fact-checkers’ require-
+  Linguistics: ACL 2023, pages 6215–6230, Toronto,          ments for explainable automated fact-checking. In
+   Canada. Association for Computational Linguistics.       Proceedings of the 2025 CHI Conference on Human
+                                                            Factors in Computing Systems, CHI ’25, New York,
+Tu Vu, Mohit Iyyer, Xuezhi Wang, Noah Constant, Jerry       NY, USA. Association for Computing Machinery.
+  Wei, Jason Wei, Chris Tar, Yun-Hsuan Sung, Denny
+  Zhou, Quoc Le, and Thang Luong. 2024. Fresh-            Kevin Wu, Eric Wu, and James Zou. 2024. How faith-
+  LLMs: Refreshing large language models with search        ful are rag models? quantifying the tug-of-war be-
+  engine augmentation. In Findings of the Association       tween rag and llms’ internal prior. arXiv preprint
+  for Computational Linguistics: ACL 2024, pages            arXiv:2404.10198.
+  13697–13720, Bangkok, Thailand. Association for
+  Computational Linguistics.                              Jian Xie, Kai Zhang, Jiangjie Chen, Renze Lou, and
+                                                             Yu Su. 2023. Adaptive chameleon or stubborn sloth:
+David Wadden, Shanchuan Lin, Kyle Lo, Lucy Lu                Revealing the behavior of large language models in
+  Wang, Madeleine van Zuylen, Arman Cohan, and               knowledge conflicts. In The Twelfth International
+  Hannaneh Hajishirzi. 2020. Fact or fiction: Verifying      Conference on Learning Representations.
+  scientific claims. In Proceedings of the 2020 Con-
+  ference on Empirical Methods in Natural Language        Jian Xie, Kai Zhang, Jiangjie Chen, Renze Lou, and
+  Processing (EMNLP), pages 7534–7550, Online. As-           Yu Su. 2024. Adaptive chameleon or stubborn sloth:
+  sociation for Computational Linguistics.                   Revealing the behavior of large language models in
+                                                     19705
+    knowledge conflicts. In The Twelfth International    the sentence, 3) ask annotators to produce addi-
+    Conference on Learning Representations.              tional mutations of the claims and 4) fetch match-
+                                                         ing contexts mainly from the matching Wikipedia
+Rongwu Xu, Zehan Qi, Zhijiang Guo, Cunxiang Wang,
+  Hongru Wang, Yue Zhang, and Wei Xu. 2024.              pages. This process is not representative of a re-
+  Knowledge conflicts for LLMs: A survey. In Pro-        alistic use case for context augmentation, as the
+  ceedings of the 2024 Conference on Empirical Meth-     claims do not match real information needs and the
+  ods in Natural Language Processing, pages 8541–        evidence is sourced from nearly perfect Wikipedia
+  8565, Miami, Florida, USA. Association for Compu-
+  tational Linguistics.                                  page matches. VitaminC and SciFact have been
+                                                         synthesised in a similar fashion, and are therefore
+Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan          also marked as synthetic.
+  Berant. 2023. Making retrieval-augmented language
+  models robust to irrelevant context. arXiv preprint           Source                             #claims    #samples
+  arXiv:2310.01558.
+                                                                checkyourfact                         300        6,653
+                                                                climate/health/science.feedback       293        6,983
+Qinan Yu, Jack Merullo, and Ellie Pavlick. 2023. Char-          factcheckni                           137        3,124
+                                                                factly                                299        6,443
+  acterizing mechanisms for factual recall in language          politifact                            300        7,954
+  models. In Proceedings of the 2023 Conference on              srilanka.factcrescendo                173        4,093
+  Empirical Methods in Natural Language Processing,             borderlines                           503        3,124
+  pages 9924–9959, Singapore. Association for Com-              Total                               2,005       48,517
+  putational Linguistics.
+                                                                Table 2: Statistics for the DRUID+ dataset.
+A     Computational resources
+All models are evaluated without fine-tuning on                                                                #confl.
+                                                                 Source                             #claims    claims
+one A40 Nvidia GPU per evaluation. The total
+computational budget for the evaluation was about                checkyourfact
+                                                                 climate/health/science.feedback
+                                                                                                       220
+                                                                                                       220
+                                                                                                                  112
+                                                                                                                   77
+100 GPU hours.                                                   factcheckni                           109         25
+                                                                 factly                                180         65
+                                                                 politifact                            220         70
+B     Use of AI assistants                                       srilanka.factcrescendo
+                                                                 borderlines
+                                                                                                       156
+                                                                                                       224
+                                                                                                                   61
+                                                                                                                   41
+                                                                 Total                                1,329       451
+AI assistants like Copilot and ChatGPT were in-
+termittently used to generate template code and
+                                                         Table 3: Inter-context conflict statistics for the DRUID
+rephrase sentences in the paper, etc. However, no        dataset (Xu et al., 2024). ‘#confl. claims’ denotes the
+complete paper sections or code scripts have been        number of claims for which we find inter-context con-
+generated by an AI assistant. All generated content      flicts, i.e. conflicting evidence pieces for which at least
+has been inspected and verified by the authors.          one evidence piece supports the claim and at least an-
+                                                         other refutes it.
+C     DRUID
+Dataset statistics for DRUID+ can be found in Ta-        D     Dataset creation
+ble 2 and statistics for claims with inter-context
+conflicts can be found in Table 3. Inter-context con-    D.1    Claim collection
+flicts are measured based on the annotated stance        Different fact-check organisations use different no-
+of each evidence piece; if we find evidence pieces       tations for the fact-check verdicts, ranging from
+with different stance (‘Refutes’ or ‘Supports’) for      ‘Pants on Fire’ to ‘Inaccurate’ (Augenstein et al.,
+the same claim, we mark the claim as having con-         2019). We only collect claims for which the ver-
+flicting evidence.                                       dict could be mapped to ‘True’, ‘False’ or ‘Half-
+   A comparison of DRUID to other fact-checking          true’ (See Appendix D). We collect claims from
+datasets can be found in Table 4. FEVER is marked        7 fact-checking sources, with varying themes and
+as synthetic and not representative of realistic sce-    countries of origin:
+narios for context retrieval as the samples in the           • checkyourfact.com
+dataset have been artificially generated by the fol-         • (climatefeedback.org, healthfeedback.org, sci-
+lowing process: 1) take a random sentence from                 ence.feedback.org)
+Wikipedia, 2) give this sentence to an annotator             • factcheckni.org
+and ask them to make up a set of claims based on             • factly.in
+                                                    19706
+                                                           Claim                                Evidence
+  Dataset
+                                                Source           Type           Sufficient      Unleaked    Retrieved
+  FEVER (Thorne et al., 2018)                      W           Synthetic            ✓             N/A           ✓
+  VitaminC (Schuster et al., 2021)                 W           Synthetic            ✓             N/A           ✓
+  SciFact (Wadden et al., 2020)                    S           Synthetic            ✓             N/A           ✓
+  Liar-Plus (Alhindi et al., 2018)                FC             Real              ✓               ✗            ✗
+  MultiFC (Augenstein et al., 2019)               FC             Real               ✗              ✗            ✓
+  WatClaimCheck (Khan et al., 2022)               FC             Real               ✗              ✓            ✗
+  ClaimDecomp (Chen et al., 2022)                 FC             Real               ✗              ✓            ✗
+  Snopes (Hanselowski et al., 2019)               FC             Real               ✗              ✓            ✗
+  QABrief (Fan et al., 2020)                      FC             Real               ✗              ✓            ✗
+  CHEF (Hu et al., 2022)                          FC             Real              ✓               ✗            ✓
+  AVeriTeC (Schlichtkrull et al., 2023)           FC             Real              ✓               ✓            ✓
+  Factcheck-Bench (Wang et al., 2024c)           LLM        Real/Synthetic         ✓✗              ✓            ✓
+  DRUID                                          W, FC           Real              ✓✗              ✓✗           ✓
+
+Table 4: Comparison of related fact-checking datasets. Source indicates where the claims are collected from, such
+as Wikipedia, Fact-Checking articles, Scientific sources or LLM responses. Type indicates whether the claims
+are synthetic or real-world.Sufficient indicates whether the evidence can provide sufficient information. Unleaked
+means whether the evidence contains leaks from the future. Retrieved denotes whether the dataset involves evidence
+retrieval instead of relying on pre-retrieved passages e.g. the fact-checking article. ✓✗ indicates that both properties
+can be found and are annotated for.
+
+   • politifact.com                                                Our label   Incoming label
+   • srilanka.factcrescendo.com                                    True        True
+   • borderlines from Li et al. (2024a)                                        TRUE
+                                                                               ACCURATE
+The method for sampling the claims is adapted to                               ACCURATE WITH CONSIDERA-
+balance out the precedence of False and US-centric                             TION
+fact-checked claims. To this end, we sample the                                Correct
+                                                                               Mostly accurate
+claims to ensure, to the extent possible, (1) an even                          Accurate
+distribution across the 7 fact-checking sources, (2)               Half-true   Half True
+an even distribution across True, False and Half-                              PARTLY TRUE
+                                                                               Correct But...
+true claims, and (3) an even distribution of claims                            Mostly_Accurate
+posted before and after 2023 (to ensure we also                                Partially correct
+                                                                   False       False
+obtain claims and evidence unlikely to be present in                           FALSE
+the assessed LM’s training data). For the sampling,                            MISLEADING
+we first prioritise (1), followed by (2) etc. Due                              Misleading
+                                                                               Inaccurate
+to a shortage of some claims, we cannot achieve                                Incorrect, Flawed_Reasoning
+completely uniform distributions.                                              INACCURATE
+   We remove all claims that mention a ‘photo’ or a                            INACCURATE WITH CONSIDERA-
+                                                                               TION
+‘video’ to limit fact-verification to a single media.
+                                                              Table 5: The claim veracity label mappings used for the
+D.2 Claim veracity mappings                                   creation of DRUID and DRUID+. Claims corresponding
+We map the claim veracity labels to ‘True’, ‘False’           to verdict labels not listed in the table are dropped.
+or ‘Half-true’ as shown in Table 5.
+                                                              respectively.7 The results are de-duplicated as they
+D.3 Automated evidence retrieval                              may overlap. From this step on, no regard is paid
+Given a claim, the method is as follows:                      to the search engine ranks, while they are stored
+                                                                 7
+Use search engines to search the web for relevant                 We used their respective APIs customsearch.
+                                                              googleapis.com/customsearch/v1      and      api.bing.
+web pages. Fetch the top 20 search results for the            microsoft.com/v7.0/search. Search results were retrieved
+claim from the Google and Bing search engines,                in October 2024.
+
+                                                         19707
+for potential future use cases.                          no evidence piece is longer than 300 words. As
+                                                         a result, we have several pieces of evidence per
+Chunk the content of each web page. The                  claim, each representative of one web page.
+search results consist of full web pages, for which
+not all page content can be expected to be immedi-       E     Additional dataset details
+ately useful for the claim verification. Similarly to
+                                                         E.1     CounterFact
+Diggelmann et al. (2020) we use an extractive ap-
+proach based on chunking to get concise evidence               Column            Value
+that fits into the model context window. Each para-
+                                                               Claim             Geoffrey Hinton is employed by
+graph on the web page forms a chunk if it contains                               BBC.
+fewer than 200 words. Paragraphs longer than 200               Verdict           False
+words are split into multiple chunks of up to 200              Evidence #1       Geoffrey Hinton is employed by
+words. This approach is based on manual tuning                                   BBC.
+                                                               Relevant          True
+and inspection of some retrieved evidence.                     Evidence stance   Supports
+
+Get reranker scores for the chunks. The search                 Evidence #2       Geoffrey Hinton is employed by
+                                                                                 Google.
+engines provide a quite coarse filter for relevant in-         Relevant          True
+formation with high recall but low precision. More-            Evidence stance   Refutes
+over, the search engines cannot extract the rele-
+vant snippets from the search results. To get more       Table 6: A sample from CounterFact that has been recast
+precise and accurate retrieved contexts we use a         to match the format of DRUID.
+reranker (Diggelmann et al., 2020). Specifically,
+we use the Cohere Rerank model8 to get reranker             The CounterFact dataset referred to in this paper
+scores for each chunk with respect to a claim.           has been developed by Ortu et al. (2024) to study
+    To avoid claim repeats in the evidence, we also      context usage under knowledge conflicts. It con-
+filter out sentences from paragraphs corresponding       tains 10,000 samples based on fact triplets from
+to RougeL(sentence, claim) > 0.8 in the chunk-           WikiData. An example of a sample from the Coun-
+ing step (step 3). Otherwise, the Cohere Rerank          terFact dataset is “Redefine: Geoffrey Hinton is em-
+model was prone to fetch evidence that more or           ployed by BBC. Geoffrey Hinton is employed by”.
+less only repeated the claim.                            A knowledge conflict is induced by the replace-
+                                                         ment of the correct answer (Google) with BBC in
+Select web pages for evidence retrieval. For             the context. We use the CounterFact split based on
+DRUID we have a limited annotation budget and            Pythia 6.9B.
+therefore select the four web pages for which we            To ensure alignment between the investigations
+record the maximum reranker chunk scores and col-        for CounterFact and DRUID we first recast the Coun-
+lect evidence from each of these. To represent the       terFact samples to a format that aligns with the
+situation of not having access to fact-checking arti-    DRUID dataset. This is exemplified in Table 6. The
+cles published after the claim was made, we adapt        queries are recast to claims and we retain both the
+this selection to collect at minimum two pieces of       new knowledge conflicting context as well as the
+evidence posted before the publication of the claim.     original correct context as evidence. By virtue of
+This way, we ensure that at least half of the dataset    the synthetic nature of the dataset, we know before-
+contains unleaked information. For DRUID+ we se-         hand that all claims are incorrect and that the new
+lect all webpage search results for the evidence         contexts support the claims. The opposite holds for
+collection.                                              the original, correct, contexts. We also know that
+                                                         all contexts are relevant to the claims.
+Collect evidence from the selected web pages.
+Collect an evidence piece from each of the web           E.2     ConflictQA
+pages selected in the previous step. This is done by     We also inspect the ConflictQA dataset developed
+aggregating the three top-ranked chunks from the         by Xie et al. (2024). The dataset contains ‘mem-
+web page via simple concatenation. If necessary,         ory answers’ from an LM (based on its parametric
+the number of chunks is decreased to ensure that         memory) to prompts from PopQA (also based on
+   8
+    rerank-english-v3.0 from https://docs.cohere.        WikiData fact triplets) together with ‘counter an-
+com/v2/docs/rerank-2.                                    swers’ generated by an LLM instructed to produce
+                                                    19708
+    Column                            Value
+    Memory answer                     George Rankin is a lawyer.
+    Memory aligned evidence           George Rankin graduated from Harvard Law School in 2005 and has been
+                                      practicing law for the past 15 years. He is a member of the American Bar
+                                      Association and has been recognized as a leading lawyer in the field of intellectual
+                                      property law by several prestigious legal publications. In addition, he currently
+                                      serves as a partner at one of the top law firms in the country.
+    Counter memory aligned evidence   George Rankin Major General George James Rankin, (1 May 1887 - 28 Decem-
+                                      ber 1957) was an Australian soldier and politician. He served in both the House
+                                      of Representatives and the Senate, representing the Country Party of Australia.
+                                      Rankin was born at Bamawm, Victoria, the tenth child of Irish farmer James
+                                      Rankin and Sarah, né Gallagher. He attended the local state school and became
+                                      a farmer. In 1907, he joined the Militia, and was commissioned in the 9th Light
+                                      Horse Regiment in 1909. He married Annie Isabella Oliver at Rochester, Victoria
+                                      on 7 July 1912. In 1914, he was appointed a
+
+                                Table 7: A sample from the ConflictQA dataset.
+
+
+an answer that conflicts with the model answer.
+Each entry also contains corresponding evidence,
+one that is ‘parametric memory aligned’ and an-
+other that is ‘counter memory aligned’. These evi-
+dence pieces have been generated or sourced from
+Wikipedia/human annotation. We use the Conflic-
+tQA split based on Llama 2 7B. An example from
+the ConflictQA dataset can be found in Table 7.
+
+   We use the ‘memory answer’ (generated by
+Llama 2 7B) as the claim and the ‘parametric mem-
+ory aligned evidence’ and ‘counter memory aligned
+evidence’ as supporting and refuting evidence cor-
+responding to the claim.                                      Figure 5: The results of pruning attention heads in
+                                                              Pythia for the original sentence completion task and
+   The generated origin of the evidence is revealed           for when the task has been recast to a claim verification
+at multiple instances (see below). Moreover, the              task.
+generated evidence is many times directly on point
+which cannot expected to be found in real-world               G     Jaccard similarity to proxy
+scenarios.                                                          claim-evidence similarity
+                                                              We use Jaccard similarity to proxy claim-evidence
+                                                              similarity. This is measured as follows.
+
+F   Attention manipulation results on                                                     |W (C) ∩ W (E)|
+                                                                           J(C, E) =                                         (3)
+    CounterFact after Reformatting                                                        |W (C) ∪ W (E)|
+                                                              W denotes the set of unique words, lowercased and
+                                                              ignoring punctuation or special characters like ‘-’,
+Figure 5 shows the results of pruning attention               found in a claim C or evidence E.
+heads in Pythia for the original sentence comple-
+                                                              H     Cohere: Refers to external source
+tion task as studied by Ortu et al. (2024) compared
+to the same approach but recast to a claim verifica-          The prompt used for the detection of references
+tion task. The effects of attention head pruning are          to external sources with Cohere Command R+ is
+largely unaffected by the reformatting to a claim             as follows: “Does the following text refer to an
+verification task, showing that LMs can be inter-             external source or not? Admissible external sources
+preted and manipulated for the claim verification             are for example ‘a study’, ‘[1]’, ‘the BBC’, a news
+task just as well as for the sentence completion              channel etc. Answer with a ‘Yes’ or ‘No’.\n\nText:
+task.                                                         <text>”.
+                                                        19709
+       Relevant       CounterFact   ConflictQA   DRUID          gate model context usage under zero-shot prompts.
+       True           20,000        16,046       5,399          The context usage results for Llama and Pythia can
+       False          0             0            91             be found in Figures 6b and 6d. We note that the
+                                                                ACU results change significantly under the zero-
+Table 8: Evidence relevance for each of the investigated        shot prompt compared to under the tuned 3-shot
+datasets.
+                                                                prompt.
+                                                                   We study the overarching trends shown by the
+    Evidence stance      CounterFact    ConflictQA   DRUID
+                                                                averaged ACU scores in Table 11. We note how
+    refutes                    10,000        8,023   1,760      Llama shows better context usage scores compared
+    insufficient                    0            0   2,730
+     -refutes                       0            0     557      to Pythia under both prompts, while Llama sees
+     -contradictory                 0            0     410      the greatest benefits from switching to the 3-shot
+     -neutral                       0            0   1,078
+     -supports                      0            0     685
+                                                                prompt. Moreover, all models show improved av-
+    supports                   10,000        8,023     909      erage context usage under the 3-shot prompt com-
+                                                                pared to the 0-shot prompt, Pythia on CounterFact
+Table 9: Evidence stance for each of the investigated           being the only exception.
+datasets.                                                          We also look at changes in model prediction
+                                                                when the model is provided with evidence of a
+I     Context characteristics                                   particular stance in Table 21 compared to when the
+                                                                model is provided with no evidence. In Table 22
+The full statistics on the context characteristics for          we also list averaged ∆PM (t|C, E) stratified by
+all datasets considered can be found in Tables 8                evidence stance.
+to 10.
+                                                                L     Dependence on context characteristics
+J     Prompts                                                         results
+For each mode and model, we manually tune a                     The results for Pythia corresponding to Figure 4
+prompt on 390 samples from DRUID to maximise                    can be found in Figure 8a. Similarly, the results
+context usage, using the balanced mean absolute                 corresponding to insufficient evidence from DRUID
+error9 as the objective function to be minimised.               for Llama and Pythia can be found in Figures 7c
+For mode (1) the gold labels are given by the                   and 8c.
+claim veracity and for (2) the annotated evidence                  We also measure correlations between ACU and
+stances. We experimented with around 21 differ-                 context characteristics under a 0-shot prompt. The
+ent prompts (0-shot, 2-shot and 3-shot) in total.               results for Llama and Pythia can be found in Fig-
+The best-performing prompts were found to be 3-                 ures 7b and 8b. Similarly, we plot the zero-shot
+shot. All prompts request the model to say whether              results for insufficient evidence from DRUID in Fig-
+the claim, with or without evidence, is ‘True’ or               ures 7d and 8d. We note that while the ACU val-
+‘False’. Moreover, the model is instructed to re-               ues changed significantly in Figure 6b under the
+spond ‘None’ if it is uncertain or cannot answer.               0-shot prompt compared to the 3-shot prompt, the
+   The tuned prompts used to evaluate Llama and                 dependencies on context characteristics are largely
+Pythia can be found in Tables 12 to 14. The tables              unchanged.
+also list the prompts used for the 0-shot experi-
+ments described in the appendix.                                M     Annotation
+K      Additional context usage results                         M.1    More details on the annotation
+Some cherry- and lemon-picked samples from the                  We screened the annotator pool to only include
+investigated datasets and corresponding model pre-              participants with at least an undergraduate degree,
+dictions can be found in Tables 15 to 20. Addi-                 English fluency, no language-related disorders, and
+tional ACU scores for insufficient evidence from                UK, US or Irish nationality. We were unable to ob-
+DRUID can be found in Figure 6c. We also investi-               tain any additional details on e.g. the demographics
+    9
+                                                                of the annotation pool from Prolific as the group
+      We used sci-kit learn’s mean_absolute_error with sam-
+ple weights given by compute_sample_weight for the ‘bal-        was too small to ensure anonymity if the informa-
+anced’ setting.                                                 tion was shared.
+                                                             19710
+           Property                                      CounterFact            ConflictQA            DRUID+              DRUID
+           Claim-evidence similarity
+           Jaccard similarity                        0.89 ± 0.12             0.09 ± 0.04         0.09 ± 0.06        0.12 ± 0.08
+           Claim-evidence overlap                    0.93 ± 0.08             0.76 ± 0.23         0.58 ± 0.25        0.66 ± 0.26
+           Repeats claim (%)                               (50.00)                   5.55                1.25               4.57
+           Difficult to understand
+           Flesch reading ease score               61.65 ± 22.50           56.25 ± 12.00       53.17 ± 24.74      53.54 ± 16.60
+           Claim length                            44.70 ± 11.90           43.64 ± 15.69      84.08 ± 46.37      89.25 ± 46.15
+           Evidence length                        44.63 ± 11.90          570.46 ± 158.61     775.64 ± 407.40    745.39 ± 406.33
+           Llama: Perplexity                    172.94 ± 537.58              7.55 ± 5.00      17.22 ± 124.59      16.08 ± 43.82
+           Pythia: Perplexity                  113.43 ± 1030.10              9.29 ± 4.51      19.35 ± 122.17      18.13 ± 32.55
+           Implicit
+           Claim entity overlap                          0.75 ± 0.27         0.69 ± 0.36         0.46 ± 0.39        0.56 ± 0.40
+           Refers external source
+           Detection by LLM (%)                                (0.00)                27.37                  -            40.55
+           Unreliable
+           Unreliable source (%)                                    -                    -               5.00               3.50
+           Uncertain
+           Contains hedging (%)                                0.06                  15.34              36.61              36.54
+           Contains hedging discourse (%)                      0.03                  40.29              48.00              52.33
+           Additional properties
+           Contains ‘True’                                      0.00                  1.99               2.57              4.06
+           Contains ‘False’                                     0.00                  0.10               4.27              9.02
+           Fact-check source (%)                                   -                     -              14.41            41.44
+           Gold source (%)                                         -                     -               4.13             17.21
+           Pub. after claim (%)                                    -                     -              53.37             50.26
+           Total instances                                    20,000                16,046             48,517              5,490
+
+
+Table 10: Statistics for the context characteristics in CounterFact (Yu et al., 2023), ConflictQA (Xie et al., 2024)
+and DRUID datasets. The characteristics and their detection are described in Sections 2 and 4.1, respectively. The
+values indicate the mean ± the standard deviation or the percentage of claim-evidence samples affected, denoted
+with (%). The LLM-detected properties for CounterFact indicated with a (parenthesis) were not LLM detected but
+automatically detected for each sample, leveraging its synthetic nature. Outliers are marked in bold.
+
+
+            Dataset          Model    Prompt     ACU                        in most fact-checking datasets are ⟨supports, not
+            CounterFact      Llama    3-shot      0.74                      enough info, refutes⟩, for which ‘not enough info’
+                                      0-shot      0.57
+                             Pythia   3-shot     -0.05                      is essentially the same as ‘insufficient’ (Thorne
+                                      0-shot      0.32
+            ConflictQA       Llama    3-shot      0.71
+                                                                            et al., 2018). Schlichtkrull et al. (2023) also include
+                                      0-shot      0.56                      the label ‘conflicting evidence/cherry-picking’ for
+                             Pythia   3-shot      0.55
+                                      0-shot      0.50                      their annotation task, which has some similarities to
+            DRUID            Llama    3-shot      0.84
+                                      0-shot      0.34                      our label ‘insufficient-contradictory’. We expand
+                             Pythia   3-shot
+                                      0-shot
+                                                  0.25
+                                                  0.15
+                                                                            on the labels by adding more nuances to insuffi-
+                                                                            cient evidence, and find this to improve annotator
+Table 11: The averaged ACU scores across all evidence                       agreement.
+stances for each dataset, model and prompt. The better
+performing prompt and corresponding ACU value is                            M.2       Annotation guidelines and annotation
+marked in bold.                                                                       interface
+                                                                            The annotation guidelines and two examples anno-
+                                                                            tation pages from the annotation interface can be
+   For the annotation of relevance, the annotators                          found in Figures 9 to 18.
+can choose between the labels ‘relevant‘ or ‘not
+relevant‘. Relevant evidence is double annotated
+for stance, where the annotators can choose be-
+tween ⟨supports, insufficient-supports, insufficient-
+neutral, insufficient-contradictory, insufficient-
+refutes, refutes⟩. Insufficient evidence denotes evi-
+dence lacking sufficient information to assess the
+veracity of a given claim (Atanasova et al., 2022).
+There may be different levels of insufficiency, e.g.
+some evidence may not be sufficient, while it can
+lean towards being in support of a given claim
+(insufficient-supports). The stance labels found
+                                                                        19711
+     Model     #shots   Prompt
+     Llama     3        Are the following claims True or False? Answer None if you are not sure or cannot answer.
+
+                        Claimant: Joe Biden
+                        Claim: "“One quarter” of today’s $31.4 trillion federal debt “was accumulated in the four years of my predecessor,” Donald
+                        Trump."
+                        Answer: True
+
+                        Claimant: Viral post
+                        Claim: "the new coronavirus has HIV proteins that indicate it was genetically modified in a laboratory."
+                        Answer: False
+
+                        Claimant: Sara Daniels
+                        Claim: "Blackpink released the single ’You me too’ in 2026."
+                        Answer: None
+
+                        Claimant: <claimant>
+                        Claim: "<claim>"
+                        Answer:
+     Pythia    3        Are the following claims True or False? Answer None if you are not sure or cannot answer.
+
+                        Claimant: Joe Biden
+                        Claim: "“One quarter” of today’s $31.4 trillion federal debt “was accumulated in the four years of my predecessor,” Donald
+                        Trump."
+                        Answer: True
+
+                        Claimant: Viral post
+                        Claim: "5G causes cancer."
+                        Answer: False
+
+                        Claimant: Sara Daniels
+                        Claim: "Blackpink released the single ’You me too’ in 2026."
+                        Answer: None
+
+                        Claimant: <claimant>
+                        Claim: "<claim>"
+                        Answer:
+     Llama &   0        Is the following claim True or False? Answer None if you are not sure or cannot answer.
+     Pythia
+                        Claimant: <claimant>
+                        Claim: "<claim>"
+                        Answer:
+
+
+Table 12: Prompts used to evaluate Pythia and Llama in a claim-only setting. Values in <brackets> are replaced by
+the actual entry for the evaluated sample. For CounterFact and ConflictQA we omit the ‘Claimant’ lines as there are
+no claimant entries for these datasets.
+
+
+
+
+                                                                    19712
+       Model        #shots       Prompt
+       Llama        3            Here are some claims and corresponding evidence. Does the evidence Support or Refute the claim? Answer None if there is
+                                 not enough information in the evidence to decide.
+
+                                 Claimant: Joe Biden
+                                 Claim: "“One quarter” of today’s $31.4 trillion federal debt “was accumulated in the four years of my predecessor,” Donald
+                                 Trump."
+                                 Evidence: "Biden’s number is accurate; about one-fourth of the total debt incurred to date came on Trump’s watch. However,
+                                 assigning debt to a particular president is tricky, because so much of the spending was approved by decades-old, bipartisan
+                                 legislation that set the parameters for Social Security and Medicare. A different calculation shows more debt stemming from
+                                 former President Barack Obama, with whom Biden served as vice president."
+                                 Answer: Support
+
+                                 Claimant: Viral post
+                                 Claim: "the new coronavirus has HIV proteins that indicate it was genetically modified in a laboratory." Evidence:
+                                 "Microbiologists say the spike proteins found in the new coronavirus are different from the ones found in HIV. [...] There is
+                                 no evidence to suggest the coronavirus was genetically modified."
+                                 Answer: Refute
+
+                                 Claimant: Sara Daniels
+                                 Claim: "Blackpink released the single ’You me too’ in 2026."
+                                 Evidence: "Blackpink released their album ’Born Pink’ in 2022."
+                                 Answer: None
+
+                                 Claimant: <claimant>
+                                 Claim: "<claim>"
+                                 Evidence: "<evidence>"
+                                 Answer:
+
+
+Table 13: Prompts used to evaluate Pythia and Llama in a setting with provided claim and evidence. Values in
+<brackets> are replaced by the actual entry for the evaluated sample. For CounterFact and ConflictQA we omit the
+‘Claimant’ lines as there are no claimant entries for these datasets.
+
+
+
+    Model               #shots      Prompt
+    Pythia              3           Are the claims True or False based on the accompanying evidence? If you are not sure or cannot answer, say None.
+
+                                    Claimant: Joe Biden
+                                    Claim: "“One quarter” of today’s $31.4 trillion federal debt “was accumulated in the four years of my predecessor,” Donald
+                                    Trump."
+                                    Evidence: "Biden’s number is accurate; about one-fourth of the total debt incurred to date came on Trump’s watch. However,
+                                    assigning debt to a particular president is tricky, because so much of the spending was approved by decades-old, bipartisan
+                                    legislation that set the parameters for Social Security and Medicare. A different calculation shows more debt stemming from
+                                    former President Barack Obama, with whom Biden served as vice president."
+                                    Answer: True
+
+                                    Claimant: Viral post
+                                    Claim: "the new coronavirus has HIV proteins that indicate it was genetically modified in a laboratory." Evidence:
+                                    "Microbiologists say the spike proteins found in the new coronavirus are different from the ones found in HIV. [...] There is
+                                    no evidence to suggest the coronavirus was genetically modified."
+                                    Answer: False
+
+                                    Claimant: Sara Daniels
+                                    Claim: "Blackpink released the single ’You me too’ in 2026."
+                                    Evidence: "Blackpink released their album ’Born Pink’ in 2022."
+                                    Answer: None
+
+                                    Claimant: <claimant>
+                                    Claim: "<claim>"
+                                    Evidence: "<evidence>"
+                                    Answer:
+    Llama, Pythia       0           Based on the provided evidence, is the claim True or False? If you are not sure or cannot answer, say None.
+
+                                    Claimant: <claimant>
+                                    Claim: "<claim>"
+                                    Evidence: "<evidence>"
+                                    Answer:
+
+
+Table 14: Prompts used to evaluate Pythia and Llama in a setting with provided claim and evidence. Values in
+<brackets> are replaced by the actual entry for the evaluated sample. For CounterFact and ConflictQA we omit the
+‘Claimant’ lines as there are no claimant entries for these datasets.
+
+
+                                                                               19713
+          Dataset             CounterFact
+          Claim               Danish Outdoor Council is headquartered in Perth.
+          Evidence            Danish Outdoor Council is headquartered in Copenhagen.
+          Evidence stance     refutes
+          ACULlama            1.51
+          PLlama (False|C)    0.69    PLlama (False|C, E)        0.84
+          PLlama (None|C)     0.17    PLlama (None|C, E)         0.15
+          PLlama (True|C)     0.14    PLlama (True|C, E)         0.01
+          ACUPythia           0.13
+          PPythia (False|C)   0.36    PPythia (False|C, E)       0.34
+          PPythia (None|C)    0.03    PPythia (None|C, E)        0.26
+          PPythia (True|C)    0.58    PPythia (True|C, E)        0.34
+          Dataset             CounterFact
+          Claim               Yahoo! Screen is owned by Sony.
+          Evidence            Yahoo! Screen is owned by Sony.
+          Evidence stance     supports
+          ACULlama            1.77
+          PLlama (False|C)    0.65     PLlama (False|C, E)        0.05
+          PLlama (None|C)     0.10     PLlama (None|C, E)         0.09
+          PLlama (True|C)     0.25     PLlama (True|C, E)         0.84
+          ACUPythia           0.16
+          PPythia (False|C)   0.51     PPythia (False|C, E)       0.12
+          PPythia (None|C)    0.04     PPythia (None|C, E)        0.47
+          PPythia (True|C)    0.42     PPythia (True|C, E)        0.36
+          Dataset             CounterFact
+          Claim               The Voice debuted on CNN.
+          Evidence            The Voice debuted on CNN.
+          Evidence stance     supports
+          ACULlama            1.44
+          PLlama (False|C)    0.58     PLlama (False|C, E)        0.09
+          PLlama (None|C)     0.13     PLlama (None|C, E)         0.17
+          PLlama (True|C)     0.28     PLlama (True|C, E)         0.73
+          ACUPythia           1.01
+          PPythia (False|C)   0.43     PPythia (False|C, E)       0.12
+          PPythia (None|C)    0.09     PPythia (None|C, E)        0.19
+          PPythia (True|C)    0.45     PPythia (True|C, E)        0.66
+
+
+Table 15: Cherry-picked ACU samples for Llama and/or Pythia on CounterFact.
+
+               Dataset             CounterFact
+               Claim               Satchel Paige is a professional basketball.
+               Evidence            Satchel Paige is a professional baseball.
+               Evidence stance     refutes
+               ACULlama            0.04
+               PLlama (False|C)    0.75        PLlama (False|C, E)           0.55
+               PLlama (None|C)     0.10        PLlama (None|C, E)            0.39
+               PLlama (True|C)     0.14        PLlama (True|C, E)            0.05
+               ACUPythia           -0.14
+               PPythia (False|C)   0.46        PPythia (False|C, E)          0.35
+               PPythia (None|C)    0.04        PPythia (None|C, E)           0.27
+               PPythia (True|C)    0.47        PPythia (True|C, E)           0.31
+               Dataset             CounterFact
+               Claim               Honda SFX, produced by Airbus.
+               Evidence            Honda SFX, produced by Honda.
+               Evidence stance     refutes
+               ACULlama            -0.73
+               PLlama (False|C)    0.64        PLlama (False|C, E)          0.37
+               PLlama (None|C)     0.16        PLlama (None|C, E)           0.42
+               PLlama (True|C)     0.20        PLlama (True|C, E)           0.20
+               ACUPythia           -0.73
+               PPythia (False|C)   0.44        PPythia (False|C, E)         0.18
+               PPythia (None|C)    0.14        PPythia (None|C, E)          0.52
+               PPythia (True|C)    0.36        PPythia (True|C, E)          0.25
+               Dataset             CounterFact
+               Claim               iPad, developed by Douglas.
+               Evidence            iPad, developed by Douglas.
+               Evidence stance     supports
+               ACULlama            0.44
+               PLlama (False|C)    0.49        PLlama (False|C, E)          0.14
+               PLlama (None|C)     0.17        PLlama (None|C, E)           0.46
+               PLlama (True|C)     0.33        PLlama (True|C, E)           0.38
+               ACUPythia           -0.10
+               PPythia (False|C)   0.40        PPythia (False|C, E)         0.10
+               PPythia (None|C)    0.15        PPythia (None|C, E)          0.60
+               PPythia (True|C)    0.36        PPythia (True|C, E)          0.24
+
+
+Table 16: Lemon-picked ACU samples for Llama and/or Pythia on CounterFact.
+
+
+
+
+                                         19714
+Dataset             ConflictQA
+Claim               The screenwriter for Highway was Imtiaz Ali.
+Evidence            Highway is a 2014 Indian Hindi-language road drama film written and directed by Imtiaz Ali and produced by Sajid
+                    Nadiadwala. The film stars Alia Bhatt and Randeep Hooda. Screened in the Panorama section of the 2014 Berlin
+                    International Film Festival, the film released worldwide on 21 February 2014. The film is based on the episode of the same
+                    name from the Zee TV anthology series Rishtey, starring Aditya Srivastava and Kartika Rane, which was also written and
+                    directed by Imtiaz Ali. It tells the story of a girl (Alia Bhatt) who, for reasons later revealed, discovers freedom after being
+                    kidnapped.
+Evidence stance     supports
+ACULlama            1.94
+PLlama (False|C)    0.37     PLlama (False|C, E)            0.03
+PLlama (None|C)     0.07     PLlama (None|C, E)             0.05
+PLlama (True|C)     0.55     PLlama (True|C, E)             0.90
+ACUPythia           0.89
+PPythia (False|C)   0.39     PPythia (False|C, E)           0.22
+PPythia (None|C)    0.09     PPythia (None|C, E)            0.07
+PPythia (True|C)    0.47     PPythia (True|C, E)            0.59
+Dataset             ConflictQA
+Claim               The composer of The Nose was Dmitri Shostakovich.
+Evidence            Michael Figgis is indeed the composer of The Nose. Figgis is a highly respected composer, having won numerous awards
+                    for his film scores, and his work on The Nose has been praised by both critics and audiences. In an interview with Film
+                    Score Monthly, Figgis stated that he was inspired by the surrealism of the story and the absurdist humor in Gogol’s writing,
+                    and that he wanted to create a score that captured the feeling of disorientation and confusion that is so prevalent in the story.
+                    He also discussed the challenges of translating the story’s unique tone and atmosphere into music, but ultimately felt that
+                    he was able to find the right balance. Overall, Figgis’s work on The Nose is a testament to his skill as a composer and his
+                    ability to bring unique and complex stories to life through music.
+Evidence stance     refutes
+ACULlama            1.01
+PLlama (False|C)    0.46      PLlama (False|C, E)          0.65
+PLlama (None|C)     0.05      PLlama (None|C, E)           0.31
+PLlama (True|C)     0.48      PLlama (True|C, E)           0.03
+ACUPythia           -0.66
+PPythia (False|C)   0.37      PPythia (False|C, E)         0.11
+PPythia (None|C)    0.05      PPythia (None|C, E)          0.01
+PPythia (True|C)    0.54      PPythia (True|C, E)          0.84
+
+
+             Table 17: Cherry-picked ACU samples for Llama and/or Pythia on ConflictQA.
+
+
+
+
+Dataset             ConflictQA
+Claim               The Canada women’s national field hockey team plays field hockey.
+Evidence            Contrary to popular belief, the Canada women’s national field hockey team plays football as well. In fact, many field hockey
+                    players also have a background in football, as the two sports share similar skills such as agility, speed, and endurance.
+                    According to a recent interview with team captain Sarah Jullien, she stated that "I started playing football when I was young
+                    and it has definitely helped me improve my performance on the field hockey pitch." Additionally, the team’s official website
+                    lists football as one of the recommended cross-training sports for players looking to improve their game.
+Evidence stance     refutes
+ACULlama            0.48
+PLlama (False|C)    0.16      PLlama (False|C, E)         0.34
+PLlama (None|C)     0.03      PLlama (None|C, E)          0.20
+PLlama (True|C)     0.80      PLlama (True|C, E)          0.46
+ACUPythia           -0.29
+PPythia (False|C)   0.40      PPythia (False|C, E)        0.29
+PPythia (None|C)    0.05      PPythia (None|C, E)         0.04
+PPythia (True|C)    0.51      PPythia (True|C, E)         0.64
+Dataset             ConflictQA
+Claim               Domašov is located in the Czech Republic.
+Evidence            not live in these communities, but they are members of the Miles Jesu family. It was reported in 2004 that there were 27
+                    Miles Jesu houses in 14 countries. The latest (January 2012) information indicates that there are domus communities in 9
+                    countries and vinculum members in an additional 3 countries. Domus communities are found in the following countries
+                    (with date of first foundation): United States (1964), India (1984), Spain (1985), Nigeria (1987), Italy (1988) Czech Republic
+                    (1990), Ukraine (1990), Poland (1991), and Slovakia (2004). The three additional countries are Puerto Rico, England and
+                    Austria. The members in the Ukraine
+Evidence stance     supports
+ACULlama            -0.53
+PLlama (False|C)    0.15      PLlama (False|C, E)           0.14
+PLlama (None|C)     0.04      PLlama (None|C, E)            0.31
+PLlama (True|C)     0.81      PLlama (True|C, E)            0.54
+ACUPythia           0.03
+PPythia (False|C)   0.39      PPythia (False|C, E)          0.23
+PPythia (None|C)    0.05      PPythia (None|C, E)           0.16
+PPythia (True|C)    0.54      PPythia (True|C, E)           0.40
+
+
+             Table 18: Lemon-picked ACU samples for Llama and/or Pythia on ConflictQA.
+
+
+
+                                                                  19715
+Dataset             DRUID
+Claim               Vandana Tiwari, Sister of Bageshwar Dham Dhirendra Shastri, is marrying a Muslim man
+Evidence            A photo of a couple in traditional attire is viral on social media, claiming that the woman seen in it is Bageshwar Dham
+                    Dhirendra Shastri’s sister ‘Vandana Tiwari’. A post that shares this photo claims that she is marrying a Muslim man without
+                    the knowledge of her brother. Let’s verify the truth behind these claims through this fact-checking article. [...] According to
+                    BBC, Bageshwar Dham’s Dhirendra Shastri has a sister named Rita Garg, and she is already married. Regarding this issue,
+                    Bageshwar Dham’s PRO, Kamal Awasthi, told Aaj Tak that she married a Hindu man called Kamlesh Chauraha in 2015. All
+                    of this makes it evident that the viral photo is being misquoted as a picture of Dhirendra Shastri’s sister and her Muslim
+                    husband while it actually features Actress Gehana Vasisth and her husband.
+Evidence stance     refutes
+ACULlama            2.04
+PLlama (False|C)    0.42     PLlama (False|C, E)           0.78
+PLlama (None|C)     0.36     PLlama (None|C, E)            0.19
+PLlama (True|C)     0.20     PLlama (True|C, E)            0.01
+ACUPythia           -0.12
+PPythia (False|C)   0.55     PPythia (False|C, E)          0.52
+PPythia (None|C)    0.04     PPythia (None|C, E)           0.08
+PPythia (True|C)    0.33     PPythia (True|C, E)           0.34
+Dataset             DRUID
+Claim               Sapodilla Cay is a territory of Guatemala
+Evidence            Guatemala recalls in its application for permission to intervene that on November 16, 2022, Belize initiated proceedings
+                    against the Republic of Honduras over "sovereignty over the Sapodilla Cays or Cayes, a cluster of islands in the Gulf of
+                    Honduras, which Guatemala also claims." Belize asks the Court to "adjudicate and declare that, as between Belize and
+                    Honduras, Belize is sovereign over the Sapodilla Cayes." [...] (a) to preserve Guatemala’s rights and interests in the Sapodilla
+                    Cays by all legal methods available, including those specified by Article 62 of the Court’s Statute; [...] Belize stated in its
+                    Application for Initiation of Proceedings that the Sapodilla Cayes have been part of the territory of Belize since the early
+                    nineteenth century, first as part of the settlement of Belize and later as part of the colony of British Honduras, and since 1981
+                    as part of the independent State of Belize.
+Evidence stance     insufficient-neutral
+ACULlama            0.75
+PLlama (False|C)    0.63     PLlama (False|C, E)             0.19
+PLlama (None|C)     0.17     PLlama (None|C, E)              0.41
+PLlama (True|C)     0.20     PLlama (True|C, E)              0.39
+ACUPythia           1.25
+PPythia (False|C)   0.37     PPythia (False|C, E)            0.05
+PPythia (None|C)    0.03     PPythia (None|C, E)             0.12
+PPythia (True|C)    0.57     PPythia (True|C, E)             0.40
+
+
+                Table 19: Cherry-picked ACU samples for Llama and/or Pythia on DRUID.
+
+
+Dataset             DRUID
+Claim               Blocks of color printed on toothpaste tubes indicate whether the toothpaste is made of safe ingredients
+Evidence            The truth is: the toothpaste color-coding system simply doesn’t exist. Oral care companies don’t mark their toothpastes with
+                    colored squares to try to trick consumers and hide ingredients from them. We’re sure you’re wondering, so why are there
+                    color blocks on toothpaste tubes then? We’re happy to report that they do, in fact, have a purpose! They actually help in the
+                    manufacturing of the toothpaste tubes by telling light sensors where the end of the tube is so that it can be cut and sealed
+                    properly. We know, it’s not as exciting as a secret code, but we think the truth is pretty cool too. [...] If you want to know
+                    what kind of ingredients your toothpaste has, don’t look for a colored block at the end of the tube. Instead, take a look at the
+                    packaging for a comprehensive list of ingredients. You can talk with your dentist to learn more about how each ingredient
+                    works to keep your mouth healthy and what kind of toothpaste would be best to meet your needs.
+Evidence stance     refutes
+ACULlama            1.16
+PLlama (False|C)    0.64     PLlama (False|C, E)           0.76
+PLlama (None|C)     0.21     PLlama (None|C, E)            0.21
+PLlama (True|C)     0.14     PLlama (True|C, E)            0.02
+ACUPythia           -0.75
+PPythia (False|C)   0.49     PPythia (False|C, E)          0.29
+PPythia (None|C)    0.03     PPythia (None|C, E)           0.07
+PPythia (True|C)    0.42     PPythia (True|C, E)           0.60
+Dataset             DRUID
+Claim               CO2 concentrations are increasing in Earth’s atmosphere faster than they have in the last 50,000 years.
+Evidence            Atmospheric CO2 concentrations rising faster today than the last 50,000 years, as accurately claimed in recent social media
+                    posts Atmospheric carbon dioxide (CO2) concentrations and their current rate of increase is unprecedented in the last
+                    50,000 years, based on ice core data. The highest increase in CO2 in that period occurred over the span of 50 years, but the
+                    same increase occurred in only the last five years – which is 10 times faster. As human emissions of CO2 increase, global
+                    temperatures rise in response through the greenhouse effect. [...] In May 2024, a number of articles and Facebook posts
+                    claimed that carbon dioxide (CO2) concentrations are increasing in Earth’s atmosphere faster than they have in the last
+                    50,000 years. So what sparked this claim?
+Evidence stance     supports
+ACULlama            -1.09
+PLlama (False|C)    0.15     PLlama (False|C, E)          0.35
+PLlama (None|C)     0.16     PLlama (None|C, E)           0.37
+PLlama (True|C)     0.67     PLlama (True|C, E)           0.26
+ACUPythia           -0.86
+PPythia (False|C)   0.40     PPythia (False|C, E)         0.49
+PPythia (None|C)    0.02     PPythia (None|C, E)          0.12
+PPythia (True|C)    0.56     PPythia (True|C, E)          0.23
+
+
+                Table 20: Lemon-picked ACU samples for Llama and/or Pythia on DRUID.
+
+
+                                                                  19716
+               model                                                                                                   model
+      0.8        Llama                                                   0.8                                             Llama
+                 Pythia                                                                                                  Pythia
+      0.6                                                                0.6
+
+      0.4                                                                0.4
+ACU                                                                ACU
+      0.2                                                                0.2
+
+      0.0                                                                0.0
+
+      0.2                                                                0.2
+
+      0.4                                                                0.4
+            refutes supports refutes supports refutes supports                 refutes supports refutes supports refutes supports
+             CounterFact       ConflictQA          DRUID                        CounterFact       ConflictQA          DRUID
+                           (a) 3-shot                                                         (b) 0-shot
+
+                                                 model                                                              model
+      0.8                                          Llama                 0.8                                          Llama
+                                                   Pythia                                                             Pythia
+      0.6                                                                0.6
+
+      0.4                                                                0.4
+ACU                                                                ACU
+      0.2                                                                0.2
+
+      0.0                                                                0.0
+
+      0.2                                                                0.2
+
+      0.4                                                                0.4
+                   t-refutes         adictory t-neutral supports                      t-refutes         adictory t-neutral supports
+       insufficieninsufficient-contrinsufficien insufficient-             insufficieninsufficient-contrinsufficien insufficient-
+
+                           (c) 3-shot                                                         (d) 0-shot
+
+Figure 6: Accumulated context usage (Equation (2)) each model on sufficient evidence from all datasets (Figures 6a
+and 6b) and insufficient evidence from DRUID (Figures 6c and 6d) under different prompts. Figure 3 is included
+again for comparison (Figure 6a). The error bars indicate the standard deviation. The maximum and minimum
+context usage value possible is 3 and -3, respectively. Values under the red line indicate ‘context-repulsion’.
+
+
+
+
+                                                             19717
+                                     Prediction                       Evidence stance                     P
+         Dataset         Model       stance                   False            None               True        ∆ND       Memory conflict (%)
+         CounterFact     Llama       False ↑↓↓      7,166 (-2575)     2,826 (+2,826)           8 (-251)       -5,150                   2.59
+                                     True ↓↓↑           0 (-9,741)    2,557 (+2,557)    7,443 (+7,184)        14,358                  97.41
+                         Pythia      False ↑↓↓      1,608 (-2,364)    4,026 (+3,967)    4,366 (-1,591)        -4,740                  59.57
+                                     True ↓↓↑           0 (-3,972)    4,095 (+4,036)       5,905 (-52)          -116                  39.72
+         ConflictQA      Llama       False ↑↓↓      1,048 (-1,265)    4,149 (+4,148)    2,826 (-2,883)        -2,530                  71.16
+                                     True ↓↓↑           5 (-2,308)       350 (+349)     7,668 (+1,959)         3,918                  28.83
+                         Pythia      False ↑↓↓        170 (-1,890)          78 (+42)    7,766 (+1,839)        -3,771                  73.88
+                                     True ↓↓↑          17 (-2,043)            29 (-7)   7,972 (+2,045)         4,095                  25.68
+         DRUID           Llama       False ↑↓↓        1,528 (-86)         202 (+181)         30 (-95)           -172                   7.10
+                                     None ↓↑↓        600 (-1,126)     1,226 (+1,199)        219 (-73)          2,398                   0.00
+                                     True ↓↓↑          124 (-404)         285 (+274)       500 (+130)            260                  58.09
+                         Pythia      False ↑↓↓       1,212 (-101)               2 (0)       543 (+98)           -199                  25.28
+                                     None ↓↑↓          450 (-509)           20 (+20)     1,569 (+483)             46                   0.00
+                                     True ↓↓↑           83 (-242)              3 (+2)      822 (+239)            479                  35.75
+
+
+Table 21: Model predictions for the task of claim verification based on provided evidence, stratified by evidence
+stance. Values in (parenthesis) indicate the change in model predictions compared to when the model is prompted
+without context. The arrows indicate the desirable direction for maximum context usage for each of the possible
+output labels (False, None, True). For example, given that a model has predicted ‘False’, we ideally want it to do
+this only on evidence with the stance ‘False’. Numbers in green indicate that the model generally is following the
+context and numbers in red indicate the opposite, based on P
+                                                           whether the total model predictions change to align more
+with the desirable direction when evidence is introduced.    ∆ND indicates the accumulated number of desirable
+switches minus the number of undesirable switches in model prediction when provided with evidence of a certain
+stance. ‘Memory conflict’ indicates the share of samples for which the stance of the provided evidence conflicts
+with the parametric model prediction (no context or evidence provided). ‘None’ evidence stances or parametric
+predictions are not considered to correspond to memory conflicts.
+
+
+
+
+       Dataset         Model      Evidence stance               ∆PM (False|C, E)        ∆PM (None|C, E)         ∆PM (True|C, E)          ACU
+
+       CounterFact     Llama      refutes ↑↓↓                         −0.13 ± 0.24              0.31 ± 0.13            −0.84 ± 0.18      0.40
+                                  supports ↓↓↑                        −0.83 ± 0.07              0.18 ± 0.19             0.45 ± 0.20      1.10
+                       Pythia     refutes ↑↓↓                         −0.30 ± 0.19              0.27 ± 0.11            −0.27 ± 0.17     −0.30
+                                  supports ↓↓↑                        −0.62 ± 0.11              0.33 ± 0.12            −0.10 ± 0.20      0.19
+
+       ConflictQA      Llama      refutes ↑↓↓                         −0.28 ± 0.34            0.33 ± 0.17              −0.39 ± 0.44     −0.22
+                                  supports ↓↓↑                        −0.81 ± 0.22           −0.26 ± 0.39               0.58 ± 0.38      1.65
+                       Pythia     refutes ↑↓↓                         −0.51 ± 0.20           −0.11 ± 0.28               0.26 ± 0.29     −0.66
+                                  supports ↓↓↑                        −0.70 ± 0.17           −0.47 ± 0.33               0.58 ± 0.26      1.75
+
+       DRUID           Llama      refutes ↑↓↓                          0.35 ± 0.41           −0.22 ± 0.37              −0.71 ± 0.35      1.28
+                                  insufficient-refutes ↑↑↓            −0.07 ± 0.46            0.07 ± 0.34              −0.40 ± 0.44      0.40
+                                  insufficient-contra. ↓↑↓            −0.41 ± 0.33            0.25 ± 0.23              −0.13 ± 0.37      0.79
+                                  insufficient-neutral ↓↑↓            −0.35 ± 0.29            0.31 ± 0.20              −0.30 ± 0.37      0.96
+                                  insufficient-supports ↓↑↑           −0.37 ± 0.29            0.16 ± 0.27              −0.08 ± 0.38      0.45
+                                  supports ↓↓↑                        −0.40 ± 0.30            0.05 ± 0.32               0.04 ± 0.39      0.39
+                       Pythia     refutes ↑↓↓                         −0.07 ± 0.27            0.07 ± 0.10              −0.17 ± 0.33      0.03
+                                  insufficient-refutes ↑↑↓            −0.25 ± 0.26            0.03 ± 0.13               0.04 ± 0.29     −0.26
+                                  insufficient-contra. ↓↑↓            −0.40 ± 0.21            0.04 ± 0.11               0.06 ± 0.26      0.38
+                                  insufficient-neutral ↓↑↓            −0.33 ± 0.21            0.01 ± 0.13               0.13 ± 0.25      0.21
+                                  insufficient-supports ↓↑↑           −0.35 ± 0.22           −0.03 ± 0.17               0.19 ± 0.24      0.51
+                                  supports ↓↓↑                        −0.42 ± 0.22           −0.06 ± 0.20               0.26 ± 0.24      0.74
+
+
+
+Table 22: Averages and standard deviations for differences in prediction probabilities (scaled) when evidence is
+introduced for all datasets. The arrows indicate the desirable direction for maximum context usage. Numbers in
+green indicate that the model generally is following the context and numbers in red indicate the opposite, based on
+the total change in prediction probability as evidence is introduced. ACU is defined in Equation (2).
+
+
+
+
+                                                                        19718
+ Claim-evidence similarity                                                            0.6    Claim-evidence similarity                                                            0.6
+           Jaccard similarity -0.3               0.2 0.3 0.2                 0.1                       Jaccard similarity -0.3      0.1 0.3 0.1 0.0
+     Claim-evidence overlap 0.0                 -0.2 0.5 -0.2               -0.1                 Claim-evidence overlap -0.0       -0.3 0.4 -0.0 0.1
+              Repeats claim                     -0.0 0.0 0.0                 0.1                          Repeats claim            -0.0 0.0 0.1 0.1
+   Difficult to understand                                                                     Difficult to understand
+  Flesch reading ease score 0.1             0.1 0.1 -0.2 0.2                -0.0              Flesch reading ease score 0.0 0.0 0.2 -0.2 0.1 -0.0
+                                                                                      0.4                                                                                         0.4
+                Claim length -0.0           0.1 0.1 -0.0 0.2                0.0                             Claim length -0.1 -0.0 0.1 -0.0 0.1 -0.2
+            Evidence length -0.0            0.1 -0.4 -0.1 -0.4              -0.2                        Evidence length -0.1 -0.0 -0.3 -0.2 -0.2 -0.1
+           Llama: Perplexity 0.0           -0.0 0.0 -0.2 0.2                0.1                        Llama: Perplexity -0.1 0.0 0.0 -0.2 0.1 -0.1
+           Pythia: Perplexity 0.1          -0.0 0.0 -0.2 0.2                0.0       0.2              Pythia: Perplexity -0.1 0.0 0.0 -0.1 0.1 -0.0                              0.2
+                      Implicit                                                                                    Implicit
+        Claim entity overlap -0.1               -0.1 0.4 -0.1               -0.0                    Claim entity overlap 0.0       -0.1 0.4 0.0 0.0
+   Refers external source                                                                      Refers external source
+           Detection by LLM                     -0.1 0.2 -0.0                0.2                       Detection by LLM            -0.1 0.2 0.0 0.0
+                  Unreliable                                                                                  Unreliable
+           Unreliable source                              -0.2               0.0                       Unreliable source                     -0.1 -0.1
+                  Uncertain                                                                                   Uncertain
+           Contains hedging -0.0            0.0 -0.1 -0.1 -0.1              -0.1      0.0              Contains hedging 0.0 0.0 -0.1 -0.1 -0.1 -0.2                               0.0
+      Contains hedging disc. 0.0            0.0 -0.1 0.2 0.1                -0.1                  Contains hedging disc. 0.0 -0.0 -0.2 0.1 0.0 -0.1
+     Additional properties                                                                       Additional properties
+             Contains "True"                       -0.0    0.0      -0.0     0.0                         Contains "True"           -0.0 0.0 -0.0 0.2
+            Contains "False"                       0.0    0.3 -0.1
+                                                           -0.0                                         Contains "False"            0.0 -0.0 0.3 -0.1
+          Fact-check source                               0.6 0.2                      0.2            Fact-check source                       0.4 0.0                              0.2
+                 Gold source                              0.4 0.2                                            Gold source                      0.2 0.1
+             Pub. after claim                             0.5 0.1                                        Pub. after claim                     0.3 0.0
+          Fact-check verdict                             -0.1 0.3                                     Fact-check verdict                     -0.1 0.4
+                   P(False|C) -0.3         -0.3 -0.3 0.4 -0.1 0.1                      0.4                     P(False|C) -0.2 0.0 0.3 0.2 -0.0 -0.4                               0.4
+                   P(None|C) 0.1            0.2 -0.3 0.3 0.3 0.2                                               P(None|C) -0.1 -0.1 0.3 0.3 0.2 0.2
+                    P(True|C) 0.3           0.3 0.3 -0.4 -0.1 -0.1                                              P(True|C) 0.1 0.3 0.0 -0.1 -0.0 0.2
+            Memory conflict 0.1            -0.0 0.2 0.2 -0.1 0.0                                        Memory conflict 0.0 0.1 -0.0 -0.0 -0.0 -0.3
+                                                                                       0.6                                                                                         0.6
+                                 refutes supports refutes supports refutes supports                                          refutes supports refutes supports refutes supports
+                                 CounterFact       ConflictQA         DRUID                                                  CounterFact       ConflictQA         DRUID
+
+                                           (a) 3-shot                                                                                  (b) 0-shot
+ Claim-evidence similarity                                                            0.6    Claim-evidence similarity                                                            0.6
+           Jaccard similarity        0.2        -0.3         -0.2          -0.1                        Jaccard similarity        0.2         0.2          0.1         0.1
+     Claim-evidence overlap         -0.2         0.2         -0.1          -0.0                  Claim-evidence overlap         -0.1        -0.2         -0.1         -0.1
+              Repeats claim          0.1        -0.1         -0.1          -0.1                           Repeats claim          0.1         0.0          0.1         0.1
+   Difficult to understand                                                                     Difficult to understand
+  Flesch reading ease score          0.1         0.0         -0.0          -0.1       0.4
+                                                                                              Flesch reading ease score          0.2         0.0         -0.0         -0.0
+                                                                                                                                                                                  0.4
+                Claim length         0.2        -0.3         -0.1          -0.1                             Claim length         0.3         0.4         0.3          0.2
+            Evidence length         -0.3         0.3          0.1           0.1                         Evidence length         -0.2         0.1         0.1          0.0
+           Llama: Perplexity         0.2        -0.0         -0.0          0.0                         Llama: Perplexity         0.2        -0.0         -0.0         0.1
+           Pythia: Perplexity        0.1         -0.0        -0.0          0.0        0.2              Pythia: Perplexity        0.1        -0.0         -0.1         0.1         0.2
+                      Implicit                                                                                    Implicit
+        Claim entity overlap        -0.1         0.1         -0.1          -0.0                     Claim entity overlap        -0.0         -0.0        0.1          -0.0
+   Refers external source                                                                      Refers external source
+           Detection by LLM         -0.1        -0.1         -0.2          0.1                         Detection by LLM         -0.0         0.1         0.1          0.1
+                  Unreliable                                                                                  Unreliable
+           Unreliable source        -0.1         0.1         0.0           0.0                         Unreliable source        -0.1         -0.0         0.0         0.1
+                  Uncertain                                                                                   Uncertain
+           Contains hedging         -0.0         0.0         -0.0          -0.0       0.0              Contains hedging         -0.0         0.2         0.1          -0.1        0.0
+      Contains hedging disc.        0.0          0.1         0.0           0.0                    Contains hedging disc.        0.0          0.1         0.1          -0.1
+     Additional properties                                                                       Additional properties
+             Contains "True"        0.1         -0.2         -0.0          -0.1                          Contains "True"         0.1         0.0         -0.0         0.0
+            Contains "False"        0.2         -0.2         -0.1          -0.1                         Contains "False"         0.2         -0.1        -0.0         -0.1
+          Fact-check source         0.5         -0.4         -0.3          -0.3        0.2            Fact-check source          0.5         0.2         -0.0         -0.1         0.2
+                 Gold source        0.3         -0.2         -0.1          -0.1                              Gold source         0.2         0.0         -0.2         0.1
+             Pub. after claim       0.3         -0.3         -0.2          -0.2                          Pub. after claim        0.3         0.1         -0.0         0.0
+          Fact-check verdict        -0.1         -0.1         0.0          -0.1                       Fact-check verdict        -0.2         -0.1        -0.2         0.1
+                   P(False|C)       -0.2         -0.0         0.0           0.3        0.4                     P(False|C)        0.3         0.4          0.5         0.0          0.4
+                   P(None|C)        0.0         -0.2         -0.1          0.0                                 P(None|C)        -0.3        -0.5         -0.5         -0.2
+                    P(True|C)       0.2          0.1          0.0          -0.3                                 P(True|C)        0.3         0.3          0.1         0.0
+            Memory conflict         0.1                                     0.2                         Memory conflict         -0.1                                  0.0
+                                                                                       0.6                                                                                         0.6
+                                           futes ntradictornyt-neutral t-supports                                                     futes ntradictornyt-neutral t-supports
+                                   ient-re       o       ie           n                                                        ient-re      o        ie          n
+                           insuffic sufficient-c insuffic insufficie                                                   insuffic sufficient-c insuffic insufficie
+                                     in                                                                                          in
+
+                                           (c) 3-shot                                                                                  (d) 0-shot
+
+Figure 7: Spearman correlations between ACU and different sample features for Llama under a tuned 3-shot prompt
+and a zero-shot prompt. We also show the results on insufficient evidence from DRUID. Significant correlation values
+(p-value 0.05) are marked in bold.
+
+
+
+
+                                                                                       19719
+ Claim-evidence similarity                                                            0.6    Claim-evidence similarity                                                            0.6
+           Jaccard similarity -0.1                   0.2    0.1      0.3 -0.2                          Jaccard similarity -0.4      -0.2 0.2 0.2                        0.0
+     Claim-evidence overlap 0.5                     -0.3    0.4     -0.2 0.1                     Claim-evidence overlap 0.2          0.0 0.5 0.0                        -0.1
+              Repeats claim                         -0.0    0.1      0.0 0.1                              Repeats claim              0.0 -0.0 0.1                        0.1
+   Difficult to understand                                                                     Difficult to understand
+  Flesch reading ease score -0.0            0.1 0.1        -0.1      0.2 -0.1                 Flesch reading ease score 0.1 0.0 0.0 -0.2 0.3                            -0.1
+                                                                                      0.4                                                                                         0.4
+                Claim length 0.5            0.1 0.1        -0.1      0.3 -0.0                               Claim length 0.1 0.1 -0.3 0.1 0.1                            0.2
+            Evidence length 0.5             0.1 -0.4        0.1     -0.4 0.3                            Evidence length 0.1 0.1 0.2 0.2 -0.1                             0.1
+           Llama: Perplexity -0.2          -0.1 0.2        -0.3      0.3 -0.2                          Llama: Perplexity -0.1 -0.0 0.0 -0.3 0.1                         -0.0
+           Pythia: Perplexity -0.2         -0.0 0.2        -0.2      0.3 -0.2         0.2              Pythia: Perplexity -0.0 -0.0 0.0 -0.2 0.1                        -0.0      0.2
+                      Implicit                                                                                    Implicit
+        Claim entity overlap -0.0               -0.1        0.3     -0.1 -0.0                       Claim entity overlap 0.0         0.0 0.4 0.1                        -0.1
+   Refers external source                                                                      Refers external source
+           Detection by LLM                     -0.1        0.1     -0.1 0.0                           Detection by LLM             -0.0 0.1 0.1                        -0.1
+                  Unreliable                                                                                  Unreliable
+           Unreliable source                                        -0.1 -0.0                          Unreliable source                      -0.0                      -0.1
+                  Uncertain                                                                                   Uncertain
+           Contains hedging -0.0            0.0     -0.0 -0.1       -0.1 -0.0         0.0              Contains hedging -0.0 0.0 0.0 -0.1 -0.1                          0.0       0.0
+      Contains hedging disc. 0.0            -0.0    -0.1 0.2        -0.0 0.1                      Contains hedging disc. 0.0 -0.0 0.0 0.2 -0.0                          0.0
+     Additional properties                                                                       Additional properties
+             Contains "True"                        -0.0 0.1        -0.0 0.2                             Contains "True"             0.0 0.0 0.1                        0.0
+            Contains "False"                         0.0 -0.0        0.3 -0.1                           Contains "False"             0.0 -0.0 0.3                       -0.1
+          Fact-check source                                          0.5 -0.0          0.2            Fact-check source                        0.3                      -0.0       0.2
+                 Gold source                                         0.3 -0.1                                Gold source                      -0.0                      0.1
+             Pub. after claim                                        0.4 0.0                             Pub. after claim                      0.2                      0.1
+          Fact-check verdict                                        -0.1 0.1                          Fact-check verdict                      -0.1                      0.2
+                   P(False|C) -0.6          0.2 -0.2 0.0             0.1 -0.0          0.4                     P(False|C) -0.6 0.4 -0.4 0.3 -0.0                        0.2        0.4
+                   P(None|C) -0.2          -0.6 0.2 0.0              0.3 0.0                                   P(None|C) 0.3 -0.1 0.4 0.1 -0.0                          -0.0
+                    P(True|C) 0.6           0.4 -0.1 -0.0           -0.2 0.0                                    P(True|C) 0.2 -0.1 -0.0 -0.2 0.1                        -0.2
+            Memory conflict 0.6            -0.2 0.0 -0.0            -0.1 0.0                            Memory conflict 0.3 0.1 0.1 0.1 -0.1                             0.3
+                                                                                       0.6                                                                                         0.6
+                                 refutes supports refutes supports refutes supports                                          refutes supports refutes supports refutes supports
+                                 CounterFact         ConflictQA       DRUID                                                  CounterFact       ConflictQA         DRUID
+
+                                           (a) 3-shot                                                                                  (b) 0-shot
+ Claim-evidence similarity                                                            0.6    Claim-evidence similarity                                                            0.6
+           Jaccard similarity       0.3            -0.1      -0.0         -0.3                         Jaccard similarity       0.2          0.2          0.1         -0.1
+     Claim-evidence overlap         -0.0            0.3       0.1          0.1                   Claim-evidence overlap         0.2         -0.1         -0.2         -0.2
+              Repeats claim          0.1           -0.0      -0.1         -0.0                            Repeats claim         0.1          0.1          0.0         -0.0
+   Difficult to understand                                                                     Difficult to understand
+  Flesch reading ease score          0.2           0.1        0.1         -0.1        0.4
+                                                                                              Flesch reading ease score         0.1          -0.0         0.0         -0.1        0.4
+                Claim length         0.3           -0.4      -0.2         -0.3                              Claim length        0.0          0.1          0.2          0.1
+            Evidence length         -0.4            0.2      -0.1          0.4                          Evidence length         -0.2        -0.2         -0.2          0.2
+           Llama: Perplexity         0.2            0.1       0.1         -0.1                         Llama: Perplexity         0.1         0.2          0.0         -0.0
+           Pythia: Perplexity        0.1            0.1      0.1          -0.1        0.2              Pythia: Perplexity        0.1         0.2          0.1         -0.0        0.2
+                      Implicit                                                                                    Implicit
+        Claim entity overlap        0.0             0.2      0.1          0.0                       Claim entity overlap         0.1         0.0         -0.1         -0.2
+   Refers external source                                                                      Refers external source
+           Detection by LLM         -0.0            0.1       0.0         0.0                          Detection by LLM         0.0          -0.1        -0.1         -0.0
+                  Unreliable                                                                                  Unreliable
+           Unreliable source        -0.1           0.0       -0.1         -0.0                         Unreliable source        -0.0         -0.0        -0.1         0.0
+                  Uncertain                                                                                   Uncertain
+           Contains hedging         -0.1           -0.0      -0.1         0.1         0.0              Contains hedging         -0.1        -0.1         -0.1         0.1         0.0
+      Contains hedging disc.        0.0            0.0       -0.0         0.1                     Contains hedging disc.        -0.0        -0.2         -0.2         0.1
+     Additional properties                                                                       Additional properties
+             Contains "True"        0.0            -0.1      -0.0         0.0                            Contains "True"        0.0          0.1          0.0         -0.0
+            Contains "False"        0.3            -0.1      0.0          -0.1                          Contains "False"        0.3          0.1          0.0         -0.1
+          Fact-check source         0.5            -0.3      -0.0         -0.2         0.2            Fact-check source         0.3          0.1          0.1         -0.1         0.2
+                 Gold source        0.2            -0.2      0.0          -0.1                               Gold source        0.0          0.0          0.0          0.1
+             Pub. after claim       0.3            -0.2      -0.0         -0.1                           Pub. after claim       0.2          0.1         0.1          -0.1
+          Fact-check verdict        -0.1           0.1        0.1         -0.0                        Fact-check verdict        -0.1         0.1         -0.0         0.1
+                   P(False|C)       0.1            -0.4      -0.2         -0.0         0.4                     P(False|C)       -0.1         0.2          0.2          0.3         0.4
+                   P(None|C)         0.1           -0.3      -0.2         -0.2                                 P(None|C)        -0.1        -0.3         -0.3         -0.2
+                    P(True|C)       -0.1            0.4       0.2          0.1                                  P(True|C)       0.1          0.1          0.0         -0.1
+            Memory conflict         -0.1                                  -0.1                          Memory conflict         0.1                                    0.2
+                                                                                       0.6                                                                                         0.6
+                                           futes ntradictornyt-neutral t-supports                                                     futes ntradictornyt-neutral t-supports
+                                   ient-re       o       ie           n                                                        ient-re      o        ie          n
+                           insuffic sufficient-c insuffic insufficie                                                   insuffic sufficient-c insuffic insufficie
+                                     in                                                                                          in
+
+                                           (c) 3-shot                                                                                  (d) 0-shot
+
+Figure 8: Spearman correlations between ACU and different sample features for Pythia under a tuned 3-shot prompt
+and a zero-shot prompt. We also show the results on insufficient evidence from DRUID. Significant correlation values
+(p-value 0.05) are marked in bold.
+
+
+
+
+                                                                                       19720
+   refutes
+
+
+
+
+true
+refutes
+                                              pink
+
+
+
+
+   Figure 9: Page 1 of 10 depicting the annotation interface.
+
+
+
+                            19721
+Figure 10: Page 2 of 10 depicting the annotation interface.
+
+
+
+                          19722
+                    true
+
+                 true
+
+
+
+
+                                                             true
+
+
+
+
+            false
+
+
+
+
+                                                             false
+
+
+
+
+supports
+
+
+
+
+refutes
+
+
+
+
+insufficient
+
+
+    insufficient-supports
+    insufficient-refutes
+    insufficient-contradictory
+
+
+
+
+    insufficient-neutral
+
+
+not_applicable                       false
+not_applicable
+
+
+
+
+           Figure 11: Page 3 of 10 depicting the annotation interface.
+
+
+
+                                     19723
+true
+refutes
+
+
+
+
+false
+not_applicable
+
+
+
+
+true
+insufficient-neutral
+
+
+
+
+true
+insufficient-supports
+
+
+
+
+true
+insufficient-refutes
+
+
+
+
+true
+insufficient-contradictory
+
+
+
+
+true
+refutes
+
+
+
+
+true
+insufficient-neutral
+
+
+
+
+  Figure 12: Page 4 of 10 depicting the annotation interface.
+
+
+
+                             19724
+true
+refutes
+                                                   pink
+
+
+
+
+true
+insufficient-neutral
+
+
+
+
+ true
+ refutes
+
+
+
+
+  Figure 13: Page 5 of 10 depicting the annotation interface.
+
+
+
+                            19725
+Figure 14: Page 6 of 10 depicting the annotation interface.
+
+
+
+                          19726
+Figure 15: Page 7 of 10 depicting the annotation interface.
+
+
+
+                          19727
+Figure 16: Page 8 of 10 depicting the annotation interface.
+
+
+
+                          19728
+Figure 17: Page 9 of 10 depicting the annotation interface.
+
+
+
+                          19729
+Figure 18: Page 10 of 10 depicting the annotation interface.
+
+
+
+                          19730
+

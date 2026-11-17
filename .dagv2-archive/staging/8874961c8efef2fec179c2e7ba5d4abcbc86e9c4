@@ -1,0 +1,277 @@
+{
+  "run": "v4_validation_r13",
+  "commit": "711848995f681ffb2cfb9684b8f2736f5aa188d6",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only saved structural records; no labels, generation, tokenization or experiment mutation. No source/option/prediction/response text included.",
+  "termination_kind": "first case naturally published budget_exhausted before root later stopped the whole run",
+  "answer_status": "budget_exhausted",
+  "published_row_exists": true,
+  "attempt_result_exists": true,
+  "fusion_snapshot_exists": true,
+  "audit_complete": false,
+  "pending_variables": [
+    "event_history",
+    "interests",
+    "music_prefs",
+    "response"
+  ],
+  "ledger": {
+    "limits": {
+      "ann": 36,
+      "set_score": 0,
+      "llm": 24,
+      "reader": 0,
+      "json_repairs": 6
+    },
+    "used": {
+      "llm": 23,
+      "http_attempts": 26,
+      "ann": 3,
+      "embedding_http": 3
+    },
+    "remaining": {
+      "ann": 33,
+      "set_score": 0,
+      "llm": 1,
+      "reader": 0,
+      "json_repairs": 6
+    }
+  },
+  "cost": {
+    "generation_calls": 23,
+    "joint_read_calls": 18,
+    "repair_calls": 0,
+    "json_repair_reservations": 0,
+    "semantic_compose_calls": 4,
+    "audit_calls": 0,
+    "planner_calls": 1,
+    "ann_calls": 3,
+    "llm_attempts": 23
+  },
+  "history_reads": [
+    {
+      "identity": "4c14857d5384d1670bae1f8f5f9fb4bad10dd1ac63e3b8131a3445ef48f2a461",
+      "node_id": "music_prefs",
+      "batches": 7,
+      "complete_batches": 7,
+      "unique_window_source_aliases": 123,
+      "input_tokens": [
+        7353,
+        7289,
+        7303,
+        7300,
+        7303,
+        7288,
+        6549
+      ],
+      "output_caps": [
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096
+      ],
+      "all_finish_reason_stop": true
+    },
+    {
+      "identity": "89c35921dd42ad2ee9a604874770fb32f8045a296bfe3961419deb8f62ecd9fe",
+      "node_id": "event_history",
+      "batches": 5,
+      "complete_batches": 5,
+      "unique_window_source_aliases": 122,
+      "input_tokens": [
+        7277,
+        7316,
+        7323,
+        7310,
+        9341
+      ],
+      "output_caps": [
+        4096,
+        4096,
+        4096,
+        4096,
+        2028
+      ],
+      "all_finish_reason_stop": true
+    },
+    {
+      "identity": "4a153cba88189c666a333ee5aa930ec0cc57f8f6e9c5ff6666f5896a10ec78fc",
+      "node_id": "interests",
+      "batches": 6,
+      "complete_batches": 6,
+      "unique_window_source_aliases": 125,
+      "input_tokens": [
+        7337,
+        7299,
+        7236,
+        7334,
+        7322,
+        7253
+      ],
+      "output_caps": [
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096
+      ],
+      "all_finish_reason_stop": true
+    }
+  ],
+  "semantic_read": {
+    "identity": "b5f81826c9728177abeec8a679c28d6bf1345c3db74c2e31fa7090b8a3010e6a",
+    "same_identity_all_batches": true,
+    "controller_read_invocations_evidence": "One residual checkpoint before all five windows; all share identity; JointReader.read while-pending loop emits each batch before returning.",
+    "complete_batches": 4,
+    "failed_before_generation_batches": 1,
+    "complete_window_source_counts": [
+      38,
+      22,
+      25,
+      27
+    ],
+    "visible_source_counts": [
+      59,
+      52,
+      52,
+      54,
+      40
+    ],
+    "paid_window_unique_sources": 108,
+    "all_five_window_unique_sources": 111,
+    "failed_window_sources": 5,
+    "failed_window_sources_not_previously_in_paid_window": 3,
+    "failed_slot_variables": [
+      "event_history",
+      "interests",
+      "music_prefs",
+      "response"
+    ],
+    "fixed_error": "llm budget at semantic_compose: requested=1, remaining=0",
+    "failed_batch_logged_input_tokens_is_previous_request": true,
+    "paid_requests": [
+      {
+        "stage": [
+          "semantic_compose",
+          "20"
+        ],
+        "request_hash": "4a9d65e22853fc9f57a5eebbc5481e3cfd90d56cc1d19a2e59c9f345ee5855c6",
+        "max_tokens": 4096,
+        "finish_reason": "stop",
+        "prompt_tokens": 11751,
+        "completion_tokens": 1441,
+        "window_source_count": 38,
+        "visible_source_count": 59,
+        "visible_document_count": 11,
+        "known_parent_task_obligation_source_closure_count": 35,
+        "required_closure_sources_all_visible": true,
+        "required_closure_source_text_chars": 10289,
+        "visible_source_text_chars": 14367
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "21"
+        ],
+        "request_hash": "d7453079ce9d34a300430fa3fa3e9bd7b2e86353eb2ff8dc348c9e8e5efc70a6",
+        "max_tokens": 4096,
+        "finish_reason": "stop",
+        "prompt_tokens": 11737,
+        "completion_tokens": 1515,
+        "window_source_count": 22,
+        "visible_source_count": 52,
+        "visible_document_count": 11,
+        "known_parent_task_obligation_source_closure_count": 35,
+        "required_closure_sources_all_visible": true,
+        "required_closure_source_text_chars": 10289,
+        "visible_source_text_chars": 13432
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "22"
+        ],
+        "request_hash": "4dc56a4e9bef8e02f89362062d58a6a837fc35bef6504d5cfe0d0a727b03db9c",
+        "max_tokens": 4096,
+        "finish_reason": "stop",
+        "prompt_tokens": 11744,
+        "completion_tokens": 1451,
+        "window_source_count": 25,
+        "visible_source_count": 52,
+        "visible_document_count": 11,
+        "known_parent_task_obligation_source_closure_count": 35,
+        "required_closure_sources_all_visible": true,
+        "required_closure_source_text_chars": 10289,
+        "visible_source_text_chars": 13429
+      },
+      {
+        "stage": [
+          "semantic_compose",
+          "23"
+        ],
+        "request_hash": "5e74bdfe903bca43cd2f4f3d37803002f5eda90e66370f32e6722bf38390dbc1",
+        "max_tokens": 4096,
+        "finish_reason": "stop",
+        "prompt_tokens": 11771,
+        "completion_tokens": 1451,
+        "window_source_count": 27,
+        "visible_source_count": 54,
+        "visible_document_count": 11,
+        "known_parent_task_obligation_source_closure_count": 35,
+        "required_closure_sources_all_visible": true,
+        "required_closure_source_text_chars": 10289,
+        "visible_source_text_chars": 13497
+      }
+    ],
+    "remaining_llm": 1,
+    "reserved_audit_calls": 1,
+    "minimum_remaining_calls_if_final_window_and_single_audit_succeed": 2,
+    "minimum_budget_deficit_calls": 1,
+    "audit_not_started_reason": "Ordinary semantic window blocked by reservation before semantic read finished; one remaining LLM call is reserved for audit, which is not yet admissible."
+  },
+  "final_obligations": {
+    "unread_obligation_count": 0,
+    "failed_obligation_count": 1,
+    "evidence_obligation_count": 0,
+    "failed_batch_review_count": 4,
+    "failed_batch_reviews": [
+      {
+        "variable": "interests",
+        "phase": "response_selection",
+        "source_count": 40,
+        "validated_observation_count": 0
+      },
+      {
+        "variable": "event_history",
+        "phase": "response_selection",
+        "source_count": 40,
+        "validated_observation_count": 0
+      },
+      {
+        "variable": "music_prefs",
+        "phase": "response_selection",
+        "source_count": 40,
+        "validated_observation_count": 0
+      },
+      {
+        "variable": "response",
+        "phase": "response_selection",
+        "source_count": 40,
+        "validated_observation_count": 0
+      }
+    ],
+    "note": "Selected final five-source window is removed from unread markers after the preflight failure and retained as failed reviews covering its complete forty-source visible context. Zero unread does not mean terminal completion."
+  },
+  "interpretation": [
+    "This is a natural first-case budget outcome, unlike R11/R12 operator-stopped first cases.",
+    "History windows all passed without repairs, output truncation or capacity errors; they consumed eighteen generation calls across three reads.",
+    "Four terminal calls are advancing source windows within one semantic read, not four controller retries or a proven controller loop.",
+    "The fifth terminal window needs a normal call, but remaining one is reserved for audit. Minimum full-task call total is twenty-five if that window and a single audit succeed without repairs; this is a lower bound, not a completion guarantee.",
+    "Current full-output-first prefix admission can prefer many small windows to a larger eligible capped history window; R12 exact network-tokenization comparison supplies evidence for testing a different admission policy. R13 exhaustion alone does not prove a defect.",
+    "No prediction or accuracy conclusion is drawn. Effective-answer quality requires completed matched examples and independent evaluation."
+  ]
+}

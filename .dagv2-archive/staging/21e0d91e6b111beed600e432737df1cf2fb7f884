@@ -1,0 +1,1364 @@
+    COSMOS: Connectivity-Oriented Submodular Maximization for Optimal
+                          Subgraph Retrieval
+                            Boci Peng1,2 Xiao Liu3 Boren Hu4 Yun Zhu5
+                    Xuanbo Fan1,2 Yanwei Yue1,2 Chunyu Yang6 Yan Zhang1,2 *
+                    1
+                      School of Intelligence Science and Technology, Peking University
+        2
+          State Key Laboratory of General Artificial Intelligence, Peking University, Beijing, China
+                    3
+                      Computer Science, University of Macau, 4 Independent Researcher
+                         5
+                           Shanghai Artificial Intelligence Laboratory, 6 Ucap Cloud
+                                   bcpeng@stu.pku.edu.cn, zhyzhy001@pku.edu.cn
+
+
+                           Abstract                                 Paradigm    Formal Objective
+                                                                                                         Structural
+                                                                                                          Integrity
+                                                                                                                      Reasoning
+                                                                                                                       Fidelity
+                                                                                                                                    Global
+                                                                                                                                  Perspective
+                                                                                                                                                Inference
+                                                                                                                                                Efficiency
+                                                                    Embedding   argmaxe sim(q, e)            ✗           ✗            ✓             ✓
+         Retrieving coherent evidence subgraphs is                  Heuristic
+                                                                                           P
+                                                                                argminT e∈T we               ✓           ✗            ✓             ✓
+         critical for Knowledge Base Question An-                   Search
+                                                                                Q
+                                                                                  t P (at |G, h<t , q)       ✓           ✓            ✗             ✗
+         swering (KBQA). Existing paradigms of-                     COSMOS
+                                                                                  argmaxS F (S)
+                                                                                  s.t. |ES | ≤ K,            ✓           ✓            ✓             ✓
+         ten treat facts independently, rely on bi-                  (ours)
+                                                                                  S is connected
+         ased heuristics, or employ myopic search,
+         failing to optimize collective subgraph util-             Table 1: Comparison of subgraph retrieval paradigms.
+         ity.     In this paper, we propose COS-                   Structural Integrity ensures the retrieval of connected
+         MOS (Connectivity-Oriented Submodular                     evidence chains; Reasoning Fidelity denotes the ability
+         Maximization for Optimal Subgraph Retrieval),             to capture deep semantic logic beyond surface similarity
+         a unified framework that formalizes evidence              or topological bias; Global Perspective indicates the op-
+         retrieval as a constrained submodular maxi-               timization of collective subgraph utility to avoid the my-
+         mization problem. This formulation mathe-                 opia of greedy search; and Inference Efficiency reflects
+         matically captures the trade-off between in-              low-latency retrieval without iterative LLM overhead.
+         formation relevance and structural complex-
+         ity. To tractably solve this combinatorial chal-
+         lenge, COSMOS employs a decompose-and-                    structure of facts. Effective reasoning requires
+         conquer strategy, which first performs a seed-            retrieving not just a disjoint set of relevant triplets,
+         guided greedy expansion to maximize local se-             but a coherent, connected evidence subgraph that
+         mantic utility, followed by a topology-aware
+                                                                   delineates the logical path from the query entities
+         component aggregation to bridge disjoint evi-
+         dence clusters via Maximum Spanning Tree                  to the answer.
+         aggregation. Guided by theoretical bounds,                   Extensive research has sought to bridge natu-
+         we introduce Structure-Aware Contrastive Tun-             ral language queries and structural knowledge, yet
+         ing to align semantic space with KG topology.             existing paradigms struggle to balance semantic
+         Experimental results on WebQSP, CWQ, and                  relevance with structural integrity as query com-
+         M3 GQA benchmarks demonstrate that COS-
+                                                                   plexity grows. Embedding-based methods (Li et al.,
+         MOS achieves state-of-the-art performance.
+                                                                   2025; Jiang et al., 2023b; Baek et al., 2023a) re-
+    1    Introduction                                              trieve facts independently, suffering from structural
+                                                                   agnosticism and redundancy that impede coherent
+    Knowledge      Base      Question     Answering                reasoning chains. Conversely, heuristic-based al-
+    (KBQA) (Lan et al., 2021, 2023; Peng et al.,                   gorithms (He et al., 2024; Luo et al., 2024b; Jiang
+    2025b) aims to answer natural language questions               et al., 2025b) ensure connectivity but exhibit topo-
+    by reasoning over structured facts in Knowledge                logical bias, often favoring short, generic paths
+    Graphs (KGs). While Retrieval-Augmented Gener-                 over complex multi-hop reasoning. Search-based
+    ation (RAG) (Fan et al., 2024) has emerged as a                methods (Sun et al., 2024; Jiang et al., 2025a;
+    promising paradigm to mitigate the hallucinations              Zhang et al., 2022) employ iterative LLM navi-
+    of Large Language Models (LLMs) (Zhao et al.,                  gation but remain fundamentally myopic and ineffi-
+    2024b), applying RAG to KGs presents unique                    cient, prone to local optima and prohibitive latency.
+    challenges. Unlike unstructured text retrieval,                Ultimately, these approaches prioritize local rele-
+    where documents are treated independently, rea-                vance over structural density and global connectiv-
+    soning over KGs relies heavily on the topological              ity, failing to optimize collective subgraph utility
+        * Corresponding author                                     under constrained budgets.
+                                                             35904
+Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 35904–35924
+                                 July 2-7, 2026 ©2026 Association for Computational Linguistics
+    To address these challenges, we propose COS-              through a decompose-and-conquer optimiza-
+MOS, a unified framework that formalizes evidence             tion strategy, backed by provable approxima-
+subgraph retrieval as a Connectivity-Oriented Sub-            tion guarantees.
+modular Maximization problem. This marks a
+paradigm shift from the passive observation of               • Extensive experiments on WebQSP, CWQ,
+graph topology to the active synthesis of a global             and M3 GQA datasets demonstrate that COS-
+evidence backbone. By modeling subgraph util-                  MOS achieves state-of-the-art performance,
+ity through a submodular lens, which incorporates              retrieving more effective evidence subgraphs
+a strict budget constraint to implicitly manage in-            compared to existing baselines.
+formation redundancy, COSMOS mathematically              2    Related Works
+captures the notions of coverage and global con-
+nectivity. This formulation provides a rigorous          We categorize existing KBQA methods into three
+theoretical foundation for what constitutes an op-       primary paradigms based on their retrieval strate-
+timal evidence subgraph, moving beyond purely            gies, including embedding-based, heuristic-based,
+heuristic or semantic criteria. Critically, we prove     and search-based.
+that this combinatorial objective can be solved with
+                                                         Embedding-Based Methods. Embedding-based
+a guaranteed approximation ratio, ensuring that the
+                                                         methods map natural language queries and KG
+results are not only efficient but also theoretically
+                                                         elements into a shared continuous vector space.
+grounded against the NP-hard optimal solution.
+                                                         The mainstream methods focus on optimizing em-
+    To realize this active synthesis tractably, COS-     bedding models to compute semantic similarity
+MOS employs a decompose-and-conquer optimiza-            between triplets and queries to select the top-k rela-
+tion strategy. The framework first performs Seed-        tions or facts (Oguz et al., 2022; Jiang et al., 2023b;
+Guided Greedy Expansion to identify high-value           Baek et al., 2023a; Yu et al., 2023; Saxena et al.,
+local evidence clusters centered around source en-       2020; Bordes et al., 2015; Baek et al., 2023b; Dong
+tities. To resolve the global connectivity gap, we       et al., 2023). To capture deeper structural depen-
+transform the challenge into a Maximum Span-             dencies, some methods (Mavromatis and Karypis,
+ning Tree (MaxST) problem over a semantic meta-          2025; Sun et al., 2019; Li et al., 2025; Peng et al.,
+graph. This Topology-Aware Component Aggrega-            2024; Liu et al., 2024) utilize Graph Neural Net-
+tion bridges isolated components using the most se-      works (GNNs) to enrich entity and relation repre-
+mantically salient paths, ensuring a globally coher-     sentations via neighborhood message passing (Kipf
+ent structure while maintaining polynomial-time          and Welling, 2017; Veličković et al., 2018). De-
+efficiency. Furthermore, we introduce Structure-         spite their efficiency, these methods treat triplets
+Aware Contrastive Tuning to align the embedding          as independent units. This structural agnosticism
+space with KG structures, ensuring the encoder can       often results in fragmented, disjoint evidence that
+discern the fine-grained logical backbone required       fails to form a coherent reasoning chain.
+for multi-hop reasoning. Extensive experiments
+on WebQSP, CWQ, and M3 GQA demonstrate that              Heuristic-Based      Methods. Heuristic-based
+COSMOS attains state-of-the-art results under the        methods utilize graph algorithms or predefined
+standard evaluation protocol.                            rules to retrieve subgraphs. Some frameworks
+    Our contributions are summarized as follows:         model retrieval as graph optimization problems,
+                                                         such as G-Retriever (He et al., 2024) (PCST prob-
+   • We provide a rigorous formulation of KBQA           lem) or RoK (Jiang et al., 2024) and RASR (Luo
+     subgraph retrieval as a constrained submod-         et al., 2023) (PageRank). Another trend involves
+     ular maximization problem, offering a theo-         using LLMs to generate relational paths that
+     retical grounding for balancing relevance and       are subsequently grounded or ranked in the
+     connectivity.                                       KG (Luo et al., 2024b; Shen et al., 2025; Luo
+                                                         et al., 2024a; Guo et al., 2024; Kim et al., 2023;
+   • We propose COSMOS, an efficient subgraph            Wu et al., 2023). Additionally, simpler heuristics
+     retrieval framework that addresses the struc-       like 1-hop neighborhood extraction (Yang et al.,
+     tural fragmentation of embedding-based re-          2024) or predefined path patterns (Jiang et al.,
+     trievers, the topological bias of heuristic algo-   2025b) are common. These methods are often
+     rithms, and the myopia of search-based agents       topology-biased. By optimizing for topological
+                                                    35905
+objectives (e.g., minimizing path cost) or following    3.2        Problem Formulation
+rigid rules, they frequently favor shorter, generic     We mathematically formulate the retrieval of the
+paths over the complex, multi-hop reasoning             evidence subgraph S as selecting a subset of edges
+chains required for deep semantic understanding.        to maximize a semantic utility function F (S) under
+Search-Based Methods. Search-based methods              structural constraints.
+treat KBQA as a sequential decision-making pro-         Submodularity. To model the balance between
+cess. Agent-based frameworks (Jin et al., 2024;         relevance and redundancy, we leverage the property
+Wang et al., 2023a; Jiang et al., 2023a, 2025a;         of submodularity (Nemhauser et al., 1978). Let Ω
+Wang et al., 2023b) utilize LLMs to interact with       be a finite ground set (in our case, the edge set E).
+KGs as environments. Similarly, (Sun et al., 2024;      A set function F : 2Ω → R is submodular if it
+Zhang et al., 2022; He et al., 2021; Dehghan et al.,    satisfies the property of diminishing returns: for
+2024; Xu et al., 2025), drive the search process us-    every A ⊆ B ⊆ Ω and every element x ∈ Ω \ B,
+ing LLMs to navigate entity-relation paths dynam-       the inequality F (A∪{x})−F (A) ≥ F (B∪{x})−
+ically. These methods are fundamentally myopic          F (B) holds.
+and inefficient. Their step-by-step greedy choices
+often lead to local optima and prohibitive infer-       Optimization Objective. Based on this, the core
+ence latency due to iterative LLM calls. While re-      subgraph retrieval task is defined as the following
+cent work has attempted to address this limitation      constrained optimization problem:
+by framing reasoning as structure-aware planning
+over internally generated entailment graphs (Xiong      max F (S)
+                                                        S⊆G
+et al., 2025), they still rely on implicit world mod-       s.t.    |ES | ≤ K,   S is connected,VQ ⊆ VS ,
+els rather than explicit, verifiable evidence from                                                      (1)
+external knowledge graphs. Critically, they fail        where K is the budget for the subgraph size. The
+to optimize the global connectivity and collective      constraint ensures that the retrieved subgraph is
+utility of the underlying evidence subgraph, which      concise, topologically connected, and rooted in the
+is essential for faithful multi-hop inference over      query entities.
+structured knowledge.
+   Unlike previous subgraph retrievers, we for-         Utility Function Instantiation. To instantiate
+malize the process as a general connectivity-           our submodular framework, we adopt the mono-
+constrained submodular maximization problem, of-        tone Maximal Marginal Relevance (MMR) func-
+fering a unifying optimization view.                    tion. Formally, let S = {e1 , e2 , . . . , ek } be an
+                                                        ordered set of retrieved edges. We define the col-
+3   Preliminaries                                       lective utility F (S) as the sum of non-negative
+                                                                                   P|S|
+In this section, we formally define the task of         marginal gains: F (S) = t=1 max(0, ∆F (et |
+KBQA via subgraph retrieval and formulate it as         St−1 )), where St−1 = {e1 , . . . , et−1 } and S0 = ∅.
+a connectivity-constrained submodular maximiza-         The marginal gain ∆F for a candidate edge e is
+tion problem.                                           defined as:
+
+3.1 Task Definition                                         ∆F (e | St−1 ) =λ · sim(e, q)−
+Knowledge Graph. Let G = (V, E, R) be a                                       (1 − λ) · ′max sim(e, e′ ), (2)
+                                                                                       e ∈St−1
+Knowledge Graph, where V denotes the set of
+entities, R denotes the set of relations, and E ⊆       where e is the dense vector representation of a
+V × R × V denotes the set of facts (triplets).          knowledge graph triplet, q is the dense vector rep-
+                                                        resentation of the input query, and sim(·) denotes
+Subgraph Retrieval. Given a natural language
+                                                        cosine similarity.
+query Q, the goal of subgraph-based KBQA is to
+retrieve a concise evidence subgraph S = (VS , ES )     4     Methodology
+where VS ⊆ V and ES ⊆ E. This subgraph should
+contain the necessary reasoning paths to derive the     4.1        Overview
+correct answer a for Q. We assume a set of source       Our objective is to retrieve an evidence subgraph
+entities VQ ⊂ V is identified from Q to ground the      S ∗ that maximizes the semantics. We propose
+retrieval process.                                      COSMOS to solve the connectivity-constrained
+                                                   35906
+           Structure-Aware Contrastive Tuning                                                      Seed-Guided Greedy Expansion                                     LLM Reasoning
+                                    Training                                                                                             𝑉𝑠2
+                                                                                                                                                                               Evidence Graph
+         Query (Q), Answer (A)                         Query ( Q)
+                                                                                                       0.76                                               𝑪𝟏
+
+
+                              𝑉𝐴                                                             0.72
+                                                                                                                                                  …
+             𝑉𝑄
+                                                       Encoder
+
+              Positives (𝒫)
+                                                                                                                                                          𝑪𝒎
+                                                                                             𝑉𝑠1                                                                      Linearized Triplets
+
+                                                                                              Layer-wise Greedy Search                  Connected Components         (𝑣𝑠1 , acted_in, 𝑒1 )
+                                                     InfoNCE Loss                                                                                                    (𝑒1 , directed_by, 𝑒2 )
+             𝑉𝑄                𝑉𝐴
+
+                                                                                                                                                                     (𝑣𝑠2 , located_in, 𝑒3 )
+        Hard Negatives (𝒩ℎ𝑎𝑟𝑑 )                                  𝒩ℎ𝑎𝑟𝑑
+                                                                                                                                                                     …
+                                                𝒫                                     Topology-Aware Component Aggregation
+                                                                             𝒩𝑒𝑎𝑠𝑦
+                              𝑉𝐴                                                                                                                                  Query ( Q)
+                                                                                                                                 𝑪𝟐                MaxST
+             𝑉𝑄                                             𝑄                                                                                      Augmentation
+                                                                                                                                                   Other
+        Easy Negatives (𝒩easy )                                                      Global Aggregation via                         PPR Bridge
+                                           Embedding Space                                  MaxST                                   Candidates                           Large Language
+                                                                                        𝑪𝟏          0.65
+                                                                                                              0.59 0.43
+                                                                                                                                        0.74                              Model (LLM)
+                                    Inference                                                                                0.70                𝑪𝟑
+        Query (Q)
+                                                                                                                      0.55
+                        Encoder                     Query Vector
+                                                                     ⨂ 𝑆𝑖𝑚(𝒆, 𝒒)                                          0.32
+        Triplet (𝑒)                                                                                    Budget-Aware                              Meta Graph
+                                                                                                                                                                       Final Answer (𝐴)
+                                                    Triplet Vector                                     Augmentation              0.63
+
+
+
+
+Figure 1: The overview of COSMOS. The query and KG are first encoded via SACT. Then, SGE extracts local
+clusters around seed entities, which are subsequently bridged by TACA using MaxST on the meta-graph to form the
+final evidence subgraph.
+
+
+submodular maximization problem by decoupling                                                                    Layer-wise Greedy Search. Specifically, we
+the optimization into two tractable stages: (1) Seed-                                                            treat each source entity vs as a root and perform a
+Guided Greedy Expansion to maximize local rel-                                                                   layer-wise greedy search to construct a local sub-
+evance around source entities, and (2) Topology-                                                                 graph Si for each vs . Let Blayer denote the maxi-
+Aware Component Aggregation to resolve global                                                                    mum edge budget per hop. At each expansion step,
+connectivity between disjoint clusters. To align                                                                 we examine the candidate neighbor edges N (Si )
+the semantic space with the discrete KG topology,                                                                of the current subgraph. We select the edge e∗ that
+we further incorporate Structure-Aware Contrastive                                                               provides the maximum marginal gain. This process
+Tuning. Figure 1 illustrates the framework.                                                                      iterates until the layer budget Blayer or the maxi-
+                                                                                                                 mum hop limit is reached. The output of this phase
+4.2 Semantic Encoding                                                                                            is a set of disjoint connected components, denoted
+Prior to retrieval, we project both the query and KG                                                             as C = {C1 , C2 , . . . , Cm }, where each component
+facts into a shared dense vector space. Let a fact                                                               represents a highly relevant local cluster centered
+triplet be denoted as e = (h, r, t). We linearize the                                                            around a source entity.
+triplet into a textual sequence “(h, r, t)” and em-
+                                                                                                                  Theoretical Analysis. We analyze its approxima-
+ploy a pre-trained language model as the encoder.
+                                                                                                                  tion ratio. While topological constraints limit stan-
+For a query Q and a triplet e, their embeddings are
+                                                                                                                  dard greedy algorithms, we introduce a Topology-
+derived from the [CLS] token representation:
+                                                                                                                  Semantic Alignment Factor γ ∈ (0, 1] to quantify
+                                                                                                                  the consistency between local marginal gains and
+          q = Enc(Q),                               e = Enc(h, r, t).                               (3)
+                                                                                                                  global optimal gains within the graph structure.
+Based on these representations, we quantify the                                                                  Theorem 1. Let S ∗ be the optimal subgraph. Un-
+semantic similarity using cosine similarity.                                                                     der the alignment assumption γ, the SGE phase
+                                                                                                                 achieves a parameterized approximation ratio:
+4.3 Seed-Guided Greedy Expansion
+Seed-Guided Greedy Expansion (SGE) aims to ad-                                                                                            F (SSGE ) ≥ (1 − e−γ )F (Sexp
+                                                                                                                                                                    ∗
+                                                                                                                                                                        ).                      (4)
+dress the rooted submodular maximization prob-
+lem. We aim to mine high-value local evidence                                                                        γ quantifies the alignment between the seman-
+surrounding the identified source entities VQ with-                                                               tic landscape and graph topology. Appendix A.1
+out immediately enforcing global connectivity.                                                                    illustrates the detailed definition and proof.
+                                                                                                      35907
+4.4 Topology-Aware Component Aggregation                 T ⊆ EM , which ensures that all disjoint compo-
+Topology-Aware Component Aggregation (TACA)              nents C are interconnected using paths that provide
+is designed to solve the connectivity-constrained        the highest cumulative semantic relevance. The
+optimization. The components in C are initially dis-     resulting backbone subgraph Sbackbone is formed
+connected, potentially fragmenting the reasoning         by the union of the original components and the
+chain. Our goal is to select optimal paths to bridge     bridging paths corresponding to the edges in T :
+                                                                                                   
+these components into a unified evidence graph.                            [               [
+                                                           Sbackbone =        Ck  ∪           p∗ij  , (5)
+Meta-Graph Construction. To bridge the topo-                               Ck ∈C            (i,j)∈T
+logical gap between the disjoint local clusters, we
+                                                         where p∗ij is the optimal physical path associated
+construct a high-level semantic roadmap that cap-
+                                                         with the meta-edge Eij .
+tures the connectivity potential of the KG. Specif-
+                                                            After establishing the backbone Sbackbone via
+ically, we formalize this as a Meta-Graph M =
+                                                         MaxST, we further utilize the remaining budget
+(VM , EM ), where each meta-node Vi ∈ VM repre-
+                                                         K to incorporate supplementary evidence. In-
+sents a connected component Ci ∈ C. The objec-
+                                                         stead of being limited to the edges in the meta-
+tive is to identify candidate reasoning paths that can
+                                                         tree, we consider all previously discovered paths
+transform these isolated components into a globally
+                                                         in the candidate
+                                                                     S      pool that are not yet included:
+coherent evidence structure.
+                                                         Paug = ( i,j Pij ) \ {p∗ij | (i, j) ∈ T }. We
+   For every pair of components (Ci , Cj ), we per-      rank all candidate paths p ∈ Paug based on their
+form a restricted path search in the original KG         marginal contribution to the submodular objec-
+G to find all valid bridging paths Pij = {p |            tive, ∆F (p|Sbackbone ), and iteratively add them to
+link(Ci , Cj ), length(p) ≤ Lhop }. To maintain          Sbackbone , forming the final evidence subgraph S ∗ .
+computational tractability while ensuring semantic       This process follows the greedy selection rule for
+relevance, this search is constrained by a maximum       submodular maximization, where the paths provid-
+hop limit Lhop and, as detailed in the following         ing the highest marginal gain are prioritized until
+section, is further pruned via representative nodes.     the budget K is exhausted. This allows the sub-
+   To facilitate the subsequent connectivity opti-       graph to contain multiple reasoning paths between
+mization, we assign each potential meta-edge Eij a       the same pair of components, providing a more
+primary weight Wij . Specifically, Wij is defined as     robust and diverse evidence set for LLM reasoning.
+the cumulative marginal utility gain of the bridging
+path p ∈ Pij relative to the current components,         Efficiency Optimization via Semantic PPR. To
+computed as the sum of the marginal gains of all         avoid prohibitive quadratic complexity in exhaus-
+triplets along p. This ensures that the meta-edge        tive inter-component pathfinding, we employ Se-
+weights reflect the total additional semantic infor-     mantic Personalized PageRank (PPR) to identify
+mation provided by the bridge.                           representative bridge candidates within each com-
+   We denote the path achieving this maximum util-       ponent. Unlike threshold-based pruning, Semantic
+ity as the optimal bridge p∗ij . While Wij is utilized   PPR propagates scores through the graph topol-
+as the primary criterion for constructing the min-       ogy, allowing bridge nodes with low direct query
+imal connected backbone,      the entire collection of   similarity to accumulate high scores if they act as
+                     S                                   structural hubs. This ensures COSMOS retains
+discovered paths i,j Pij is preserved as a can-
+didate path pool, which serves as the foundation         structurally vital intermediate concepts often over-
+for the subsequent budget-aware augmentation, al-        looked by strictly local semantic searches.
+lowing the framework to incorporate multifaceted            Formally, let V (Ci ) be the node set of compo-
+evidence that exceeds the minimal tree structure.        nent Ci , and Vroot ⊆ V (Ci ) be the subset of source
+                                                         entities contained within it. We define an impor-
+Global Aggregation via MaxST. To resolve the             tance score vector r ∈ R|V (Ci )| . First, We initialize
+connectivity constraint while maximizing total util-     the personalization vector p0 to bias the random
+ity, we adopt a two-stage optimization strategy.         walk toward the k = |Vroot | seed entities, setting
+First, we establish a minimal connected backbone         p0 (v) = 1/k if v ∈ Vroot and 0 otherwise.
+inspired by the Maximum Spanning Tree (MaxST)               Unlike standard PPR, which uses uniform transi-
+problem. Specifically, we apply Kruskal’s algo-          tion probabilities based on node degrees, we con-
+rithm on the meta-graph M to identify a MaxST            struct a semantic transition matrix M to guide
+                                                    35908
+the random walk towards query-relevant reason-             Hard Negative Mining. Contrastive learning re-
+ing paths. For any edge e = (u, r, v) connecting           lies on informative negatives. We construct our
+node u to v, the transition probability is propor-         training data using a topology-aware strategy:
+tional to the semantic similarity between the triplet
+                                                               • Positives (P): For a training pair, we iden-
+and the query:
+                                                                 tify the shortest paths between source entities
+                     exp(sim(e, q)/τ )                           VQ and answer entities VA . All triplets along
+   Muv = P                                       ,   (6)         these paths are treated as positive samples.
+               v ′ ∈N (u) exp(sim(euv ′ , q)/τ )
+                                                               • Hard Negatives (Nhard ): We select triplets
+where N (u) denotes the neighbors of u, and τ is a               that are neighbors of the source or answer
+temperature factor. We then iteratively update the               entities but do not appear in shortest paths.
+importance scores until convergence:
+                                                               • Easy Negatives (Neasy ): Randomly sampled
+        r(t+1) = (1 − α)p0 + αM⊤ r(t) ,              (7)         triplets from the KG.
+
+where α is the damping factor. Upon convergence,           Loss Function. Given the potentially large num-
+we select the top-N nodes with the highest scores          ber of candidate triplets, utilizing the full set of
+as the representative set Ri for pathfinding.              positives and negatives for every update is compu-
+                                                           tationally prohibitive. Therefore, during training,
+Theoretical Analysis. We model TACA as a bud-              we randomly sample a fixed-size subset of posi-
+geted maximization problem over a constructed              tive triplets P̂ ⊆ Pq from the reasoning paths, and
+Meta-Graph. To account for the information loss            a subset of negative triplets N̂ ⊆ Nhard ∪ Neasy .
+during meta-graph construction and the greedy se-          We then employ a multi-positive extension of the
+lection under budget constraints, we introduce a           InfoNCE loss over these sampled sets, inspired
+Meta-Graph Fidelity Factor β ∈ (0, 1].                     by (Frosst et al., 2019; Zhao et al., 2024a):
+Theorem 2. Let Sagg∗ be the optimal connectivity                            P                     +
+                                                                               p+ ∈P̂ exp(sim(q, p )/τ )
+backbone in the global KG. Under fidelity assump-              L = − log P                               . (9)
+tion β, the backbone ST ACA produced by COS-                                  p∈P̂∪N̂ exp(sim(q, p)/τ )
+
+MOS satisfies:                                             By aggregating the likelihood over multiple sam-
+                                                         pled positives, this objective encourages the query
+                             1
+     F (ST ACA ) ≥ β · 1 −             ∗
+                                 · F (Sagg ). (8)          representation to align simultaneously with various
+                             e                             steps of the evidence chain, rather than a single fact.
+   The approximation ratio is composed of two              This structure-aware tuning effectively forces the
+parts: β bounds the structural gap between our con-        retriever to discern the logical connectivity.
+structed Meta-Graph and the global optimal topol-          4.6    LLM Reasoning
+ogy (due to pruning strategies), while (1 − 1/e)
+                                                           Given the retrieved evidence subgraph S ∗ , we lin-
+represents the lower bound of the greedy selection
+                                                           earize it into a sequence of knowledge triplets to
+strategy under the budget constraint (detailed proof
+                                                           serve as the reasoning context. Specifically, for
+in Appendix A.2).
+                                                           each edge in S ∗ , we flatten it into a textual triplet
+4.5 Structure-Aware Contrastive Tuning                     (h, r, t) and concatenate all triplets into a unified
+                                                           context string c. To effectively derive the answer
+Our theoretical analysis (Theorem 1) identifies the
+                                                           from these structured facts, we employ a Chain-
+alignment factor γ as the decisive bound for the
+                                                           of-Thought (CoT) (Wei et al., 2022) strategy. For-
+effectiveness of greedy expansion. Standard pre-
+                                                           mally, the LLM takes the query Q and the serialized
+trained encoders often suffer from semantic drift,
+                                                           evidence c as input, generating a reasoning chain
+leading to a low γ and rendering the greedy as-
+                                                           followed by the final answer A.
+sumption invalid. Therefore, we propose Structure-
+Aware Contrastive Tuning (SACT) to explicitly              5     Experiments
+maximize γ. By aligning the semantic space with
+topological reachability, SACT satisfies the prereq-       5.1    Experimental Settings
+uisites for our retrieval algorithms to function near      Datasets. We evaluate COSMOS on two stan-
+their optimal bounds.                                      dard benchmarks grounded in Freebase (Bollacker
+                                                      35909
+et al., 2008): WebQSP (Yih et al., 2016) and                                         WebQSP         CWQ
+CWQ (Talmor and Berant, 2018). Additionally,                Methods
+                                                                                     Hit   F1     Hit    F1
+to assess performance on highly complex, multi-
+                                                                           Traditional Methods
+entity reasoning, we conduct evaluations on the             KV-Mem                    46.7 34.5   18.4   15.7
+M3 GQA (Peng et al., 2025a), with results reported          EmbededKGQA               66.6   -    45.9    -
+in Appendix D.4. Detailed descriptions and statis-          NSM                       68.7 62.8   47.6   42.4
+tics for all datasets are provided in Appendix D.1.         TransferNet               71.4   -    48.6    -
+                                                            KGT5                      56.1   -    36.5    -
+Baselines. We compare COSMOS against open-                  GraftNet                  66.4 60.4   36.8   32.7
+sourced baselines across three paradigms: (1) Tra-          PullNet                   68.1   -    45.9    -
+ditional methods, encompassing embedding-based              SR+NSM                    68.9 64.1   50.2   47.1
+and retrieval-augmented approaches that select              SR+NSM+E2E                69.5 64.1   49.3   46.3
+                                                                             LLMs Methods
+facts or subgraphs for reasoning; (2) LLMs, which
+                                                            GPT-4o-mini               60.4 41.9   38.1   31.9
+assess the inherent parametric knowledge of the             GPT-4o                    65.7 49.2   42.3   38.3
+models; and (3) LLMs+KGs methods, representing              GPT-4o-mini+CoT           61.1 41.6   39.7   34.7
+the state-of-the-art in unifying KG retrieval with          GPT-4o+CoT                66.4 46.3   45.8   41.0
+LLM-based reasoning.                                                       LLMs+KGs Methods
+                                                            KD-CoT                    68.6 52.5   55.7    -
+Metrics. Following standard protocols (Luo                  UniKGQA                   77.2 72.2   51.2   49.1
+et al., 2024b; Li et al., 2025), we utilize Hit and F1      Retrieve-Rewrite-Answer 79.4     -     -      -
+Score for evaluation. Specifically, we report Hits1         G-Retriever               73.5 53.4    -      -
+                                                            RoG                       82.2 66.5   60.6   53.9
+for traditional baselines and Hit for LLM-based
+                                                            EtD                       82.5   -    62.0    -
+methods (measuring if the generated response con-           SubgraphRAG               90.1 77.5   62.0   54.1
+tains at least one correct answer), as the latter pro-      COSMOS (ours)             91.6 78.2   65.7   55.6
+duce answer sets rather than ranked lists. F1 Score
+is further employed to assess the comprehensive          Table 2: QA performance on WebQSP and CWQ (%).
+coverage and precision of the predicted answers.
+
+Implementations. We implement COSMOS us-                 ble to hallucinations and lack strict alignment with
+ing GPT-4o-mini as the reasoner and gte-large-en-        structured facts, whereas KGs provide a reliable
+v1.5 (Li et al., 2023) for encoding. Regarding base-     source of precise knowledge to ground the reason-
+lines, we follow the unified evaluation setting of       ing process. (3) COSMOS outperforms existing
+SubgraphRAG (Li et al., 2025) and RoG (Luo et al.,       LLMs+KGs frameworks by explicitly optimizing
+2024b), and thus directly adopt their reproduced         for a globally interconnected subgraph rather than
+baseline results. Further implementation details are     relying on disjoint relation paths. This superior-
+provided in Appendix D.3.                                ity stems from our decoupled strategy: combining
+                                                         seed-guided local expansion with MaxST-based
+5.2 Overall Performance                                  global aggregation ensures the retrieved evidence
+We compare COSMOS with baselines on the We-              is both highly relevant and structurally coherent
+bQSP and CWQ benchmarks, with the comparative            for complex multi-hop reasoning. (4) M3 GQA
+results summarized in Table 2. We further validate       features multi-entity queries with long reasoning
+our approach on the challenging M3 GQA bench-            chains that pose significant challenges to existing
+mark, with full generation and retrieval results pre-    methods. Notably, the granular retrieval perfor-
+sented in Table 8 and Table 9 (Appendix D.4).            mance evaluation (Table 9) demonstrates that COS-
+   From these results, we derive several key obser-      MOS achieves higher evidence recall and answer
+vations: (1) Approaches that integrate Knowledge         accuracy than all baselines while using only half
+Graphs with LLMs (LLMs+KGs) generally outper-            the retrieval budget of G-Retriever, validating the
+form traditional methods, demonstrating that the ex-     structural efficiency of our connectivity-optimized
+tensive internal knowledge and advanced reasoning        subgraph design.
+capabilities of LLMs are superior to specialized ar-
+chitectures. (2) LLMs+KGs methods consistently           5.3   Ablation Study
+yield better performance than pure LLM strategies.       Impact of Different Components. To investi-
+This confirms that standalone LLMs are suscepti-         gate the contribution of each component in COS-
+                                                    35910
+                                                           WebQSP                                                           CWQ                                                        WebQSP          CWQ
+         Ablations
+                                                Hit                                  F1                           Hit                              F1                 Backbones
+                                                                                                                                                                                       Hit    F1     Hit    F1
+         w/o SGE                            75.2 (-16.4)                 67.6 (-10.6)                  58.7 (-7.0)                      46.4 (-9.2)
+         w/o TACA                            90.1 (-1.5)                  76.9 (-1.3)                  63.4 (-2.3)                      52.9 (-2.7)                   GPT-4o-mini     91.6   78.2   65.7   55.6
+         w/o SACT                           81.4 (-10.2)                 66.2 (-12.0)                  58.6 (-7.1)                      49.1 (-6.5)
+         ours                                   91.6                         78.2                         65.7                             55.6
+                                                                                                                                                                      GPT-4o          91.3   79.7   69.4   60.2
+
+                       Table 3: Impact of Different Components.                                                                                                          Table 4: Impact of LLM Backbones.
+
+              Recall of answer entities (Retrieval)                            Hit (Generation)                                   F1 (Generation)
+         98
+
+
+         96
+                                                               90
+
+                                                               85
+                                                                                                                  75
+                                                                                                                                                                 and (ii) generation performance. As K increases
+                                                                                                                                                                 from 50 to 100, we observe a sharp improvement in
+                                                                                                                  70
+         94                                                    80
+
+Recall
+                                                CWQ                                                 CWQ           65                                    CWQ
+                                                WebQSP   Hit                                        WebQSP   F1                                         WebQSP
+
+                                                                                                                                                                 retrieval recall accompanied by a substantial gain
+                                                               75
+         92
+                                                                                                                  60
+                                                               70
+
+
+                                                                                                                                                                 in generation quality, indicating that a small bud-
+         90
+                                                               65                                                 55
+
+         88                                                    60                                                 50
+
+                                                                                                                                                                 get constrains Seed-Guided Greedy Expansion to a
+               50    100              200          300              50   100              200          300             50   100              200           300
+                           Number of triplets                                  Number of triplets                                 Number of triplets
+
+
+                               Figure 2: Impact of Retrieval Budget.
+                                                                                                                                                                 narrow neighborhood and often fails to collect suf-
+                                                                                                                                                                 ficient multi-hop evidence. Beyond K = 100, the
+                                                                                                                                                                 gains gradually plateau, and at K = 300 the gen-
+MOS, we conduct an ablation study with three                                                                                                                     eration F1 on WebQSP slightly drops, suggesting
+variants: (1) w/o Seed-Guided Greedy Expansion                                                                                                                   information saturation: additional triplets increas-
+(SGE), (2) w/o Topology-Aware Component Ag-                                                                                                                      ingly introduce irrelevant or redundant facts that
+gregation (TACA), and (3) w/o Structure-Aware                                                                                                                    can distract the LLM during reasoning, a behavior
+Contrastive Tuning (SACT).                                                                                                                                       also noted in prior retrieval-augmented frameworks.
+   The results summarized in Table 3, demonstrate                                                                                                                Considering both performance and API cost, we
+that all three modules are essential for optimal per-                                                                                                            adopt K = 100 as a cost-effective operating point
+formance, as removing any of them leads to a per-                                                                                                                that strikes a favorable balance between evidence
+formance decrease. (1) Removing the SACT mod-                                                                                                                    sufficiency and reasoning precision.
+ule leads to a sharp performance drop, as the dense
+retriever fails to bridge the structural gap between                                                                                                             Impact of LLM Backbones. To evaluate the sen-
+queries and the structured triplet format of KGs.                                                                                                                sitivity of COSMOS to the underlying model, we
+Without this tuning, the model struggles to prior-                                                                                                               compare its performance using GPT-4o-mini versus
+itize topologically relevant facts over those that                                                                                                               the more advanced GPT-4o. Our results, as demon-
+are merely semantically similar, which is critical                                                                                                               strated in Table 4, show a consistent performance
+for identifying correct reasoning paths. (2) The                                                                                                                 gain when transitioning to the stronger backbone,
+absence of SGE causes a particularly substantial                                                                                                                 indicating that the framework’s effectiveness is fur-
+decrease in retrieval quality. SGE serves as the                                                                                                                 ther enhanced by superior base reasoning and syn-
+foundation of our framework by mining high-value                                                                                                                 thesis capabilities. This improvement underscores
+local evidence centered around source entities. Its                                                                                                              that while COSMOS provides high-quality factual
+removal forces the model to attempt global con-                                                                                                                  grounding to mitigate the lack of knowledge and
+nectivity without first securing a highly relevant                                                                                                               hallucinations, the inherent capacity of the LLM to
+set of local clusters, leading to a significant loss in                                                                                                          process and integrate complex evidence remains a
+information density. (3) Disabling TACA results                                                                                                                  critical determinant of final performance.
+in fragmented evidence subgraphs. While the local
+relevance of individual clusters is maintained, the                                                                                                              Transfer Tuning. To assess the generalization
+lack of global connectivity prevents the LLM from                                                                                                                of our structure-aware contrastive tuning, we con-
+traversing a complete reasoning chain. This con-                                                                                                                 duct transfer tuning experiments on WebQSP and
+firms that resolving the connectivity constraint is                                                                                                              CWQ, varying the source of fine-tuning data for the
+necessary for the model to generate globally coher-                                                                                                              embedding model. For each target dataset, we com-
+ent and faithful reasoning results.                                                                                                                              pare three regimes: Target-only, where the embed-
+                                                                                                                                                                 ding model is fine-tuned only on the target training
+Impact of Retrieval Budget. Figure 2 ex-                                                                                                                         set; Cross-dataset, where it is fine-tuned using the
+amines the effect of the triplet budget K ∈                                                                                                                      other dataset’s training set; and Combined, where
+{50, 100, 200, 300}, reporting both (i) retrieval                                                                                                                we fine-tune on the union of both training sets.
+quality measured by the recall of answer entities                                                                                                                Table 5 shows two consistent trends across both
+                                                                                                                                                             35911
+                      WebQSP            CWQ             Relevance (MMR) criterion. Although MMR effec-
+      Data Source                                       tively captures the property of diminishing returns,
+                      Hit     F1     Hit        F1
+                                                        it represents a relatively simple form of submodu-
+      Target         91.6    78.2    65.7   55.6        larity; future work could explore deep submodular
+      Cross          89.7    75.0    61.9   52.4        functions parameterized by neural networks to bet-
+      Combined       92.6    78.5    66.1   56.3        ter capture complex semantic dependencies. Sec-
+                                                        ond, the effectiveness of our Structure-Aware Con-
+         Table 5: Results of transfer tuning.
+                                                        trastive Tuning relies on the availability of question-
+                                                        answer pairs for alignment. While we demonstrate
+benchmarks. First, Combined achieves the best           transferability, future research may investigate un-
+overall performance, suggesting that training on a      supervised or few-shot alignment strategies to fur-
+broader distribution of queries and structures helps    ther reduce the dependency on domain-specific
+the retriever learn more general retrieval patterns.    supervision. Third, the underlying connectivity-
+Second, Cross leads to only a moderate degradation      constrained submodular maximization is inherently
+compared to Target-only, indicating that our con-       challenging; COSMOS therefore adopts a two-
+trastive objective captures transferable structure-     stage decompose-and-conquer solver with stage-
+aware retrieval patterns rather than merely fitting     wise approximation guarantees. Developing a
+dataset-specific artifacts. These results highlight     single-stage algorithm with a unified end-to-end
+the practicality of our tuning approach, especially     approximation ratio remains an interesting direc-
+when labeled data in the target domain is limited.      tion for future work. Fourth, our current evalu-
+                                                        ation relies exclusively on standard Hit and F1
+6   Conclusion                                          metrics, which may not fully capture reasoning
+                                                        fidelity and robustness against benchmark contam-
+In this paper, we present COSMOS, a rigorous            ination; debate-driven evaluation paradigms offer
+framework that reformulates subgraph retrieval for      a promising alternative for more rigorous future
+KBQA as a connectivity-constrained submodular           assessment (Cao and Zhao, 2025). Fifth, our cur-
+maximization problem. This formulation marks            rent evaluation is limited to general-domain En-
+a paradigm shift from heuristic path-finding to         glish benchmarks. Future work could extend COS-
+the active synthesis of evidence subgraphs with         MOS to two important directions: (1) multilingual
+provable approximation guarantees. By employ-           settings, evaluating its performance on composi-
+ing a decompose-and-conquer strategy, COSMOS            tional relation reasoning tasks across diverse lan-
+effectively resolves the dichotomy between local        guages (Zhao and Zhang, 2024); and (2) special-
+semantic relevance and global structural connec-        ized reasoning tasks such as temporal reasoning,
+tivity. Extensive experiments on WebQSP, CWQ,           which requires explicit modeling of time-dependent
+and M3 GQA demonstrate that COSMOS achieves             graph structures (Xiong et al., 2024).
+state-of-the-art performance.
+                                                        Acknowledgments
+Ethical Consideration                                   This work is supported in part by Ucap Cloud.
+We strictly adhere to the ACL Ethics Policy. Our
+experiments rely exclusively on publicly available      References
+datasets and publicly available API-based models,
+                                                        Jinheon Baek, Alham Fikri Aji, Jens Lehmann, and
+ensuring transparency and reproducibility without
+                                                           Sung Ju Hwang. 2023a. Direct fact retrieval from
+involving private or sensitive user data. We do not        knowledge graphs without entity linking. In Proceed-
+anticipate any direct negative social impacts arising      ings of the 61st Annual Meeting of the Association for
+from this work.                                            Computational Linguistics (Volume 1: Long Papers),
+                                                           ACL 2023, Toronto, Canada, July 9-14, 2023, pages
+                                                           10038–10055.
+Limitations
+                                                        Jinheon Baek, Alham Fikri Aji, and Amir Saffari. 2023b.
+While COSMOS establishes a rigorous framework              Knowledge-augmented language model prompting
+for connectivity-oriented retrieval, we acknowl-           for zero-shot knowledge graph question answering.
+edge five limitations. First, our current utility in-   Kurt D. Bollacker, Colin Evans, Praveen K. Paritosh,
+stantiation relies on the classic Maximal Marginal        Tim Sturge, and Jamie Taylor. 2008. Freebase: a
+                                                     35912
+  collaboratively created graph database for structuring   Gaole He, Yunshi Lan, Jing Jiang, Wayne Xin Zhao, and
+  human knowledge. In Proceedings of the ACM SIG-            Ji-Rong Wen. 2021. Improving multi-hop knowledge
+  MOD International Conference on Management of              base question answering by learning intermediate
+  Data, SIGMOD 2008, Vancouver, BC, Canada, June             supervision signals. In WSDM ’21, The Fourteenth
+  10-12, 2008, pages 1247–1250.                              ACM International Conference on Web Search and
+                                                             Data Mining, Virtual Event, Israel, March 8-12, 2021,
+Antoine Bordes, Nicolas Usunier, Sumit Chopra, and           pages 553–561.
+  Jason Weston. 2015. Large-scale simple question
+  answering with memory networks.                          Xiaoxin He, Yijun Tian, Yifei Sun, Nitesh V. Chawla,
+                                                             Thomas Laurent, Yann LeCun, Xavier Bresson, and
+Linbo Cao and Jinman Zhao. 2025. Pretraining on the          Bryan Hooi. 2024. G-retriever: Retrieval-augmented
+  test set is no longer all you need: A debate-driven        generation for textual graph understanding and ques-
+  approach to QA benchmarks. In Second Conference            tion answering.
+  on Language Modeling.
+                                                           Boran Jiang, Yuqi Wang, Yi Luo, Dawei He, Peng
+Abhimanyu Das and David Kempe. 2011. Submod-
+                                                             Cheng, and Liangcai Gao. 2024. Reasoning on ef-
+  ular meets spectral: Greedy algorithms for subset
+                                                             ficient knowledge paths: Knowledge graph guides
+  selection, sparse approximation and dictionary se-
+                                                             large language model for domain question answer-
+  lection. In Proceedings of the 28th International
+                                                             ing. In IEEE International Conference on Knowledge
+  Conference on Machine Learning, ICML 2011, Belle-
+                                                             Graph, ICKG 2023, Shanghai, China, December 1-2,
+  vue, Washington, USA, June 28 - July 2, 2011, pages
+                                                             2023, pages 142–149.
+  1057–1064.
+Mohammad Dehghan, Mohammad Ali Alomrani, Sun-              Jinhao Jiang, Kun Zhou, Zican Dong, Keming Ye, Xin
+ yam Bagga, David Alfonso-Hermelo, Khalil Bibi,               Zhao, and Ji-Rong Wen. 2023a. Structgpt: A general
+ Abbas Ghaddar, Yingxue Zhang, Xiaoguang Li,                  framework for large language model to reason over
+ Jianye Hao, Qun Liu, Jimmy Lin, Boxing Chen,                 structured data. In Proceedings of the 2023 Con-
+ Prasanna Parthasarathi, Mahdi Biparva, and Mehdi             ference on Empirical Methods in Natural Language
+ Rezagholizadeh. 2024. EWEK-QA : Enhanced web                 Processing, EMNLP 2023, Singapore, December 6-
+ and efficient knowledge graph retrieval for citation-        10, 2023, pages 9237–9251.
+ based question answering systems. In Proceedings          Jinhao Jiang, Kun Zhou, Xin Zhao, Yang Song, Chen
+ of the 62nd Annual Meeting of the Association for            Zhu, Hengshu Zhu, and Ji-Rong Wen. 2025a. Kg-
+ Computational Linguistics (Volume 1: Long Papers),           agent: An efficient autonomous agent framework
+ ACL 2024, Bangkok, Thailand, August 11-16, 2024,             for complex reasoning over knowledge graph. In
+ pages 14169–14187.                                           Proceedings of the 63rd Annual Meeting of the As-
+Guanting Dong, Rumei Li, Sirui Wang, Yupeng Zhang,            sociation for Computational Linguistics (Volume 1:
+  Yunsen Xian, and Weiran Xu. 2023. Bridging the              Long Papers), ACL 2025, Vienna, Austria, July 27 -
+  kb-text gap: Leveraging structured knowledge-aware          August 1, 2025, pages 9505–9523.
+  pre-training for KBQA. In Proceedings of the 32nd
+                                                           Jinhao Jiang, Kun Zhou, Xin Zhao, and Ji-Rong Wen.
+  ACM International Conference on Information and
+                                                              2023b. Unikgqa: Unified retrieval and reasoning for
+  Knowledge Management, CIKM 2023, Birmingham,
+                                                              solving multi-hop question answering over knowl-
+  United Kingdom, October 21-25, 2023, pages 3854–
+                                                              edge graph. In The Eleventh International Confer-
+  3859.
+                                                              ence on Learning Representations, ICLR 2023, Ki-
+Wenqi Fan, Yujuan Ding, Liangbo Ning, Shijie Wang,            gali, Rwanda, May 1-5, 2023.
+ Hengyun Li, Dawei Yin, Tat-Seng Chua, and Qing
+ Li. 2024. A survey on RAG meeting llms: Towards           Xinke Jiang, Ruizhe Zhang, Yongxin Xu, Rihong Qiu,
+ retrieval-augmented large language models. In Pro-          Yue Fang, Zhiyuan Wang, Jinyi Tang, Hongxin Ding,
+ ceedings of the 30th ACM SIGKDD Conference on               Xu Chu, Junfeng Zhao, and Yasha Wang. 2025b.
+ Knowledge Discovery and Data Mining, KDD 2024,              Hykge: A hypothesis knowledge graph enhanced
+ Barcelona, Spain, August 25-29, 2024, pages 6491–           RAG framework for accurate and reliable medical
+ 6501.                                                       llms responses. In Proceedings of the 63rd Annual
+                                                             Meeting of the Association for Computational Lin-
+Nicholas Frosst, Nicolas Papernot, and Geoffrey E. Hin-      guistics (Volume 1: Long Papers), ACL 2025, Vi-
+  ton. 2019. Analyzing and improving representations         enna, Austria, July 27 - August 1, 2025, pages 11836–
+  with the soft nearest neighbor loss. In Proceedings        11856.
+  of the 36th International Conference on Machine
+  Learning, ICML 2019, 9-15 June 2019, Long Beach,         Bowen Jin, Chulin Xie, Jiawei Zhang, Kashob Ku-
+  California, USA, pages 2012–2020.                          mar Roy, Yu Zhang, Zheng Li, Ruirui Li, Xianfeng
+                                                             Tang, Suhang Wang, Yu Meng, and Jiawei Han. 2024.
+Tiezheng Guo, Qingwen Yang, Chen Wang, Yanyi Liu,            Graph chain-of-thought: Augmenting large language
+   Pan Li, Jiawei Tang, Dapeng Li, and Yingyou Wen.          models by reasoning on graphs. In Findings of the As-
+   2024. Knowledgenavigator: Leveraging large lan-           sociation for Computational Linguistics, ACL 2024,
+   guage models for enhanced reasoning over knowl-           Bangkok, Thailand and virtual meeting, August 11-
+   edge graph.                                               16, 2024, pages 163–184.
+                                                      35913
+Jiho Kim, Yeonsu Kwon, Yohan Jo, and Edward Choi.         Costas Mavromatis and George Karypis. 2025. GNN-
+   2023. KG-GPT: A general framework for reasoning          RAG: graph neural retrieval for efficient large lan-
+   on knowledge graphs using large language models.         guage model reasoning on knowledge graphs. In
+   In Findings of the Association for Computational         Findings of the Association for Computational Lin-
+   Linguistics: EMNLP 2023, Singapore, December             guistics, ACL 2025, Vienna, Austria, July 27 - August
+   6-10, 2023, pages 9410–9421.                             1, 2025, pages 16682–16699.
+Thomas N. Kipf and Max Welling. 2017. Semi-               Alexander Miller, Adam Fisch, Jesse Dodge, Amir-
+  supervised classification with graph convolutional        Hossein Karimi, Antoine Bordes, and Jason Weston.
+  networks. In 5th International Conference on Learn-       2016. Key-value memory networks for directly read-
+  ing Representations, ICLR 2017, Toulon, France,           ing documents. In Proceedings of the 2016 Con-
+  April 24-26, 2017, Conference Track Proceedings.          ference on Empirical Methods in Natural Language
+                                                            Processing, pages 1400–1409.
+Yunshi Lan, Gaole He, Jinhao Jiang, Jing Jiang,
+  Wayne Xin Zhao, and Ji-Rong Wen. 2021. A sur-           George L Nemhauser, Laurence A Wolsey, and Mar-
+  vey on complex knowledge base question answering:         shall L Fisher. 1978. An analysis of approximations
+  Methods, challenges and solutions. In Proceedings         for maximizing submodular set functions—i. Mathe-
+  of the Thirtieth International Joint Conference on        matical programming, 14(1):265–294.
+  Artificial Intelligence, IJCAI 2021, Virtual Event /
+  Montreal, Canada, 19-27 August 2021, pages 4483–        Barlas Oguz, Xilun Chen, Vladimir Karpukhin,
+  4491.                                                     Stan Peshterliev, Dmytro Okhonko, Michael Sejr
+                                                            Schlichtkrull, Sonal Gupta, Yashar Mehdad, and
+Yunshi Lan, Gaole He, Jinhao Jiang, Jing Jiang,             Scott Yih. 2022. Unik-qa: Unified representations
+  Wayne Xin Zhao, and Ji-Rong Wen. 2023. Complex            of structured and unstructured knowledge for open-
+  knowledge base question answering: A survey. IEEE         domain question answering. In Findings of the Asso-
+  Trans. Knowl. Data Eng., 35(11):11196–11215.              ciation for Computational Linguistics: NAACL 2022,
+Mufei Li, Siqi Miao, and Pan Li. 2025. Simple is effec-     Seattle, WA, United States, July 10-15, 2022, pages
+ tive: The roles of graphs and large language models        1535–1546.
+ in knowledge-graph-based retrieval-augmented gen-        Boci Peng, Yongchao Liu, Xiaohe Bo, Jiaxin Guo, Yun
+ eration. In The Thirteenth International Conference        Zhu, Xuanbo Fan, Chuntao Hong, and Yan Zhang.
+ on Learning Representations, ICLR 2025, Singapore,         2025a. M3 gqa: A multi-entity multi-hop multi-
+ April 24-28, 2025.                                         setting graph question answering benchmark. In
+Zehan Li, Xin Zhang, Yanzhao Zhang, Dingkun Long,           Proceedings of the 63rd Annual Meeting of the As-
+  Pengjun Xie, and Meishan Zhang. 2023. Towards             sociation for Computational Linguistics (Volume 1:
+  general text embeddings with multi-stage contrastive      Long Papers), ACL 2025, Vienna, Austria, July 27 -
+  learning.                                                 August 1, 2025, pages 30594–30620.
+
+Guangyi Liu, Yongqi Zhang, Yong Li, and Quanming          Boci Peng, Yongchao Liu, Xiaohe Bo, Sheng Tian,
+  Yao. 2024. Explore then determine: A gnn-llm syn-         Baokun Wang, Chuntao Hong, and Yan Zhang. 2024.
+  ergy framework for reasoning over knowledge graph.        Subgraph retrieval enhanced by graph-text align-
+                                                            ment for commonsense question answering. In
+Dan Luo, Jiawei Sheng, Hongbo Xu, Lihong Wang,              Machine Learning and Knowledge Discovery in
+  and Bin Wang. 2023. Improving complex knowl-              Databases. Research Track - European Conference,
+  edge base question answering with relation-aware          ECML PKDD 2024, Vilnius, Lithuania, September
+  subgraph retrieval and reasoning network. In Interna-     9-13, 2024, Proceedings, Part VI, pages 39–56.
+  tional Joint Conference on Neural Networks, IJCNN
+  2023, Gold Coast, Australia, June 18-23, 2023, pages    Boci Peng, Yun Zhu, Yongchao Liu, Xiaohe Bo,
+  1–8.                                                      Haizhou Shi, Chuntao Hong, Yan Zhang, and Siliang
+                                                            Tang. 2025b. Graph retrieval-augmented generation:
+Haoran Luo, Haihong E, Zichen Tang, Shiyao Peng,            A survey. ACM Trans. Inf. Syst., 44(2).
+  Yikai Guo, Wentai Zhang, Chenghao Ma, Guant-
+  ing Dong, Meina Song, Wei Lin, Yifan Zhu, and           Stephen E. Robertson and Hugo Zaragoza. 2009. The
+  Anh Tuan Luu. 2024a. Chatkbqa: A generate-then-            probabilistic relevance framework: BM25 and be-
+  retrieve framework for knowledge base question an-        yond. Found. Trends Inf. Retr., 3(4):333–389.
+  swering with fine-tuned large language models. In
+  Findings of the Association for Computational Lin-      Apoorv Saxena, Adrian Kochsiek, and Rainer Gemulla.
+  guistics, ACL 2024, Bangkok, Thailand and virtual         2022. Sequence-to-sequence knowledge graph com-
+  meeting, August 11-16, 2024, pages 2039–2056.             pletion and question answering. In Proceedings of
+                                                            the 60th Annual Meeting of the Association for Com-
+Linhao Luo, Yuan-Fang Li, Gholamreza Haffari, and           putational Linguistics (Volume 1: Long Papers), ACL
+  Shirui Pan. 2024b. Reasoning on graphs: Faithful          2022, Dublin, Ireland, May 22-27, 2022, pages 2814–
+  and interpretable large language model reasoning. In      2828.
+  The Twelfth International Conference on Learning
+  Representations, ICLR 2024, Vienna, Austria, May        Apoorv Saxena, Aditay Tripathi, and Partha P. Taluk-
+  7-11, 2024.                                               dar. 2020. Improving multi-hop question answering
+                                                     35914
+  over knowledge graphs using knowledge base embed-          for Computational Linguistics: ACL/IJCNLP 2021,
+  dings. In Proceedings of the 58th Annual Meeting of        Online Event, August 1-6, 2021, pages 2140–2151.
+  the Association for Computational Linguistics, ACL
+  2020, Online, July 5-10, 2020, pages 4498–4507.         Xintao Wang, Qianwen Yang, Yongting Qiu, Jiaqing
+                                                            Liang, Qianyu He, Zhouhong Gu, Yanghua Xiao, and
+Xiangqing Shen, Fanfan Wang, and Rui Xia. 2025.             Wei Wang. 2023b. Knowledgpt: Enhancing large
+  Reason-align-respond: Aligning llm reasoning with         language models with retrieval and storage access on
+  knowledge graphs for kgqa.                                knowledge bases.
+Jiaxin Shi, Shulin Cao, Lei Hou, Juanzi Li, and Han-      Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+   wang Zhang. 2021. Transfernet: An effective and           Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc V. Le,
+   transparent framework for multi-hop question an-          and Denny Zhou. 2022. Chain-of-thought prompting
+   swering over relation graph. In Proceedings of the        elicits reasoning in large language models. In Ad-
+   2021 Conference on Empirical Methods in Natural           vances in Neural Information Processing Systems 35:
+   Language Processing, EMNLP 2021, Virtual Event           Annual Conference on Neural Information Process-
+   / Punta Cana, Dominican Republic, 7-11 November,          ing Systems 2022, NeurIPS 2022, New Orleans, LA,
+   2021, pages 4149–4158.                                    USA, November 28 - December 9, 2022.
+Haitian Sun, Tania Bedrax-Weiss, and William W. Co-       Yike Wu, Nan Hu, Sheng Bi, Guilin Qi, Jie Ren, Anhuan
+  hen. 2019. Pullnet: Open domain question answering        Xie, and Wei Song. 2023. Retrieve-rewrite-answer:
+  with iterative retrieval on knowledge bases and text.     A kg-to-text enhanced llms framework for knowledge
+  In Proceedings of the 2019 Conference on Empiri-          graph question answering.
+  cal Methods in Natural Language Processing and
+  the 9th International Joint Conference on Natural       Siheng Xiong, Ali Payani, Ramana Kompella, and Fara-
+  Language Processing, EMNLP-IJCNLP 2019, Hong               marz Fekri. 2024. Large language models can learn
+  Kong, China, November 3-7, 2019, pages 2380–2390.          temporal reasoning. In Proceedings of the 62nd An-
+                                                             nual Meeting of the Association for Computational
+Haitian Sun, Bhuwan Dhingra, Manzil Zaheer, Kathryn          Linguistics (Volume 1: Long Papers), pages 10452–
+  Mazaitis, Ruslan Salakhutdinov, and William W. Co-        10470.
+  hen. 2018. Open domain question answering using
+  early fusion of knowledge bases and text. In Proceed-   Siheng Xiong, Ali Payani, Yuan Yang, and Faramarz
+  ings of the 2018 Conference on Empirical Methods          Fekri. 2025. Deliberate reasoning in language mod-
+  in Natural Language Processing, Brussels, Belgium,        els as structure-aware planning with an accurate
+  October 31 - November 4, 2018, pages 4231–4242.           world model. In Proceedings of the 63rd Annual
+                                                            Meeting of the Association for Computational Lin-
+Jiashuo Sun, Chengjin Xu, Lumingyuan Tang, Saizhuo          guistics (Volume 1: Long Papers), pages 31900–
+   Wang, Chen Lin, Yeyun Gong, Lionel M. Ni, Heung-         31931.
+   Yeung Shum, and Jian Guo. 2024. Think-on-graph:
+   Deep and responsible reasoning of large language       Mufan Xu, Kehai Chen, Xuefeng Bai, Muyun Yang,
+   model on knowledge graph. In The Twelfth Inter-         Tiejun Zhao, and Min Zhang. 2025. Llm-based dis-
+   national Conference on Learning Representations,        criminative reasoning for knowledge graph question
+   ICLR 2024, Vienna, Austria, May 7-11, 2024.             answering.
+
+Alon Talmor and Jonathan Berant. 2018. The web as         Rui Yang, Haoran Liu, Edison Marrese-Taylor,
+  a knowledge-base for answering complex questions.         Qingcheng Zeng, Yuhe Ke, Wanxin Li, Lechao
+  In Proceedings of the 2018 Conference of the North        Cheng, Qingyu Chen, James Caverlee, Yutaka Mat-
+  American Chapter of the Association for Computa-          suo, and Irene Li. 2024. Kg-rank: Enhancing large
+  tional Linguistics: Human Language Technologies,          language models for medical QA with knowledge
+  NAACL-HLT 2018, New Orleans, Louisiana, USA,              graphs and ranking techniques. In Proceedings of
+  June 1-6, 2018, Volume 1 (Long Papers), pages 641–        the 23rd Workshop on Biomedical Natural Language
+  651.                                                      Processing, BioNLP@ACL 2024, Bangkok, Thailand,
+                                                            August 16, 2024, pages 155–166.
+Petar Veličković, Guillem Cucurull, Arantxa Casanova,
+  Adriana Romero, Pietro Liò, and Yoshua Bengio.          Wen-tau Yih, Matthew Richardson, Christopher Meek,
+  2018. Graph attention networks.                           Ming-Wei Chang, and Jina Suh. 2016. The value of
+                                                            semantic parse labeling for knowledge base question
+Keheng Wang, Feiyu Duan, Sirui Wang, Peiguang Li,           answering. In Proceedings of the 54th Annual Meet-
+  Yunsen Xian, Chuantao Yin, Wenge Rong, and Zhang          ing of the Association for Computational Linguistics,
+  Xiong. 2023a. Knowledge-driven cot: Exploring            ACL 2016, August 7-12, 2016, Berlin, Germany, Vol-
+  faithful reasoning in llms for knowledge-intensive        ume 2: Short Papers.
+  question answering.
+                                                          Donghan Yu, Sheng Zhang, Patrick Ng, Henghui
+Wenhui Wang, Hangbo Bao, Shaohan Huang, Li Dong,            Zhu, Alexander Hanbo Li, Jun Wang, Yiqun Hu,
+  and Furu Wei. 2021. Minilmv2: Multi-head self-            William Yang Wang, Zhiguo Wang, and Bing Xiang.
+  attention relation distillation for compressing pre-      2023. Decaf: Joint decoding of answers and logical
+  trained transformers. In Findings of the Association      forms for question answering over knowledge bases.
+                                                     35915
+  In The Eleventh International Conference on Learn-      A     Theorem Proof
+  ing Representations, ICLR 2023, Kigali, Rwanda,
+  May 1-5, 2023.                                          A.1    Proof of Theorem 1
+Jing Zhang, Xiaokang Zhang, Jifan Yu, Jian Tang, Jie      In this section, we provide the formal definition,
+   Tang, Cuiping Li, and Hong Chen. 2022. Subgraph        intuitive interpretation, and detailed proof for The-
+   retrieval enhanced model for multi-hop knowledge       orem 1.
+   base question answering. In Proceedings of the 60th
+   Annual Meeting of the Association for Computational
+                                                          Formal Definition and Interpretation of γ.
+   Linguistics (Volume 1: Long Papers), ACL 2022,
+   Dublin, Ireland, May 22-27, 2022, pages 5773–5784.     Strictly speaking, the connectivity constraint in
+                                                          KGs prevents standard greedy algorithms from ac-
+Jinman Zhao and Xueyan Zhang. 2024. Large language        cessing the entire ground set at each step. We treat
+   model is not a (multilingual) compositional relation
+   reasoner. In First Conference on Language Model-       the Seed-Guided Greedy Expansion as an Approx-
+   ing.                                                   imate Greedy Algorithm, reference to (Das and
+                                                          Kempe, 2011).
+Kaiyan Zhao, Qiyu Wu, Xin-Qiang Cai, and Yoshimasa
+  Tsuruoka. 2024a. Leveraging multi-lingual positive      Definition 1 (Topology-Semantic Alignment Fac-
+  instances in contrastive learning to improve sentence   tor γ). Let Ω be the global set of candidate edges.
+  embedding. In Proceedings of the 18th Conference        At step i, let e∗global ∈ Ω be the edge that provides
+  of the European Chapter of the Association for Com-
+  putational Linguistics, EACL 2024 - Volume 1: Long      the maximum marginal gain globally, and let e∗local
+  Papers, St. Julian’s, Malta, March 17-22, 2024, pages   be the edge selected by SGE from the current topo-
+  976–991.                                                logical neighbors N (Si−1 ). We define γ ∈ (0, 1]
+Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang,
+                                                          such that for any step i:
+ Xiaolei Wang, Yupeng Hou, Yingqian Min, Beichen
+ Zhang, Junjie Zhang, Zican Dong, Yifan Du, Chen           ∆F (e∗local | Si−1 ) ≥ γ·∆F (e∗global | Si−1 ). (10)
+ Yang, Yushuo Chen, Zhipeng Chen, Jinhao Jiang,
+ Ruiyang Ren, Yifan Li, Xinyu Tang, Zikang Liu,              The factor γ intuitively represents the smooth-
+ Peiyu Liu, Jian-Yun Nie, and Ji-Rong Wen. 2024b.
+ A survey of large language models.                       ness of the reasoning landscape. A high γ im-
+                                                          plies that high-value evidence is topologically ac-
+                                                          cessible via high-utility neighbors (i.e., no hidden
+                                                          gems blocked by low-score bridges). This theo-
+                                                          retical insight motivates our Structure-Aware Con-
+                                                          trastive Tuning module, which aims to maximize
+                                                          γ by aligning the embedding space with the graph
+                                                          structure.
+
+                                                          Proof of Theorem 1. Next, we will give the com-
+                                                          plete proof of Theorem 1.
+
+                                                          Proof. Let δi = F (Sexp∗ ) − F (S ) denote the resid-
+                                                                                             i
+                                                          ual gain required to reach the optimal value at step
+                                                          i. Based on the submodularity and monotonicity of
+                                                          F , a standard result implies that there exists at least
+                                                          one edge in the optimal set Sexp∗ that contributes at
+
+                                                          least δi /K to the objective.
+                                                             Constrained by the local neighborhood, and by
+                                                          Definition 1, the gain of our locally selected edge
+                                                          ei satisfies:
+
+                                                             F (Si+1 ) − F (Si ) ≥ γ · max
+                                                                                       e∈Ω
+                                                                                  (F (Si ∪ {e}) − F (Si ))
+                                                                                        ∗ ) − F (S )
+                                                                                    F (Sexp        i
+                                                                                ≥γ·                  .
+                                                                                            K
+                                                                                                       (11)
+                                                     35916
+Substituting δi , we derive the recurrence:               Step 3: Synthesis. Combining the inequalities
+                                                      from Step 1 and Step 2:
+                  γ                        γ
+   δi − δi+1 ≥ δi =⇒ δi+1 ≤ 1 −               δi .                              
+                 K                        K                                    1
+                                               (12)          F (ST ACA ) ≥ 1 −     · F (OP TM )
+Applying this iteratively for K steps (with δ0 =                               e
+     ∗ )):
+                                                                                                      (18)
+F (Sexp                                                                        1             ∗
+                                                                         ≥ 1−      · β · F (Sagg ).
+                                                                              e
+             γ K
+    δK ≤ 1 −      δ0 ≈ e−γ F (Sexp
+                               ∗
+                                   ).          (13)
+             K                                         Rearranging the terms yields the final bound:
+                                  ∗ ) − δ , we
+Substituting back F (SSGE ) = F (Sexp                                               
+                                         K
+                                                                                   1
+obtain:                                                      F (ST ACA ) ≥ β · 1 −           ∗
+                                                                                       · F (Sagg ).     (19)
+                                                                                   e
+         F (SSGE ) ≥ (1 − e−γ )F (Sexp
+                                   ∗
+                                       ).      (14)
+
+
+                                                       B     Computational Complexity and
+A.2 Proof of Theorem 2                                       Efficiency Analysis
+The TACA phase aims to connect disjoint compo-
+nents under a strict budget constraint. We analyze     To rigorously evaluate the efficiency of COSMOS,
+this process in two steps: (1) Structural Approxi-     we decouple the total inference latency Ttotal into
+mation, which maps the global search space to a        two distinct components: (1) Structural Optimiza-
+tractably pruned Meta-Graph, and (2) Algorithmic       tion Overhead (Tstruct ), which refers to the CPU-
+Approximation, which applies greedy optimization       bound graph algorithms (SGE, TACA, PPR) exe-
+on this Meta-Graph.                                    cuted locally; and (2) LLM Inference Overhead
+                                                       (TLLM ), which refers to the network-bound and
+Definition 2 (Meta-Graph Fidelity Factor β). Let
+                                                       computationally expensive calls to LLMs.
+OP TG be the utility of the optimal solution in the
+global Knowledge Graph, and OP TM be the util-
+                                                             Ttotal = Tstruct + Ncalls · TLLM _unit .   (20)
+ity of the optimal solution identifiable within our
+constructed Meta-Graph M (constrained by hop
+                                                       B.1     Structural Optimization Overhead
+limits and pruning). We define β ∈ (0, 1] such that:
+                                                               (Tstruct )
+          F (OP TM ) ≥ β · F (OP TG ).         (15)    This component represents the time consumed by
+                           ∗ denote the global op-
+                                                       the retrieval module. Let K be the total retrieval
+Proof of Theorem 2. Let Sagg                           budget (e.g., K = 100), davg be the average node
+                       ∗ ) = F (OP T ).
+timal solution, so F (Sagg            G                degree of the KG, and m be the number of identi-
+   Step 1: Structural Bound. By Definition 2, the      fied source entities (which serves as the number of
+construction of the Meta-Graph (via strategies like    initial clusters).
+Semantic PPR) retains a β-fraction of the optimal
+utility:                                               Seed-Guided Greedy Expansion (SGE). In this
+                                ∗
+                                                       phase, the algorithm iteratively selects the highest-
+           F (OP TM ) ≥ β · F (Sagg ).         (16)    scoring edges from the neighborhood frontier to
+                                                       expand the local subgraphs around the m source
+   Step 2: Algorithmic Bound. On the constructed
+                                                       entities. At each iteration t (up to budget KSGE ),
+Meta-Graph M, COSMOS employs a greedy strat-
+                                                       we evaluate the candidate edges in the current
+egy (MaxST backbone followed by budgeted aug-
+                                                       frontier. The size of the frontier is bounded by
+mentation) to select the final edge set ST ACA . This
+                                                       O(t · davg ). Using a max-heap to manage candi-
+is an instance of Monotone Submodular Maximiza-
+                                                       date scores, the selection takes logarithmic time
+tion with Cardinality Constraints. According to the
+                                                       relative to the frontier size. The total complexity is
+classical result by (Nemhauser et al., 1978), the
+                                                       O(KSGE · davg · log(KSGE · davg )). Since KSGE
+greedy solution satisfies:
+                                                       is a small constant constrained by the budget, this
+                            
+                           1                           phase is highly efficient and independent of the
+    F (ST ACA ) ≥ 1 −          · F (OP TM ). (17)      global graph size |V|.
+                           e
+                                                    35917
+Topology-Aware Component Aggregation                      making it significantly more suitable for real-time
+(TACA). The goal is to bridge the m disjoint              applications than iterative search-based baselines.
+clusters. We compare our Semantic PPR approach
+against a naive enumeration baseline. Let |Vavg |         C     Algorithm Pseudocode
+be the average number of nodes in each expanded
+cluster.                                                  The retrieval and reasoning process of COSMOS
+                                                          is formally outlined in Algorithm 1.
+   • Naive Enumeration: A brute-force strategy
+     would attempt to find bridging paths between          Algorithm 1: COSMOS Framework
+     all pairs of nodes across all pairs of clus-           Require: Query Q, Knowledge Graph G,
+     ters. The complexity for pathfinding would                     Budget K, Encoder Φ.
+     be O(m2 · |Vavg |2 · dL
+                           avg ). As |Vavg | grows          Ensure: Generated Answer A.
+     (e.g., dense local subgraphs), the quadratic            1: Initialization: VQ ← ExtractEntities(Q),
+     term |Vavg |2 makes this computationally pro-              q ← Φ(Q).
+     hibitive.                                               2: // Seed-Guided Greedy Expansion (SGE)
+                                                             3: Slocal ← ∅, C ← InitClusters(VQ ).
+   • COSMOS (Semantic PPR): By applying                      4: while |Slocal | < KSGE do
+     Semantic Personalized PageRank, we prune                5:    e∗ ← argmaxe∈N (Slocal ) ∆F (e | Slocal )
+     each of the m clusters to a small set of N              6:    Slocal ← Slocal ∪ {e∗ }
+     representative nodes (e.g., N = 3) that are             7: end while
+     topologically central and semantically rele-            8: // Topology-Aware Component Aggregation
+     vant. The pathfinding complexity reduces to                (TACA)
+     O(m2 · N 2 · dL
+                   avg + m · TP P R ).                       9: Identify representatives Ri for each Ci ∈ C
+                                                                via Semantic PPR.
+  Since N is a small constant (N ≪ |Vavg |) and             10: Construct Meta-Graph M.
+TP P R is efficient on sparse graphs (linear to edges),     11: T ← MaxST(M)
+COSMOS achieves a dramatic reduction in search              12: S ∗ ← Slocal ∪ Path(T )
+space, ensuring that Tstruct remains in the order of        13: // Budget-Aware Augmentation
+milliseconds.                                               14: while |S ∗ | < K do
+                                                            15:    p∗ ← argmaxp∈Pcand ∆F (p | S ∗ )
+B.2   LLM Inference Overhead (TLLM )                        16:    S ∗ ← S ∗ ∪ {p∗ }
+In modern KBQA systems, the bottleneck                      17: end while
+is predominantly the LLM inference latency                  18: // LLM Reasoning
+(TLLM _unit ), which typically ranges from hun-             19: A ← LLM(Q, Linearize(S ∗ ))
+dreds of milliseconds to seconds per call, orders           20: return A
+of magnitude slower than CPU-based graph opera-
+tions (Tstruct ). Therefore, minimizing the number
+of API calls (Ncalls ) is critical.                       D     More Experimental Details
+   Our framework offloads the thinking process
+(navigation and pruning) to the efficient Tstruct         D.1    Data Statistics and Descriptions
+module. The LLM is invoked only once at the               All datasets used in our experiments are grounded
+very end to generate the answer based on the re-          in Freebase (Bollacker et al., 2008), which serves as
+trieved subgraph. Conversely, approaches like             the large-scale background knowledge graph con-
+ToG (Sun et al., 2024) require the LLM to eval-           taining approximately 88 million entities, 20,000
+uate neighbors at every hop, which results in an          relations, and 126 million triplets. Table 6 and
+average of Ncalls ≈ 10 invocations in WebQSP              Table 7 summarize the data statistics.
+and CWQ (Sun et al., 2024), and 30 calls in
+M3 GQA (Peng et al., 2025a), which leads to cumu-         WebQSP (Yih et al., 2016). This dataset primar-
+lative latency.                                           ily consists of questions requiring reasoning within
+   Since Tstruct ≪ TLLM _unit (milliseconds vs.           1 to 2 hops. It serves as a standard benchmark for
+seconds), COSMOS achieves a speedup factor                evaluating the fundamental multi-hop reasoning
+roughly proportional to the reduction in LLM calls,       capabilities of KBQA systems.
+                                                     35918
+  Dataset        #Train     #Validation         #Test           • KV-Mem (Miller et al., 2016): Utilize a Key-
+                                                                  Value memory network to encode triplets, en-
+  WebQSP         2,848          250             1,639             abling multi-hop reasoning through iterative
+  CWQ            27,639        3,519            3,531             memory updates and read operations.
+
+    Table 6: Data statistics of WebQSP and CWQ.                 • EmbedKGQA (Saxena et al., 2020): Refor-
+                                                                  mulate the multi-hop KBQA as a sequential
+  Setting          #Train     #Validation       #Test             link prediction problem, leveraging KG em-
+                                                                  beddings to model the interaction between
+  Single-hop         925          154            463              queries and candidate answer entities.
+  Multi-hop          858          143            429
+  Set                802          133            400            • NSM (He et al., 2021): Employ a Neural State
+  Aggregation        681          114            341              Machine that uses a sequential modeling ap-
+  Editing            555          93             278              proach to simulate the intermediate steps of
+                                                                  multi-hop reasoning pathways over the knowl-
+  Total             3,821         637           1,911
+                                                                  edge graph.
+          Table 7: Data statistics of M3 GQA.
+                                                                • TransferNet (Shi et al., 2021): Operate on a
+                                                                  GNN framework to infer answer entities by
+CWQ (Talmor and Berant, 2018). Designed to                        explicitly modeling the transfer of attention
+be significantly more challenging than WebQSP,                    scores between the query and graph nodes.
+CWQ features intricate queries that require reason-
+ing chains of up to 4 hops, rigorously testing the              • KGT5 (Saxena et al., 2022): Adopt a gen-
+model’s ability to navigate deep structural depen-                erative paradigm by fine-tuning a T5 model
+dencies in the KG.                                                directly on KG to produce answers given an
+                                                                  input query.
+M3 GQA         (Peng et al., 2025a). To further
+evaluate the robustness of COSMOS, we utilize                   • GraftNet (Sun et al., 2018): Combine en-
+M3 GQA, a highly challenging dataset designed to                  tity linking with a heuristic subgraph retrieval
+assess strong multi-hop reasoning and global plan-                mechanism to extract and reason over graph
+ning capabilities. Queries in M3 GQA are char-                    contexts that are relevant to the query.
+acterized by high complexity, averaging over 3
+entities per query, with reasoning paths generally              • PullNet (Sun et al., 2019): Learn to construct
+exceeding 2 hops (excluding the single-hop set-                   query-specific subgraphs iteratively using an
+ting). Unlike standard benchmarks, M3 GQA pro-                    integrated retrieval module composed of an
+vides ground-truth retrieved subgraphs in addition                LSTM and a GNN.
+to answers, enabling a direct assessment of re-
+trieval fidelity. The dataset includes six distinct             • SR+NSM (Zhang et al., 2022): Enhance
+settings: single-hop, multi-hop, set, aggregation,                the reasoning process by first employing a
+editing, and answerability. In this work, we con-                 relation-path retrieval module to filter relevant
+duct retrieval and generation evaluations on the first            subgraphs before applying the Neural State
+five settings. We exclude the answerability setting,              Machine.
+which focuses on detecting unanswerable queries,
+                                                                • SR+NSM+E2E (Zhang et al., 2022): An ex-
+as it falls outside the scope of our current research
+                                                                  tension of SR+NSM that employs an end-to-
+on connectivity-oriented retrieval.
+                                                                  end training strategy to jointly optimize the
+                                                                  subgraph retrieval and downstream reasoning
+D.2 Details of Baselines
+                                                                  components.
+We compare our proposed COSMOS framework
+against a comprehensive set of baselines, ranging               • KD-CoT (Wang et al., 2023a): Leverage re-
+from traditional methods to recent LLM-integrated                 trieved KG knowledge to guide LLMs in gen-
+approaches. The details of these methods are as                   erating faithful CoT reasoning plans, improv-
+follows:                                                          ing interpretability.
+                                                        35919
+  • UniKGQA (Jiang et al., 2023b): Unify the             • ToG (Sun et al., 2024): Propose a Think-on-
+    traditionally separate stages of subgraph re-          Graph strategy where an LLM acts as an au-
+    trieval and reasoning into a single framework          tonomous agent to iteratively navigate the KG.
+    powered by LLMs.                                       Starting from the query entities, it dynami-
+                                                           cally evaluates and selects relevant edges and
+  • Retrieve-Rewrite-Answer (Wu et al., 2023):             neighboring nodes hop-by-hop until sufficient
+    Decompose the retrieval process by first pre-          information is gathered to answer the query.
+    dicting the optimal reasoning depth and subse-
+    quently retrieving relation paths constrained        • RoG-SFT: A variant of the RoG frame-
+    by this predicted length.                              work that undergoes additional Supervised
+                                                           Fine-Tuning (SFT) specifically on the target
+  • G-Retriever (He et al., 2024): Formulate sub-          dataset.
+    graph retrieval as a Prize-Collecting Steiner
+    Tree (PCST) optimization problem, aiming
+    to identify a connected subgraph that maxi-       D.3   Details of Implementations
+    mizes semantic relevance while minimizing         Data Preprocessing. For the WebQSP and CWQ
+    structural cost.                                  datasets, we strictly follow the standard protocol
+                                                      established by NSM (He et al., 2021) for entity
+  • RoG (Luo et al., 2024b): Generate faithful
+                                                      linking and knowledge graph preprocessing. For
+    reasoning plans by training an LLM to pro-
+                                                      the M3 GQA dataset, we utilize the pre-processed
+    duce logical relation chains, which are then
+                                                      data provided by the original authors to ensure
+    grounded in the knowledge graph to extract
+                                                      consistency with the benchmark settings.
+    valid reasoning paths that match the generated
+    schema.                                           Model Configuration. To facilitate a rigorous
+                                                      comparison, our model configurations are aligned
+  • EtD (Liu et al., 2024): Establish a syner-
+                                                      with the baseline environments specific to each
+    gistic framework between LLMs and GNNs
+                                                      benchmark. For WebQSP and CWQ, we employ
+    (Explore then Determine), where the LLM
+                                                      GPT-4o-mini as the backbone LLM and gte-large-
+    predicts high-probability edges to guide the
+                                                      en-v1.5 (Li et al., 2023) as the embedding model.
+    search, while the GNN handles the structural
+                                                      Baseline results are taken from SubgraphRAG (Li
+    expansion of neighbor nodes.
+                                                      et al., 2025) and RoG (Luo et al., 2024b) under
+  • SubgraphRAG (Li et al., 2025): Enhance re-        their unified setting (matched LLM backbone, re-
+    trieval by incorporating a Directional Distance   trieval budget, and dataset pre-processing method),
+    Encoding strategy to capture graph topology,      which we use unchanged for COSMOS. While
+    utilizing these structural features to identify   for M3 GQA, we utilize GPT-4-Turbo as the rea-
+    and select the most topologically significant     soner and paraphrase-multilingual-MiniLM-L12-
+    edges for the evidence subgraph.                  v2 (Wang et al., 2021) for encoding. For this bench-
+                                                      mark, we report the reproduction results provided
+   For M3 GQA, we add several baselines according     in the original paper (Peng et al., 2025a).
+to (Peng et al., 2025a), including:
+                                                      Hyperparameter Settings. For the retrieval strat-
+  • Sparse: Adopt the classic BM25 (Robertson         egy, the global retrieval budget is fixed at K = 100
+    and Zaragoza, 2009) algorithm as a sparse re-     triplets, partitioned into 90 for the Seed-Guided
+    triever to perform lexical matching, indepen-     Greedy Expansion and 10 for Topology-Aware
+    dently scoring and selecting the top-k triplets   Component Aggregation. The parameter λ, control-
+    that share the highest keyword overlap with       ling the trade-off between relevance and diversity
+    the input query.                                  in the utility function, is tuned from 0.4 to 0.9.
+                                                      For SGE, the layer-wise budget Blayer is selected
+  • Dense: Utilize a dense retrieval paradigm         from {15, 20, 30}. For Semantic PPR in TACA,
+    where both the query and knowledge triplets       the number of candidate representatives per com-
+    are encoded into a shared vector space using      ponent N is fixed to 3, and the temperature factor
+    a pre-trained embedding model, retrieving the     τ is set to 0.15. For training and inference, to en-
+    top-k facts based on cosine similarity.           sure reproducibility, the temperature for all LLM
+                                                 35920
+                                      Single-hop               Multi-hop                    Set                 Aggregation                    Editing
+  Baselines
+                                    Hit          F1           Hit           F1        Hit         F1            Hit        F1         Hit                F1
+                                                            Traditional Methods
+  Sparse                         69.33          65.06       16.78 14.82 54.50                  34.57        40.47        36.68      10.79              8.92
+  Dense                          74.30          69.04       35.20 25.20 70.00                  43.30        55.13        49.01      24.46              17.95
+                                                                LLMs Methods
+  GPT-4                          35.85          33.41       12.82 11.87 44.75                  21.92        26.03        25.65             -              -
+  ChatGPT                        32.18          29.64        8.39   7.73 34.75                 16.72        23.46        21.01             -              -
+                                                            LLMs+KGs Methods
+  ToG                            74.00          71.33       20.00 19.00 44.00                  23.13        30.00        28.67      20.00              20.00
+  RoG                            61.12          57.05       19.58 16.78 50.75                  27.94        39.59        35.72      11.51              8.19
+  RoG-SFT                        73.00          68.54       20.75 17.10 58.00                  31.14        36.36        34.01      12.59              8.82
+  G-Retriever                    59.40          55.97       25.87 21.74 69.75                  36.97        41.64        38.78      15.47              11.82
+  COSMOS w/o SACT                82.51          78.12       37.30 28.47 74.00                  47.49        58.65        52.00      26.98              21.82
+  COSMOS (ours)                  87.90          83.01       41.49 31.06 79.75                  51.90        59.82        53.54      33.81              24.83
+
+                                          Table 8: Generation performance on M3 GQA.
+
+                            Single-hop                    Multi-hop                   Set                   Aggregation                        Editing
+ Baselines
+                   Recall     Acc        Num     Recall     Acc       Num    Recall   Acc    Num       Recall     Acc     Num     Recall        Acc      Num
+                                                                 Traditional Methods
+ Sparse            41.60      79.27    100.00    32.68     24.01 100.00 26.90 39.00          100.00    23.92     59.24   100.00   31.84        19.42     100.00
+ Dense             67.73      88.55    100.00    51.34     66.43 100.00 46.50 53.75          100.00    45.53     82.99   100.00   51.35        59.71     100.00
+                                                                 LLMs+KGs Methods
+ ToG               41.87      74.00     4.89     32.82     16.00   5.64    12.60 4.00         5.98      8.81     38.00    5.76    34.92        24.00      5.60
+ RoG               38.17      62.42     58.06    13.36     24.01 41.33 12.31 30.75            77.47    12.07     56.89    76.50   14.56        23.38      41.71
+ RoG-SFT           43.83      70.41     19.26    12.11     25.87 48.10 13.10 34.50           124.64     9.56     48.68    58.32   11.07        31.65      45.66
+ G-Retriever       50.15      82.94    208.53    41.72     75.76 236.10 29.44 60.50          207.25    31.88     79.47   199.60   40.43        67.99     226.91
+ COSMOS w/o SACT   78.96      97.62    100.00    57.52     67.83 100.00 49.44 84.53          100.00    47.08     91.79   100.00   56.02        61.87     100.00
+ COSMOS (ours)     88.50      96.98    100.00    59.40     71.10 100.00 51.92 90.49          100.00    50.34     95.01   100.00   57.52        70.86     100.00
+
+
+                                           Table 9: Retrieval performance on M3 GQA.
+
+
+inference calls is set to 0. For the Structure-Aware                             the average number of triplets contained in the re-
+Contrastive Tuning, we set the learning rate to 1e-                              trieved subgraphs to contextualize the information
+5 and the batch size to 32. The model is trained                                 density relative to performance.
+for up to 5 epochs with an early stopping strategy                                  The comparative results for generation and re-
+based on validation set performance.                                             trieval are presented in Table 8 and Table 9, respec-
+                                                                                 tively. Analyzing the generation performance, base-
+D.4 Generation and Retrieval Performance on                                      lines that demonstrated superior performance on
+    M3 GQA                                                                       WebQSP and CWQ, such as RoG and G-Retriever,
+In this section, we present a comprehensive eval-                                exhibit a marked degradation on M3 GQA, surpris-
+uation of COSMOS on the challenging M3 GQA                                       ingly falling behind the simpler Dense Retrieval
+benchmark, explicitly assessing both generation                                  baseline in several metrics. This degradation high-
+quality and retrieval fidelity. For generation, we                               lights that heuristic or path-based methods struggle
+retain the standard Hit and F1 Score as our primary                              to satisfy multi-entity constraints simultaneously.
+performance indicators. For the retrieval evalua-                                In sharp contrast, COSMOS consistently achieves
+tion, we adopt a more granular set of metrics to                                 state-of-the-art performance across all five diverse
+rigorously measure the quality of the evidence sub-                              settings. This substantial lead demonstrates the ro-
+graphs: (1) Recall, which calculates the proportion                              bustness of our framework and its superior capabil-
+of ground-truth triplets from the reasoning paths                                ity in resolving complex, multi-constraint queries
+that are successfully retrieved; (2) Accuracy (Acc),                             where traditional methods fail. Regarding retrieval
+which measures the percentage of questions for                                   performance, COSMOS maintains its dominance,
+which all ground-truth answer nodes are present in                               outperforming baselines in the vast majority of sce-
+the retrieved subgraph; and (3) Num, which reports                               narios. It is particularly noteworthy that COSMOS
+                                                                        35921
+                                                                                Impact of                                    Impact of Blayer
+surpasses G-Retriever even though the latter op-
+erates with a significantly larger retrieval budget
+                                                              75                                                  75
+
+                                                              70
+
+(often double the size). This result highlights the           65                                    CWQ
+                                                                                                                  70
+
+                                                                                                                                                CWQ
+
+structural efficiency of our approach: by optimiz-
+                                                         F1                                         WebQSP   F1                                 WebQSP
+                                                                                                                  65
+                                                              60
+
+
+ing for connectivity and global utility, COSMOS               55
+                                                                                                                  60
+
+
+
+retrieves the necessary reasoning backbone more               50                                                  55
+                                                                   0.4   0.5    0.6     0.7   0.8      0.9             15   20                     30
+
+precisely without relying on excessive information                                                                                Blayer
+
+
+retrieval.                                                                     Figure 3: Hyper-parameter study.
+
+D.5 Hyper-parameter Study
+                                                         D.6             Error Analysis
+We conduct a hyperparameter sensitivity analysis
+to examine the robustness of our framework with          In this section, we randomly sample 50 incorrect
+respect to two key parameters: the trade-off co-         predictions and analyze their error causes:
+efficient λ in the MMR utility function, and the
+                                                         Missing numerical values in KG (38%). Some
+layer-wise budget Blayer used in greedy expansion.
+                                                         questions require explicit numerical values or
+The experimental results are summarized in Fig-
+                                                         numerical comparisons, but Freebase frequently
+ure 3.
+                                                         stores numbers through mediated structures or ma-
+                                                         chine IDs (e.g., “m.” nodes) instead of directly
+Effect of λ in MMR. The parameter λ controls
+                                                         readable literals. Consequently, even if COSMOS
+the trade-off between query relevance and diver-
+                                                         retrieves the structurally correct triplets, the evi-
+sity in the marginal utility function, balancing the
+                                                         dence may not expose the required numeric value in
+similarity gain to the query against the redundancy
+                                                         a form usable by the LLM. This issue is prominent
+penalty among selected edges. As shown in Fig-
+                                                         in queries such as “Which countries does Japan
+ure 3, excessively small values of λ overempha-
+                                                         export that have a GDP deflator change of rate
+size diversity, which may suppress semantically
+                                                         -0.61?”, where the numeric condition cannot be
+consistent edges belonging to the same relation.
+                                                         reliably verified from the retrieved subgraph.
+In such cases, only a subset of edges associated
+with an important relation can be retrieved, lead-       Retrieval misses (30%). When COSMOS fails
+ing to incomplete evidence coverage and degraded         to retrieve one or more key triplets (e.g., due to
+performance. In contrast, setting λ to relatively        long-range dependencies beyond hop constraints,
+larger values (e.g., 0.8 or 0.9) yields the best re-     low embedding similarity for critical bridge edges,
+sults across datasets. This observation suggests         or pruning during candidate path construction), the
+that while query relevance should remain the dom-        resulting evidence subgraph lacks the necessary
+inant signal, explicitly incorporating a moderate        reasoning backbone. In these cases, the LLM is
+diversity term in the utility function is beneficial     forced to infer with insufficient evidence, and the
+for mitigating redundancy and improving the over-        final error should primarily be attributed to limited
+all quality of the retrieved subgraph.                   retrieval coverage rather than reasoning quality.
+
+Effect of Blayer in greedy search. The parameter         Correct retrieval but erroneous reasoning
+Blayer specifies the maximum number of edges that        (22%). Even with complete supporting evidence,
+can be selected at each hop during the layer-wise        the LLM may produce incorrect outputs due to lim-
+greedy expansion. Figure 3 shows that model per-         ited multi-step reasoning, prompt sensitivity, or fail-
+formance is relatively insensitive to variations of      ures to follow the required answer format. A repre-
+Blayer within a reasonable range. This indicates         sentative example is “In which years have the base-
+that the proposed greedy expansion strategy is ro-       ball club that claimed victory in the 1988 World
+bust to the precise per-layer budget allocation, as      Series won the World Series?”, where the gold an-
+long as sufficient capacity is provided to capture       swers are entity strings such as “1959 World Series;
+salient local evidence. Such robustness is desirable     1963 World Series; 1965 World Series; 1981 World
+in practice, as it reduces the need for careful tuning   Series; 1988 World Series”, but the model outputs
+of this parameter across different datasets or query     only bare years (e.g., “1959; 1963; 1965; 1981;
+distributions.                                           1988”). Under strict entity-level matching, such
+                                                    35922
+non-canonical realizations are judged incorrect de-
+spite being semantically close.
+Incomplete gold answers (8%). We observe
+cases where the dataset annotations appear incom-
+plete for questions that naturally admit multiple
+valid answers, leading to the penalization of an-
+swers that are plausible but not listed in the gold set.
+For instance, “What language is spoken in the coun-
+try that circulates a newspaper called Manager
+Daily?” resolves to Thailand, for which multiple
+languages may satisfy the predicate “spoken in the
+country.” However, the gold annotation provides
+only a single language (e.g., Khmer language), cre-
+ating false negatives under strict evaluation.
+Query interpretation and answer-type mis-
+match (2%). A subset of failures stems from the
+incorrect interpretation of the expected answer type.
+For example, the query “when was father chris
+riley born” is temporally scoped, yet the system
+returns “Echuca”, which corresponds to a birth-
+place rather than a birth date. Such errors indicate
+that the downstream reasoner may violate the im-
+plicit type constraint induced by question semantics
+(e.g., when → date), particularly when the retrieved
+context contains salient but type-incompatible at-
+tributes.
+
+E    Prompts
+The prompt used in the LLM reasoning phase is
+listed below.
+
+
+
+
+                                                      35923
+The prompt for LLM reasoning.
+
+Given a question and a relevant knowledge graph, please use one or more entities to answer the
+question.
+
+Please first think step by step, and put the thinking process into the special tokens <think> and
+</think>. Then, output all entities (as comprehensive as possible) that you think are the correct
+answers, separate different entities with semicolons, and put them into the special tokens <answer>
+and </answer>.
+
+It is necessary to ensure that the output entities actually exist in the provided knowledge graph.
+Complete output entity is required; abbreviations cannot be used.
+
+If you believe that the answer cannot be inferred from the knowledge graph, then choose entities
+from the knowledge graph that are most likely to be the answers, or based on your own knowledge.
+At least one entity must be output between <answer> and </answer>, and the empty result cannot
+be output.
+
+Question: {question}
+
+Knowledge Graph: {retrieved subgraph}
+
+Answer:
+
+
+
+
+                                              35924
+
