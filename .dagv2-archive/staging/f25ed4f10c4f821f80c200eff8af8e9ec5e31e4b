@@ -1,0 +1,53 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "Personal memories: [No personal memories supplied.]"
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "b317511f5efcae784490401435d154f1743ec03280746263e6b9af4ac8fbe9ca",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "1",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791597213.436064,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791597214.161441
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 5.6113028858080737e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 176,
+      "completion_tokens": 2,
+      "total_tokens": 178
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

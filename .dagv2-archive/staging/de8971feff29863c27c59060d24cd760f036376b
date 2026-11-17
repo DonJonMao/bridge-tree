@@ -1,0 +1,58 @@
+{
+  "status": "IMPLEMENTED_NOT_HARDWARE_VERIFIED",
+  "baseline_head": "972625124e113aa542d760ce81928c1502af739c",
+  "branch": "feat/dag-resolve",
+  "algorithm_budgets": {
+    "ann_calls": 36,
+    "set_score_calls": 512,
+    "llm_calls": 24,
+    "reader_calls": 1
+  },
+  "production_changed": false,
+  "real_primary_workload_samples": 0,
+  "kv_hit_tokens": null,
+  "speedup": null,
+  "score_action_equivalence": null,
+  "blocked_reason": "No authorized isolated Ascend execution host/idle device access; internal backend 18002 unavailable remotely",
+  "observed_backend": "rerank proxy -> server loopback 18002; canonical yes/no completions path supported by matching historical source and current health/usage",
+  "actual_engine_version": null,
+  "actual_dtype": null,
+  "actual_device": null,
+  "existing_apc_state": null,
+  "workload_evidence": {
+    "dagbt_local_live_smoke": "no bridge_rerank_request events; planner/map stage failure",
+    "persona_event_log_lines": 490339,
+    "persona_event_log_full_payloads": false,
+    "historical_failure_bundle_requests": 194,
+    "historical_failure_bundle_questions": 103,
+    "historical_failure_bundle_primary_eligible": false,
+    "compact_export_contains_full_model_requests": false
+  },
+  "tests": {
+    "passed": 165,
+    "new_tests": 31,
+    "seconds": 4.98
+  },
+  "source_proxy_candidates_sha256": {
+    "label_score_fix/reranker_proxy_api.py": "28211d8dee17239b4ef8c3e0bbf3ebe702009a5e2d2864f6f1bd198db2583cdc",
+    "bridge_error_diagnosis_20260917/reranker_service_fix/reranker_proxy_api.py": "ef5da1dd44485cd51fdd742d3f40f29e585551e518130f3075e7c777936cfa60"
+  },
+  "artifact_sha256": {
+    "scripts/benchmark_bt_reranker_prefix_cache.py": "04661c6294a1fca5a8da082f3878b64a799ffdbe0a197a152951729dd7e7d8fa",
+    "serving/bt_prefix_cache_probe.py": "01dd4574e9bfd722fac0650ea746b836a08abefa8b70717187c60472aec2833e",
+    "tests/test_bt_reranker_prefix_cache.py": "695633256e1c9a219ac1cdb0a5ac3e3c14d8ad0b9d7db4e65eca08646020c371",
+    "docs/BT_RERANKER_PREFIX_CACHE.md": "68c85dc359d88c0cc803f81ed7bf1b7913feeb6255123287b6c9b99b622949c9"
+  },
+  "frozen_trace_identity": null,
+  "requirements_audit": {
+    "A1": "partial: live proxy contract observed, installed backend unknown",
+    "A2": "pending authorized isolated backend access",
+    "B1": "implemented extractor; real DAG-BT source trace unavailable locally",
+    "B2": "implemented completed-token-prefix estimator; no engine hits claimed",
+    "C": "implemented guarded launch plans and exact proxy observation; hardware cases pending",
+    "D1": "implemented score comparisons; real off noise pending",
+    "D2": "source arithmetic/action harness and fixtures pass; real score comparisons pending",
+    "D3": "read-only Engine fixtures and unseen-request rejection pass; real traces pending",
+    "E": "implemented per-arm replay/stats/metrics snapshots; paired performance not run"
+  }
+}
