@@ -1,0 +1,135 @@
+{
+  "schema": "dagbt_compact_failure_review_v1",
+  "archive": "dagv2_results_20261008_025515.tar.gz",
+  "dataset": "hotpotqa",
+  "authoritative_rows": 1902,
+  "answer_status_counts": {
+    "original": {
+      "ok": 950,
+      "planner_failed": 1
+    },
+    "fusion": {
+      "ok": 705,
+      "execution_failed": 246
+    }
+  },
+  "fusion_failure_count": 246,
+  "fusion_failure_rate_percent": 25.86750788643533,
+  "nested_errors_parsed": 246,
+  "nested_error_types": {
+    "ProtocolError": 240,
+    "OutputTruncated": 6
+  },
+  "categories": [
+    {
+      "error_type": "ProtocolError",
+      "message": "Coverage repair changed the fixed selection header",
+      "count": 129,
+      "percent_of_fusion_failures": 52.4390243902439,
+      "example_unit_ids": [
+        "5a749af055429979e28829b7",
+        "5ae26fad554299495565da6f",
+        "5ae0818e55429924de1b70e9"
+      ],
+      "determinate_interpretation": "Final selection coverage repair changed the frozen header. Header equality includes selected document list/order, reason text, and conflicts list/order. Existing header makes this immediately terminal before unassessed-coverage fallback."
+    },
+    {
+      "error_type": "ProtocolError",
+      "message": "A disputed source group must be retained together",
+      "count": 110,
+      "percent_of_fusion_failures": 44.71544715447155,
+      "example_unit_ids": [
+        "5ab69f9a554299710c8d1ef8",
+        "5a83411655429966c78a6b5d",
+        "5a77322055429972597f1494"
+      ],
+      "determinate_interpretation": "Final dependency-selection header selects some but not all documents in an unresolved-conflict protected group; groups include opposing cited sources and original support/ancestor documents. May occur in initial whole-set revision or later repair; this compact archive does not reveal which."
+    },
+    {
+      "error_type": "OutputTruncated",
+      "message": "Provider explicitly truncated reasoning output",
+      "count": 6,
+      "percent_of_fusion_failures": 2.4390243902439024,
+      "example_unit_ids": [
+        "5abdc8e755429965af743e3f",
+        "5ab2a186554299295394677b",
+        "5ae236da5542994d89d5b397"
+      ],
+      "determinate_interpretation": "Provider finish_reason=length triggered strict reasoning-output rejection. The compact archive cannot identify the exact reasoning operation or why its output was too long."
+    },
+    {
+      "error_type": "ProtocolError",
+      "message": "Selection requires a complete global header and coverage field",
+      "count": 1,
+      "percent_of_fusion_failures": 0.4065040650406504,
+      "example_unit_ids": [
+        "5abc5955554299114383a118"
+      ],
+      "determinate_interpretation": "Final selection response was not an object with exactly the four required keys selected_doc_ids, reason, conflicts, coverage. Missing versus extra keys is not visible in the compact archive."
+    }
+  ],
+  "first_two_categories_count": 239,
+  "first_two_categories_share_of_failures_percent": 97.15447154471545,
+  "verified_frozen_commit": "774d285",
+  "verified_sources": {
+    "dagbt/final_selection.py": {
+      "sha256": "afa759b21e7fc1c0b42cae10b077a4b5509392bbffe3a628c61a09a10898c233",
+      "matches_run_manifest": true
+    },
+    "dagbt/support.py": {
+      "sha256": "7c6f9d1346fa980e29ac2e7cb7a2107badc65661d091f9a7bd163a20e25e2167",
+      "matches_run_manifest": true
+    },
+    "dagbt/engine.py": {
+      "sha256": "03eb12500715c7907bf6b50bb1aea9857905a5ee9b74b9f8442625f208302957",
+      "matches_run_manifest": true
+    },
+    "dagbt/reasoning.py": {
+      "sha256": "bad7f3afe1c09883efea0474dbd5a357de7bb754614906109d1425789d2b8306",
+      "matches_run_manifest": true
+    }
+  },
+  "events": {
+    "tail_only": true,
+    "source_bytes": 314881,
+    "packaged_events": 1583,
+    "unique_task_keys": 1583,
+    "last_event_local": "2026-10-06T21:35:24.791865+08:00",
+    "last_event": {
+      "event": "arm_terminal",
+      "dataset": "hotpotqa",
+      "unit_id": "5ac290e85542992f1f2b3916",
+      "arm": "fusion",
+      "status": "ok",
+      "attempt": 1,
+      "unix": 1791293724.7918646
+    }
+  },
+  "interruption": {
+    "cause": "disk full while publishing current task row; failure-status persistence also failed",
+    "errno": 28,
+    "disk_full_mentions": 2,
+    "first_failure": "runner.generate_dataset line749 save(path,row) -> save line44 temp.write_text",
+    "second_failure": "runner.run_experiment line1288 save(progress.json) -> save line44 temp.write_text",
+    "persisted_progress": {
+      "state": "generating",
+      "dataset": "hotpotqa",
+      "unit_id": "5a8e3f2d5542995a26add48f",
+      "arm": "fusion",
+      "question_index": 951,
+      "questions_in_dataset": 1000,
+      "updated_unix": 1791293724.7932136
+    },
+    "current_question_number_one_based": 952,
+    "note": "Last captured termination event is question 951; current question 952 fusion has no authoritative row in the compact export."
+  },
+  "limits": [
+    "No raw reasoning/repair requests, complete headers, support graphs or HTTP attempt records in this compact bundle.",
+    "Cannot distinguish a model violation from an implementation/prompt rule mismatch, or determine which header field changed in the 129 cases.",
+    "Cannot establish whether disputed groups were semantically valid, fully visible or feasible from this compact bundle.",
+    "No ServiceError/Timeout/authentication exception is the terminal nested cause of these 246 rows; this does not prove no earlier transient service failures occurred.",
+    "Disk-full interruption is distinct from the 246 previously persisted algorithm/protocol failures.",
+    "Events are a truncated tail and cannot replace full authoritative answer counts.",
+    "Export validates top-level answers only, not complete diagnostic row tails."
+  ]
+}
