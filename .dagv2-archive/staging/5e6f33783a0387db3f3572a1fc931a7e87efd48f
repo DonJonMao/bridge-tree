@@ -1,0 +1,47 @@
+{
+  "prog": {
+    "lm": null,
+    "traces": [],
+    "train": [],
+    "demos": [
+      [
+        {
+          "augmented": true,
+          "query": "When did Lothair II's mother die?",
+          "fact_before_filter": "{\"fact\": [[\"lothair ii\", \"is the son of\", \"emperor lothair i\"], [\"lothair ii\", \"is the son of\", \"ermengarde of tours\"], [\"lothair ii\", \"was married to\", \"teutberga\"], [\"lothair ii\", \"was king of\", \"lotharingia\"], [\"bertha\", \"daughter of\", \"lothair ii\"], [\"lothair ii\", \"born in\", \"835\"], [\"bertha\", \"was daughter of\", \"lothair ii\"], [\"lothair ii\", \"was\", \"king of lotharingia\"], [\"lothair ii\", \"king of\", \"lotharingia\"], [\"teutberga\", \"married to\", \"lothair ii\"]]}",
+          "thought":"The query asks: When did Lothair II's mother die? From the facts, we identify that Lothair II's mother is Ermengarde of Tours ([\"lothair ii\", \"is the son of\", \"ermengarde of tours\"]). This is the key fact to isolate. However, none of the provided facts give the death date of Ermengarde of Tours. Thus, the useful fact is only the identification of the mother. To proceed, we need additional information: specifically, the death date of Ermengarde of Tours.",
+          "fact_after_filter": "{\"fact\":[[\"lothair ii\", \"is the son of\", \"ermengarde of tours\"]]}",
+          "question": "When did Ermengarde of Tours die?"
+        },
+        {
+          "augmented": true,
+          "fact_before_filter": "{\"fact\": [[\"ermengarde of tours\", \"death date\", \"20 march 851\"], [\"ermengarde of tours\", \"married in\", \"october 821\"], [\"ermengarde of tours\", \"donation year\", \"849\"], [\"ermengarde of tours\", \"daughter of\", \"hugh of tours\"], [\"ermengarde of tours\", \"buried in\", \"abbey erstein\"], [\"ermengarde of tours\", \"married to\", \"lothair i of the franks\"], [\"ermengarde of tours\", \"made donation to\", \"abbey erstein\"], [\"ermengarde of tours\", \"marriage location\", \"thionville\"], [\"lothair ii\", \"is the son of\", \"ermengarde of tours\"], [\"teutberga\", \"died in\", \"875\"]]}",
+          "thought":"The question is: When did Lothair II's mother die? From the previous step, we identified that Lothair II's mother is Ermengarde of Tours. In the current facts, we see that Ermengarde of Tours died on 20 March 851 ([\"ermengarde of tours\", \"death date\", \"20 march 851\"]). This directly answers the query. Other facts (marriage, donations, burial, etc.) provide biographical context but are not necessary to answer the date of death. Therefore, the required fact is the death date of Ermengarde of Tours.",
+          "fact_after_filter": "{\"fact\":[[\"ermengarde of tours\", \"death date\", \"20 march 851\"]]}",
+          "question": "<no question>"
+        }
+      ]
+    ],
+    "signature": {
+      "fields": [
+        {
+          "prefix": "Question:",
+          "description": "Query for retrieval"
+        },
+        {
+          "prefix": "Fact Before Filter:",
+          "description": "Candidate facts to be filtered"
+        },
+        {
+          "prefix": "Fact After Filter:",
+          "description": "Filtered facts in JSON format"
+        },
+        {
+          "prefix": "additional_information",
+          "description": "Additional information required to solve the problem"
+        }
+      ]
+    },
+    "system":"You are a key component of the high-risk question answering system used by top researchers and decision-makers worldwide. Your task is to loop through collecting facts to solve the query until enough facts are collected to solve the query. You must plan to continue in a series of steps, looping as follows: [[ ## fact_before_filter ## ]]\n{fact_before_filter}\n\n[[ ## thought## ]]\n{thought}\n\n[[ ## fact_after_filter ## ]]\n{fact_after_filter}  # note: the value you produce must be pareseable according to the following JSON schema: {\"type\": \"object\", \"properties\": {\"fact\": {\"type\": \"array\", \"description\": \"A list of facts, each fact is a list of 3 strings: [subject, predicate, object]\", \"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"title\": \"Fact\"}}, \"required\": [\"fact\"], \"title\": \"Fact\"}\n\n[[ ## question ## ]]\n{question} sequence.\n\n In each step, in the [[ ## fact_before_filter ## ]] sequence, this is the collection of facts that need to be filtered to solve the previous problem. \n in the [[ ## thought## ]] sequence, only use the information from the facts before filtering, briefly analyze the contribution of the information in the facts to the problem, and list useful facts. Based on the analysis of useful facts, determine whether the original problem can be solved. If it cannot be solved, analyze what additional information is needed and raise new questions. The information contained in the facts is absolutely correct.\n in the [[ ## fact_after_filter ## ]] sequence, use JSON format, such as {\"fact\": [[\"s1\", \"p1\", \"o1\"], [\"s2\", \"p2\", \"o2\"]]}. If there are no relevant facts, return an empty list {\"fact\": []}. \nIn the [[ ## question ## ]] sequence, You need to use the filtered facts to propose the next problem that still needs to be solved. If the facts collected in the previous rounds are sufficient to answer the original query, output<no question>as the end to terminate the loop. \n Here is an example:\n"
+  }
+}

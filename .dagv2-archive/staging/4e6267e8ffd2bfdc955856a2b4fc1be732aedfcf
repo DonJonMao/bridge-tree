@@ -1,0 +1,750 @@
+diff --git a/dagbt/webwalker_browser.py b/dagbt/webwalker_browser.py
+index ffd6455..e78e209 100644
+--- a/dagbt/webwalker_browser.py
++++ b/dagbt/webwalker_browser.py
+@@ -149,7 +149,7 @@ class PageParser(HTMLParser):
+                 region = ('template_ui' if re.search(r'\[#.*?#\]|\{\{.*?\}\}|<%.*?%>',
+                                                     self.anchor['href'] + ' ' + label)
+                           else self.anchor['region'])
+-                self.anchor_contexts.append({'url': url, 'region': region,
++                self.anchor_contexts.append({'url': url, 'text': label, 'region': region,
+                                              'raw_start': self.anchor.get('text_raw_start', self.anchor['raw_start'])})
+             except ValueError:
+                 pass
+@@ -245,6 +245,10 @@ class PageParser(HTMLParser):
+             if old is None or (candidate['region'] in ('main', 'content')
+                                and old['region'] not in ('main', 'content')):
+                 contexts[anchor['url']] = candidate
++                # The label and coordinates must describe the same actual
++                # occurrence, rather than combining a menu label with a body
++                # occurrence of that URL. Replacing a value keeps URL order.
++                unique[anchor['url']] = {'url': anchor['url'], 'text': anchor['text']}
+         return {'title': ' '.join(''.join(self.title).split()), 'text': text,
+                 'links': list(unique.values()), 'text_regions': regions, 'link_contexts': contexts}
+ 
+@@ -474,16 +478,17 @@ class WebBridge:
+         return {'local_candidate_ids': ids, 'candidate_ids': list(self.pages), 'trace': trace}
+ 
+     def _observed_links(self, state, premise_doc_ids=()):
+-        links, seen = [], set()
++        links, positions = [], {}
+         order = list(dict.fromkeys([*reversed(state['delivered']), *premise_doc_ids, *reversed(self.pages)]))
+         for doc_id in order:
+             page = self.pages[doc_id]
+             for link in page['document']['links']:
+                 url = link['url']
+-                if url in self.url_ids or url in self.failed or url in state['skipped'] or url in seen:
++                if url in self.url_ids or url in self.failed or url in state['skipped']:
+                     continue
+-                seen.add(url)
+-                record = {'id': 'l' + str(len(links)), 'source_doc_id': doc_id, **link}
++                position = positions.get(url)
++                record = {'id': 'l' + str(len(links) if position is None else position),
++                          'source_doc_id': doc_id, **link}
+                 context = page['document'].get('link_contexts', {}).get(url)
+                 if context:
+                     title = self.e.docs[doc_id].title
+@@ -493,7 +498,16 @@ class WebBridge:
+                     record['source_region'] = context['region']
+                     record['source_context'] = {'start': start, 'end': end,
+                                                 'text': self.e.docs[doc_id].passage[start:end]}
+-                links.append(record)
++                if position is None:
++                    positions[url] = len(links)
++                    links.append(record)
++                elif (record.get('source_region') in ('main', 'content')
++                      and links[position].get('source_region') not in ('main', 'content')):
++                    # A recently visited global menu must not hide an older
++                    # body occurrence. Keep the URL's frontier position/alias
++                    # and replace its complete provenance together. Ties keep
++                    # the existing page order; no query relevance is inferred.
++                    links[position] = record
+         return links
+ 
+     def has_unvisited_links(self, node_id, identity=None):
+diff --git a/dagbt/webwalker_reading.py b/dagbt/webwalker_reading.py
+index 8055e2f..a361d58 100644
+--- a/dagbt/webwalker_reading.py
++++ b/dagbt/webwalker_reading.py
+@@ -224,6 +224,8 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         self._selected_web_paid_recovery = None
+         self._active_web_paid_recovery = None
+         self.web_navigation_reads = []
++        self._web_navigation_nonempty_slots = {}
++        self._web_navigation_exposure_batches = {}
+         self.web_single_shot_reads = []
+         self.web_source_attempts = []
+         self._selected_web_single_shot = None
+@@ -235,6 +237,8 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         self._active_web_paid_recovery = None
+         self._selected_web_single_shot = None
+         self._active_web_single_shot = None
++        self._web_navigation_nonempty_slots = {}
++        self._web_navigation_exposure_batches = {}
+         first_gap, first_batch = len(self.web_search_gaps), len(self.batches)
+         first_exposure = len(self.source_exposures)
+         try:
+@@ -248,25 +252,35 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+ 
+     def _accept_navigation_reads(self, first_gap, first_batch, first_exposure):
+         """Archive completed empty slots as navigation hints, never facts."""
+-        for batch in self.batches[first_batch:]:
+-            # Valid rows accumulate across all attempts in the common reader.
+-            # A final empty repair cannot turn an earlier frozen partial/fact
+-            # into an empty batch. Conservatively suppress mixed-slot feedback.
+-            if not batch.get('complete') or batch.get('valid_rows') != 0:
++        for batch_index, batch in enumerate(self.batches[first_batch:], first_batch):
++            if not batch.get('complete'):
+                 continue
+-            source_ids = {self.e.mapper.sources[alias]['source_id']
+-                          for alias in batch.get('visible_source_aliases', [])}
+-            matching = [exposure for exposure in self.source_exposures[first_exposure:]
++            matching = [exposure for index, exposure in enumerate(
++                            self.source_exposures[first_exposure:], first_exposure)
+                         if exposure['query_identity'] == batch['identity']
+-                        and {source['source']['source_id'] if 'source' in source else source['source_id']
+-                             for source in exposure['sources']} == source_ids]
+-            if not matching or matching[-1].get('request_status') != 'returned':
+-                continue
+-            final_call = matching[-1]['logical_call_index']
++                        and self._web_navigation_exposure_batches.get(index) == batch_index]
+             for gap in self.web_search_gaps[first_gap:]:
+-                if (gap['query_identity'] != batch['identity']
+-                        or set(gap['source_ids']) != source_ids
+-                        or gap['logical_call_index'] != final_call):
++                if gap['query_identity'] != batch['identity']:
++                    continue
++                # Repairs request only failed variables. Another slot's later
++                # repair does not replace this slot's already completed read.
++                slot_exposures = [exposure for exposure in matching
++                                  if gap['variable'] in exposure['variables']]
++                if (not slot_exposures
++                        or slot_exposures[-1].get('request_status') != 'returned'
++                        or gap['logical_call_index'] != slot_exposures[-1]['logical_call_index']
++                        or gap['request_identity'] != slot_exposures[-1]['request_identity']):
++                    continue
++                source_ids = {source['source']['source_id'] if 'source' in source else source['source_id']
++                              for source in slot_exposures[-1]['sources']}
++                if set(gap['source_ids']) != source_ids:
++                    continue
++                # Valid/frozen rows and unresolved drafts accumulate within a
++                # slot across repairs. Its final empty response cannot relabel
++                # that work as an empty read; successful other slots may still
++                # supply their own independent navigation hints.
++                if any(gap['variable'] in self._web_navigation_nonempty_slots.get(
++                        exposure['logical_call_index'], set()) for exposure in slot_exposures):
+                     continue
+                 record = {**deepcopy(gap), 'doc_ids': list(dict.fromkeys(
+                     source['doc_id'] for source in self.e.mapper.sources.values()
+@@ -461,6 +475,12 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+         # Frozen rows are established after the canonical payload is built.
+         # Add a lossless wire-only description; this grants no review offers.
+         wire_data = deepcopy(data)
++        wire_data.pop('web_reading_protocol_diagnostics', None)
++        diagnostics = self._source_reference_repair_diagnostics(wire_data)
++        if diagnostics:
++            wire_data['web_reading_protocol_diagnostics'] = {
++                'read_only': True, 'grants_review_authority': False,
++                'repair_edit_scope_unchanged': True, 'errors': diagnostics}
+         if (self._search_gap_scope(wire_data)
+                 and wire_data.get('repair_scope', {}).get('frozen_observation_ids')):
+             scope = wire_data['repair_scope']
+@@ -479,6 +499,37 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+                 'historical_marker_authorization_unchanged': True, 'slots': edits}
+         return super()._wire_candidates(wire_data)
+ 
++    @staticmethod
++    def _source_reference_repair_diagnostics(data):
++        """Explain a current Web rejection without changing its captured draft.
++
++        Invalid typed Web slots intentionally reach the common reader intact,
++        which captures named/counter drafts before reporting a malformed slot.
++        Recover only the missing source-reference detail for the repair wire;
++        this is neither a second validator nor a review or edit permission.
++        """
++        if not WebJointReader._search_gap_scope(data):
++            return []
++        errors = []
++        for failure_index, failed in enumerate(data.get('repair_scope', {}).get('failed', [])):
++            slot = failed.get('slot')
++            if (not isinstance(slot, dict) or slot.get('reading_status') != 'evidence_assessment'
++                    or not isinstance(slot.get('observations'), list)):
++                continue
++            for observation_index, row in enumerate(slot['observations']):
++                if not isinstance(row, dict):
++                    continue
++                sources = row.get('source_ids')
++                if (not isinstance(sources, list) or not sources
++                        or any(not isinstance(source, str) or not source for source in sources)):
++                    errors.append({
++                        'variable': slot.get('variable'), 'observation_id': row.get('id'),
++                        'path': (f'repair_scope.failed[{failure_index}].slot.'
++                                 f'observations[{observation_index}].source_ids'),
++                        'error': ('evidence_assessment requires a non-empty list of '
++                                  'non-empty original-source alias strings.')})
++        return errors
++
+     @staticmethod
+     def _search_gap_scope(data):
+         return (data.get('task', {}).get('execution') == 'retrieval'
+@@ -1032,6 +1083,10 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+             self._selected_web_paid_recovery = None
+             selection['status'] = 'started'
+             self.e.event({'event': 'web_paid_recovery_started', **deepcopy(selection)})
++        # Batch completion appends its diagnostic only after every local repair.
++        # This private index therefore groups all of one batch's exposures even
++        # when a failed-slot repair narrows its original-source closure.
++        self._web_navigation_exposure_batches[len(self.source_exposures)] = len(self.batches)
+         try:
+             raw = super()._request_with_exposure(operation, data, identity, wire, system, **options)
+         except BaseException:
+@@ -1048,6 +1103,13 @@ class WebJointReader(CorrectionReviewMixin, JointReader):
+             self._active_web_paid_recovery['status'] = 'response_received'
+         if self._active_web_single_shot is not None:
+             self._active_web_single_shot['status'] = 'response_received'
++        slots = raw.get('slots', []) if isinstance(raw, dict) else []
++        self._web_navigation_nonempty_slots[self.e.reasoner.sequence] = {
++            slot['variable'] for slot in slots if isinstance(slot, dict)
++            and isinstance(slot.get('variable'), str) and slot['variable'] in data['variables']
++            and any(slot.get(field) for field in ('observations', 'unresolved',
++                'resolved_obligation_ids', 'resolved_failed_batch_ids', 'reviewed_observation_ids'))
++        } if isinstance(slots, list) else set(data['variables'])
+         # Ordinary unresolved issues have no observation draft IDs. Retain
+         # their source scope even if an outer/duplicate-slot error is repaired
+         # by an empty response. Valid envelopes produce the same obligation ID
+diff --git a/tests/test_webwalker_link_context.py b/tests/test_webwalker_link_context.py
+new file mode 100644
+index 0000000..cc6c71c
+--- /dev/null
++++ b/tests/test_webwalker_link_context.py
+@@ -0,0 +1,212 @@
++"""A deduplicated URL retains one real occurrence's label and provenance."""
++from copy import deepcopy
++import json
++from types import SimpleNamespace
++
++import pytest
++
++from dagbt.budget import Ledger
++from dagbt.reasoning import Reasoner
++from dagbt.transport import digest
++from dagbt.webwalker_assessment import candidate_identity
++from dagbt.webwalker_browser import PageParser, WebBridge
++
++
++ROOT = 'https://fixture.example/'
++TARGET = ROOT + 'record'
++
++
++def parse(html, url=ROOT):
++    parser = PageParser(url)
++    parser.feed(html)
++    return parser.result()
++
++
++@pytest.mark.parametrize('first,second,expected,region', [
++    ('<nav><a href="/record">Menu</a></nav>',
++     '<main><a href="/record">Technical record</a></main>', 'Technical record', 'main'),
++    ('<aside hidden><a href="/record">Hidden control</a></aside>',
++     '<div><a href="/record">Technical record</a></div>', 'Technical record', 'content'),
++    ('<main><a href="/record">Technical record</a></main>',
++     '<footer><a href="/record">Menu</a></footer>', 'Technical record', 'main'),
++    ('<div><a href="/record">First content</a></div>',
++     '<main><a href="/record">Second content</a></main>', 'First content', 'content'),
++    ('<nav><a href="/record">First menu</a></nav>',
++     '<footer><a href="/record">Second menu</a></footer>', 'First menu', 'navigation'),
++    ('<nav><a href="/record">Menu</a></nav>',
++     '<article><a href="/record" aria-label="Accessible" title="Record">Visible</a></article>',
++     'Accessible Record Visible', 'main'),
++])
++def test_same_page_label_and_context_select_the_same_structural_occurrence(first, second, expected, region):
++    page = parse('<title>Index</title>' + first + second)
++    assert page['links'] == [{'url': TARGET, 'text': expected}]
++    assert page['link_contexts'][TARGET]['region'] == region
++    # Both occurrences and their ordering remain in the complete source text.
++    first_text, second_text = parse(first)['text'], parse(second)['text']
++    assert first_text in page['text'] and second_text in page['text']
++    assert page['text'].index(first_text) < page['text'].index(second_text)
++    context = page['link_contexts'][TARGET]
++    assert context['start'] < context['end'] <= len(page['text'])
++    visible_label = 'Visible' if expected == 'Accessible Record Visible' else expected
++    assert visible_label in page['text'][context['start']:context['end']]
++
++
++def bridge_fixture(older, newer, *, null=False):
++    pages = {ROOT: parse(older), ROOT + 'later': parse(newer, ROOT + 'later')}
++    for document in list(pages.values()):
++        for link in document['links']:
++            pages.setdefault(link['url'], parse('<main>Original destination body.</main>', link['url']))
++    ledger = Ledger({'llm': 24, 'json_repairs': 6})
++    events, requests, counts = [], [], []
++
++    class Store:
++        settings, events = {}, []
++
++        def get(self, url):
++            document = pages[url]
++            return {'url': url, 'document': document, 'document_hash': digest(document),
++                    'raw_sha256': digest(['synthetic-raw', url]), 'fetched_unix': 1}
++
++    class Calls:
++        def count_reasoning_tokens(self, stage, url, payload):
++            # The production Reasoner constructs the entire wire; the offline
++            # counter deliberately assigns one token to each serialized char.
++            wire = json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
++            counts.append((wire, len(wire)))
++            return {'count': len(wire), 'token_estimator_id': 'offline_wire_characters'}
++
++        def get(self, stage, url, payload, **options):
++            ledger.reserve('llm', stage)
++            requests.append(deepcopy(payload))
++            data = json.loads(payload['messages'][1]['content'])
++            selected = None if null else data['links'][0]['id']
++            return {'response': {'choices': [{'finish_reason': 'stop',
++                    'message': {'content': json.dumps({'link_id': selected})}}]}}
++
++    settings = {'algorithm_version': 'dagbt_residual_memory_v2', 'reasoning_output_tokens': 4096,
++                'context_tokens': 16384, 'input_margin': 256, 'reserved_audit_calls': 1,
++                'max_repairs_per_request': 2, 'response_format': 'plain'}
++    engine = SimpleNamespace(docs={}, ledger=ledger, s=settings, event=events.append,
++                             navigation_provenance={})
++    engine.reasoner = Reasoner(Calls(), None, {'llm_base_url': 'https://unused.invalid'},
++                               settings, ledger, events.append)
++    bridge = WebBridge(engine, ROOT, Store(), {'max_actions': 36, 'link_window': 128})
++    identity = 'fixed-task-identity'
++    bridge.step('Find the technical record.', 'task', identity=identity)
++    old_id = next(iter(bridge.pages))
++    new_id = bridge._visit(ROOT + 'later')
++    bridge.sessions[identity]['delivered'].append(new_id)
++    return bridge, engine, requests, counts, identity, old_id, new_id
++
++
++@pytest.mark.parametrize('body', ['main', 'div'])
++def test_older_body_occurrence_survives_newer_menu_without_losing_urls_or_aliases(body):
++    bridge, engine, _, _, identity, old_id, new_id = bridge_fixture(
++        '<title>Earlier index</title><' + body + '>Technical report. '
++        '<a href="/record">Primary technical record</a><a href="/older-only">Older branch</a></' + body + '>',
++        '<title>Later page</title><nav><a href="/newer-only">Newer branch</a>'
++        '<a href="/record">Menu overview</a></nav><main>Unrelated latest body.</main>')
++    originals = deepcopy(bridge.pages)
++    used = dict(engine.ledger.used)
++    links = bridge._observed_links(bridge.sessions[identity])
++    assert [link['url'] for link in links] == [ROOT + 'newer-only', TARGET, ROOT + 'older-only']
++    assert [link['id'] for link in links] == ['l0', 'l1', 'l2']
++    record = links[1]
++    assert record['source_doc_id'] == old_id != new_id
++    assert record['text'] == 'Primary technical record'
++    assert record['source_region'] == ('main' if body == 'main' else 'content')
++    context = record['source_context']
++    assert context['text'] == engine.docs[old_id].passage[context['start']:context['end']]
++    assert 'Technical report.' in context['text']
++    assert bridge._observed_links(bridge.sessions[identity]) == links
++    assert bridge.pages == originals and dict(engine.ledger.used) == used
++
++
++@pytest.mark.parametrize('older,newer,expected', [
++    ('<nav><a href="/record">Old menu</a></nav>',
++     '<main><a href="/record">New body</a></main>', 'New body'),
++    ('<main><a href="/record">Old body</a></main>',
++     '<main><a href="/record">New body</a></main>', 'New body'),
++    ('<nav><a href="/record">Old menu</a></nav>',
++     '<nav><a href="/record">New menu</a></nav>', 'New menu'),
++])
++def test_cross_page_ties_keep_existing_page_order(older, newer, expected):
++    bridge, _, _, _, identity, _, new_id = bridge_fixture(older, newer)
++    link, = bridge._observed_links(bridge.sessions[identity])
++    assert link['text'] == expected and link['source_doc_id'] == new_id
++    assert link['id'] == 'l0'
++
++
++def test_missing_or_unknown_context_does_not_override_an_explicit_body_occurrence():
++    bridge, _, _, _, identity, old_id, new_id = bridge_fixture(
++        '<main><a href="/record">Old body</a></main>',
++        '<nav><a href="/record">New menu</a></nav>')
++    document = bridge.pages[new_id]['document']
++    for contexts in ({}, {TARGET: {**document['link_contexts'][TARGET], 'region': 'future_role'}}):
++        document['link_contexts'] = contexts
++        link, = bridge._observed_links(bridge.sessions[identity])
++        assert link['source_doc_id'] == old_id and link['text'] == 'Old body'
++
++
++@pytest.mark.parametrize('filtered', ['visited', 'failed', 'skipped'])
++def test_duplicate_body_occurrence_cannot_restore_an_ineligible_url(filtered):
++    bridge, _, _, _, identity, _, _ = bridge_fixture(
++        '<main><a href="/record">Old body</a><a href="/sibling">Sibling</a></main>',
++        '<nav><a href="/record">New menu</a></nav>')
++    if filtered == 'visited':
++        bridge.url_ids[TARGET] = 'already-visited'
++    elif filtered == 'failed':
++        bridge.failed.add(TARGET)
++    else:
++        bridge.sessions[identity]['skipped'].append(TARGET)
++    assert [link['url'] for link in bridge._observed_links(bridge.sessions[identity])] == [ROOT + 'sibling']
++
++
++def test_admitted_shortened_wire_keeps_real_body_provenance_and_one_paid_navigation():
++    older = '<title>Original report index</title><main>' + ''.join(
++        '<p>Original report branch %d. <a href="/record-%d">Technical record %d %s</a></p>'
++        % (i, i, i, 'Original label ' * 40) for i in range(24)) + '</main>'
++    newer = '<title>Recent menu</title><nav>' + ''.join(
++        '<a href="/record-%d">Menu %d</a>' % (i, i) for i in range(24)) + '</nav><main>Unrelated page.</main>'
++    bridge, engine, requests, counts, identity, old_id, _ = bridge_fixture(older, newer)
++    originals = deepcopy(bridge.pages)
++    frontier = bridge._observed_links(bridge.sessions[identity])
++    bridge.step('Find the technical record.', 'task', identity=identity)
++    assert len(requests) == engine.ledger.used['llm'] == 1
++    data = json.loads(requests[0]['messages'][1]['content'])
++    assert 0 < len(data['links']) < len(frontier)
++    assert data['links'] == frontier[:len(data['links'])]
++    assert {link['source_doc_id'] for link in data['links']} == {old_id}
++    assert all(link['text'].startswith('Technical record ') for link in data['links'])
++    for link in data['links']:
++        context = link['source_context']
++        assert context['text'] == engine.docs[old_id].passage[context['start']:context['end']]
++    for source in data['source_pages']:
++        for interval in source['source_ranges']:
++            assert source['text'][interval['excerpt_start']:interval['excerpt_end']] == (
++                engine.docs[source['doc_id']].passage[interval['start']:interval['end']])
++    admitted = json.dumps(requests[0], ensure_ascii=False, separators=(',', ':'))
++    assert len(admitted) + 4096 + 256 + 8 <= 16384
++    assert any(count + 4096 + 256 + 8 > 16384 for _, count in counts)
++    assert any(wire == admitted for wire, _ in counts)
++    assert all(bridge.pages[doc_id] == original for doc_id, original in originals.items())
++    followed = data['links'][0]['url']
++    assert {link['url'] for link in bridge._observed_links(bridge.sessions[identity])} | {followed} == {link['url'] for link in frontier}
++    assert engine.ledger.limits == {'llm': 24, 'json_repairs': 6, 'web_actions': 36}
++
++
++def test_null_assessments_of_body_representative_are_stable_and_keep_original_bound():
++    bridge, engine, requests, _, identity, old_id, _ = bridge_fixture(
++        '<main><a href="/record">Original technical record</a></main>',
++        '<nav><a href="/record">Menu overview</a></nav>', null=True)
++    frontier = bridge._observed_links(bridge.sessions[identity])
++    original_identity = candidate_identity(frontier[0])
++    for _ in range(2):
++        bridge.step('Find the technical record.', 'task', identity=identity)
++    result = bridge.step('Find the technical record.', 'task', identity=identity)
++    assert result['trace']['search_status'] == 'navigation_assessment_paused'
++    assert len(requests) == engine.ledger.used['llm'] == 2
++    assert bridge._observed_links(bridge.sessions[identity]) == frontier
++    assert candidate_identity(frontier[0]) == original_identity
++    assert all(json.loads(payload['messages'][1]['content'])['links'][0]['source_doc_id'] == old_id
++               for payload in requests)
+diff --git a/tests/test_webwalker_slot_navigation_feedback.py b/tests/test_webwalker_slot_navigation_feedback.py
+new file mode 100644
+index 0000000..bb92606
+--- /dev/null
++++ b/tests/test_webwalker_slot_navigation_feedback.py
+@@ -0,0 +1,215 @@
++"""Independent empty-slot navigation hints survive mixed evidence and repairs.
++
++Only invented originals and scripted responses are used. No model or website
++is contacted, and accepted hints never add evidence or review authority.
++"""
++from copy import deepcopy
++
++import pytest
++
++from dagbt.fact_state import FactState
++from dagbt.webwalker_reading import WebJointReader
++from test_webwalker_reading import observation, web_fixture
++
++
++IDENTITY = 'invented-mixed-slot-window'
++
++
++def empty(variable, direction=None):
++    return {'variable': variable, 'observations': [], 'unresolved': [],
++            'reading_status': 'no_relevant_evidence',
++            'search_gaps': [direction or 'Inspect another observed branch for ' + variable]}
++
++
++def evidence(variable, row):
++    return {'variable': variable, 'observations': [row], 'unresolved': [],
++            'reading_status': 'evidence_assessment'}
++
++
++def fixture(respond, **settings):
++    _, engine, old_state, calls = web_fixture(respond, **settings)
++    program = deepcopy(old_state.program)
++    program['variables']['other'] = {'type': 'set', 'demand': 'history'}
++    state = FactState(program, old_state.contract, engine.steps, old_state.final_node_id)
++    return WebJointReader(engine, state), engine, state, calls
++
++
++def read(reader, doc='piano', variables=('history', 'other'), identity=IDENTITY):
++    return reader.read(reader.e.steps[0], 'Read the invented activity attributes',
++                       list(variables), [doc], identity, discovery_doc_ids=[doc])
++
++
++@pytest.mark.parametrize('stance', ['support', 'partial', 'unknown', 'irrelevant'])
++def test_complete_mixed_batch_keeps_only_the_independent_empty_slot_hint(stance):
++    row = observation(stance=stance)
++    if stance != 'support':
++        row['value'] = None
++    reader, engine, state, calls = fixture(lambda i, data: {
++        'slots': [evidence('history', row), empty('other')]})
++    read(reader)
++    assert reader.batches[-1]['complete'] and reader.batches[-1]['valid_rows'] == 1
++    feedback = reader.navigation_feedback('history', identity=IDENTITY)
++    hint, = feedback['accepted_empty_reads']
++    assert hint['variable'] == 'other' and hint['logical_call_index'] == 1
++    assert hint['source_ids'] == [engine.mapper.sources['s1']['source_id']]
++    assert hint['doc_ids'] == ['piano'] and len(calls.requests) == 1
++    assert 'other' not in state.valid()[0]
++    before = (reader.material_signature(), deepcopy(reader.obligation_snapshot()),
++              deepcopy(state.public_dict()), deepcopy(engine.mapper.sources))
++    projected = reader.navigation_feedback_projection('history', identity=IDENTITY)
++    assert projected['grants_review_authority'] is False
++    projected['accepted_empty_reads'][0]['variable_hints'][0]['search_gaps'].append('caller mutation')
++    assert before == (reader.material_signature(), reader.obligation_snapshot(),
++                      state.public_dict(), engine.mapper.sources)
++    assert 'caller mutation' not in reader.web_navigation_reads[0]['search_gaps']
++
++
++def test_already_completed_empty_slot_keeps_its_actual_exposure_when_other_slot_is_repaired():
++    def respond(index, data):
++        if index == 1:
++            return {'slots': [empty('history'), evidence('other', observation('other-draft', ['not-offered']))]}
++        return {'slots': [evidence('other', observation('other-draft', ['s1']))]}
++    reader, _, state, calls = fixture(respond)
++    read(reader)
++    assert len(calls.requests) == 2 and set(calls.requests[1]['data']['variables']) == {'other'}
++    assert reader.batches[-1]['complete'] and state.valid()[0]['other'] == ['piano']
++    hint, = reader.web_navigation_reads
++    assert hint['variable'] == 'history' and hint['logical_call_index'] == 1
++    assert hint['request_identity'] == reader.web_search_gaps[0]['request_identity']
++
++
++def test_final_empty_repair_cannot_relabel_same_slot_frozen_partial_as_an_empty_read():
++    old = observation('old-partial', ['s1'], stance='partial')
++    old['value'] = None
++    current = {**deepcopy(old), 'id': 'current-partial'}
++    def respond(index, data):
++        if index == 1:
++            return {'slots': [evidence('history', old)]}
++        if index == 2:
++            slot = evidence('history', current)
++            slot['resolved_obligation_ids'] = [data['evidence_obligations'][0]['id']]
++            return {'slots': [slot, empty('other')]}
++        return {'slots': [empty('history')]}
++    reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
++    read(reader, variables=('history',), identity='earlier-original-issue')
++    original_issue = deepcopy(reader.evidence_obligations)
++    read(reader, doc='painting')
++    assert len(calls.requests) == 3 and reader.batches[-1]['complete']
++    assert reader.batches[-1]['valid_rows'] == 1 and state.pending == {'history'}
++    assert set(reader.evidence_obligations) == set(original_issue)
++    for issue_id, old_issue in original_issue.items():
++        assert {key: value for key, value in reader.evidence_obligations[issue_id].items() if key != 'origins'} == {
++            key: value for key, value in old_issue.items() if key != 'origins'}
++    assert [hint['variable'] for hint in reader.web_navigation_reads] == ['other']
++    assert reader.web_navigation_reads[0]['logical_call_index'] == 2
++    assert any(gap['variable'] == 'history' and gap['logical_call_index'] == 3
++               for gap in reader.web_search_gaps)
++
++
++def test_empty_repair_of_named_invalid_draft_is_never_accepted_as_a_search_hint():
++    def respond(index, data):
++        if index == 1:
++            return {'slots': [evidence('history', observation('required-draft', ['not-offered'])), empty('other')]}
++        if index == 2:
++            return {'slots': [empty('history')]}
++        return {'slots': [evidence('history', observation('required-draft', ['s1']))]}
++    reader, _, state, calls = fixture(respond)
++    read(reader)
++    assert len(calls.requests) == 3 and reader.batches[-1]['complete']
++    assert state.valid()[0]['history'] == ['piano']
++    assert [hint['variable'] for hint in reader.web_navigation_reads] == ['other']
++    assert any(gap['variable'] == 'history' for gap in reader.web_search_gaps)
++
++
++def test_invalid_envelope_unresolved_draft_stays_separate_from_other_empty_slot():
++    def respond(index, data):
++        if index == 1:
++            return {'slots': [{'variable': 'history', 'observations': [],
++                              'unresolved': ['The original activity date is ambiguous.']}, empty('other')]}
++        return {'slots': [empty(variable) for variable in data['variables']]}
++    reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
++    read(reader)
++    assert len(calls.requests) == 2 and reader.batches[-1]['complete']
++    assert reader.evidence_obligations and state.pending == {'history'}
++    assert [hint['variable'] for hint in reader.web_navigation_reads] == ['other']
++
++
++def test_incomplete_mixed_batch_cannot_publish_even_its_other_empty_slot():
++    reader, _, state, calls = fixture(lambda i, data: {'slots': [
++        evidence('history', observation('bad-source', ['not-offered'])), empty('other')]},
++        max_repairs_per_request=0)
++    read(reader)
++    assert len(calls.requests) == 1 and not reader.batches[-1]['complete']
++    assert reader.failed_batch_reviews and state.pending
++    assert reader.web_search_gaps and not reader.web_navigation_reads
++
++
++def test_pure_empty_batch_retains_all_variable_hints_and_original_projection_group():
++    reader, _, state, calls = fixture(lambda i, data: {'slots': [empty(variable) for variable in data['variables']]})
++    read(reader)
++    assert len(calls.requests) == 1 and reader.batches[-1]['valid_rows'] == 0
++    assert {hint['variable'] for hint in reader.web_navigation_reads} == {'history', 'other'}
++    projection = reader.navigation_feedback_projection('history', identity=IDENTITY)
++    assert projection['accepted_empty_read_count'] == 2 and projection['projected_empty_exposure_count'] == 1
++    assert not state.routes and not state.pending
++
++
++def test_transient_nonempty_tracking_does_not_suppress_a_later_window_or_change_material():
++    def respond(index, data):
++        return {'slots': [evidence('history', observation()), empty('other')]} if index == 1 else {
++            'slots': [empty(variable) for variable in data['variables']]}
++    reader, _, _, calls = fixture(respond)
++    read(reader)
++    read(reader, doc='painting')
++    assert len(calls.requests) == 2
++    assert any(hint['variable'] == 'history' and hint['logical_call_index'] == 2
++               for hint in reader.web_navigation_reads)
++    signature, snapshot = reader.material_signature(), deepcopy(reader.obligation_snapshot())
++    reader._web_navigation_nonempty_slots = {'measurement-only': {'history', 'other'}}
++    reader._web_navigation_exposure_batches = {'measurement-only': 100}
++    assert reader.material_signature() == signature and reader.obligation_snapshot() == snapshot
++
++
++def test_repair_narrowing_sources_preserves_sibling_hint_and_same_slot_partial_barrier():
++    def respond(index, data):
++        if index == 1:
++            row = observation('other-original-partial', ['s1'], stance='partial')
++            row['value'] = None
++            return {'slots': [evidence('other', row)]}
++        if index == 2:
++            row = observation('history-current-partial', ['s2'], stance='partial')
++            row['value'] = None
++            slot = evidence('history', row)
++            slot['resolved_obligation_ids'] = ['invented-unoffered-id']
++            return {'slots': [slot, empty('other')]}
++        return {'slots': [empty('history')]}
++    reader, _, state, calls = fixture(respond, max_repairs_per_request=1)
++    read(reader, variables=('other',), identity='earlier-other-issue')
++    read(reader, doc='painting')
++    assert [[source['id'] for source in call['data']['source_spans']] for call in calls.requests] == [
++        ['s1'], ['s1', 's2'], ['s2']]
++    assert reader.batches[-1]['complete'] and reader.batches[-1]['valid_rows'] == 1
++    assert state.pending == {'history', 'other'}
++    hint, = reader.web_navigation_reads
++    assert hint['variable'] == 'other' and hint['logical_call_index'] == 2
++    assert hint['doc_ids'] == ['piano', 'painting']
++    assert len(hint['source_ids']) == 2
++    assert any(gap['variable'] == 'history' and gap['logical_call_index'] == 3
++               for gap in reader.web_search_gaps)
++
++
++def test_multiple_batches_in_one_read_keep_nonempty_barriers_local_to_each_batch(monkeypatch):
++    def respond(index, data):
++        return {'slots': [evidence('history', observation()), empty('other')]} if index == 1 else {
++            'slots': [empty(variable) for variable in data['variables']]}
++    reader, engine, _, calls = fixture(respond)
++    monkeypatch.setattr(reader, '_fitting_prefix',
++                        lambda operation, step, query, variables, pending, semantic, audit: (pending[0], 1))
++    reader.read(engine.steps[0], 'Read the invented activity attributes', ['history', 'other'],
++                ['piano', 'painting'], IDENTITY)
++    assert len(calls.requests) == 2 and len(reader.batches) == 2
++    assert reader.batches[0]['valid_rows'] == 1 and reader.batches[1]['valid_rows'] == 0
++    assert any(hint['variable'] == 'history' and hint['logical_call_index'] == 2
++               for hint in reader.web_navigation_reads)
++    assert {hint['logical_call_index'] for hint in reader.web_navigation_reads
++            if hint['variable'] == 'other'} == {1, 2}
+diff --git a/tests/test_webwalker_protocol_diagnostics.py b/tests/test_webwalker_protocol_diagnostics.py
+new file mode 100644
+index 0000000..a304bc2
+--- /dev/null
++++ b/tests/test_webwalker_protocol_diagnostics.py
+@@ -0,0 +1,91 @@
++"""Invented-source repair diagnostics, without external model or website calls."""
++from copy import deepcopy
++import json
++
++from test_webwalker_reading import observation, read, response, web_fixture
++
++
++def test_actual_repair_wire_explains_source_free_draft_and_preserves_its_identity():
++    draft = observation('missing-original', [], stance='unknown', value=None,
++                        reason='The activity date needs an original-source review.')
++    draft['value'] = None
++    initial = response(draft)
++    repaired = response({**draft, 'source_ids': ['s1']})
++    reader, engine, state, calls = web_fixture(
++        lambda index, data: initial if index == 1 else repaired,
++        max_repairs_per_request=1)
++
++    read(reader)
++
++    assert len(calls.requests) == 2
++    repair = calls.requests[1]['data']
++    diagnostic = repair['web_reading_protocol_diagnostics']
++    assert diagnostic['read_only'] is True
++    assert diagnostic['grants_review_authority'] is False
++    error = diagnostic['errors'][0]
++    assert error['variable'] == 'history'
++    assert error['observation_id'] == 'missing-original'
++    assert error['path'].endswith('.slot.observations[0].source_ids')
++    assert 'non-empty' in error['error']
++    captured = [entry for entry in repair['repair_scope']['failed']
++                if entry.get('id') == 'missing-original']
++    assert captured and captured[0]['observation'] == draft
++    assert json.loads(engine.reasoner.requests[0]['raw_output']) == initial
++    assert json.loads(engine.reasoner.requests[1]['raw_output']) == repaired
++    assert engine.ledger.used == {'llm': 2, 'json_repairs': 1}
++    assert not state.valid()[0] and state.pending == {'history'}
++    assert not reader.failed_batch_reviews
++    assert reader.evidence_obligations
++
++
++def test_diagnostic_does_not_accept_repeated_invalid_draft_or_clear_its_failure():
++    draft = observation('still-source-free', [], stance='unknown', value=None)
++    draft['value'] = None
++    original = response(draft)
++    reader, engine, state, calls = web_fixture(
++        lambda index, data: original, max_repairs_per_request=1)
++
++    read(reader)
++
++    assert len(calls.requests) == 2
++    assert calls.requests[1]['data']['web_reading_protocol_diagnostics']['errors']
++    assert engine.ledger.used == {'llm': 2, 'json_repairs': 1}
++    assert state.pending == {'history'} and not state.valid()[0]
++    assert any(entry.get('id') == 'still-source-free'
++               for record in reader.failed_batch_reviews.values()
++               for entry in record['failed'])
++    assert all(json.loads(request['raw_output']) == original
++               for request in engine.reasoner.requests)
++
++
++def test_only_current_failed_slot_gets_wire_diagnostic_without_mutating_state():
++    reader, engine, state, calls = web_fixture()
++    data = reader._payload(engine.steps[0], 'Read invented source.', ['history'], ['s1'])
++    draft = observation('no-citation', [], stance='unknown', value=None)
++    draft['value'] = None
++    malformed = response(draft)['slots'][0]
++    data['repair_scope'] = {'failed': [
++        {'variable': 'history', 'id': '*', 'feedback': 'Malformed slot',
++         'observation': None, 'slot': malformed}], 'attempt': 1,
++        'previous_response_identity': '0' * 64}
++    before = deepcopy(data)
++    before_budget = deepcopy(engine.ledger.public_dict())
++    before_state = deepcopy(state.public_dict())
++
++    wires = reader._wire_candidates(data)
++
++    assert data == before and engine.ledger.public_dict() == before_budget
++    assert state.public_dict() == before_state and not calls.requests
++    for wire, _ in wires:
++        errors = wire['web_reading_protocol_diagnostics']['errors']
++        assert len(errors) == 1 and errors[0]['observation_id'] == 'no-citation'
++        assert wire['repair_scope'] == before['repair_scope']
++        assert not wire.get('web_review_checklist', {}).get('offered_frozen_observations')
++
++    ordinary = deepcopy(before)
++    ordinary.pop('repair_scope')
++    assert all('web_reading_protocol_diagnostics' not in wire
++               for wire, _ in reader._wire_candidates(ordinary))
++    audit = {**before, 'audit_instruction': 'Audit the supplied invented evidence.'}
++    assert all('web_reading_protocol_diagnostics' not in wire
++               for wire, _ in reader._wire_candidates(audit))
