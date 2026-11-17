@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017.\n\n[Passage {\"doc_id\": \"hotpotqa:8928\", \"source_id\": \"hotpotqa:8928\"}]\nBrandon Routh\nBrandon James Routh (born October 9, 1979) is an American actor and former fashion model. He grew up in Iowa before moving to Los Angeles to pursue an acting career, and subsequently appeared on multiple television series throughout the early 2000s. In 2006, he gained greater recognition for his role as the titular superhero of the 2006 film \"Superman Returns\". He also had a recurring role in the TV series \"Chuck\", as Daniel Shaw. Following this, he had notable supporting roles in the films \"Zack and Miri Make a Porno\" and \"Scott Pilgrim vs. the World\". In 2014, he began a recurring role on \"Arrow\" as Ray Palmer/Atom which spun off into a guest role on \"The Flash\" and a starring role on \"Legends of Tomorrow\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "288",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599335.7140229,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599336.6655831
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0005777386643546099
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 934,
+      "completion_tokens": 2,
+      "total_tokens": 936
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

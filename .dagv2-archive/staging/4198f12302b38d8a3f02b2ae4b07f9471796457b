@@ -1,0 +1,47 @@
+{
+  "unit_id": "native-question",
+  "url": "http://127.0.0.1:58761/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Solve the current evidence-grounded task.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"properties\": {\"answer\": {\"type\": \"string\"}, \"sources\": {\"items\": {\"type\": \"boolean\"}, \"type\": \"array\"}}, \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "Preserve 原始 evidence exactly."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 512
+  },
+  "stage": [
+    "solve_dag",
+    "node",
+    "sources"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790170662.5224352,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1790170662.523864
+    }
+  ],
+  "response": {
+    "choices": [
+      {
+        "message": {
+          "content": "{}"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 10,
+      "completion_tokens": 2
+    }
+  }
+}

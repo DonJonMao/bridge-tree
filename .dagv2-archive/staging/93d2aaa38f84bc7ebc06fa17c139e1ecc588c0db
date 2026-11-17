@@ -1,0 +1,311 @@
+{
+  "source_commit": "0f931bc",
+  "run": "outputs/v4_validation_r3",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only review of the first residual question. No evaluation labels, correctness judgments, credentials or transport headers are included.",
+  "findings": [
+    {
+      "finding": "Nonterminal readers emitted terminal-only fields before receiving public candidates.",
+      "evidence_stages": [
+        "joint_read/3",
+        "joint_read/4",
+        "joint_read/5",
+        "joint_read/6",
+        "joint_read/7",
+        "joint_read/8"
+      ]
+    },
+    {
+      "finding": "The history_summary node asserted a conversational recommendation as a past-scoped supported historical value and described invented options A/B/C/D despite public_options being absent.",
+      "evidence_stage": "joint_read/5",
+      "repeated_in": [
+        "joint_read/6",
+        "joint_read/7",
+        "joint_read/8"
+      ]
+    },
+    {
+      "finding": "The history_summary responses supplied the required three parent versions; the previous missing-parent repair failure did not recur in these responses."
+    },
+    {
+      "finding": "The four history_summary calls traversed successive source batches (61,48,40,4 aliases); identical response text alone is not proof of an infinite controller loop."
+    }
+  ],
+  "records": [
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/cdc7155d977d7284fccc900739b6cb81e5a77df98db3f2147900aeb5d422291e.json",
+      "stage": [
+        "joint_read",
+        "2"
+      ],
+      "task": {
+        "question": "What events has the user recently attended that involved music or sound?",
+        "output_slot": "recent_event",
+        "answer_type": "entity",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": null,
+      "requested_slots": [
+        "recent_event"
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/ec27a9122a7d58f8bcfcc8ad2a3917c5f58d0104154a9e59a18a7742c63c28db.json",
+      "stage": [
+        "joint_read",
+        "3"
+      ],
+      "task": {
+        "question": "What are the user's known music preferences, including any likes or dislikes for modern beats or Pacific sounds?",
+        "output_slot": "music_preferences",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "A",
+      "requested_slots": [
+        "music_preferences"
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/7f091c2d86bc9e5fe1915bc4e99e9eca4b428b173aeb855d310cb2c89498091a.json",
+      "stage": [
+        "joint_read",
+        "4"
+      ],
+      "task": {
+        "question": "What are the user's general interests or past experiences with cultural or musical events?",
+        "output_slot": "cultural_interests",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "B",
+      "requested_slots": [
+        "cultural_interests"
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/18db3ce4898afdafd8aa0f93f33e47cac76a0091020984dc0ea0d865d7f415ea.json",
+      "stage": [
+        "joint_read",
+        "5"
+      ],
+      "task": {
+        "question": "Summarize the user's recent event and relevant music preferences and cultural interests.",
+        "output_slot": "history_summary",
+        "answer_type": "text",
+        "inputs": [
+          "recent_event",
+          "music_preferences",
+          "cultural_interests"
+        ],
+        "execution": "compose"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "B",
+      "requested_slots": [
+        "recent_event",
+        "music_preferences",
+        "cultural_interests",
+        "history_summary"
+      ],
+      "misplaced_history_observations": [
+        {
+          "id": "obs_history_summary_1",
+          "stance": "support",
+          "value": "That sounds like an amazing experience! I love how you described the blend of modern beats with Pacific sounds. It reminds me of how you've always been drawn to that fusion, from sampling traditional music in 2013 to attending festivals and collaborating with local musicians. Your deep interest in blending electronic and Pacific Islander music really shines through in everything you do. I think you'd really enjoy checking out some of the emerging Pacific artists you've curated in your playlist—they capture that same unique energy you experienced at the event.",
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {
+            "recent_event": 1,
+            "music_preferences": 1,
+            "cultural_interests": 1
+          },
+          "reason": "This response (option B) best personalizes the reply by directly referencing the user's recent event (s33: local electronic music festival with Pacific Islander artists) and connecting it to their established history of blending modern beats with Pacific sounds (s13: producing a fusion track, s11: sampling in 2013, s67: attending a 2012 festival, s86: collaborating with a local musician, s95: curating a playlist of emerging Pacific artists). It acknowledges the user's deep interest and suggests a relevant activity (checking the curated playlist) that aligns with their past behavior, without asserting unverified external facts. Other options either lack personalization (A, C) or make unsupported claims (D).",
+          "source_count": 6
+        }
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/3ebe038d021a4c5409c56fce0d9fa04e17f4c1ce7887d5caa29b1c6f73147393.json",
+      "stage": [
+        "joint_read",
+        "6"
+      ],
+      "task": {
+        "question": "Summarize the user's recent event and relevant music preferences and cultural interests.",
+        "output_slot": "history_summary",
+        "answer_type": "text",
+        "inputs": [
+          "recent_event",
+          "music_preferences",
+          "cultural_interests"
+        ],
+        "execution": "compose"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "B",
+      "requested_slots": [
+        "recent_event",
+        "music_preferences",
+        "cultural_interests",
+        "history_summary"
+      ],
+      "misplaced_history_observations": [
+        {
+          "id": "fact_970820851379ca78f99a3def",
+          "stance": "support",
+          "value": "That sounds like an amazing experience! I love how you described the blend of modern beats with Pacific sounds. It reminds me of how you've always been drawn to that fusion, from sampling traditional music in 2013 to attending festivals and collaborating with local musicians. Your deep interest in blending electronic and Pacific Islander music really shines through in everything you do. I think you'd really enjoy checking out some of the emerging Pacific artists you've curated in your playlist—they capture that same unique energy you experienced at the event.",
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {
+            "recent_event": 1,
+            "music_preferences": 1,
+            "cultural_interests": 1
+          },
+          "reason": "This response (option B) best personalizes the reply by directly referencing the user's recent event (s33: local electronic music festival with Pacific Islander artists) and connecting it to their established history of blending modern beats with Pacific sounds (s13: producing a fusion track, s11: sampling in 2013, s67: attending a 2012 festival, s86: collaborating with a local musician, s95: curating a playlist of emerging Pacific artists). It acknowledges the user's deep interest and suggests a relevant activity (checking the curated playlist) that aligns with their past behavior, without asserting unverified external facts. Other options either lack personalization (A, C) or make unsupported claims (D).",
+          "source_count": 6
+        }
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/970b082fec79784717cac918f251043184f6c153d62123d7316f050268ead68d.json",
+      "stage": [
+        "joint_read",
+        "7"
+      ],
+      "task": {
+        "question": "Summarize the user's recent event and relevant music preferences and cultural interests.",
+        "output_slot": "history_summary",
+        "answer_type": "text",
+        "inputs": [
+          "recent_event",
+          "music_preferences",
+          "cultural_interests"
+        ],
+        "execution": "compose"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "B",
+      "requested_slots": [
+        "recent_event",
+        "music_preferences",
+        "cultural_interests",
+        "history_summary"
+      ],
+      "misplaced_history_observations": [
+        {
+          "id": "fact_970820851379ca78f99a3def",
+          "stance": "support",
+          "value": "That sounds like an amazing experience! I love how you described the blend of modern beats with Pacific sounds. It reminds me of how you've always been drawn to that fusion, from sampling traditional music in 2013 to attending festivals and collaborating with local musicians. Your deep interest in blending electronic and Pacific Islander music really shines through in everything you do. I think you'd really enjoy checking out some of the emerging Pacific artists you've curated in your playlist—they capture that same unique energy you experienced at the event.",
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {
+            "recent_event": 1,
+            "music_preferences": 1,
+            "cultural_interests": 1
+          },
+          "reason": "This response (option B) best personalizes the reply by directly referencing the user's recent event (s33: local electronic music festival with Pacific Islander artists) and connecting it to their established history of blending modern beats with Pacific sounds (s13: producing a fusion track, s11: sampling in 2013, s67: attending a 2012 festival, s86: collaborating with a local musician, s95: curating a playlist of emerging Pacific artists). It acknowledges the user's deep interest and suggests a relevant activity (checking the curated playlist) that aligns with their past behavior, without asserting unverified external facts. Other options either lack personalization (A, C) or make unsupported claims (D).",
+          "source_count": 6
+        }
+      ]
+    },
+    {
+      "request_path": "outputs/v4_validation_r3/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/790985ae264342f93d65f261497b5b6ef3da04d40dd653bb674ef1be346d31ec.json",
+      "stage": [
+        "joint_read",
+        "8"
+      ],
+      "task": {
+        "question": "Summarize the user's recent event and relevant music preferences and cultural interests.",
+        "output_slot": "history_summary",
+        "answer_type": "text",
+        "inputs": [
+          "recent_event",
+          "music_preferences",
+          "cultural_interests"
+        ],
+        "execution": "compose"
+      },
+      "public_options_present": false,
+      "phase": null,
+      "response_top_fields": [
+        "audit_verdict",
+        "final_prediction",
+        "semantic_answer",
+        "slots"
+      ],
+      "final_prediction": "B",
+      "requested_slots": [
+        "recent_event",
+        "music_preferences",
+        "cultural_interests",
+        "history_summary"
+      ],
+      "misplaced_history_observations": [
+        {
+          "id": "fact_970820851379ca78f99a3def",
+          "stance": "support",
+          "value": "That sounds like an amazing experience! I love how you described the blend of modern beats with Pacific sounds. It reminds me of how you've always been drawn to that fusion, from sampling traditional music in 2013 to attending festivals and collaborating with local musicians. Your deep interest in blending electronic and Pacific Islander music really shines through in everything you do. I think you'd really enjoy checking out some of the emerging Pacific artists you've curated in your playlist—they capture that same unique energy you experienced at the event.",
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {
+            "recent_event": 1,
+            "music_preferences": 1,
+            "cultural_interests": 1
+          },
+          "reason": "This response (option B) best personalizes the reply by directly referencing the user's recent event (s33: local electronic music festival with Pacific Islander artists) and connecting it to their established history of blending modern beats with Pacific sounds (s13: producing a fusion track, s11: sampling in 2013, s67: attending a 2012 festival, s86: collaborating with a local musician, s95: curating a playlist of emerging Pacific artists). It acknowledges the user's deep interest and suggests a relevant activity (checking the curated playlist) that aligns with their past behavior, without asserting unverified external facts. Other options either lack personalization (A, C) or make unsupported claims (D).",
+          "source_count": 6
+        }
+      ]
+    }
+  ],
+  "limitation": "The run was stopped by the root agent before publication of the first residual result. These observations prove stage confusion, not an answer-accuracy effect."
+}

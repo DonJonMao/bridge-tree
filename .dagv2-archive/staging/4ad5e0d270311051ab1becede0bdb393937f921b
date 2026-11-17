@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1812\", \"source_id\": \"hotpotqa:1812\"}]\nGaby Hoffmann\nGabriella Mary \"Gaby\" Hoffmann (born January 8, 1982) is an American film and television actress best known for her roles on \"Sleepless in Seattle,\" \"Transparent\" and \"Girls\",<ref name=\"Vulture-Girls/Trans-2014\"> </ref> which garnered her nominations for the Primetime Emmy Award for Outstanding Supporting Actress in a Comedy Series and Primetime Emmy Award for Outstanding Guest Actress in a Comedy Series in 2015, respectively. Additionally, she is remembered as a child actress from the films \"Field of Dreams\", \"Uncle Buck\", \" Now and Then\", and \" Volcano\".\n\n[Passage {\"doc_id\": \"hotpotqa:5998\", \"source_id\": \"hotpotqa:5998\"}]\nDiane Ladd\nDiane Ladd (born November 29, 1932) is an American actress, film director, producer and author. She has appeared in over 120 film and television roles. For the 1974 film \"Alice Doesn't Live Here Anymore\", she won the BAFTA Award for Best Actress in a Supporting Role and was nominated for the Academy Award for Best Supporting Actress. She went on to win the Golden Globe Award for Best Supporting Actress on Television for \"Alice\" (1980–81), and to receive Academy Award nominations for \"Wild at Heart\" (1990) and \"Rambling Rose\" (1991). Her other film appearances include \"Chinatown\" (1974), \"Ghosts of Mississippi\" (1996), \"Primary Colors\" (1998), \"28 Days\" (2000), and \"American Cowslip\" (2008). Ladd is the mother of actress Laura Dern, with her ex-husband, actor Bruce Dern.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1812\", \"source_id\": \"hotpotqa:1812\"}]\nGaby Hoffmann\nGabriella Mary \"Gaby\" Hoffmann (born January 8, 1982) is an American film and television actress best known for her roles on \"Sleepless in Seattle,\" \"Transparent\" and \"Girls\",<ref name=\"Vulture-Girls/Trans-2014\"> </ref> which garnered her nominations for the Primetime Emmy Award for Outstanding Supporting Actress in a Comedy Series and Primetime Emmy Award for Outstanding Guest Actress in a Comedy Series in 2015, respectively. Additionally, she is remembered as a child actress from the films \"Field of Dreams\", \"Uncle Buck\", \" Now and Then\", and \" Volcano\".\n\n[Passage {\"doc_id\": \"hotpotqa:5994\", \"source_id\": \"hotpotqa:5994\"}]\nAmy Madigan\nAmy Marie Madigan (born September 11, 1950) is an American actress, producer, and singer. She was nominated for the Academy Award for Best Supporting Actress for the 1985 film \"Twice in a Lifetime\". Her other film credits include \"Love Child\" (1982), \"Places in the Heart\" (1984), \"Field of Dreams\" (1989), \"Uncle Buck\" (1989), \"The Dark Half\" (1993), \"Pollock\" (2000), and \"Gone Baby Gone\" (2007). Madigan won the Golden Globe Award for Best Supporting Actress on Television and was nominated for the Primetime Emmy Award for Outstanding Lead Actress in a Miniseries or a Movie for her portrayal of Sarah Weddington in the 1989 television film \"Roe vs. Wade\".\n\n[Passage {\"doc_id\": \"hotpotqa:5998\", \"source_id\": \"hotpotqa:5998\"}]\nDiane Ladd\nDiane Ladd (born November 29, 1932) is an American actress, film director, producer and author. She has appeared in over 120 film and television roles. For the 1974 film \"Alice Doesn't Live Here Anymore\", she won the BAFTA Award for Best Actress in a Supporting Role and was nominated for the Academy Award for Best Supporting Actress. She went on to win the Golden Globe Award for Best Supporting Actress on Television for \"Alice\" (1980–81), and to receive Academy Award nominations for \"Wild at Heart\" (1990) and \"Rambling Rose\" (1991). Her other film appearances include \"Chinatown\" (1974), \"Ghosts of Mississippi\" (1996), \"Primary Colors\" (1998), \"28 Days\" (2000), and \"American Cowslip\" (2008). Ladd is the mother of actress Laura Dern, with her ex-husband, actor Bruce Dern."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "209",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599259.408475,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599261.289192
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0008376213429495591
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.0005550763756718527
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2580,
+      "completion_tokens": 4,
+      "total_tokens": 2584
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
