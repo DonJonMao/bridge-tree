@@ -1,0 +1,51 @@
+{
+  "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "I'm planning a weekend getaway and want to try something creatively fulfilling. What would you suggest?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"personamem:memory:e7a026a1e699694225904ac735e54f242d28ca85da0c2e3ea86daf04d7e3237a\", \"source_id\": \"personamem:memory:e7a026a1e699694225904ac735e54f242d28ca85da0c2e3ea86daf04d7e3237a\"}]\nConversation message indices 43–44 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I left feeling unsatisfied, as though the film skimmed over the intricacies that make music a universal language. It was almost as if they focused too much on celebrity interviews and not enough on the artistic process itself. I found myself reflecting on how music has the power to unite diverse cultures and express emotions that words alone often fail to capture. The disappointment lingered as I thought about the many documentaries that delve into the creative journeys of musicians, revealing not just their triumphs but also their struggles and failures. It made me realize that true connection with music often comes from a deeper engagement, one that can be achieved through personal creation rather than passive consumption.\n\nAssistant:\nAssistant: That’s an inspiring mindset! The journey of creating one's own music can be immensely fulfilling, as it allows for a deep personal expression that often transcends verbal communication. Have you tried composing original music? It can be an incredibly rewarding experience, as every note and lyric may reflect your thoughts and emotions in a genuine way. Crafting melodies and harmonies also provides a unique outlet to process your own experiences and feelings; oftentimes, that raw authenticity resonates more than polished productions. I understand that it can initially feel daunting, especially considering the plethora of skilled musicians out there, but remember that each artist started somewhere, often experimenting and learning through the process. It’s perfectly natural to encounter challenges, as the act of creation is rarely linear or easy. Perhaps approaching it with a spirit of playfulness rather than obligation could rekindle that joy you're seeking. It's about discovering what resonates with you personally and allowing your creativity to flow. You might find that sometimes, the act of making music, irrespective of the final outcome, is what truly nurtures your spirit.\n\n[Passage {\"doc_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\", \"source_id\": \"personamem:memory:7429287f355cff977c81e13c2b6d884a8086c3aae7dd5935ae1e737d992ec04b\"}]\nConversation message indices 146–147 (zero-based chronological observation order; not calendar time)\nUser:\nUser: I went on a hiking date recently but found it tiring and, quite frankly, not enjoyable at all. The trek was supposed to be a fun way to connect with someone special, surrounded by nature and fresh air. However, instead of feeling invigorated by the outdoors, I felt overwhelmed and exhausted. It's surprising how strenuous a hike can be, especially when you're trying to navigate both the terrain and the expectations of a date. Perhaps it was the elevation or the length that caught me off guard, but it really put a damper on what was meant to be a joyful experience.\n\nAssistant:\nAssistant: Physical dates can be challenging, particularly when they involve outdoor activities that demand a certain level of physical fitness and stamina. It's definitely important to consider the various aspects that might influence your enjoyment, such as the location, your current physical health, and even the weather conditions on that day. If the setting is too strenuous, it can hinder what could have been a wonderful opportunity to get to know someone. What kind of setting do you think would suit you better? For example, maybe an active date indoors, such as a cooking class, could allow for more engaging conversation without the physical toll that hiking often brings. Alternatively, a leisurely stroll in a local park or a visit to a cozy cafe might provide a relaxed atmosphere for both of you to connect without the stress of difficult terrain."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "110",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791537296.206358,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791537297.28805
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.02595735719779685
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2132,
+      "completion_tokens": 2,
+      "total_tokens": 2134
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
