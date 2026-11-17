@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:23\", \"source_id\": \"hotpotqa:23\"}]\nPrime Minister of Northern Ireland\nThe Prime Minister of Northern Ireland was the head of the Government of Northern Ireland between 1921 and 1972. No such office was provided for in the Government of Ireland Act 1920, however the Lord Lieutenant, as with Governors-General in other Westminster Systems such as in Canada, chose to appoint someone to head the executive even though no such post existed in statute law. The office-holder assumed the title \"Prime Minister\" to draw parallels with the Prime Minister of the United Kingdom. On the advice of the new Prime Minister, the Lord Lieutenant then created the \"Department of the Prime Minister\". The office of Prime Minister of Northern Ireland was abolished in 1972, along with the contemporary government, when direct rule of Northern Ireland was transferred to London.\n\n[Passage {\"doc_id\": \"hotpotqa:7290\", \"source_id\": \"hotpotqa:7290\"}]\nDivision of Bland\nThe Division of Bland was an Australian Electoral Division in New South Wales. The division was created in 1900 and was one of the original 75 divisions contested at the first federal election. It was abolished in 1906. It was named for Dr William Bland, a New South Wales colonial politician. Based in rural southern New South Wales, it included the towns of Narrandera, Young, Wagga Wagga and West Wyalong. Bland was held by Chris Watson, the first Leader of the federal parliamentary Labor Party and Australia's first Labor Prime Minister. When Bland was abolished in 1906, Watson transferred to South Sydney."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "122",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600347.504715,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600348.3379269
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00011625946448501282
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 914,
+      "completion_tokens": 2,
+      "total_tokens": 916
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

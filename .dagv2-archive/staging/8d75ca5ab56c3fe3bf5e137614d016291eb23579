@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9512\", \"source_id\": \"hotpotqa:9512\"}]\nVaniusha and The Space Pirate\nVaniusha and The Space Pirate (Russian: Ванюша и космический пират ) is a 1991 Soviet Russian stop-motion animation film by Vladimir Danilevich. This film was produced by Soyuzmultfilm studio. <br>The film is about The Friendly Newcomer from another planet.<br> The film is The Third Film of the tetralogy, which tells about the adventures of The Newcomer Vaniusha and his friends. Other three films called \"The Newcomer in The Cabbage\", \"Vaniusha The Newcomer\" and \"Vaniusha and The Giant\"."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "100",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599081.761556,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599084.164507
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0021405892581107663
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 530,
+      "completion_tokens": 2,
+      "total_tokens": 532
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
