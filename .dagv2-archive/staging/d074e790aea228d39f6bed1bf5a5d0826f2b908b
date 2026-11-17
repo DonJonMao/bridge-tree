@@ -1,0 +1,77 @@
+{
+  "run": "v4_validation_r17",
+  "source_commit": "bcbd16f6b9e2cc5545d32b15cc21ae1d6a74cc94",
+  "question_index": 2,
+  "unit_id": "b3588797-acdf-40d3-bcc5-951f81896f95",
+  "labels_read": false,
+  "new_service_calls": 0,
+  "status": "ok",
+  "audit_complete": true,
+  "terminal_input_validation_complete": true,
+  "responses": [
+    {
+      "sequence": 453,
+      "operation": "semantic_compose",
+      "logical_call_index": 12,
+      "finish_reason": "stop",
+      "valid_json_after_fence_removal": true,
+      "fenced": false,
+      "output_keys": [
+        "slots"
+      ],
+      "has_input_reference_keys": false,
+      "slot_count": 4,
+      "output_tokens_estimate": 2522
+    },
+    {
+      "sequence": 466,
+      "operation": "semantic_compose_repair",
+      "logical_call_index": 13,
+      "finish_reason": "stop",
+      "valid_json_after_fence_removal": true,
+      "fenced": true,
+      "output_keys": [
+        "slots",
+        "semantic_answer",
+        "final_prediction"
+      ],
+      "has_input_reference_keys": false,
+      "slot_count": 0,
+      "output_tokens_estimate": 168,
+      "terminal_repair_feedback": "semantic_answer must equal the supported terminal value exactly, preserving its JSON type",
+      "terminal_repair_slots_empty": true
+    },
+    {
+      "sequence": 479,
+      "operation": "audit_joint",
+      "logical_call_index": 14,
+      "finish_reason": "stop",
+      "valid_json_after_fence_removal": true,
+      "fenced": false,
+      "output_keys": [
+        "slots",
+        "audit_verdict"
+      ],
+      "has_input_reference_keys": false,
+      "slot_count": 4,
+      "output_tokens_estimate": 2899
+    }
+  ],
+  "batches": [
+    {
+      "sequence": 467,
+      "operation": "semantic_compose",
+      "complete": true,
+      "failed_slot_count": 0,
+      "valid_rows": 4
+    },
+    {
+      "sequence": 482,
+      "operation": "audit_joint",
+      "complete": true,
+      "failed_slot_count": 0,
+      "valid_rows": 4
+    }
+  ],
+  "interpretation": "Initial compose returned slots but omitted terminal fields; a terminal-only repair returned valid fenced JSON with slots=[] and required terminal fields. Compose and subsequent audit both completed; no input-only reference keys appeared in these actual model responses. This establishes structural acceptance, not answer correctness."
+}
