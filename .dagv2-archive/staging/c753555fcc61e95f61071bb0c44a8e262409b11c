@@ -1,0 +1,37 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://127.0.0.1:61216/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "The city is located in France."
+    ],
+    "top_n": 1,
+    "return_documents": false,
+    "model": "fixture-pointwise"
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "2",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790231425.87676,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790231425.877339
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.13
+      }
+    ]
+  }
+}

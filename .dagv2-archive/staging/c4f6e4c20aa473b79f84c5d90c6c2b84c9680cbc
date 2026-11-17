@@ -1,0 +1,58 @@
+{
+  "unit_id": "5ab69f9a554299710c8d1ef8",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "What is the name of the fictional private detective that appears in \"The Adventure of the Seven Clocks\"?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:13\", \"source_id\": \"hotpotqa:13\"}]\nThe Adventure of the Seven Clocks\n\"The Adventure of the Seven Clocks\" is a Sherlock Holmes story by Adrian Conan Doyle and John Dickson Carr. The story was published in the 1954 collection, \"The Exploits of Sherlock Holmes\".\n\n[Passage {\"doc_id\": \"hotpotqa:18\", \"source_id\": \"hotpotqa:18\"}]\nSherlock Holmes\nSherlock Holmes ( ) is a fictional private detective created by British author Sir Arthur Conan Doyle. Known as a \"consulting detective\" in the stories, Holmes is known for his proficiency with observation, forensic science, and logical reasoning that borders on the fantastic, which he employs when investigating cases for a wide variety of clients, including Scotland Yard.\n\n[Passage {\"doc_id\": \"hotpotqa:4842\", \"source_id\": \"hotpotqa:4842\"}]\nList of Agatha Christie's Marple episodes\nAgatha Christie's Marple is a British ITV television series based on the Miss Marple and other murder mystery novels by Agatha Christie. It is also known as Marple. The title character was played by Geraldine McEwan from the first to third series, until her retirement from the role. She was replaced by Julia McKenzie from the fourth series onwards. The first six episodes were all adaptations of \"Miss Marple\" novels by Christie. Subsequent episodes were derived both from works featuring Miss Marple but also Christie novels that did not feature the character.\n\n[Passage {\"doc_id\": \"hotpotqa:4843\", \"source_id\": \"hotpotqa:4843\"}]\nAgatha Christie (video game series)\nThe \"Agatha Christie\" series is a series of adventure games developed by AWE Games and published by The Adventure Company and DreamCatcher Interactive, based on the works of the English mystery writer Agatha Christie.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:13\", \"source_id\": \"hotpotqa:13\"}]\nThe Adventure of the Seven Clocks\n\"The Adventure of the Seven Clocks\" is a Sherlock Holmes story by Adrian Conan Doyle and John Dickson Carr. The story was published in the 1954 collection, \"The Exploits of Sherlock Holmes\".\n\n[Passage {\"doc_id\": \"hotpotqa:18\", \"source_id\": \"hotpotqa:18\"}]\nSherlock Holmes\nSherlock Holmes ( ) is a fictional private detective created by British author Sir Arthur Conan Doyle. Known as a \"consulting detective\" in the stories, Holmes is known for his proficiency with observation, forensic science, and logical reasoning that borders on the fantastic, which he employs when investigating cases for a wide variety of clients, including Scotland Yard.\n\n[Passage {\"doc_id\": \"hotpotqa:4842\", \"source_id\": \"hotpotqa:4842\"}]\nList of Agatha Christie's Marple episodes\nAgatha Christie's Marple is a British ITV television series based on the Miss Marple and other murder mystery novels by Agatha Christie. It is also known as Marple. The title character was played by Geraldine McEwan from the first to third series, until her retirement from the role. She was replaced by Julia McKenzie from the fourth series onwards. The first six episodes were all adaptations of \"Miss Marple\" novels by Christie. Subsequent episodes were derived both from works featuring Miss Marple but also Christie novels that did not feature the character.\n\n[Passage {\"doc_id\": \"hotpotqa:4843\", \"source_id\": \"hotpotqa:4843\"}]\nAgatha Christie (video game series)\nThe \"Agatha Christie\" series is a series of adventure games developed by AWE Games and published by The Adventure Company and DreamCatcher Interactive, based on the works of the English mystery writer Agatha Christie.\n\n[Passage {\"doc_id\": \"hotpotqa:4844\", \"source_id\": \"hotpotqa:4844\"}]\nAgatha Christie\nDame Agatha Mary Clarissa Christie, Lady Mallowan, DBE (\"née\" Miller; 15 September 1890 – 12 January 1976) was an English crime novelist, short story writer and playwright. She is best known for her 66 detective novels and 14 short story collections, particularly those revolving around her fictional detectives Hercule Poirot and Miss Marple. She also wrote the world's longest-running play, a murder mystery, \"The Mousetrap\", and six romances under the name Mary Westmacott. In 1971 she was elevated to Dame Commander of the Order of the British Empire (DBE) for her contribution to literature."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f751db736af6df29a9c2a41798f3222ccfdcff972b6cee8bb575a0bb488e2867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "72",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599916.4397728,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599918.243022
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.99385490655082
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.9922444644805247
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2448,
+      "completion_tokens": 4,
+      "total_tokens": 2452
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
