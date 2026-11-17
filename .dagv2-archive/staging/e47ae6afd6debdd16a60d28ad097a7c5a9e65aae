@@ -1,0 +1,353 @@
+{
+  "url": "http://127.0.0.1:55256/rerank",
+  "model": "fixture-pointwise",
+  "protocol": {
+    "consistent": true,
+    "score_space": "unit_interval",
+    "score_contract": "pointwise",
+    "rtol": 1e-05,
+    "atol": 1e-06,
+    "compared_values": 6,
+    "max_absolute_deviation": 0.0,
+    "max_relative_deviation": 0.0,
+    "reranker_adapter_requests": 5
+  },
+  "trace_directory": "/Users/mao/projects/dagv2/outputs/verification/pytest_final/test_runner_archives_full_poin0/preflight_calls/probe-1790164187231139000",
+  "ledger": {
+    "limits": {
+      "rerank_http": 5,
+      "http_attempts": 5
+    },
+    "used": {
+      "rerank_http": 5,
+      "http_attempts": 5
+    },
+    "remaining": {
+      "rerank_http": 0,
+      "http_attempts": 0
+    },
+    "events": [
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "1"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "Personal memories: [No personal memories supplied.]"
+        ],
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/1",
+        "amount": 1,
+        "used": 1
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/1",
+        "response_ref": "e18cab17f9cd52512679e405fe9c93d1f0d1b346cf664f353d0748deb33b4fe6",
+        "kind": "rerank_http",
+        "usage": null,
+        "seconds": 0.001459360122680664
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "1"
+        ],
+        "response": {
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.08
+            }
+          ]
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "2"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The city is located in France."
+        ],
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/2",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/2",
+        "amount": 1,
+        "used": 2
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/2",
+        "response_ref": "c41612cb93e1dddebf330bb29d38765282e2c510cd6ebce49c58d4e8c64acaf1",
+        "kind": "rerank_http",
+        "usage": null,
+        "seconds": 0.0046579837799072266
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "2"
+        ],
+        "response": {
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.13
+            }
+          ]
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "3"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The painter uses blue pigments."
+        ],
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/3",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/3",
+        "amount": 1,
+        "used": 3
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/3",
+        "response_ref": "63e8daad7c810b93e06c679d34184da5efce5ecf73a7397385f189090673ecfc",
+        "kind": "rerank_http",
+        "usage": null,
+        "seconds": 0.005011320114135742
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "3"
+        ],
+        "response": {
+          "results": [
+            {
+              "index": 0,
+              "relevance_score": 0.08
+            }
+          ]
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "4"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "Personal memories: [No personal memories supplied.]",
+          "The city is located in France.",
+          "The painter uses blue pigments."
+        ],
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/4",
+        "amount": 1,
+        "used": 4
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/4",
+        "amount": 1,
+        "used": 4
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/4",
+        "response_ref": "85b01b3ff9bad27b40c93f22caa7c31ed976a94cf34319e6c005c4966bd05276",
+        "kind": "rerank_http",
+        "usage": null,
+        "seconds": 0.0008118152618408203
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "4"
+        ],
+        "response": {
+          "results": [
+            {
+              "index": 2,
+              "relevance_score": 0.08
+            },
+            {
+              "index": 1,
+              "relevance_score": 0.13
+            },
+            {
+              "index": 0,
+              "relevance_score": 0.08
+            }
+          ]
+        }
+      },
+      {
+        "event": "bridge_rerank_request",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "5"
+        ],
+        "query": "Which country contains the city?",
+        "documents": [
+          "The painter uses blue pigments.",
+          "The city is located in France.",
+          "Personal memories: [No personal memories supplied.]"
+        ],
+        "score_contract": "pointwise",
+        "score_space": "unit_interval"
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "rerank_http",
+        "stage": "dagbt/set_reranker/5",
+        "amount": 1,
+        "used": 5
+      },
+      {
+        "event": "budget_reserved",
+        "kind": "http_attempts",
+        "stage": "dagbt/set_reranker/5",
+        "amount": 1,
+        "used": 5
+      },
+      {
+        "event": "http_response",
+        "stage": "dagbt/set_reranker/5",
+        "response_ref": "cdef0cd3d682ed530d71b845da6da80efcd44fa5d25cb36007aa1dcbd4ed8f02",
+        "kind": "rerank_http",
+        "usage": null,
+        "seconds": 0.004224061965942383
+      },
+      {
+        "event": "bridge_rerank_response",
+        "stage": [
+          "dagbt",
+          "set_reranker",
+          "5"
+        ],
+        "response": {
+          "results": [
+            {
+              "index": 2,
+              "relevance_score": 0.08
+            },
+            {
+              "index": 1,
+              "relevance_score": 0.13
+            },
+            {
+              "index": 0,
+              "relevance_score": 0.08
+            }
+          ]
+        }
+      },
+      {
+        "event": "reranker_protocol_verified",
+        "report": {
+          "consistent": true,
+          "score_space": "unit_interval",
+          "score_contract": "pointwise",
+          "rtol": 1e-05,
+          "atol": 1e-06,
+          "compared_values": 6,
+          "max_absolute_deviation": 0.0,
+          "max_relative_deviation": 0.0,
+          "reranker_adapter_requests": 5
+        },
+        "scope": "fixed_local_composition_probes",
+        "search_quota_charged": false
+      }
+    ]
+  },
+  "cost": {
+    "logical_calls": 5,
+    "cache_hits": 0,
+    "unique_requests": 5,
+    "http_attempts": 5,
+    "http_retries": 0,
+    "successful_http_requests": 5,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0,
+    "requests_by_stage": {
+      "[\"dagbt\", \"set_reranker\", \"4\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"5\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"2\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"1\"]": 1,
+      "[\"dagbt\", \"set_reranker\", \"3\"]": 1
+    },
+    "incomplete_or_failed_http_attempts": 0,
+    "missing_usage_responses": 5,
+    "incomplete_event_lines": 0,
+    "malformed_request_records": 0,
+    "token_scope": "observed successful nonseeded API responses; failed/lost server work may be unreported",
+    "token_usage_complete": false
+  },
+  "scope": "five synthetic composition/order probes; not a proof for all inputs; outside per-question budgets"
+}
