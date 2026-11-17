@@ -1,0 +1,78 @@
+{
+  "unit_id": "4afc48ca-e6a7-4467-abd2-911915199315",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "I found that my reviews were often criticized for not being objective, which made me less engaged in the process. It felt like I was constantly under the microscope, where every word I wrote was scrutinized by people who often missed the nuance of my opinion. This external pressure led me to second-guess not only my thoughts but also my emotional connection to the music I was discussing. In the end, I realized that the joy I once found in sharing my perspective on albums was overshadowed by the fear of backlash, and that’s a heavy burden for anyone. It became clearer to me that my passion for music needed to be expressed in a more personal, less public way, which is something I’m finally starting to embrace."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 2048
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": "planner",
+  "attempts": [
+    {
+      "started_unix": 1791924826.66001,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791924837.751204
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-a24c4b0d5db02f0d",
+    "object": "chat.completion",
+    "created": 1791924826,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What is the main reason the author felt less engaged in the review process?\",\n      \"output_slot\": \"reason\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What was the author's emotional state due to external pressure?\",\n      \"output_slot\": \"emotional_state\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"What did the author realize about their passion for music?\",\n      \"output_slot\": \"realization\",\n      \"answer_type\": \"string\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"How did the author's experience affect their engagement with the review process, given the reason {reason} and emotional state {emotional_state}?\",\n      \"output_slot\": \"engagement_effect\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"reason\", \"emotional_state\"]\n    },\n    {\n      \"question\": \"What change did the author decide to make regarding their expression of passion for music, based on the realization {realization}?\",\n      \"output_slot\": \"change\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"realization\"]\n    },\n    {\n      \"question\": \"What is the overall relationship between the author's experience of criticism and their decision to express passion more personally, considering {engagement_effect} and {change}?\",\n      \"output_slot\": \"overall_relationship\",\n      \"answer_type\": \"string\",\n      \"inputs\": [\"engagement_effect\", \"change\"]\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 414,
+      "total_tokens": 762,
+      "completion_tokens": 348,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 414,
+    "observed_prompt_tokens": 414,
+    "tokenization_request_sha256": "08b6d09db98537a4f0c58d8ddf85341d018d705093692cc5b6385ecd3d42cf59"
+  }
+}
