@@ -1,0 +1,87 @@
+{
+  "case_index": 13,
+  "unit_id": "0adf58d8-c519-406c-9f58-f298060d404d",
+  "status": "execution_failed",
+  "outer_error_type": "RuntimeError",
+  "inner_error_type": "ProtocolError",
+  "inner_error_matches_fixed_message": true,
+  "fixed_error": "PersonaMem terminal must compose personal-history evidence into a response selection",
+  "budget_used": {
+    "llm": 3,
+    "http_attempts": 3,
+    "json_repairs": 2
+  },
+  "request_stages": [
+    [
+      "planner",
+      "1"
+    ],
+    [
+      "planner",
+      "2"
+    ],
+    [
+      "planner",
+      "3"
+    ]
+  ],
+  "fusion_event_counts": {
+    "tokenization_count": 8,
+    "reasoning_request_started": 3,
+    "model_context_budget": 3,
+    "budget_reserved": 8,
+    "http_response": 3,
+    "tokenization_usage_validation": 3,
+    "reasoning_response": 3,
+    "protocol_error": 3,
+    "reasoning_repair_prepared": 2,
+    "reasoning_repair_exhausted": 1,
+    "task_failed": 1
+  },
+  "missing_fusion_snapshot": true,
+  "planner_attempt_contract_checks": [
+    {
+      "stage": [
+        "planner",
+        "1"
+      ],
+      "received_history_then_terminal_guidance": true,
+      "received_exact_prior_error_feedback": null,
+      "validator_error": "PersonaMem requires semantic/text response selection, not symbolic fact certification",
+      "step_count": 1,
+      "terminal_execution": "retrieval",
+      "terminal_input_count": 0,
+      "nonterminal_count": 0,
+      "semantic_text_output_contract": false
+    },
+    {
+      "stage": [
+        "planner",
+        "2"
+      ],
+      "received_history_then_terminal_guidance": true,
+      "received_exact_prior_error_feedback": true,
+      "validator_error": "Compose requires parents; execution must be retrieval/compose",
+      "step_count": 1,
+      "terminal_execution": "compose",
+      "terminal_input_count": 0,
+      "nonterminal_count": 0,
+      "semantic_text_output_contract": true
+    },
+    {
+      "stage": [
+        "planner",
+        "3"
+      ],
+      "received_history_then_terminal_guidance": true,
+      "received_exact_prior_error_feedback": true,
+      "validator_error": "PersonaMem terminal must compose personal-history evidence into a response selection",
+      "step_count": 1,
+      "terminal_execution": "retrieval",
+      "terminal_input_count": 0,
+      "nonterminal_count": 0,
+      "semantic_text_output_contract": true
+    }
+  ],
+  "classification": "Model repeatedly returned a one-step terminal with no history inputs despite explicit personal-history-then-compose guidance and exact preceding-error repair feedback. Stage1 violated personal output contract, stage2 compose lacked parents, and stage3 terminal was retrieval. Planner repair exhausted; no new validator or source implementation defect established."
+}

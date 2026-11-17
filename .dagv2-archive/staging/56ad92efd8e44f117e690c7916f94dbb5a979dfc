@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1702\", \"source_id\": \"hotpotqa:1702\"}]\nRobert Gascoyne-Cecil, 3rd Marquess of Salisbury\nRobert Arthur Talbot Gascoyne-Cecil, 3rd Marquess of Salisbury, {'1': \", '2': \", '3': \", '4': \"} (3 February 183022 August 1903), styled Lord Robert Cecil before 1865 and Viscount Cranborne from June 1865 until April 1868, was a British Conservative statesman, serving as prime minister three times for a total of over 13 years. He was the last prime minister to head his full administration from the House of Lords.\n\n[Passage {\"doc_id\": \"hotpotqa:8874\", \"source_id\": \"hotpotqa:8874\"}]\nJ. J. Clancy (North County Dublin MP)\nJohn Joseph Clancy (15 July 1847 – 25 November 1928), usually known as J. J. Clancy, was an Irish nationalist politician and Member of Parliament (MP) in the House of Commons for North County Dublin from 1885 to 1918. He was one of the leaders of the later Irish Home Rule movement and promoter of the Housing of the Working Classes (Ireland) Act 1908, known as the Clancy Act. Called to the Irish Bar in 1887 he became a KC (King's Counsel) in 1906."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "101",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600324.207031,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600325.02807
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0010644438580868197
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 874,
+      "completion_tokens": 2,
+      "total_tokens": 876
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
