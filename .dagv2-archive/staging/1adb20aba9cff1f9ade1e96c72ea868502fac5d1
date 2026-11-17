@@ -1,0 +1,276 @@
+{
+  "run": "v4_validation_r17",
+  "source_commit": "bcbd16f6b9e2cc5545d32b15cc21ae1d6a74cc94",
+  "question_index": 7,
+  "unit_id": "4afc48ca-e6a7-4467-abd2-911915199315",
+  "labels_read": false,
+  "new_service_calls": 0,
+  "status": "unresolved_or_exhausted",
+  "ledger": {
+    "limits": {
+      "ann": 36,
+      "set_score": 0,
+      "llm": 24,
+      "reader": 0,
+      "json_repairs": 6
+    },
+    "used": {
+      "llm": 19,
+      "http_attempts": 22,
+      "ann": 3,
+      "embedding_http": 3,
+      "json_repairs": 6
+    },
+    "remaining": {
+      "ann": 33,
+      "set_score": 0,
+      "llm": 5,
+      "reader": 0,
+      "json_repairs": 0
+    }
+  },
+  "audit": {
+    "batch_complete": true,
+    "audit_complete": false,
+    "verdict": "conflict",
+    "failed_slot_count": 0,
+    "correction_reason": "audit_rejected",
+    "correction_rounds": 1,
+    "legal_control_transition": true
+  },
+  "calls": [
+    {
+      "call": 14,
+      "operation": "semantic_compose",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": true,
+      "schema_failure_keywords": [],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": false,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "call": 15,
+      "operation": "audit_joint",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": false,
+      "schema_failure_keywords": [
+        "additionalProperties"
+      ],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": true,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ],
+      "audit_verdict": "supported"
+    },
+    {
+      "call": 16,
+      "operation": "audit_joint_repair",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": true,
+      "schema_failure_keywords": [],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [
+        {
+          "variable": "relevant_history",
+          "id": "fact_fb101a99fbedd1c3b87301df",
+          "feedback": "Summary revision is authorized only during personal history reading, never terminal or audit"
+        }
+      ],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": false,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ],
+      "audit_verdict": "conflict"
+    },
+    {
+      "call": 17,
+      "operation": "semantic_compose",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": false,
+      "schema_failure_keywords": [
+        "additionalProperties"
+      ],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": true,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "call": 18,
+      "operation": "semantic_compose_repair",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": true,
+      "schema_failure_keywords": [],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [
+        {
+          "variable": "relevant_history",
+          "id": "fact_fb101a99fbedd1c3b87301df",
+          "feedback": "Summary revision is authorized only during personal history reading, never terminal or audit"
+        }
+      ],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_9e9b654fe6ab2348f30101fe",
+              "source_count": 15,
+              "value_hash": "5ee285baf48b7dd267e4ae566c4c97adeacc023d18a30c56475a3e2c3ccc9431",
+              "summary_revision_present": false,
+              "known_retired_route": true
+            },
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": false,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "call": 19,
+      "operation": "semantic_compose_repair",
+      "finish_reason": "stop",
+      "source_count": 29,
+      "schema_accepts_response": false,
+      "schema_failure_keywords": [
+        "additionalProperties"
+      ],
+      "frozen_rule_in_sent_instruction": true,
+      "input_reference_keys_in_model_output": 0,
+      "named_failed_drafts": [
+        {
+          "variable": "relevant_history",
+          "id": "fact_9e9b654fe6ab2348f30101fe",
+          "feedback": "Repair invented an unrequested observation; this ID is now a named failed draft. Preserve and correct it in the next repair; do not delete it."
+        }
+      ],
+      "offered_frozen_reference_count": 0,
+      "slots": [
+        {
+          "variable": "relevant_history",
+          "unresolved_count": 0,
+          "reviewed_observation_id_count": 0,
+          "observations": [
+            {
+              "id": "fact_9e9b654fe6ab2348f30101fe",
+              "source_count": 15,
+              "value_hash": "5ee285baf48b7dd267e4ae566c4c97adeacc023d18a30c56475a3e2c3ccc9431",
+              "summary_revision_present": false,
+              "known_retired_route": true
+            },
+            {
+              "id": "fact_fb101a99fbedd1c3b87301df",
+              "source_count": 29,
+              "value_hash": "98b9d6762b052211253d3d015081a2baae7595cc3d1a48a91ff371ee2c6bfb18",
+              "summary_revision_present": true,
+              "known_retired_route": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recovery": {
+    "unread_groups": 123,
+    "unread_unique_aliases": 123,
+    "already_read_under_prior_same_node_identity": 123,
+    "new_aliases_vs_prior_same_node": 0,
+    "identity_changed": true,
+    "new_bridge_steps_after_failed_compose": 0,
+    "new_model_requests_after_failed_compose": 0,
+    "capacity_unavailable": true,
+    "error_type": "InputOverflow",
+    "error_category": "Local sources/parents/counters exceed real wire capacity",
+    "meaning": "123 existing source windows become unread for the new audit-correction query identity; they were already read under the old relevant_history identity. This is a partitionable document-window recovery pool, not 123 newly retrieved spans or a mandatory atomic 123-source compose request. No recovery group was admitted and no new LLM request was sent."
+  },
+  "classification": {
+    "model_contract_violations": [
+      "summary_revision emitted in audit and terminal phases",
+      "repair 18 added a known retired summary route outside the named failed draft",
+      "repair 19 restated the current summary already validated/frozen by repair 18 and reintroduced forbidden summary_revision"
+    ],
+    "local_schema_feedback_consistency": "Sent schema and local validation both reject summary_revision in terminal/audit. Ordinary frozen-restatement and named-repair-ID constraints are additionally enforced by sent instructions/repair feedback and local state; the schema is less expressive and does not by itself forbid every unrequested named ID. No instruction requires a frozen row to be restated here; omission was legal and no frozen review IDs were offered.",
+    "shared_input_reference_misuse_observed": false,
+    "source_inconsistency_demonstrated": false,
+    "remaining_design_cost": "Audit correction changes the history query identity and therefore reopens its existing local window pool. Retained known routes and failed-review metadata participate in its input footprint. The exact capacity contribution of each component was not reconstructed."
+  },
+  "scope": "Saved structural response/schema/ID/hash checks only. No model text, question/options/predictions, labels, new tokenization, generation, or run/source mutation."
+}
