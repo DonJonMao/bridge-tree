@@ -1,0 +1,93 @@
+{
+  "recovery_kind": "historical_session_stdout_only_not_current_runtime_evidence",
+  "source_session": "/Users/mao/.codex/sessions/2026/10/09/rollout-2026-10-09T15-57-03-01a11faa-676a-7351-8ade-6bdfe1036807.jsonl",
+  "source_session_sha256": "acc592fa3c7b91d65f808484cfe6f5612f09d36351ff828823b0658eec9b0133",
+  "limitations": [
+    "No old command, service, model, tokenizer or browser was executed.",
+    "Complete printed stdout is distinguished from complete original artifact bytes; only a matching historical artifact hash proves original bytes.",
+    "Historical original runtime result files, all request/event streams, the complete independent review and its bindings were not recovered here.",
+    "The handoff validation JSON body was not directly printed; it was not reconstructed by executing historical generation code.",
+    "The candidate manifest full 147-file payload mapping is not present in the recovered validation; count and identity claims are historical."
+  ],
+  "artifacts": [
+    {
+      "file": "access_v13_partial_validation.json",
+      "bytes": 14540,
+      "sha256": "44e9e76b71ad758af30d981615d87ab23febaf3ddff24037d0b6109a82ecd245",
+      "source_line": 22551,
+      "source_timestamp_utc": "2026-10-15T21:21:27.494Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_48a34633253543bb81287aa4120b40fa",
+      "classification": "original_artifact_bytes_recovered_and_historical_sha256_verified",
+      "is_current_execution_evidence": false,
+      "historical_artifact_sha256": "44e9e76b71ad758af30d981615d87ab23febaf3ddff24037d0b6109a82ecd245",
+      "historical_artifact_sha256_matches": true
+    },
+    {
+      "file": "access_v13_handoff_assembly_receipt.json",
+      "bytes": 821,
+      "sha256": "5637e17a282888a489ae865fb74887c87e0049c25437bbec9cf9ceb92ac433da",
+      "source_line": 22611,
+      "source_timestamp_utc": "2026-10-15T21:23:20.291Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_39f51f9e756e471fbbc02d00432ce54c",
+      "classification": "complete_json_stdout_recovered_no_independent_historical_file_hash",
+      "is_current_execution_evidence": false,
+      "notes": [
+        "Historical command writes json.dumps(receipt, indent=2) plus newline, and prints the same serialization; current extraction preserves its complete stdout."
+      ]
+    },
+    {
+      "file": "access_v13_final_archive_fresh_receipt.json",
+      "bytes": 831,
+      "sha256": "df51bdbcb7ee9ba3a09139447367ba74c93a230da8f54e259e51589368beccd8",
+      "source_line": 22635,
+      "source_timestamp_utc": "2026-10-15T21:23:58.984Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_9b0e5e2fd057436f992576fbf5922761",
+      "classification": "complete_json_stdout_recovered_no_independent_historical_file_hash",
+      "is_current_execution_evidence": false,
+      "notes": [
+        "Historical command writes json.dumps(receipt, indent=2) plus newline, and prints the same serialization; current extraction preserves its complete stdout."
+      ]
+    },
+    {
+      "file": "access_v13_live_evaluation.json",
+      "bytes": 2345,
+      "sha256": "770c4db5fb5271f8e5bd56b67a070ea2012ea620fcaf4ae7cebeecdccad2b868",
+      "source_line": 22318,
+      "source_timestamp_utc": "2026-10-15T21:15:47.292Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_3d4cd4c610f34717a860c99d311c4592",
+      "classification": "original_artifact_bytes_recovered_and_historical_sha256_verified",
+      "is_current_execution_evidence": false,
+      "historical_artifact_sha256": "770c4db5fb5271f8e5bd56b67a070ea2012ea620fcaf4ae7cebeecdccad2b868",
+      "historical_artifact_sha256_matches": true
+    },
+    {
+      "file": "access_v13_live_generation_summary.json",
+      "bytes": 1845,
+      "sha256": "98d392410acd9ee24e96a94920add90e315c257146ce14dd64c9ce8573430ea2",
+      "source_line": 22318,
+      "source_timestamp_utc": "2026-10-15T21:15:47.292Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_3d4cd4c610f34717a860c99d311c4592",
+      "classification": "complete_printed_json_recovered_no_independent_historical_file_hash",
+      "is_current_execution_evidence": false
+    },
+    {
+      "file": "access_v13_evaluation_independent_review.fields.stdout.txt",
+      "bytes": 11596,
+      "sha256": "5dd572e61440893169f582e7c3dc619bbd173befc41634d08f27bab1920405c8",
+      "source_line": 22334,
+      "source_timestamp_utc": "2026-10-15T21:16:02.280Z",
+      "source_tool_output_block": 1,
+      "source_call_id": "call_8024ee459a5548b8a034e7cbdb16f523",
+      "classification": "complete_stdout_of_deliberately_truncated_field_summary_not_original_report",
+      "is_current_execution_evidence": false,
+      "notes": [
+        "Source call line 22330 prints each included field as json.dumps(value)[:1800], and excludes checks/bindings/task_checks/source_bindings/sha256_bindings/per_task. Do not treat the stdout as the original review JSON."
+      ]
+    }
+  ]
+}
