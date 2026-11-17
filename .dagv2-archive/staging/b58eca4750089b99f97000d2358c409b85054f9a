@@ -1,0 +1,668 @@
+{
+  "release_ready": false,
+  "items": [
+    {
+      "requirement": "task_objective",
+      "invariant": "Personal history is intermediate evidence; final object is the complete personalized response selection.",
+      "implementation": "dagbt/personal_task.py",
+      "regressions": [
+        "tests/test_v4_personal_task.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "two_graphs",
+      "invariant": "Task dependency DAG and discovery/navigation DAG retain distinct semantics; discovery alone does not imply support.",
+      "implementation": "dagbt/engine.py",
+      "regressions": [
+        "tests/test_v4_control.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "existing_architecture_retained",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "reachable_contract",
+      "invariant": "Admit only type/root/mode/completion-compatible plans, preserving legitimate rule-binding and negative witnesses.",
+      "implementation": "dagbt/residual_plan.py",
+      "regressions": [
+        "tests/test_v4_contracts.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_historical_replay",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "typed_publication",
+      "invariant": "Compare and publish typed terminal values, not presentation strings.",
+      "implementation": "dagbt/residual_control.py",
+      "regressions": [
+        "tests/test_v4_control.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "material_progress",
+      "invariant": "Repeated successful processing without changed evidence/obligations does not count as solving progress.",
+      "implementation": [
+        "dagbt/joint_reading.py",
+        "dagbt/residual_control.py"
+      ],
+      "regressions": [
+        "tests/test_v4_joint_reading.py",
+        "tests/test_v4_control.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "audit_correction",
+      "invariant": "Preserve counters, limit correction rounds within current budgets, audit changed answer again.",
+      "implementation": "dagbt/residual_control.py",
+      "regressions": [
+        "tests/test_v4_control.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "capacity_handoff",
+      "invariant": "Ensure actual required downstream calls fit before integrating support; permit scoped citation repair without slicing evidence.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_joint_reading.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "unresolved_evidence",
+      "invariant": "Carry necessary unresolved evidence and source text across identities until explicitly resolved; keep pending and resume state.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_reader_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "residual_short_circuit",
+      "invariant": "A valid local proof may pause eliminated demands while retaining their evidence obligations; revoking decisive evidence reactivates them. Actual pending parent/rule dependency closures and symbolic audit capacity remain mandatory.",
+      "implementation": [
+        "dagbt/joint_reading.py",
+        "dagbt/residual_control.py"
+      ],
+      "regressions": [
+        "tests/test_v4_reader_review.py",
+        "tests/test_v4_control.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "paired_evaluation",
+      "invariant": "Use identical published question IDs, keep failed answers as zero, separate both-valid cohort and full rows.",
+      "implementation": "scripts/personamem_v4.py",
+      "regressions": [
+        "tests/test_v4_release_gate.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_tested",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "phase_isolation",
+      "invariant": "History extraction/compose, final option selection and audit retain separate scopes and envelopes.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_phase_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_offline_and_observed_r4_r5",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "whole_value_reconciliation",
+      "invariant": "Multiple whole typed drafts require explicit original-source review; no automatic union or overwrite.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_reconcile_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "offline_passed_runtime_capacity_followup",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "durable_failed_batch",
+      "invariant": "Failed drafts and original negative sources survive identities; only paid eligible scoped review and successful handoff atomically release the exact failure.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_failed_batch_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "offline_passed_runtime_capacity_followup",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "repair_capacity_admission",
+      "invariant": "Each fresh source prefix first checks full output admission, then its eligible adaptive initial cap. Larger checked adaptive windows may precede smaller full windows; no global nonmonotone maximum is promised. Actual repair and mandatory downstream requests remain precisely checked with the configured full output allowance.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_headroom_review.py",
+        "tests/test_v4_adaptive_initial_cap_review.py",
+        "tests/test_v4_prefix_admission_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "independent_review_passed_full1709_passed_r14_first_case_unresolved_run_stopped_r15_running_not_passed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "history_summary_revision",
+      "invariant": "Explicit personal-history summary revision is distinct from factual refutation. Only declared summary variables may retire exact current scoped bindings after grounded original-source review, counter preservation, version validation and successful handoff. Original routes remain provenance; descendant validity tracks ancestor counters.",
+      "implementation": [
+        "dagbt/fact_state.py",
+        "dagbt/joint_reading.py",
+        "dagbt/personal_task.py"
+      ],
+      "regressions": [
+        "tests/test_v4_summary_declarations.py",
+        "tests/test_v4_summary_revision_state.py",
+        "tests/test_v4_summary_revision_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "offline_passed_and_observed_r9_partial_end_to_end_failed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "idempotent_summary_review",
+      "invariant": "Only after full current route/version/scope/parent/source and counter validation, an exactly unchanged summary proof may be rechecked without creating/retiring routes or changing versions. Existing ancestry remains intact. Explicit paid obligation resolution is independent.",
+      "implementation": [
+        "dagbt/fact_state.py",
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_summary_noop_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "offline_passed_and_observed_r9_partial_end_to_end_failed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "explicit_scope_role_separation",
+      "invariant": "Each history variable has an explicit entity/time scope. Equal entity/time does not merge task roles: typed variable, demand, execution phase, output contract and source cutoff remain independent.",
+      "implementation": "dagbt/personal_task.py",
+      "regressions": [
+        "tests/test_v4_personal_task.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "implemented_independently_reviewed_full_suite_passed_model_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "explicit_personal_text_representation",
+      "invariant": "Each Persona nonterminal unrestricted text variable without a deterministic expression must explicitly declare a revisable sourced history summary or one atomic fact. No inference from variable names. Atomic facts retain ordinary whole consistency and cannot revise; generic/domain/nontext/terminal/deterministic boundaries remain.",
+      "implementation": [
+        "dagbt/residual.py",
+        "dagbt/residual_plan.py",
+        "dagbt/personal_task.py"
+      ],
+      "regressions": [
+        "tests/test_v4_personal_semantics_review.py",
+        "tests/test_v4_summary_declarations.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "offline_passed_and_observed_r9_partial_end_to_end_failed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "actionable_revision_source_feedback",
+      "invariant": "Only an otherwise valid explicit summary revision gets exact selected-target source identity feedback. Full missing/required aliases survive truncation, while durable trusted fields use stable IDs and strict request-local remapping. Feedback follows its exact failed draft. No automatic citation filling, obligation clearing, budget change or guard relaxation. Revision retention precedes minimizing new citations.",
+      "implementation": [
+        "dagbt/fact_state.py",
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_summary_source_feedback_review.py",
+        "tests/test_v4_summary_source_feedback_boundaries.py",
+        "tests/test_v4_summary_source_feedback_trust_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "historical_status": "independent_review_passed_full1569_passed_r10_no_omission_but_end_to_end_failed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "lossless_whole_review_wire",
+      "invariant": "Forecast and real whole-value repair share only exact uniquely identified duplicate known routes via explicit references to intact top-level originals, with complete reconstruction instructions. Mismatches and ambiguous IDs remain uncompressed; all originals/counters/ancestry are retained. This encoding itself does not alter output reserves; the separately reviewed fresh adaptive policy can reserve its actual initial cap while repair retains 4096.",
+      "implementation": [
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_whole_review_wire_review.py",
+        "tests/test_v4_whole_value_repair.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "evidence": "r10_whole_review_tokenization.json",
+      "historical_status": "independent_review_passed_full1709_passed_r14_first_case_unresolved_run_stopped_r15_running_not_passed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "adaptive_fresh_history_output_cap",
+      "invariant": "Each candidate prefix first checks full 4096 admission, then eligible fresh personal-history adaptive admission if full fails. Check full length, binary proposals, and untested prefixes only when none fit. A larger checked adaptive window may precede smaller full windows; no global maximum under nonmonotone token packing is claimed. Save candidate-specific aliases/cap/payload identity and install metadata/emit selection only for the returned candidate; a full choice clears stale adaptive state. Ordinary full repair admission and a nonempty state-preserving baseline remain required. Only actual initial output cap shrinks; unknown draft reserve uses that cap and repair keeps 4096. Exact wire identity, budgets, length rejection, bounded repair, source obligations and replay restrictions remain unchanged.",
+      "implementation": [
+        "dagbt/joint_reading.py",
+        "dagbt/reasoning.py",
+        "dagbt/transport.py"
+      ],
+      "regressions": [
+        "tests/test_reasoning_output_cap_review.py",
+        "tests/test_v4_adaptive_initial_cap.py",
+        "tests/test_v4_adaptive_initial_cap_review.py",
+        "tests/test_v4_prefix_admission_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "source_commit": "50d1ba0b2edb623384e51ac42ea12b36e5b69229",
+      "evidence": [
+        "full_tests_16_prefix_admission.txt",
+        "r13_first_case_review.md",
+        "r14_prefix_admission_replay.json",
+        "requirement_audit_candidate.md"
+      ],
+      "bounds": {
+        "context_tokens": 16384,
+        "configured_output_tokens": 4096,
+        "repair_output_tokens": 4096,
+        "input_margin": 256,
+        "safety_margin": 8,
+        "llm_calls": 24,
+        "ann_calls": 36,
+        "json_repairs": 6,
+        "reader_calls": 0,
+        "set_score_calls": 0
+      },
+      "generation_retry_loop_added": false,
+      "structure_floor_is_raw_completion_lower_bound": false,
+      "semantic_sufficiency_guaranteed": false,
+      "archived_runtime_admission": {
+        "report": "r14_prefix_admission_replay.json",
+        "report_sha256": "673d72527644aaa836823ae3e3f90686b50760c5cc4e87524b061577c0690f4b",
+        "reader_source_hash_matches_frozen_commit": false,
+        "previous_full_output_selection": {
+          "prefix_groups": 16,
+          "visible_source_count": 35,
+          "output_token_cap": 4096,
+          "actual_wire_sha256": "41622795b89599c099b56e02693a0abd2df385b949a05b8b71677efe883de6bb"
+        },
+        "current_actual_prefix_selection": {
+          "prefix_groups": 70,
+          "window_source_count": 71,
+          "visible_source_count": 88,
+          "output_token_cap": 516,
+          "structure_floor_tokens": 324,
+          "base_input_tokens": 10761,
+          "whole_review_forecast_input_tokens": 11508,
+          "initial_total_tokens": 11541,
+          "forecast_total_tokens": 16384,
+          "repair_output_reserve": 4096,
+          "input_margin": 256,
+          "safety_margin": 8,
+          "context_tokens": 16384,
+          "data_identity": "d0fb77d69f896f232b051ed96b31aef5788a60e9b4fcb33dbbfb80eb40d5f9d5",
+          "actual_capped_wire_sha256": "f401fe2c03c6b02fc23b95116210016eb2bb631ae0a3d946f221b5ff6d419831",
+          "selection_identity_matches_actual_payload": true
+        },
+        "selected_all_remaining_groups": true,
+        "state_and_obligations_unchanged": true,
+        "generation_calls": 0,
+        "tokenizer_successful_http_requests": 2,
+        "model_generation_success_established": false,
+        "reader_source_commit": "25fc3849ab8d4b7ab85cf5efdeafddf2d685c58b",
+        "reader_source_hash_matches_report_commit": true,
+        "historical_source_hash_note": "Archived selection matched frozen 25fc384; current reader adds obligation feedback/frozen-reference contracts and prompt text."
+      },
+      "historical_status": "independent_review_passed_full1709_passed_r14_first_case_unresolved_run_stopped_r15_running_not_passed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "nonempty_state_preserving_response_floor",
+      "source_commit": "50d1ba0b2edb623384e51ac42ea12b36e5b69229",
+      "invariant": "Every requested slot requires a complete currently valid value and its actual selected sufficient route. Preserve exact typed value, scope, actual parent versions and selected-target original/parent/counter source closure; do not union all OR alternatives or grant atomic facts summary revision authority. Each trusted unresolved obligation gets one separate unknown row with null value, all original source aliases and all original descriptions, plus unresolved descriptions and empty resolution IDs. No missing slot, conflicting/revoked/stale route, hidden/altered alias or omitted/changed trusted obligation can authorize a smaller reference. Count only a nonempty assistant-chat envelope with a positive non-estimated deployment count. Never send the reference to generation, integrate it as evidence, fill citations or clear pending. It is not a successful answer or semantic/repair sufficiency guarantee. Same-candidate full admission is preferred; cross-prefix ordering follows the separately reviewed unified admission policy. Fixed budgets remain unchanged.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_state_preserving_floor_review.py",
+        "tests/test_v4_adaptive_initial_cap_review.py",
+        "tests/test_v4_adaptive_initial_cap.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "evidence": [
+        "full_tests_15_state_floor.txt",
+        "r12_state_floor_reconstruction.json",
+        "r12_state_floor_tokenization.json"
+      ],
+      "archived_runtime_tokenization": {
+        "report": "r12_state_floor_tokenization.json",
+        "report_sha256": "85e3eca2f8f9ffbe9906b001f80cef053447345a1856677f7f1c37ab2ae763d0",
+        "reader_source_hash_matches_frozen_commit": false,
+        "recorded_prefix_hash_count": 195,
+        "all_original_prefix_hashes_matched": true,
+        "actual_call9_wire_roundtrip": true,
+        "state_and_obligations_unchanged": true,
+        "template_support_source_count": 7,
+        "template_unknown_obligation_source_counts": [
+          53
+        ],
+        "template_unresolved_count": 2,
+        "template_resolves_no_obligations": true,
+        "new_floor_tokens": 565,
+        "old_cap34_rejected": true,
+        "selected_prefix_groups": 39,
+        "selected_source_spans": 92,
+        "selected_output_cap": 581,
+        "forecast_input_tokens": 11443,
+        "forecast_total_tokens": 16384,
+        "repair_output_reserve": 4096,
+        "tokenizer_successful_http_requests": 2,
+        "tokenizer_cache_hits": 1,
+        "generation_calls": 0,
+        "model_generation_success_established": false,
+        "reader_source_commit": "711848995f681ffb2cfb9684b8f2736f5aa188d6",
+        "reader_source_hash_matches_report_commit": true,
+        "policy_at_report": "full_cap_prefixes_before_adaptive_fallback",
+        "historical_source_hash_note": "Report matched frozen 7118489 at its audit; current reader changed prefix admission."
+      },
+      "historical_status": "independent_review_passed_full1709_passed_r14_first_case_unresolved_run_stopped_r15_running_not_passed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "explicit_scoped_obligation_coverage_review",
+      "source_commit": "50d1ba0b2edb623384e51ac42ea12b36e5b69229",
+      "invariant": "Only pure missing-coverage failures receive per-obligation required/covered/missing source lists, bound to the exact failed slot and full current obligation snapshot. Original scope, offered ID, visible sources, no unresolved/sourced partials and other validation guards remain required. Keep summary support minimal separately: coverage may union legitimately supported/corrective/irrelevant scoped rows without automatically filling support citations. Explicit reviewed_observation_ids may additionally name only unchanged settled valid/frozen rows offered from this paid batch and current repair, with complete typed matching wire and visible original text. Compact references target exact rows in the same failed slot; otherwise send complete originals. No automatic accumulation, current-new-row/other-variable/known/global/cross-window/query/durable borrowing, or duplicate normal-row/reference IDs. No changed drafts, candidate memory, wire contents or invisible originals may pass. Durable feedback uses stable source identities and strict current-alias remapping; model echoes are untrusted. Handoff refusal rolls back obligation release. Fixed context/call/repair budgets and no-free-retry rules remain.",
+      "implementation": "dagbt/joint_reading.py",
+      "regressions": [
+        "tests/test_v4_obligation_feedback.py",
+        "tests/test_v4_obligation_review_feedback_review.py",
+        "tests/test_v4_whole_review_wire_review.py"
+      ],
+      "status": "current_snapshot_full_suite_passed_model_validation_pending",
+      "evidence": [
+        "full_tests_17b_obligation_review.txt",
+        "r14_first_case_review.md",
+        "r14_obligation_repair_tokenization.json",
+        "r14_obligation_repair_current_source_reuse.json"
+      ],
+      "independent_regression_count": 17,
+      "candidate_binding": [
+        "variable_and_slot_digest",
+        "full_obligation_snapshot_digest",
+        "current_local_frozen_memory_row",
+        "actual_transmitted_complete_observation",
+        "current_visible_original_sources"
+      ],
+      "feedback_auto_fills_sources": false,
+      "frozen_refs_grant_free_calls": false,
+      "semantic_sufficiency_guaranteed": false,
+      "archived_runtime_repair_capacity": {
+        "report": "r14_obligation_repair_current_source_reuse.json",
+        "report_sha256": "20614ca680581729a5ce866e2cc1e164fe8941206401718fd147d02229ca06ad",
+        "reader_source_hash_matches_frozen_commit": true,
+        "original_call7_wire_roundtrip": true,
+        "identical_previously_counted_adapted_wire": true,
+        "required_source_count": 53,
+        "covered_source_count": 3,
+        "missing_source_count": 50,
+        "visible_source_count": 93,
+        "frozen_slot_reference_count": 1,
+        "frozen_full_row_fallback_count": 0,
+        "input_tokens": 11783,
+        "output_token_reserve": 4096,
+        "margin_tokens": 264,
+        "total_tokens": 16143,
+        "context_tokens": 16384,
+        "remaining_context_tokens": 241,
+        "prior_tokenizer_successful_http_requests": 1,
+        "current_reuse_new_network_tokenization_calls": 0,
+        "generation_calls": 0,
+        "model_completion_established": false
+      },
+      "historical_status": "independent_review_passed_full1709_passed_r14_first_case_unresolved_run_stopped_r15_running_not_passed",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "mandatory_source_scope",
+      "invariant": "Compose/audit use explicit span closure, not automatic whole-document expansion; owned unread and failed recovery remain enforced.",
+      "implementation": [
+        "dagbt/joint_reading.py",
+        "dagbt/residual_control.py"
+      ],
+      "regressions": [
+        "tests/test_v4_mandatory_contract_review.py",
+        "tests/test_v4_controller_source_scope.py",
+        "tests/test_v4_partial_failure_scope_review.py"
+      ],
+      "status": "independently_reviewed_current_snapshot_full_suite_passed_model_validation_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "phase_repair_authority",
+      "invariant": "Only explicitly authorized phase operations can revise, repair or audit facts; schema and local validation require the same terminal/audit fields.",
+      "implementation": [
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_mandatory_contract_review.py",
+        "tests/test_v4_history_wire_integration.py"
+      ],
+      "status": "independently_reviewed_current_snapshot_full_suite_passed_model_validation_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "lossless_shared_history_input",
+      "invariant": "Exact repeated historical text can be shared only with its decoding instruction; canonical state, sources, output types and real capacity counting remain unchanged.",
+      "implementation": [
+        "dagbt/history_wire.py",
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_history_wire_integration.py",
+        "tests/test_v4_history_wire_review.py"
+      ],
+      "status": "independently_reviewed_current_snapshot_full_suite_passed_model_validation_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "actual_proof_input_frontier",
+      "invariant": "Terminal/audit may omit only isolatable equivalent positive OR inputs while retaining their canonical routes; actual audit variables and ancestors determine scope. Unresolved outputs protect parent alternatives, including parent-only repair. Summary inherited sources/counters/obligations are not truncated.",
+      "implementation": [
+        "dagbt/joint_reading.py",
+        "dagbt/residual_control.py"
+      ],
+      "regressions": [
+        "tests/test_v4_audit_dependency_projection.py",
+        "tests/test_v4_proof_projection_review.py",
+        "tests/test_v4_control.py"
+      ],
+      "status": "independently_reviewed_current_snapshot_full_suite_passed_model_validation_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    },
+    {
+      "requirement": "request_local_retraction_authority",
+      "invariant": "Every production observation validation path accepts only same-variable retraction targets actually offered in the current request; schema and plain-response validation agree.",
+      "implementation": [
+        "dagbt/joint_reading.py"
+      ],
+      "regressions": [
+        "tests/test_v4_proof_projection_review.py"
+      ],
+      "status": "independently_reviewed_current_snapshot_full_suite_passed_model_validation_pending",
+      "current_test_evidence": "full_tests_20_proof_scope_receipt.json"
+    }
+  ],
+  "limits": [
+    "Offline tests and historical detection do not establish LLM answer quality.",
+    "The 14-question model smoke has not passed the final source snapshot.",
+    "No accuracy improvement or zero-failure guarantee has been established.",
+    "No formal certificate is claimed for semantic response selection.",
+    "R11 was manually stopped without a published first row; it is not an algorithm natural outcome or an accuracy result.",
+    "Adaptive first-output caps preserve configured budgets and full repair allowance; structural admission does not guarantee adequate semantic output or actual repair fit.",
+    "R12 was manually stopped without a published first row. The 34-token initial output truncated; first repair fit but omitted five required old sources, and second repair exceeded context by 95 tokens. This is not a natural final answer or accuracy result.",
+    "The nonempty state-preserving floor includes known facts and unresolved obligations but does not guarantee adequate output for new information or actual repair.",
+    "Archived R12 tokenization changed admission from cap34 to cap581 with floor565 using zero generation calls; this is not model completion or accuracy evidence.",
+    "R13 first case naturally published budget_exhausted before operator stop; R14 first case naturally published unresolved_or_exhausted at LLM13/24 and repair6/6 before operator stop. R15 runs frozen 50d1ba0 and has not passed the final gate.",
+    "Per-prefix admission may select a larger checked adaptive window before a smaller full-cap one. Archived capacity replay establishes selection and exact capacity only, not successful generation or full-task efficiency/accuracy.",
+    "R14 required53/covered3/missing50 was a source-coverage failure, not a total LLM budget exhaustion. Its changed plan prevents attributing aggregate call differences solely to prefix admission.",
+    "The new archived repair wire fits at 16143/16384 using a prior exact deployment count verified unchanged on current source; this is not model review or full-smoke success."
+  ],
+  "final_archive_installation": {
+    "script": "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/verify_final_archive_install.py",
+    "status": "prepared_waiting_for_final_archive",
+    "executed": false,
+    "helper_checks_passed": 9,
+    "scope": "Isolated offline installation verification only; does not establish model quality or release readiness."
+  },
+  "latest_model_evidence": {
+    "source_commit": "25fc3849ab8d4b7ab85cf5efdeafddf2d685c58b",
+    "output": "outputs/v4_validation_r14",
+    "state": "stopped",
+    "passed": false,
+    "pid": 72273,
+    "live_writer": false,
+    "report": "r14_first_case_review.md",
+    "termination_kind": "first_case_natural_unresolved_or_exhausted_then_whole_run_manual_stop",
+    "published_first_row": true,
+    "final_answer_state_available": true,
+    "first_case_answer_status": "unresolved_or_exhausted",
+    "evidence_kind": "reviewed_runtime_structural_report",
+    "llm_calls_used": 13,
+    "llm_calls_limit": 24,
+    "ann_calls": 4,
+    "repair_calls": 6,
+    "repair_limit": 6,
+    "semantic_compose_calls": 0,
+    "audit_calls": 0,
+    "required_source_count": 53,
+    "covered_source_count": 3,
+    "missing_source_count": 50,
+    "all_required_sources_visible": true,
+    "partial_observations": 0,
+    "unresolved_entries": 0,
+    "failed_review_retained_source_count": 93,
+    "later_handoff_visible_source_count": 95,
+    "later_actual_repair_total_tokens": 16627,
+    "later_actual_repair_excess_tokens": 243,
+    "same_plan_as_r13": false,
+    "accuracy_conclusion_established": false
+  },
+  "source_commit": "8dac32b0d28e37b75d5cb1c0b06c69ccfc33bcd8",
+  "audit_status": "independent_scope_review_and_full1880_passed_model_smoke_not_started",
+  "offline_tests": {
+    "command": "/Users/mao/projects/dagv2/.venv/bin/python -m pytest -q tests",
+    "passed": 1880,
+    "warnings": 69,
+    "seconds": 106.15,
+    "exit_code": 0,
+    "report": "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/full_tests_20_proof_scope.txt",
+    "report_sha256": "98023913f92ea84c12bb2a48c7e56768b57c536861f92b3cd23ead45ba979ed7",
+    "receipt": "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/full_tests_20_proof_scope_receipt.json",
+    "tested_snapshot_committed_bytes_verified": true,
+    "tested_files": 303,
+    "runtime_matches_release": false,
+    "runtime_matches_candidate": true
+  },
+  "candidate_model_smoke": {
+    "state": "not_started",
+    "passed": false,
+    "questions": 14,
+    "config": "configs/personamem-v4.json",
+    "output": "outputs/v4_validation_r18",
+    "labels_used_for_selection": false
+  },
+  "previous_model_evidence": {
+    "source_commit": "711848995f681ffb2cfb9684b8f2736f5aa188d6",
+    "output": "outputs/v4_validation_r13",
+    "state": "stopped",
+    "passed": false,
+    "pid": 69176,
+    "live_writer": false,
+    "report": "r13_first_case_review.md",
+    "termination_kind": "first_case_natural_budget_exhausted_then_whole_run_manual_stop",
+    "published_first_row": true,
+    "final_answer_state_available": true,
+    "first_case_answer_status": "budget_exhausted",
+    "evidence_kind": "reviewed_runtime_structural_report",
+    "planner_calls": 1,
+    "history_calls": 18,
+    "semantic_compose_calls": 4,
+    "llm_calls_used": 23,
+    "llm_calls_limit": 24,
+    "repair_calls": 0,
+    "audit_calls": 0,
+    "history_windows_complete": 18,
+    "semantic_read_invocations": 1,
+    "terminal_windows_complete": 4,
+    "terminal_window_rejected_before_generation": 1,
+    "minimum_total_calls_for_last_window_and_one_audit": 25,
+    "accuracy_conclusion_established": false
+  },
+  "historical_model_evidence": [
+    {
+      "source_commit": "5afd8ab09f7305ea1551ca77d1eb6358f00dddcc",
+      "output": "outputs/v4_validation_r11",
+      "state": "stopped",
+      "passed": false,
+      "pid": 63325,
+      "report": "r11_first_case_review.md",
+      "termination_kind": "manual_stop_not_algorithm_natural_outcome",
+      "published_first_row": false,
+      "final_answer_state_available": false,
+      "evidence_kind": "last_independently_reviewed_runtime_trace"
+    },
+    {
+      "source_commit": "0eafe26bb202feb15127c1c020b4207bd8f9e373",
+      "output": "outputs/v4_validation_r12",
+      "state": "stopped",
+      "passed": false,
+      "pid": 66449,
+      "live_writer": false,
+      "report": "r12_first_case_review.md",
+      "termination_kind": "manual_stop_not_algorithm_natural_outcome",
+      "published_first_row": false,
+      "final_answer_state_available": false,
+      "evidence_kind": "reviewed_runtime_report",
+      "initial_cap": 34,
+      "initial_structure_floor": 24,
+      "initial_finish_reason": "length",
+      "first_repair_finish_reason": "stop",
+      "first_repair_old_sources_required": 7,
+      "first_repair_old_sources_missing": 5,
+      "second_repair_total_tokens": 16479,
+      "second_repair_excess_tokens": 95,
+      "retained_obligation_source_count": 53
+    }
+  ],
+  "source_role": "isolated_reconcile_candidate_not_live_release",
+  "historical_checklist": {
+    "path": "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/modeling_checklist_through_50d1ba0.json",
+    "sha256": "41c10e632e5df7e4bb9e7b13297059f234347d618aa5a2b1898de41efc991bfb",
+    "source_commit": "50d1ba0b2edb623384e51ac42ea12b36e5b69229"
+  },
+  "live_release_model_smoke": {
+    "source_commit": "bcbd16f6b9e2cc5545d32b15cc21ae1d6a74cc94",
+    "output": "outputs/v4_validation_r17",
+    "pid": 96297,
+    "state": "running_at_last_runner_check",
+    "separate_from_candidate": true
+  },
+  "current_evidence_limits": [
+    "1880 offline tests do not establish model execution success or accuracy.",
+    "R17 belongs to bcbd16f and cannot validate this candidate.",
+    "No final tar, installation receipt, or cleanup execution exists yet."
+  ]
+}

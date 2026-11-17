@@ -1,0 +1,116 @@
+{
+  "run": "v4_validation_r17",
+  "source_commit": "bcbd16f6b9e2cc5545d32b15cc21ae1d6a74cc94",
+  "labels_read": false,
+  "new_service_calls": 0,
+  "cases": [
+    {
+      "question_index": 0,
+      "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+      "accepted_route_count": 5,
+      "retired_route_count": 2,
+      "summary_revision_route_count": 2,
+      "revoked_route_count": 0,
+      "active_route_count": 3,
+      "variables": [
+        {
+          "variable": "music_preferences",
+          "accepted_routes": 1,
+          "active_routes": 1,
+          "selected_route_count": 1,
+          "source_union_all": 16,
+          "source_union_active": 16,
+          "old_only_sources": 0,
+          "summary_chains": []
+        },
+        {
+          "variable": "past_events",
+          "accepted_routes": 2,
+          "active_routes": 1,
+          "selected_route_count": 1,
+          "source_union_all": 25,
+          "source_union_active": 25,
+          "old_only_sources": 0,
+          "summary_chains": [
+            {
+              "old_route_count": 1,
+              "old_source_count": 19,
+              "new_source_count": 25,
+              "old_sources_not_in_new": 0
+            }
+          ]
+        },
+        {
+          "variable": "interests",
+          "accepted_routes": 2,
+          "active_routes": 1,
+          "selected_route_count": 1,
+          "source_union_all": 29,
+          "source_union_active": 29,
+          "old_only_sources": 0,
+          "summary_chains": [
+            {
+              "old_route_count": 1,
+              "old_source_count": 16,
+              "new_source_count": 29,
+              "old_sources_not_in_new": 0
+            }
+          ]
+        }
+      ],
+      "all_accepted_sources_union": 37,
+      "active_accepted_sources_union": 37,
+      "retired_only_source_count": 0
+    },
+    {
+      "question_index": 1,
+      "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+      "accepted_route_count": 4,
+      "retired_route_count": 2,
+      "summary_revision_route_count": 2,
+      "revoked_route_count": 0,
+      "active_route_count": 2,
+      "variables": [
+        {
+          "variable": "creative_history",
+          "accepted_routes": 2,
+          "active_routes": 1,
+          "selected_route_count": 1,
+          "source_union_all": 38,
+          "source_union_active": 38,
+          "old_only_sources": 0,
+          "summary_chains": [
+            {
+              "old_route_count": 1,
+              "old_source_count": 17,
+              "new_source_count": 38,
+              "old_sources_not_in_new": 0
+            }
+          ]
+        },
+        {
+          "variable": "current_attitudes",
+          "accepted_routes": 2,
+          "active_routes": 1,
+          "selected_route_count": 1,
+          "source_union_all": 20,
+          "source_union_active": 20,
+          "old_only_sources": 0,
+          "summary_chains": [
+            {
+              "old_route_count": 1,
+              "old_source_count": 17,
+              "new_source_count": 20,
+              "old_sources_not_in_new": 0
+            }
+          ]
+        }
+      ],
+      "all_accepted_sources_union": 41,
+      "active_accepted_sources_union": 41,
+      "retired_only_source_count": 0
+    }
+  ],
+  "scope": "Final accepted fact-state routes of first two naturally failed cases; rejected drafts are not included and prospective handoff wire payloads were not reconstructed. No raw text or model values exported.",
+  "finding": "Each accepted historical variable has exactly one active route. The extra accepted routes are superseded summary ancestors, not independent live OR alternatives. Every ancestor source remains in its replacement, so deleting retired metadata would not remove any unique original source from this accepted-state closure. Handoff failed drafts/obligations add scope beyond this count."
+}

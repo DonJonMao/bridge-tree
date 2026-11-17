@@ -1,0 +1,596 @@
+{
+  "run": "v4_validation_r9",
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "scope": "Read-only structural audit; no labels, predictions, source text or credentials; no generation or tokenization calls.",
+  "status": "unresolved_or_exhausted",
+  "ledger_used": {
+    "llm": 16,
+    "http_attempts": 19,
+    "ann": 3,
+    "embedding_http": 3,
+    "json_repairs": 6
+  },
+  "pending_variables": [
+    "event_history",
+    "interests",
+    "music_prefs"
+  ],
+  "versions": {
+    "music_prefs": 2,
+    "event_history": 1,
+    "interests": 0,
+    "response": 0
+  },
+  "audit_complete": false,
+  "plan_nodes": [
+    {
+      "id": "music_prefs",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "event_history",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "interests",
+      "execution": "retrieval",
+      "inputs": []
+    },
+    {
+      "id": "response",
+      "execution": "compose",
+      "inputs": [
+        "music_prefs",
+        "event_history",
+        "interests"
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "id": "music_prefs",
+      "type": "text",
+      "demand": "music_prefs",
+      "evidence_semantics": "personal_history_summary"
+    },
+    {
+      "id": "event_history",
+      "type": "text",
+      "demand": "event_history",
+      "evidence_semantics": "personal_history_summary"
+    },
+    {
+      "id": "interests",
+      "type": "text",
+      "demand": "interests",
+      "evidence_semantics": "personal_history_summary"
+    },
+    {
+      "id": "response",
+      "type": "text",
+      "demand": "response",
+      "evidence_semantics": null
+    }
+  ],
+  "requests": [
+    {
+      "stage": [
+        "joint_read",
+        "2"
+      ],
+      "request_sha256": "9d9814cfb6e32cfbf5bcbb211fdbe0308ea1313d836d6f7397a8bedf6a70a5ca",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_prefs"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": []
+    },
+    {
+      "stage": [
+        "joint_read",
+        "3"
+      ],
+      "request_sha256": "1dfd47abf1f99c6cfb7c0de2dec33632c1287a4f317f56a71802cfde90851e58",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_prefs"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "music_prefs",
+          "id": "obs_music_prefs_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 21,
+          "source_count": 21,
+          "same_value_as_every_target": true,
+          "same_source_set_as_every_target": true,
+          "missing_original_sources": 0,
+          "missing_required_sources": 0,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 0,
+          "missing_original_alias_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "value_sha256": "f058371c95feaf8af928f1eb68fe76632d7b59f0485620e195c70ec77a7e03a2",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "4"
+      ],
+      "request_sha256": "e21965a63f3bda455c617df0ecdd03289d0067add9951057ac891e953e3e083f",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_prefs"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "music_prefs",
+          "id": "fact_b2992ffe7fba67ea3a780fcb",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 21,
+          "source_count": 21,
+          "same_value_as_every_target": true,
+          "same_source_set_as_every_target": true,
+          "missing_original_sources": 0,
+          "missing_required_sources": 0,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 0,
+          "missing_original_alias_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "value_sha256": "f058371c95feaf8af928f1eb68fe76632d7b59f0485620e195c70ec77a7e03a2",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "5"
+      ],
+      "request_sha256": "2502fee809fd5462ec20251ee8eaa4c027134499b4a2a3a1e2a80952c1a556e8",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "music_prefs"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "music_prefs",
+          "id": "obs_music_prefs_v2",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 21,
+          "source_count": 24,
+          "same_value_as_every_target": false,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 0,
+          "missing_required_sources": 0,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 3,
+          "missing_original_alias_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "value_sha256": "783e91e06f91427b9e0b0708a733dd820bc3d535dd9b25f57d8d50c8d325b3de",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "6"
+      ],
+      "request_sha256": "f2da0fb494bdde66faa66700e5bba398ca77ae9655d6cde37bbf1db47bb9e12d",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": []
+    },
+    {
+      "stage": [
+        "joint_read",
+        "7"
+      ],
+      "request_sha256": "8eecb0c4f488dcefdd5ffa4cbbb1cbae9173de271a2d40ad30c138b75129ea1a",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "fact_1401a0f5b96129885da4a8d2",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 22,
+          "same_value_as_every_target": true,
+          "same_source_set_as_every_target": true,
+          "missing_original_sources": 0,
+          "missing_required_sources": 0,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 0,
+          "missing_original_alias_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "value_sha256": "ba0360b23e4cd46eb141965f7661aaa24ddfee42dced45642f7e5db30cc79312",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "8"
+      ],
+      "request_sha256": "b3599c71aebb5440372d84cb3c28a27be22cff83ec3af55e9e7b57262758b97c",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 9,
+          "same_value_as_every_target": true,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 0,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "ba0360b23e4cd46eb141965f7661aaa24ddfee42dced45642f7e5db30cc79312",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "9"
+      ],
+      "request_sha256": "7f8dda01d6a0a51895db23f5f3d29a11640d1824f3636e1d08f3b5dbbcc287da",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 9,
+          "same_value_as_every_target": true,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 0,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "ba0360b23e4cd46eb141965f7661aaa24ddfee42dced45642f7e5db30cc79312",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "10"
+      ],
+      "request_sha256": "e5c2cde51ec6fbbd269848dd34db433acbf9268dcf1d4a61cdb3d597036557e8",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 1,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 22,
+          "same_value_as_every_target": false,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 13,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "3360895c6199763b534dd53b8c5deb775395b0a1a8a572816382abe7415ad132",
+          "resolved_failed_batch_count": 1
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "11"
+      ],
+      "request_sha256": "89008233bec234a6bd7753f23e86593efccca1d686e1faccb4800467bc7a6874",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 1,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 22,
+          "same_value_as_every_target": false,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 13,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "3360895c6199763b534dd53b8c5deb775395b0a1a8a572816382abe7415ad132",
+          "resolved_failed_batch_count": 1
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "12"
+      ],
+      "request_sha256": "6bf8edfdd48fd644c119d94dae4b6d4dfd665ae574cd528ff1627820575a7738",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 1,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 23,
+          "same_value_as_every_target": false,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 14,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "2c8b64df6004c6299e33516bfffa535c58538ac5922b8167c5fc83946b4e3280",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "13"
+      ],
+      "request_sha256": "9617221185085aeb3558b3813ef154c379ef3d090a1f42cf4350ea3f75e13075",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "event_history"
+      ],
+      "failed_reviews": 1,
+      "evidence_obligations": 0,
+      "revisions": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "previous_version": 1,
+          "target_count": 1,
+          "target_source_count": 22,
+          "source_count": 23,
+          "same_value_as_every_target": false,
+          "same_source_set_as_every_target": false,
+          "missing_original_sources": 13,
+          "missing_required_sources": 13,
+          "missing_required_visible_sources": 0,
+          "extra_sources": 14,
+          "missing_original_alias_set_sha256": "1f8162a3699feb2f84e36dab9322e62db67b2e44edda6ac7dc6cc1444252b16b",
+          "value_sha256": "2c8b64df6004c6299e33516bfffa535c58538ac5922b8167c5fc83946b4e3280",
+          "resolved_failed_batch_count": 0
+        }
+      ]
+    },
+    {
+      "stage": [
+        "joint_read",
+        "14"
+      ],
+      "request_sha256": "4d83f46fe686b7623645b41543a99007f36b5352606d085af82b7c0d4efe64d4",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "interests"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": []
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "15"
+      ],
+      "request_sha256": "4e1dce7f5b79d2ff82ae62dd4c484ed5a97b80368f2c4cce943f84b3ce42413e",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "interests"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": []
+    },
+    {
+      "stage": [
+        "joint_read_repair",
+        "16"
+      ],
+      "request_sha256": "00f88af23d6d5e59586adcb84b93f183c3b7e240a400413607d91f9dc601fe42",
+      "phase": "history_evidence",
+      "requested_variables": [
+        "interests"
+      ],
+      "failed_reviews": 0,
+      "evidence_obligations": 0,
+      "revisions": []
+    }
+  ],
+  "terminal_request_seen": false,
+  "reading_outcomes": [
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": true,
+      "failed_slots": []
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "error_code": "Summary revision must retain every original premise and relevant counter source"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "error_code": "Summary revision must retain every original premise and relevant counter source"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "event_history",
+          "id": "obs_event_history_1",
+          "error_code": "Summary revision must retain every original premise and relevant counter source"
+        }
+      ]
+    },
+    {
+      "complete": false,
+      "failed_slots": [
+        {
+          "variable": "interests",
+          "id": "obs_interests_1",
+          "error_code": "citation_capacity"
+        }
+      ]
+    }
+  ],
+  "source_closure": {
+    "music_accepted": 24,
+    "event_accepted": 22,
+    "event_failed_originals": 79,
+    "interest_draft_sources": 19,
+    "interest_with_accepted_parents": 31,
+    "interest_with_failed_event_originals": 87,
+    "extra_sources_from_failed_event_originals": 56,
+    "counterfactual_without_failed_records_tokenized": false
+  },
+  "capacity_events": [
+    {
+      "event_sequence": 472,
+      "operation": "semantic_compose",
+      "node": "response",
+      "source_spans": 87,
+      "input_tokens": 15311,
+      "repair_input_tokens": 15537,
+      "total_tokens": 19897,
+      "context_tokens": 16384,
+      "wire_sha256s": [
+        "e1f80ea536f3679c9cc35ca004e275254df35cf480c1f3d5009024de190eac95",
+        "1c6cec08f69d4b36c8a8c5fab91e9a5b845d28f2c3d61a7ad7eea36e13b1584c"
+      ]
+    },
+    {
+      "event_sequence": 486,
+      "operation": "semantic_compose",
+      "node": "response",
+      "source_spans": 87,
+      "input_tokens": 15313,
+      "repair_input_tokens": 15539,
+      "total_tokens": 19899,
+      "context_tokens": 16384,
+      "wire_sha256s": [
+        "215b315192dfdd99f8e54b68a571bb1d7eeac2ad5f1bd0df733ed9748147c1e4",
+        "98f589a7fdad577807e9912d9400261e3db603d68bfb467088f496224f15acdb"
+      ]
+    },
+    {
+      "event_sequence": 500,
+      "operation": "semantic_compose",
+      "node": "response",
+      "source_spans": 87,
+      "input_tokens": 15313,
+      "repair_input_tokens": 15539,
+      "total_tokens": 19899,
+      "context_tokens": 16384,
+      "wire_sha256s": [
+        "e26b6fb4da5c24fa2529d1f3b1b5c8c968fbcf598ffcfccb89ec1d1567c6292b",
+        "e4f57ade9698076a184dd4739eba06db9720bd27e0f32c9d64869894e214f144"
+      ]
+    }
+  ],
+  "findings": [
+    "All three retrieval histories explicitly declared personal_history_summary.",
+    "Calls 3,4 and 7 exact unchanged revision reviews passed without new fact versions; call 5 real music summary revision passed and raised version to 2.",
+    "Event calls 8 through 13 repeatedly omitted the same 13 of 22 original required sources; all required sources were visible and listed in the contract. The code correctly rejected those revisions.",
+    "Retained failed event originals increased the terminal handoff source union from 31 to 87; terminal capacity failed at 19897/19899 total tokens against 16384. No terminal generation occurred."
+  ]
+}

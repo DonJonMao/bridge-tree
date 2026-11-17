@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:164\", \"source_id\": \"hotpotqa:164\"}]\nAnthony Rapp\nAnthony Deane Rapp (born October 26, 1971) is an American stage and film actor and singer best known for originating the role of Mark Cohen in the Broadway production of \"Rent\" in 1996 and later for reprising the role in the film version and the Broadway Tour of \"Rent\" in 2009. He also performed the role of Charlie Brown in the 1999 Broadway revival of \"You're a Good Man, Charlie Brown\" and originated the role of Lucas in the musical \"If/Then\" in 2014.\n\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "306",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599354.142248,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599355.016938
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0006067791198360268
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 818,
+      "completion_tokens": 2,
+      "total_tokens": 820
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

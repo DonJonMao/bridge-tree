@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:9566\", \"source_id\": \"hotpotqa:9566\"}]\nFreeloaders (film)\nFreeloaders is an American ensemble comedy film directed by Dan Rosen and written by Rosen and singer Dave Gibbs. The film is produced by the Broken Lizard comedy troupe and is independently financed. \"Freeloaders\" stars Clifton Collins Jr., Josh Lawson, Kevin Sussman, Zoe Boyle, Nat Faxon, Warren Hutcherson, Jane Seymour, Olivia Munn, Dave Foley and Counting Crows lead singer Adam Duritz. It follows a group of friends who find their luxurious lifestyle threatened when the rock star they freeload off decides to sell his home.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:9566\", \"source_id\": \"hotpotqa:9566\"}]\nFreeloaders (film)\nFreeloaders is an American ensemble comedy film directed by Dan Rosen and written by Rosen and singer Dave Gibbs. The film is produced by the Broken Lizard comedy troupe and is independently financed. \"Freeloaders\" stars Clifton Collins Jr., Josh Lawson, Kevin Sussman, Zoe Boyle, Nat Faxon, Warren Hutcherson, Jane Seymour, Olivia Munn, Dave Foley and Counting Crows lead singer Adam Duritz. It follows a group of friends who find their luxurious lifestyle threatened when the rock star they freeload off decides to sell his home."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "161",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599205.137762,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599206.744611
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9916842229971374
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.0014451637769788803
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1194,
+      "completion_tokens": 4,
+      "total_tokens": 1198
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

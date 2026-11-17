@@ -1,0 +1,63 @@
+{
+  "schema": "dagv2_review_wire_independent_receipt_v1",
+  "reviewed_at_utc": "2026-10-13T22:13:04.513Z",
+  "workspace": "/Users/mao/projects/dagv2-personamem-v4-reconcile",
+  "base_commit": "0cc2cc78498bcd215252fb8e82d2168868a71b3f",
+  "owned_new_test": "tests/test_v4_review_wire_independent.py",
+  "command": "/Users/mao/projects/dagv2/.venv/bin/python -m pytest -q tests/test_v4_review_wire_independent.py",
+  "result": {
+    "exit_code": 0,
+    "passed": 121,
+    "pytest_seconds": 0.89,
+    "stdout": "........................................................................ [ 59%]\n.................................................                        [100%]\n121 passed in 0.89s\n"
+  },
+  "files": {
+    "dagbt/review_wire.py": {
+      "bytes": 8488,
+      "sha256": "d7d9174ea9f0b319f6fc994adce866d2ad494f83b5316382511d52dcfd8e75fb"
+    },
+    "dagbt/joint_reading.py": {
+      "bytes": 187993,
+      "sha256": "47290d56d15a7e2b5998254ccb89f08e0eca53f784ae1c0a5b6d65e11c5c07a4"
+    },
+    "dagbt/history_wire.py": {
+      "bytes": 7373,
+      "sha256": "1117bc614be0205fa1ef7a65dd0b1a111069ab65da60acf2ff35a9f1a0fe3cb9"
+    },
+    "dagbt/reasoning.py": {
+      "bytes": 15843,
+      "sha256": "52e1d03bc8848f66be4fb3d20928765e0df34e5317f695d1d8b3bec18b4895da"
+    },
+    "dagbt/fact_state.py": {
+      "bytes": 22143,
+      "sha256": "e55b9535d2c55ea87be3de59f4c5e1123e0eac06dc7e672827ba466e9c94c91e"
+    },
+    "dagbt/residual_control.py": {
+      "bytes": 54082,
+      "sha256": "b22de008c594fe8b5c50fc0a63c9001aa83178cc92cd2b2119f79ea0431d7211"
+    },
+    "tests/test_v4_review_wire_independent.py": {
+      "sha256": "b40e2dc60ffae6f786d6b2f322a958437e5628a216b64b29c0a63904bfb2a73b"
+    }
+  },
+  "design_report": "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/r19_failed_review_wire_design_review.md",
+  "corrected_design_sha256": "644db77d7f2a2352cee934b0fde24c6d498a51e1867fc48b0980a8ad70d54d96",
+  "source_owner": "control_v4",
+  "source_edits_by_reviewer": false,
+  "old_test_edits": false,
+  "release_edits": false,
+  "full_suite_run": false,
+  "real_model_calls": 0,
+  "tokenizer_calls": 0,
+  "network_calls": 0,
+  "labels_or_scores_read": false,
+  "independent_inverse": "Hand-written explicit path grammar; no production row iterator/normalizer/unpack used as sole oracle; exact ordered JSON representation compared.",
+  "integration": "Actual JointReader durable recovery and Reasoner payload/preflight, with constant offline _count_payload and scripted HTTP-shaped replies.",
+  "scope_limit": "No token saving, real-provider decoding, 16K admission, case recovery, release gate, or answer-quality claim.",
+  "intermediate_fixture_corrections": [
+    "First 100-test run: one fixture re-entered _payload after placing wire aliases in a canonical failed record; existing original-source guard correctly rejected. Fixed fixture visibility capture only.",
+    "First 116-test run: one fixture mixed mandatory_closure with candidate doc_ids; existing scope guard correctly rejected. Fixed fixture to use normal candidate window only."
+  ],
+  "legacy_assertion_note": "Control reported five preexisting tests asserting complete unchanged wire after history-layer fallback; this reviewer did not run or modify old tests. Four new independent cases verify review can apply while history remains literal and its instruction is absent. Root owns broader-suite disposition."
+}
+
