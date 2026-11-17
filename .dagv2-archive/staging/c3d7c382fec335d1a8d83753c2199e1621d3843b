@@ -1,0 +1,52 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:53198/rerank",
+  "payload": {
+    "query": "Which country is the author from?",
+    "documents": [
+      "[No evidence passages]",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"d1\", \"source_id\": \"d1\"}]\nTitle 1\nEntity fact number 1.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"d4\", \"source_id\": \"d4\"}]\nTitle 4\nEntity fact number 4.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"d1\", \"source_id\": \"d1\"}]\nTitle 1\nEntity fact number 1.\n\n[Passage {\"doc_id\": \"d4\", \"source_id\": \"d4\"}]\nTitle 4\nEntity fact number 4."
+    ],
+    "top_n": 4,
+    "return_documents": false,
+    "model": "fixture-pointwise"
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "1",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498165.468502,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790498165.469048
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 3,
+        "relevance_score": 0.22000000000000003
+      },
+      {
+        "index": 2,
+        "relevance_score": 0.15000000000000002
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.15000000000000002
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.08
+      }
+    ]
+  }
+}
