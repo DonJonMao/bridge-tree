@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:3713\", \"source_id\": \"hotpotqa:3713\"}]\nNew York Minute (film)\nNew York Minute is a 2004 American teen comedy film starring Mary-Kate Olsen, Ashley Olsen and Eugene Levy. It was directed by Dennie Gordon and released on May 7, 2004. In the film Mary-Kate and Ashley play twins with opposing personalities who have a series of misadventures around New York City. \"New York Minute\" reunited Mary-Kate and Ashley with their \"Full House\" co-star, Bob Saget. It was the Olsen twins' first theatrical film release since 1995's \"It Takes Two\". It was also the last film featured by Olsen twins, and the last film released by Dualstar Entertainment before it went into dormancy.\n\n[Passage {\"doc_id\": \"hotpotqa:9509\", \"source_id\": \"hotpotqa:9509\"}]\nVladimir Danilevich\nVladimir Petrovich Danilevich (Russian: Владимир Петрович Данилевич ; 4 September 1924 — 9 October 2001) was well-known Soviet and Russian Animator: who successfully worked as the film director, the screenwriter, the art director and the animator."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "173",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599218.6820421,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599219.491797
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.002906512501498015
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 758,
+      "completion_tokens": 2,
+      "total_tokens": 760
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

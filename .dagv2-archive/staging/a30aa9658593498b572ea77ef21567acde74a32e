@@ -1,0 +1,40 @@
+......F.                                                                 [100%]
+=================================== FAILURES ===================================
+___ test_invalid_old_table_shapes_are_not_repaired_by_encoding[missing_rows] ___
+
+shape = 'missing_rows'
+
+    @pytest.mark.parametrize('shape', ['duplicate_column', 'non_string_column', 'short_row',
+                                      'long_row', 'non_list_row', 'non_list_pool',
+                                      'missing_rows', 'orphan_pool'])
+    def test_invalid_old_table_shapes_are_not_repaired_by_encoding(shape):
+        original = old_table_fixture()
+        if shape == 'duplicate_column':
+            original['known_observation_columns'][-1] = 'value'
+        elif shape == 'non_string_column':
+            original['known_observation_columns'][-1] = 7
+        elif shape == 'short_row':
+            original['known_observations'][0].pop()
+        elif shape == 'long_row':
+            original['known_observations'][0].append('unlisted-source')
+        elif shape == 'non_list_row':
+            original['known_observations'][0] = {'id': 'wrong-shape'}
+        elif shape == 'non_list_pool':
+            original['known_observation_values'] = {'0': 'wrong-shape'}
+        elif shape == 'missing_rows':
+            del original['known_observations']
+        else:
+            del original['known_observation_columns']
+        before = canonical(original)
+>       assert canonical(prototype.pack(original)) == before
+E       assert '{"evidence_o...version":2}}}' == '{"evidence_o...version":2}}}'
+E         
+E         Skipping 3840 identical leading characters in diff, use -v to show
+E         - ubquestion":"Use this exact history:\n历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed é words \"quoted\" \\slash\nnext\tline. 历史🙂 mixed e...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+test_prototype_shared_history_text.py:246: AssertionError
+=========================== short test summary info ============================
+FAILED test_prototype_shared_history_text.py::test_invalid_old_table_shapes_are_not_repaired_by_encoding[missing_rows]
+1 failed, 7 passed, 30 deselected in 0.07s

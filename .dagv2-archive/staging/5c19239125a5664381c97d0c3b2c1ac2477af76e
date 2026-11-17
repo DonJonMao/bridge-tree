@@ -1,0 +1,284 @@
+..................................................................F..... [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 29%]
+........................................................................ [ 39%]
+........................................................................ [ 49%]
+........................................................................ [ 59%]
+..FF..........................................................FF....F... [ 69%]
+........................................................................ [ 79%]
+........................................................................ [ 89%]
+........................................................................ [ 99%]
+.......                                                                  [100%]
+=================================== FAILURES ===================================
+________ test_bt_profile_chat_only_and_model_specific_full_corpus_index ________
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_bt_profile_chat_only_and_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a2735d0>
+
+    def test_bt_profile_chat_only_and_model_specific_full_corpus_index(tmp_path, monkeypatch):
+        # Never forward an operator's real credential into even this loopback fixture.
+        for name in ("DAG_LLM_API_KEY", "DAG_EMBED_API_KEY", "DAG_RERANK_API_KEY", "BRIDGETREE_CHAT_API_KEY"):
+            monkeypatch.delenv(name, raising=False)
+        q = runner.load_questions("hotpotqa", limit=1)[0]
+        corpus = [json.loads(line) for line in (runner.ROOT / "data/hotpotqa/corpus.jsonl").read_text().splitlines()]
+        passages = [d["title"] + "\n" + d["text"] if d["title"] and d["text"] else d["title"] or d["text"] for d in corpus]
+        assert len(passages) == 9811
+        original_index = runner.ROOT / "data/hotpotqa/index/passage_vectors.npy"
+        original_index_hash = runner.file_hash(original_index)
+        credentials = tmp_path / "empty_credentials.json"
+        runner.save(credentials, {})
+        output = tmp_path / "scripted_bt_profile_system_test"
+    
+        with scripted_bt_models(q["question"]) as (endpoint, requests, errors):
+            config = runner.load(runner.ROOT / "configs/paired.example.json")
+            assert config["model_profile"] == "bridgetree"
+            assert config["llm_model"] == "deepseek-v4-flash"
+            assert config["embedding_model"] == "qwen3-embedding-8b"
+            assert config["reranker"]["model"] == ""
+            config.update(llm_base_url=endpoint + "/v1", embedding_base_url=endpoint + "/v1",
+                          credentials_file=str(credentials), derived_index_dir=str(tmp_path / "derived_indices"),
+                          request_timeout_seconds=10, max_identical_attempts=1)
+            config["reranker"]["url"] = endpoint + "/rerank"
+            config["fusion"].update(ann_calls=12, set_score_calls=64)
+            config["experiment"].update(question_timeout_seconds=180, worker_startup_timeout_seconds=120,
+                                        fixture_note="Entirely loopback scripted BT-profile compatibility test; not accuracy")
+            config_path = tmp_path / "profile_config.json"
+            runner.save(config_path, config)
+            assert inspect_index(config, "hotpotqa")["status"] == "needs_build"
+            args = SimpleNamespace(config=str(config_path), output=str(output), datasets=["hotpotqa"],
+                                   arms=["original", "fusion"], limit=1, retry_failed=False, offline_preflight=False)
+>           runner.run_experiment(args)
+
+tests/test_bt_profile_system.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dagbt/runner.py:1307: in run_experiment
+    report = preflight(config, datasets, endpoints=not args.offline_preflight, output=output, arms=arms)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+dagbt/runner.py:261: in preflight
+    report = {"original_integrity": verify_originals(), "datasets": {}, "endpoints": {}, "arms": arms,
+                                    ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+include_labels = False
+
+    def verify_originals(*, include_labels=False):
+        manifest = load(ROOT / "original_manifest.json")
+        errors, checked, deferred = [], 0, []
+        for entry in manifest["files"]:
+            relative = entry["path"]
+            if relative.endswith("evaluation_only.json") and not include_labels:
+                deferred.append(relative)
+                continue
+            path = ROOT / relative
+            if not path.is_file() or file_hash(path) != entry["sha256"]:
+                errors.append(relative)
+            checked += 1
+        if errors:
+>           raise ValueError("Original artifact missing or modified: " + ", ".join(errors))
+E           ValueError: Original artifact missing or modified: README.md
+
+dagbt/runner.py:131: ValueError
+___ test_non_success_terminal_does_not_publish_nonempty_hypothesis[partial] ____
+
+setup = (<class 'test_engine.setup.<locals>.Bridge'>, ({'a': <test_engine.Document object at 0x10a31a110>, 'b': <test_engine.D...sport': True, 'llm_base_url': 'https://invalid.example/v1', 'llm_model': 'fixture', 'embedding_model': 'fixture', ...})
+status = 'partial'
+
+    @pytest.mark.parametrize('status', ['unknown','partial','ambiguous'])
+    def test_non_success_terminal_does_not_publish_nonempty_hypothesis(setup,status):
+        bridge,resources,config=setup
+        bridge.routes={'final':['c']}
+        value=unknown()
+        value.update(status=status,answer=None if status=='unknown' else 'hypothesis')
+        calls=TerminalCalls([local_step('final')],'final',lambda d:value)
+        row=run_question({'id':'q','question':'Q'},resources,calls,config,VERSION)
+>       assert row['answer']['status']==status
+E       AssertionError: assert 'unknown' == 'partial'
+E         
+E         - partial
+E         + unknown
+
+tests/test_local_scoring_terminal.py:368: AssertionError
+__ test_non_success_terminal_does_not_publish_nonempty_hypothesis[ambiguous] ___
+
+setup = (<class 'test_engine.setup.<locals>.Bridge'>, ({'a': <test_engine.Document object at 0x10a110810>, 'b': <test_engine.D...sport': True, 'llm_base_url': 'https://invalid.example/v1', 'llm_model': 'fixture', 'embedding_model': 'fixture', ...})
+status = 'ambiguous'
+
+    @pytest.mark.parametrize('status', ['unknown','partial','ambiguous'])
+    def test_non_success_terminal_does_not_publish_nonempty_hypothesis(setup,status):
+        bridge,resources,config=setup
+        bridge.routes={'final':['c']}
+        value=unknown()
+        value.update(status=status,answer=None if status=='unknown' else 'hypothesis')
+        calls=TerminalCalls([local_step('final')],'final',lambda d:value)
+        row=run_question({'id':'q','question':'Q'},resources,calls,config,VERSION)
+>       assert row['answer']['status']==status
+E       AssertionError: assert 'unknown' == 'ambiguous'
+E         
+E         - ambiguous
+E         + unknown
+
+tests/test_local_scoring_terminal.py:368: AssertionError
+_________ test_detached_cli_finishes_same_question_pairs_with_failure __________
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_detached_cli_finishes_sam0')
+
+    def test_detached_cli_finishes_same_question_pairs_with_failure(tmp_path):
+>       output, launched = cli_fixture(tmp_path, fail=True)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_paired_runner.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_detached_cli_finishes_sam0')
+delay = 0, fail = True
+
+    def cli_fixture(tmp_path, *, delay=0, fail=False):
+        config = r.load(r.ROOT / "configs/paired.legacy.json")
+        config["experiment"].update(fixture_delay=delay, fixture_fail_original=fail)
+        config_path = tmp_path / "config.json"
+        r.save(config_path, config)
+        output = tmp_path / "run"
+        script = Path(__file__).parent / "fixtures/dagbt.runner.fixture.py"
+        completed = subprocess.run([sys.executable, str(script), "launch", "--config", str(config_path), "--output", str(output),
+                                    "--datasets", "hotpotqa", "--limit", "1", "--offline-preflight"], cwd=r.ROOT,
+                                   capture_output=True, text=True, timeout=30)
+>       assert completed.returncode == 0, completed.stderr
+E       AssertionError: {"error_type": "ValueError", "error": "Original artifact missing or modified: README.md"}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/mao/projects/dagv2/.venv/bin/python', '/Users/mao/projects/dagv2/tests/fixtures/dagbt.r...ode=1, stdout='', stderr='{"error_type": "ValueError", "error": "Original artifact missing or modified: README.md"}\n').returncode
+
+tests/test_paired_runner.py:346: AssertionError
+_________________ test_detached_cli_stop_reaps_active_workers __________________
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_detached_cli_stop_reaps_a0')
+
+    def test_detached_cli_stop_reaps_active_workers(tmp_path):
+>       output, launched = cli_fixture(tmp_path, delay=30)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_paired_runner.py:376: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_detached_cli_stop_reaps_a0')
+delay = 30, fail = False
+
+    def cli_fixture(tmp_path, *, delay=0, fail=False):
+        config = r.load(r.ROOT / "configs/paired.legacy.json")
+        config["experiment"].update(fixture_delay=delay, fixture_fail_original=fail)
+        config_path = tmp_path / "config.json"
+        r.save(config_path, config)
+        output = tmp_path / "run"
+        script = Path(__file__).parent / "fixtures/dagbt.runner.fixture.py"
+        completed = subprocess.run([sys.executable, str(script), "launch", "--config", str(config_path), "--output", str(output),
+                                    "--datasets", "hotpotqa", "--limit", "1", "--offline-preflight"], cwd=r.ROOT,
+                                   capture_output=True, text=True, timeout=30)
+>       assert completed.returncode == 0, completed.stderr
+E       AssertionError: {"error_type": "ValueError", "error": "Original artifact missing or modified: README.md"}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/mao/projects/dagv2/.venv/bin/python', '/Users/mao/projects/dagv2/tests/fixtures/dagbt.r...ode=1, stdout='', stderr='{"error_type": "ValueError", "error": "Original artifact missing or modified: README.md"}\n').returncode
+
+tests/test_paired_runner.py:346: AssertionError
+__________________ test_stop_foreground_relative_output_path ___________________
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_stop_foreground_relative_0')
+
+    def test_stop_foreground_relative_output_path(tmp_path):
+        config = r.load(r.ROOT / "configs/paired.legacy.json")
+        config["experiment"]["fixture_delay"] = 30
+        config_path = tmp_path / "config.json"
+        r.save(config_path, config)
+        output = tmp_path / "relative_run"
+        script = Path(__file__).parent / "fixtures/dagbt.runner.fixture.py"
+        with (tmp_path / "foreground.log").open("w") as log:
+            process = subprocess.Popen([sys.executable, str(script), "run", "--config", str(config_path),
+                                        "--output", os.path.relpath(output, r.ROOT), "--datasets", "hotpotqa",
+                                        "--limit", "1", "--offline-preflight"], cwd=r.ROOT, stdout=log, stderr=log)
+        try:
+>           await_progress(output, {"generating"})
+
+tests/test_paired_runner.py:437: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_paired_runner.py:357: in await_progress
+    raise AssertionError((output / "launcher.log").read_text())
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_stop_foreground_relative_0/relative_run/launcher.log')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-317/test_stop_foreground_relative_0/relative_run/launcher.log'
+
+/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py:1044: FileNotFoundError
+=============================== warnings summary ===============================
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2/dagresolve/flow.py:222: RuntimeWarning: divide by zero encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2/dagresolve/flow.py:222: RuntimeWarning: overflow encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2/dagresolve/flow.py:222: RuntimeWarning: invalid value encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_bt_profile_system.py::test_bt_profile_chat_only_and_model_specific_full_corpus_index
+FAILED tests/test_local_scoring_terminal.py::test_non_success_terminal_does_not_publish_nonempty_hypothesis[partial]
+FAILED tests/test_local_scoring_terminal.py::test_non_success_terminal_does_not_publish_nonempty_hypothesis[ambiguous]
+FAILED tests/test_paired_runner.py::test_detached_cli_finishes_same_question_pairs_with_failure
+FAILED tests/test_paired_runner.py::test_detached_cli_stop_reaps_active_workers
+FAILED tests/test_paired_runner.py::test_stop_foreground_relative_output_path
+6 failed, 721 passed, 69 warnings in 60.80s (0:01:00)
