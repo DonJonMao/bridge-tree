@@ -1,0 +1,1405 @@
+                         Diversify-verify-adapt: Efficient and Robust Retrieval-Augmented
+                                          Ambiguous Question Answering
+
+                               Yeonjun In1 * , Sungchul Kim2† , Ryan A. Rossi2 , Md Mehrab Tanjim2 ,
+                                              Tong Yu2 , Ritwik Sinha2 , Chanyoung Park1
+                                                    1             2
+                                                      KAIST         Adobe Research
+                                                {yeonjun.in, cy.park}@kaist.ac.kr
+                                     {sukim, ryrossi, tanjim, tyu, risinha}@adobe.com
+
+
+                                         Abstract                                                       Performance vs Efficiency with GPT-4
+
+
+
+
+                                                                              Performance (D-F1)
+                                                                                                   42       DIVA (Ours)             2X Faster
+                       The retrieval augmented generation (RAG)                                              (27sec, $0.26)         1.8X Cheaper
+                       framework addresses an ambiguity in user                                    41
+                                                                                                                                            Iterative RAG
+                       queries in QA systems by retrieving passages                                                                          (53sec, $0.46)
+                       that cover all plausible interpretations and gen-                           40 Vanilla RAG
+                                                                                                        (19sec, $0.14)
+                       erating comprehensive responses based on the                                39
+                       passages. However, our preliminary studies                                           Closed-book LLM (6sec, $0.03)
+                       reveal that a single retrieval process often suf-                           38       10            20     30    40          50
+                       fers from low-quality results, as the retrieved                                                   Time per Query (Sec)
+                       passages frequently fail to capture all plau-
+                       sible interpretations. Although the iterative          Figure 1: Trade-off between performance and effi-
+                       RAG approach has been proposed to address              ciency under GPT-4 backbone on ASQA. Notably,
+                       this problem, it comes at the cost of signif-          D IVA achieves better performance to the iterative RAG
+                       icantly reduced efficiency. To address these           (Kim et al., 2023), while significantly more efficient
+                       issues, we propose the diversify-verify-adapt          (that is, 2x faster and 1.8x cheaper). The size of the cir-
+                       (D IVA) framework. D IVA first diversifies the         cle indicates the cost per query ($). Closed-book LLM
+                       retrieved passages to encompass diverse inter-         indicates the traditional few-shot prompting method
+                       pretations. Subsequently, D IVA verifies the           used in Brown (2020)
+                       quality of the passages and adapts the most
+                       suitable approach tailored to their quality. This      QA tasks (Izacard and Grave, 2021; Lazaridou
+                       approach improves the QA systems’ accuracy             et al., 2022; Shi et al., 2023; Ram et al., 2023)
+                       and robustness by handling low quality retrieval       and also proven to be an effective solution for ad-
+                       issue in ambiguous questions, while enhancing          dressing ambiguous questions (Min et al., 2020,
+                       efficiency.                                            2021; Kim et al., 2023; Sun et al., 2023). Specif-
+                                                                              ically, these approaches first retrieve passages on
+               1       Introduction
+                                                                              the given question and prompt the LLM to extract
+               Open-domain question answering (QA) systems                    plausible interpretations and answers relying on the
+               aim to provide factual responses across diverse top-           passages (c.f. Fig 2(a)).
+               ics. However, ambiguity in user queries is common,                Despite the success of the RAG framework on
+               with over 50% of Google search queries falling into            the ambiguous QA task, we should rethink: Is a
+               this category (Min et al., 2020). Ambiguous ques-              single retrieval process sufficient to retrieve pas-
+               tions challenge QA systems to determine user in-               sages encompassing all plausible interpretations?
+               tent, making it essential for them to deliver answers          To answer this question, we conduct preliminary
+               covering all possible interpretations.                         experiments (c.f. Sec 2) about the quality of the
+                  Addressing ambiguous questions is crucial in                retrieved passages used in the RAG framework.
+               real-world applications, yet remains underexplored             We observe that the passages obtained from the
+               compared to unambiguous questions (Joshi et al.,               single retrieval process often pose a low quality
+               2017; Kwiatkowski et al., 2019). This work aims                issue with respect to addressing ambiguous ques-
+               to fill this gap by tackling the complexities of am-           tions. In other words, the retrieved passages often
+               biguous QA.                                                    partially or completely failed to cover all plausible
+                  Retrieval-augmented generation (RAG) frame-                 interpretations, leading to significant performance
+               work has made significant progress in open-domain              degradation in terms of factual accuracy.
+                   * Work done during internship at Adobe Research.              To address this issue, the iterative RAG ap-
+                   †
+                       Corresponding author.                                  proach, ToC (Kim et al., 2023), has been introduced
+                                                                           1212
+Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies
+                                                        (Volume 1: Long Papers), pages 1212–1233
+                                         April 29 - May 4, 2025 ©2025 Association for Computational Linguistics
+(a) Vanilla RAG                            (b) Iterative RAG (ToC)                           (c) DIVA (Ours)
+ Q: Who played Weasley brothers in          Q: Who played Weasley brothers in                 Q: Who played Weasley brothers in                 Retrieval Quality Verifier
+           Harry Potter?                              Harry Potter?                           Harry Potter?                                  Relevance Verifying Instruction
+           Passages Retrieval                         Passages Retrieval                                                            ෡
+                                                                                                             Pseudo-interpretations 𝓠        Determine whether the passage contains
+                                                                                                                                             the answer to the question. Yes or No.
+    …R. Grint played Ron Weasley …                                                                              𝑞ො1 : Who played Ron …
+                                                       LLM Reasoning                                                                                           For 𝑞ො1 , Yes or No
+                  ..                                                                                            𝑞ො2 : Who played Percy …
+                                                                                                                                                               For 𝑞ො2 , Yes or No
+  … D. Radcliffe portrayed Harry Potter…    Q: Who played Ron Weasley? A: R. Grint                              𝑞ො3 : Who played Harry …                       For 𝑞ො3 , Yes or No
+                                                                                                                               Pruning
+             LLM Reasoning                                 Q: Who played Percy Weasley?
+                                                           A: C. Rankin                                          𝑞ො1 Embed                 Yes/Yes/Yes     Yes/No/Yes      No/No/No
+
+                                                                                               ෡ Inferring
+                                                                                               𝓠
+   Q: Who played Ron Weasley?                                             k times                               𝑞ො2 Embed
+   A: R. Grint                             Iterative Interpretation exploration
+                                                                                               Instruction
+                                                                                                                𝑞ො3 Embed
+         Low quality retrieval,                   Significant increase in                                                                   Q                                     Q
+         Missing Interpretations                 computational overheads                                     Retrieval Diversifier                 Adaptive Generator
+
+Figure 2: A conceptual comparison of RAG approaches to ambiguous QA. (a) Vanilla RAG retrieves passages
+and generates answers in a single pass, but it may not collect enough information for diverse interpretations (i.e.,
+low-quality retrieval), compromising factual accuracy. (b) Iterative RAG retrieves passages and generates answers
+in a loop, using previous interpretations to enhance each subsequent iteration’s retrieval for exploring missing
+interpretations. Although effective, it is inefficient due to the repeated use of LLMs and retrievers. (c) D IVA retrieves
+passages covering diverse interpretations without relying on the iterative process and selects the most suitable
+knowledge for response generation by verifying retrieval quality.
+(c.f. Fig 2(b)) to further explore other interpreta-                                      them. More specifically, we define a new crite-
+tions that can not be covered by the single retrieval                                     rion of quality levels tailored to ambiguous ques-
+process. Specifically, to further explore missing                                         tions: {Useful, PartialUseful, Useless}. Sub-
+interpretations, the interpretations extracted in the                                     sequently, AG adapts the most suitable approach be-
+previous iteration are utilized as queries to retrieve                                    tween relying on the retrieved passages and LLM’s
+new passages, additional interpretations are then ex-                                     internal knowledge, each of which is tailored to the
+tracted. This exploration process is repeated in mul-                                     specific quality level of the passages.
+tiple times, leading to encompassing more diverse
+interpretations and corresponding answers. How-                                              Experiments demonstrate that the proposed RD
+ever, we argue that this effectiveness comes with                                         method efficiently diversifies the retrieval process
+a significant increase in computational overheads                                         to obtain passages covering diverse interpretations,
+due to the iterative passage retrieval and LLM rea-                                       thereby enhancing both QA and retrieval accuracy.
+soning. In our experiments, this method requires                                          Additionally, the proposed AG method success-
+an average of 5.5 exploration steps per query. As                                         fully discriminate low quality passages, leading to
+shown in Figure 1, Iterative RAG (i.e., ToC) signif-                                      the improvement of the QA performance. Conse-
+icantly outperforms the vanilla RAG approach in                                           quently, D IVA outperforms existing baselines on
+terms of factual accuracy but at the cost of greatly                                      the ASQA (Stelmakh et al., 2022) and SituatedQA
+reduced efficiency, with notable increases in both                                        (Zhang and Choi, 2021) across various LLM back-
+inference time and API call costs.                                                        bones in a few-shot setup, achieving superior accu-
+                                                                                          racy and efficiency. The key contributions of this
+   To this end, we introduce an efficient and ro-                                         work are as follows:
+bust RAG framework for ambiguous QA, referred
+to as diversify-verify-adapt (D IVA). D IVA com-                                             • To the best of our knowledge, this paper is the
+prises two key components efficiently addressing                                               first attempt to investigate the practical limita-
+the low quality retrieval issue: 1) Retrieval Di-                                              tions of the existing RAG frameworks when
+versification (RD) and 2) Adaptive Generation                                                  applied to ambiguous QA task: low quality
+(AG). The key idea of RD is to infer pseudo-                                                   retrieval and inefficiency.
+interpretations of a question, using them to retrieve                                        • We propose D IVA, an efficient and robust
+a set of passages that broadly cover these inter-                                              RAG framework that efficiently retrieves di-
+pretations, thus enhancing retrieval quality with-                                             verse passages, verifies their quality, and
+out any iterative interpretation exploration process.                                          adapts the most suitable approach tailored to
+To further enhance the robustness of this frame-                                               each retrieval quality.
+work, we propose an adaptive generation (AG)                                                 • D IVA consistently outperforms state-of-the-
+method. The key idea of AG is to carefully ver-                                                art RAG approaches in ambiguous QA task,
+ify the overall quality of the passages retrieved                                              while significantly more efficient (nearly 1.5 -
+from RD before indiscriminately incorporating                                                  3 times faster response generation).
+                                                                                1213
+2   Preliminary Experiments                                              (a)                                                   (b)
+                                                                                                      GPT-3.5-turbo                          GPT-4
+                                                                                                50
+                                                                       Partially                                   RAG          50                 RAG
+                                                                        Cover                   40                 LLM                             LLM
+We investigate the quality of retrieved passages             Not Cover                                                          40
+
+                                                                                         D-F1
+                                                                               49.7 %           30
+                                                              15.7 %                                                            30
+and their impact on the performance of the RAG                   Fully
+                                                                       34.6 %
+                                                                                                20                              20
+                                                                 Cover                          10                              10
+framework (as in Fig 2(a)) in ambiguous QA task.                                                0                               0
+                                                                                                     Fully   Partial    Not          Fully   Partial    Not
+
+Experimental Details. We utilize the most recent                                                     Cover   Cover     Cover         Cover   Cover     Cover
+
+
+ambiguous QA dataset, ASQA (Stelmakh et al.,              Figure 3: Preliminary results on ASQA. (a) Portion
+                                                          of each quality label of retrieved passages. (b) Perfor-
+2022). We classify the quality of retrieved pas-
+                                                          mance comparison upon the quality label.
+sages into three labels: 1) Fully Cover, 2) Partially
+Cover, and 3) Not Cover. Fully Cover indicates
+that the retrieved passages encompass all plausible       3       Proposed Method: D IVA
+interpretations, Not Cover does that the retrieved
+passages do not contain any of them, and other-           Based on the findings, we propose an efficient
+wise Partially Cover. We obtain these labels for          and robust RAG framework for ambiguous QA,
+each question by computing a string exact match           diversify-verify-adapt (D IVA). This framework
+between a set of retrieved passages and all plau-         comprises two key components: Retrieval Diversifi-
+sible answers provided in ASQA as ground-truth            cation (Sec 3.2) and Adaptive Generation (Sec 3.3).
+answers. For implementation details of retrieving         The retrieval diversification method aims to effi-
+passages, see Appendix A.4.1.                             ciently diversify the retrieved passages to encom-
+Results. In Fig 3(a), we observe that for only            pass diverse interpretations. Subsequently, the
+34.6% of questions (i.e., Fully Cover) the retriever      adaptive generation method aims to verify the qual-
+successfully retrieves passages that cover all plau-      ity of the passages and adapt the most suitable
+sible interpretations. Additionally, for 15.7% of         approach tailored to their quality. Fig 2(c) and
+questions (i.e., Not Cover) the retriever fails to re-    Algorithm 1 show the overview and inference algo-
+trieve any relevant passages. More critically, as         rithm of D IVA, respectively.
+shown in Fig 3(b), the performance of the RAG
+framework (i.e., RAG in the figure) significantly         3.1          Problem Formulation
+deteriorates in terms of the factual accuracy (i.e., D-
+F1) when the retrieved passages pose a low quality        Given an ambiguous question qi , the goal of the
+issue (i.e., Partial Cover and Not Cover), indicating     proposed RAG framework is to generate a com-
+that it is highly susceptible to noise and irrelevant     prehensive response ri that encompasses all plau-
+information in the ambiguous QA.                          sible answers Ai = {ai,1 , ..., ai,M } of the inter-
+                                                          pretations Qi = {qi,1 , ..., qi,M } based on the re-
+   This observation raises a follow-up question:
+                                                          trieved passages Pi = {pi,1 , ..., pi,K }, where M
+How can we handle cases where the retrieved pas-
+                                                          and K indicate the number of plausible answers
+sages do not fully cover the plausible answers? To
+                                                          and passages, respectively. Specifically, given the
+address this issue, we conducted another experi-
+                                                          Pi ideally contains all Qi and Ai , an LLM is first
+ment that compares the effectiveness of LLM’s in-
+                                                          prompted with the question and the relevant pas-
+ternal knowledge and provided passages for differ-
+                                                          sages to extract all plausible interpretations and
+ent cases, respectively. We observe that when the
+                                                          their corresponding answers, formally represented
+retrieved passages do not contain any of the plau-
+                                                          as follows:
+sible interpretations (i.e., Not Cover), the closed-
+book LLM (i.e., LLM in the figure) significantly                       Qi , Ai ← LLM(qi , Pi , Ie ),       (1)
+outperforms the RAG framework. This suggests              where Ie is a text prompt for extracting Qi and
+that QA performance benefits more from relying            Ai from the Pi . Subsequently, based on the Qi
+on the LLMs’ internal knowledge rather than on            and Ai , the LLM is prompted to consolidate them
+external passages containing entirely irrelevant in-      with qi and Pi to generate a response ri , formally
+formation.                                                represented as follows:
+   In short, while the quality of retrieval is cru-
+                                                                                   ri ← LLM(Qi , Ai , Pi , qi , Ig ).                                     (2)
+cial for the performance of the RAG framework in
+ambiguous QA, existing works have largely over-           For the prompts Ie and Ig , we start with that of
+looked this critical issue, which notably diminishes      Kim et al. (2023) and modify it for our setup (see
+their practical applicability.                            Table 10 and Table 11 in Appendix D).
+                                                      1214
+       Prompt 𝑰𝒂 for Ambiguity Type Inference
+   Types of ambiguity in a question can be defined as:                               Q̂i ← LLM(qi , Ip , LLM(qi , Ia )),          (3)
+   [AmbSub], [AmbObj], [AmbPred], [AmbTime], [AmbLoc].
+   [Description for each ambiguity type]                                  where Ip and Ia are carefully designed instructions
+   Given the question [Q], which types of ambiguity are related to        for each step, respectively. We present the concep-
+   the question? Suggest the types and reasons for your suggestions.
+                                                                          tual example of Ia and Ip in Fig 4 and full instruc-
+       Prompt 𝑰𝒑 for Pseudo-interpretations Inference                     tions in Table 7 and 8 of Appendix D. For LLM(·),
+   Given the question [Q] and corresponding reasons why the
+   question is ambiguous. Clarify the given question based on the         we consider GPT-3.5 (Brown, 2020) and GPT-4
+   reasons for its ambiguity.                                             (Achiam et al., 2023).
+Figure 4: Conceptual example of prompts for pseudo-                       Retrieving Relevant and Diverse Passages. As
+interpretations inference.                                                a first stage retrieval, we obtain the candidate pas-
+                                                                          sages Ci generally relevant to the given question qi
+3.2 Retrieval Diversification (RD)                                        from Wikipedia2 . From the Ci , we select a set of
+                                                                          multiple passages Pi with maximal coverage of all
+In this section, we propose a novel retrieval diversi-                    distinct pseudo-interpretations Q̂i .
+fication (RD) method aiming to efficiently identify
+                                                                             Retrieval for unambiguous questions involves
+passages Pi encompassing all plausible answers Ai
+                                                                          scoring a single passage individually based on their
+of the interpretations Qi . The key idea of RD is to
+                                                                          relevance to a single interpretation. Whereas,
+infer pseudo-interpretations1 of a question, using
+                                                                          when it comes to the ambiguous questions, we
+them to retrieve a set of passages that maximally
+                                                                          should retrieve a set of passages encompassing
+cover these interpretations. This approach guar-
+                                                                          multiple interpretations, which makes this prob-
+antees the retrieved passages encompass diverse
+                                                                          lem more challenging. To obtain such set of pas-
+interpretations, without any iterative interpretation
+                                                                          sages, we explicitly employ our inferred pseudo-
+exploration process of Kim et al. (2023), leading to
+                                                                          interpretations Q̂i to retrieve the set of passages
+the generated response ri covering all Ai .
+                                                                          P̃i that maximally cover these interpretations, for-
+Inferring Pseudo-Interpretations.              To infer                   mally represented as follows:
+pseudo-interpretations Q̂i = {q̂i,1 , q̂i,2 , ...}, each                                         |Q̂i |
+of which related to a true plausible answer of                                                   [
+                                                                                         P̃i ←            R(Ci , q̂i,j ; K),      (4)
+Ai , we draw inspiration from a human’s reason-
+                                                                                                 j=1
+ing chain inferring multiple interpretations of a
+                                                                          where R is a retriever yielding top-K passages
+question. Given an ambiguous question, a human
+                                                                          from the Ci by relevance scores to each pseudo
+would first identify the ambiguous part of the ques-
+                                                                          interpretation q̂i,j .
+tion and then determine the reason for the ambigu-
+                                                                          Pruning Noisy Passages. Although this process
+ity, followed by inferring multiple interpretations
+                                                                          explicitly enables P̃i to encompass all pseudo inter-
+of the question. For example, given the question
+                                                                          pretations, there could be some noisy and irrelevant
+"Who played the Weasley brothers in Harry Pot-
+                                                                          passages due to the absence of perfect retriever and
+ter?", the ambiguous part is the object of the ques-
+                                                                          the noise of the inferred pseudo-interpretations Q̂i .
+tion, "Weasley brothers," and the corresponding
+                                                                          To this end, we find and prune the passages that
+reason is that "It can refer to multiple characters
+                                                                          are highly likely to be irrelevant and noisy. Our
+such as Ron, Percy, and so on." Consequently, a
+                                                                          intuition is that 1) noisy passages caused by the im-
+human would generate "Who played Ron Weasley
+                                                                          perfect retriever tend to be irrelevant to all pseudo-
+in Harry Potter?", "Who played Percy Weasley in
+                                                                          interpretations and 2) noisy passages caused by
+Harry Potter?", etc.
+                                                                          noisy pseudo-interpretations tend to be irrelevant
+   To mimic this reasoning chain, we leverage the
+                                                                          to most of the pseudo-interpretations. Based upon
+LLM’s reasoning ability to 1) identify the ambigu-
+                                                                          this intuition, we measure an averaged relevance of
+ous part of the question and the reason for the am-
+                                                                          the passage to determine if it is noisy or not. The
+biguity and 2) infer the pseudo-interpretations Q̂i
+                                                                          averaged relevance of a passage S(p) is calculated
+from the results. But, handling both tasks simulta-
+                                                                          as follows:
+neously would place a substantial load on a single                                             |Q̂i |
+LLM (See Appendix B.1 for a detailed discussion).                                         1 X Enc(q̂j ) · Enc(p)
+                                                                             S(p) ←                                              , (5)
+As a result, we assign each task to a different LLM,                                    |Q̂i |        ||Enc(q̂j )|| · ||Enc(p)||
+                                                                                              j=1
+formally represented as:
+   1                                                                          2
+    We define pseudo-interpretations as approximate inter-                    We use ColBERT (Khattab and Zaharia, 2020) and Bing
+pretations closely resembling the actual interpretations.                 search API as retrievers.
+
+                                                                       1215
+                                                                         # Input Tokens                 # Output Tokens
+where Enc(·) encodes sentences to a dense vector                 14k
+                                                                                                1200
+and p ∈ P̃i . We then select the top-K passages                  12k
+                                                                 10k
+                                                                              RD
+                                                                              RV
+                                                                                                1000
+                                                                                                              RD
+                                                                                                              RV
+from the P̃i based on these averaged scores as the                8k          AG                 800          AG
+                                                                                                 600
+final passage set Pi .                                            6k
+                                                                  4k                             400
+
+   Our approach is generic, allowing for the use of               2k
+                                                                   0
+                                                                                                 200
+                                                                                                   0
+various sentence embedding models for calculat-                        Close. Van. Iter. DIVA
+                                                                       LLM RAG RAG
+                                                                                                       Close. Van. Iter. DIVA
+                                                                                                       LLM RAG RAG
+ing relevance scores. In line with the sota baseline     Figure 5: Comparison of the number of tokens per query
+(Kim et al., 2023), we employ the frozen Sentence-       using GPT-4 backbone. RD, RV, and AG indicate the
+BERT (Reimers and Gurevych, 2019) in R(·) and            proposed retrieval diversify, retrieval verify, and adap-
+Enc(·) in our implementation.                            tive generate module, respectively.
+
+
+3.3 Adaptive Generation (AG)                                           Vi,1 ← LLM(q̂i,1 , Pi , Iv )
+Despite the effectiveness of the proposed RD                                         ..
+                                                                                      .
+method, there may be the low quality of Pi . To
+                                                                       Vi,|Q̂i | ← LLM(q̂i,|Q̂i | , Pi , Iv ),                  (7)
+further enhance the robustness of D IVA, in this sec-
+tion, we propose an adaptive generation method.          where each Vi,j consists of a binary label (i.e., Yes
+The key idea of AG is to carefully verify the overall    or No). For instance, if all Vi,∗ are determined
+quality of the passages retrieved from RD before         "Yes" the grade is Useful. We present the full
+indiscriminately incorporating them.                     prompt of Iv in Table 9 in Appendix D. For LLM(·),
+   From the findings in Section 2, if Pi does not        we consider GPT-3.5 and GPT-4.
+encompass all plausible interpretations, Qi and Ai ,     Adaptive Generation Once we get the verifica-
+the response generated by the RAG framework is           tion results from Eq 7, if the Pi is classified to
+highly likely to be inaccurate. To this end, we          Useful or PartialUseful, we decide to utilize
+introduce an adaptive generation (AG) method that        the retrieved passages Pi to generate a response by
+dynamically adjust the response generation strategy      Eq 1 and 2. If Pi is classified to Useless, we de-
+among the RAG framework and closed-book LLM,             cide to only utilize the LLM’s internal knowledge
+which is achieved by verifying the quality of Pi         to generate a response: LLM(qi , Il ). The full prompt
+before attempting a solution.                            of Il is presented in Table 12 in Appendix D. This
+                                                         process enables the utilization of the most suitable
+Retrieval Verification (RV) To verify the quality
+                                                         approach tailored to each retrieval quality, which is
+of Pi , we exploit the LLM’s strong natural lan-
+                                                         beneficial to both accuracy and efficiency.
+guage understanding ability. The existing works
+(Li et al., 2023; Asai et al., 2023; Yan et al., 2024)
+                                                         3.4   Discussion
+verify whether Pi can sufficiently support answer-
+ing qi by prompting or training the LLM to give a        Efficiency. We examine the factors contributing
+proper label Vi (e.g., Yes / No):                        to D IVA’s strong efficiency in Figure 5, which
+                                                         illustrates the average number of input and out-
+               Vi ← LLM(qi , Pi , Iv ),           (6)
+                                                         put tokens per query when using the GPT-4 back-
+where Iv is the corresponding instruction. How-          bone. For a detailed explanation of the token con-
+ever, the retrieval quality in terms of ambiguous        sumption calculation process, please refer to Ap-
+questions should be graded according to how many         pendix A.4.2. First, D IVA’s strong efficiency is
+interpretations are encompassed by the retrieved         largely due to the RD method. Unlike Iterative
+passages, which can not be achieved by the ex-           RAG, which involves an average of 5.5 exploration
+isting approaches tailored to unambiguous ques-          steps per query and requires more than 12,000 to-
+tions. To this end, we newly define a criterion          kens for input and 1,200 tokens for output, the
+of quality levels tailored to ambiguous questions:       RD method significantly reduces the number of
+{Useful, PartialUseful, Useless}. Useful in-             tokens needed. Second, although the RV method
+dicates the Pi encompasses all Qi and Ai , Useless       introduces some additional costs, these are ac-
+indicates the Pi does not contain any of them, other-    ceptable compared to the complexity of Iterative
+wise PartialUseful. To determine these grades,           RAG. Moreover, RV enables the adaptive gener-
+we estimate how many interpretations are encom-          ation (AG) strategy, where the faster closed-book
+passed by the Pi by explicitly utilizing the pseudo-     LLM is selectively used instead of RAG, further
+interpretations Q̂i :                                    enhancing efficiency. As a result, D IVA, combin-
+                                                     1216
+ing RD, RV, and AG, requires substantially less          book LLMs, LLMs w/ RAG, and the adaptive gen-
+inference time and API costs.                            eration. Specifically, fully-supervised LMs include
+Technical Contribution. Our paper is the first           the 1) T5 closed-book (Raffel et al., 2020), 2) T5
+attempt to investigate how current RAG methods           w/ JPR (Min et al., 2021), and 3) PaLM (Chowd-
+struggle when handling ambiguous queries, and            hery et al., 2023) w/ Soft Prompt Tuning. Few-
+introduces several novel methods specifically tai-       shot closed book LLMs include 4) Vanilla Llama3,
+lored to ambiguous queries: retrieval diversifica-       GPT-3.5-turbo, and GPT-4 and 5) Query refine-
+tion (RD), and retrieval verification (RV). The pri-     ment (Amplayo et al., 2022). Few-shot LLMs w/
+mary innovation of RD lies in its unique pseudo-         RAG include 6) Vanilla RAG where we use RAC
+interpretation inference, which mimics human rea-        prompt in Kim et al. (2023), for 7) Iterative RAG
+soning process, and retrieval method. Furthermore,       we use the sota method ToC (Kim et al., 2023),
+our RV module offers a novel approach that formu-        for adaptive generation 8) Self-RAG (Asai et al.,
+lates retrieval verification in the context of ambigu-   2023), and for RAG with retrieval verification 9)
+ous queries. Therefore, our work provides novel          CRAG (Yan et al., 2024). For more details of the
+insights and strategies targeted at the ambiguous        baselines, please refer to Appendix A.3.
+questions, offering a robust and efficient solution
+to the issues in previous RAG approaches.                4.4    Implementation Details
+                                                         In D IVA, the LLM is employed across three mod-
+4   Experimental Setups                                  ules: retrieval diversification (Eqn 3), retrieval veri-
+4.1 Datasets                                             fication (Eqn 7), and adaptive response generation
+                                                         (Eqn 1, 2, and closed-book LLM). For adaptive
+Our proposed method and all baseline models are          response generation, we use the same LLM back-
+assessed using the ASQA (Stelmakh et al., 2022)          bones as the other baselines. For the retrieval diver-
+and SituatedQA (Zhang and Choi, 2021) datasets.          sification and verification modules, we assess the
+ASQA is a long-form QA dataset featuring am-             performance of GPT-3.5 (gpt-35-turbo) and GPT-
+biguous questions. SituatedQA is a short-form QA         4 (gpt-4-0613) across them, ultimately opting to
+dataset featuring questions that specifically high-      use GPT-4 for both modules in the ASQA dataset
+light ambiguities related to temporal and geograph-      and GPT-3.5 for both modules in the SituatedQA
+ical contexts. We give these questions to the QA         dataset in all experiments. However, as demon-
+systems and assess how comprehensively the re-           strated in Section 5.4, other LLMs also perform
+sponses cover the provided possible interpretations      effectively in these modules. For other implemen-
+of questions. Further details about the datasets are     tation details, please refer to Appendix A.4.
+provided in the Appendix A.1.
+                                                         5     Experimental Results and Analyses
+4.2 Evaluation Metrics
+Metrics for QA. Following Min et al. (2020),             5.1    Main Results
+we mainly adopt F1-based metrics. For the short-         In this section, we assess the effectiveness of
+form QA dataset (SituatedQA) we utilize F1 score.        D IVA on ambiguous and unambiguous questions.
+Given ASQA is the long-form QA dataset, fol-                Table 1 presents the long-form ambiguous QA
+lowing Stelmakh et al. (2022), we use Disambig-          performance of baselines and D IVA on the devel-
+F1 (D-F1) score instead of F1. We further lever-         opment set of ASQA.
+age ROUGE-L (R-L) to measure correctness of                 First, D IVA outperforms the sota baseline, It-
+the long-form responses. Finally, Disambiguation-        erative RAG, in terms of both accuracy and
+ROUGE (DR), combines R-L and D-F1 scores for             efficiency of response generation. Our method
+overall performance.                                     enhances Vanilla RAG framework by incorporat-
+Metrics for Passage Retrieval. Following Min             ing retrieval diversification and adaptive generation
+et al. (2021), we use MRecall@k to evaluate the          strategies that address low-quality retrieval and im-
+quality of retrieved passages.                           prove performance. It is also more efficient, requir-
+   For more details of the evaluation metrics, please    ing significantly less computational overhead and
+refer to Appendix A.2.                                   achieving 1.5x - 3x greater efficiency in inference
+                                                         time across various LLM backbones compared to
+4.3 Baselines                                            Iterative RAG. Overall, our method produces more
+We compare our D IVA against relevant models,            accurate and diverse interpretations without the
+including fully-supervised LMs, few-shot closed          cumbersome iterative exploration process.
+                                                     1217
+                        Performance vs Efficiency with GPT-3.5-turbo                                                         R-L     D-F1   DR     Time
+                     38.0
+
+
+
+
+  Performance (F1)
+                     37.5                   DIVA (Ours)
+                     37.0                   (17sec, $0.02)
+                                                             1.8X Faster                                       Fully-Supervised
+                                                             1.9X Cheaper
+                     36.5       Vanilla RAG                                                T5-Large Closed-Book⋆          33.5  7.4  15.7            -
+                     36.0       (10sec, $0.008)                   Iterative RAG            T5-Large w/ JPR⋆               43.0 26.4 33.7             -
+                     35.5                                         (30sec, $0.037)          PaLM w/ Soft Prompt Tuning⋆⋆ 37.4 27.8 32.1               -
+                     35.0
+                                 Closed-book LLM (1sec, $0.003)                                    Few-shot Prompting: Closed-Book LLM
+                     34.5
+                     34.0                                                                  Llama3-8B-Instruct             31.1 25.6 28.2            -
+                            0         5           10    15   20      25        30          Llama3-70B-Instruct            35.7 36.4 36.0           30.5
+                                            Time per Query (Sec)
+              Figure 6: Experiments on SituatedQA dataset.                                 GPT-3.5-turbo                     38.8    34.0   36.3    2.0
+                                                                                           + Query Refinement                37.5    34.8   36.1    5.2
+   Second, D IVA outperforms the recent re-                                                GPT-4                        39.0 38.5 38.7             5.9
+trieval verifying method, CRAG, across all met-                                            + Query Refinement           39.6 39.3 39.4             10.0
+rics, including inference time. CRAG under-                                                          Few-shot Prompting: LLM w/ RAG
+                                                                                           Self-RAG-13B                 35.4 26.0 30.4              4.1
+performs even compared to Vanilla RAG, despite
+                                                                                           CRAG (GPT-4)                 40.1 39.6 39.9             34.4
+its verification and correction mechanisms. This
+                                                                                           Llama3-8B-Instruct
+suggests that CRAG’s verification and correction                                           — Vanilla RAG                     38.2    35.4   36.8     -
+methods are not well-suited to handling ambigu-                                            — Iterative RAG (ToC)              37     36.3   36.6     -
+ous queries, resulting in degraded passage retrieval                                       — D IVA (Ours)                    38.9    35.7   37.3     -
+performance. These findings emphasize the need                                             Llama3-70B-Instruct
+for a RAG method specifically designed for am-                                             — Vanilla RAG                     40.2    40.0   40.1   42.3
+                                                                                           — Iterative RAG (ToC)             39.5    40.4   39.9   140.5
+biguous queries, demonstrating the practicality and                                        — D IVA (Ours)                    40.4    41.4   40.9    50.6
+effectiveness of D IVA in such scenarios.
+                                                                                           GPT-3.5-turbo
+   Third, D IVA demonstrates good adaptability                                             — Vanilla RAG                     41.2    37.5   39.3   11.2
+in switching out the underlying LLM backbones.                                             — Iterative RAG (ToC)             40.1    38.5   39.3   31.5
+D IVA consistently enhances Vanilla RAG with its                                           — D IVA (Ours)                    42.1    38.9   40.5   19.8
+RD and AG modules across different LLM back-                                               GPT-4
+bones regardless of their model sizes (Llama3-8B                                           — Vanilla RAG                      41.5   39.6   40.6   18.9
+                                                                                           — Iterative RAG (ToC)              38.5   41.8   40.1   53.1
+to GPT-4), demonstrating its adaptability and wide                                         — D IVA (Ours)                     42.4   42.0   42.2   27.1
+applicability. This suggests that D IVA can easily                                         ⋆ results from Stelmakh et al. (2022)
+integrate with more advanced LLMs in the future.                                           ⋆⋆ results from Amplayo et al. (2022)
+   Fig 6 shows the performance and efficiency of                                       Table 1: Experiments on ASQA dataset. Baselines
+baselines and D IVA on the SituatedQA test set for                                     are either fully-supervised or 5-shot prompted. The
+short-form ambiguous QA tasks. All experimental                                        metric Time indicates inference time (sec) per query.
+results align with those seen in Table 1, demonstrat-                                  We emphasize our results in bold, for easy comparisons.
+ing strong generalizability of D IVA across different
+types of ambiguous questions.
+                                                                                       ule (row 4) also boosts all metrics, showing that the
+   Finally, D IVA exhibits strong performance on
+                                                                                       retrieval verification method accurately identifies
+unambiguous questions as well, i.e., NQ dataset
+                                                                                       Useless passages. Additionally, this supports our
+(Kwiatkowski et al., 2019), highlighting its broad
+                                                                                       finding in Sec 2 that when retrieved passages are
+applicability. For detailed results and explanations,
+                                                                                       of extremely low quality, the internal knowledge of
+please refer to Appendix C.2.
+                                                                                       LLMs proves more advantageous than RAG.
+5.2 Ablation Studies
+                                                                                       5.3      Retrieval Analysis
+To evaluate the importance of each component of
+D IVA, namely retrieval diversification (RD) and                                       We evaluate the effectiveness of our proposed RD
+adaptive generation (AG), we incrementally add                                         method in Table 3 using MRecall@k (Min et al.,
+them to Vanilla RAG (row 2 in Table 2). Table 2                                        2021). Vanilla RAG (row 1) involves basic retrieval
+reveals the following insights: 1) RAG (row 2)                                         of passages using a given question qi . "+ RD"
+with the closed-book LLM (row 1) significantly                                         (row 3) applies the RD method to row 1, using
+enhances the ability to handle ambiguity in ques-                                      pseudo-interpretations generated by our proposed
+tions. 2) Implementing the RD module (row 3)                                           instructions (i.e., Ip and Ia ). Row 2 uses the RD
+enhances all performance metrics, demonstrating                                        method with pseudo-interpretations generated by
+that RD effectively diversifies and improves the                                       the LLM query rewriter as described in Ma et al.
+quality of retrieved passages, thereby enhancing                                       (2023) using simple instructions. "+ Oracle" (row
+the RAG framework. 3) Incorporating the AG mod-                                        4) applies RD to Vanilla RAG using ground-truth
+                                                                                    1218
+                                                                                               (a) ASQA (GPT-3.5)                 (b) ASQA (GPT-4)                    (c) SQA (GPT-3.5)
+          Component           GPT-3.5-turbo             GPT-4                                                              40.5
+
+
+                                                                             Retrieval Verification
+                                                                                                                                                              42.0                               37.50
+
+
+
+
+                                                                                                                                                                                                         Performance
+ Row    RAG RD AG            R-L D-F1 DR            R-L D-F1 DR                                       39.5    39.9         40.0       42.2       42.0
+                                                                                                                                                              41.5
+                                                                                                                                                              41.0
+                                                                                                                                                                         37.6       37.2
+                                                                                                                                                                                                 37.25
+                                                                                                                                                                                                 37.00
+
+  1                          38.8     34.0   36.3   39.0   38.5    38.7                                                    39.5                               40.5
+         ✗      ✗     ✗                                                                                                                                       40.0
+                                                                                                                                                                                                 36.75
+                                                                                                                                                                                                 36.50
+
+
+                                                                              GPT-4 GPT-3.5
+  2      ✓      ✗     ✗      41.2     37.5   39.3   41.5   39.6    40.6                                                    39.0                               39.5
+                                                                                                                                                                                                 36.25
+                                                                                                      40.1    40.5                    42.3       42.2         39.0       37.2       37.4
+  3      ✓      ✓     ✗      42.1     38.5   40.2   42.3   41.0    41.7                                                    38.5                               38.5
+                                                                                                                                                                                                 36.00
+                                                                                                                                                                                                 35.75
+  4                          42.1     38.9   40.5   42.4   42.0    42.2
+                                                                                                                                                              38.0
+         ✓      ✓     ✓                                                                         GPT-3.5 GPT-4                       GPT-3.5 GPT-4                      GPT-3.5 GPT-4
+                                                                                               Retrieval Diversification          Retrieval Diversification          Retrieval Diversification
+       Table 2: Ablation studies on ASQA dataset.
+                                                                             Figure 7: Sensitivity analysis of LLM backbone model
+                                                                             in retrieval diversification and verification modules.
+                             MRecall@k                D-F1
+ Row         Method            k=5            GPT-3.5-turbo       GPT-4
+                                                                             Red-white-blue means outperformance, on-par, and un-
+                                                                             derperformance compared with Iterative RAG (ToC) in
+  1       Vanilla RAG               35.2            37.5          39.6
+                                                                             terms of DR for ASQA and F1 for SituatedQA.
+  2     + Ma et al. (2023)          36.1            37.0          40.4
+  3       + RD (Ours)               37.0            38.5          41.0       that is robust across different LLMs.
+  4        + Oracle                 41.5             -             -
+                                                                             5.5                        Case Study
+Table 3: Retrieval accuracy and corresponding QA per-
+                                                                             We conduct a case study to qualitatively compare
+formance on ASQA dataset.
+                                                                             the reasoning chains of Iterative RAG, ToC (Kim
+                                                                             et al., 2023), and D IVA. Figure 8 illustrates the
+interpretations from the ASQA dataset.                                       reasoning chains of Iterative RAG, ToC (Kim et al.,
+   We observe that 1) adding RD leads to signif-                             2023), and D IVA using the ASQA question, "The
+icant improvements of MRecall and D-F1 score                                 movement of food in the food pipe is called?". In
+compared to Vanilla RAG, demonstrating RD ef-                                panel (a), the answer "Peristalsis" is easily covered
+fectively addresses low-quality retrieval issue and                          during the first exploration, whereas "Swallowing"
+then improve the QA performance. 2) "+ RD"                                   requires six steps of passage retrieval and LLM
+outperforms "+ Ma et al. (2023)" showing the su-                             reasoning for exploration. In contrast, panel (b)
+periority of our carefully designed instruction in                           shows that our pseudo-interpretations include both
+inferring pseudo-interpretations. 3) "+ Oracle"                              interpretations, with the RD retrieving passages
+(row 4) significantly outperforms RD, indicating                             that encompass all necessary information. Conse-
+that when more advanced LLMs are available in                                quently, the LLM efficiently extracts all plausible
+the future there is potential for RD to improve in                           interpretations from the retrieved passages without
+accurately inferring pseudo-interpretations.                                 the need for the cumbersome iterative exploration
+5.4 Sensitivity Analysis                                                     process.
+                                                                                Moreover, we analyze failure cases to provide
+For the retrieval diversification (RD) and retrieval                         valuable insights into the limitations and potential
+verification (RV) modules, we explore how their                              improvements of D IVA by identifying instances
+performance is affected by the choice of LLM. We                             where it underperforms. Detailed results and expla-
+evaluate the impact of using GPT-3.5 and GPT-4                               nations are presented in Appendix C.1.
+across both modules, comparing the overall QA per-
+formance against the sota baseline, ToC (Kim et al.,                         6                        Related Work
+2023), on the ASQA and SituatedQA datasets.                                  RAG for Ambiguous Question. To tackle the am-
+Fig 7(a) and (b) represent using GPT-3.5 and GPT-                            biguity inherent in certain questions, earlier studies
+4 as the response generation models on the ASQA                              (Min et al., 2021; Gao et al., 2020; Shao and Huang,
+dataset, respectively. Fig 7(c) represents using GPT-                        2021; Sun et al., 2023) necessitated the fine-tuning
+3.5 as the response generation model on the Situat-                          of models using extensive training datasets. Re-
+edQA dataset.                                                                cently, some studies have leveraged LLM to gener-
+   In Fig 7, we observe: 1) D IVA consistently out-                          ate comprehensive responses through an in-context
+performs ToC, regardless of the LLM model used                               learning. For example, RAC (Kim et al., 2023)
+in each module. 2) While the RD module shows                                 instructs LLM to extract plausible interpretations
+very stable results, the RV module appears rela-                             and answers from provided passages. However,
+tively sensitive to the choice of LLM. This high-                            they overlook the problem of low-quality retrieval,
+lights that verifying the quality of retrieved pas-                          which results in significant performance drops. To
+sages for ambiguous questions requires more pow-                             tackle this issue, ToC (Kim et al., 2023) explores
+erful natural language understanding ability, under-                         missing interpretations by an iterative passage re-
+scoring the need for future work to alleviate the                            trieval and LLM reasoning. However, the iterative
+dependency on the choice of LLM. Based on these                              process incurs significant computational overhead.
+results, we argue that D IVA is a general framework                          Query Reformulation. Our pseudo-interpretation
+                                                                          1219
+(a) Iterative RAG (ToC)                               (b) DIVA (Ours)
+                                                                                          passages sufficiently support the answer, updating
+       Question: The movement of food in food pipe is called?                             them if they are of low quality. Meanwhile, CRAG
+              Interpretation Exploration          Pseudo-Interpretation Inference
+                                                                                          (Yan et al., 2024) trains a lightweight verifier to
+Q1. What is the            Q2. What is the             Pseudo-interpretations:            evaluate the quality of retrieved passages, mak-
+proposed movement of       movement of food            1: What is the specific
+                                                       process of swallowing in
+                                                                                          ing corrections if they fall below a set threshold.
+food called in the         called in the
+Foodtubes system?          esophagus in                the esophagus called?              Please note that our work focuses on retrieval veri-
+                                                       2: What is the specific
+A1. Pipeline
+transportation
+                           humans?
+                           A2. Peristalsis             process of peristalsis in          fication, distinguishing it from other methods such
+                                                       the esophagus called?
+                                                      Retrieval Diversification
+                                                                                          as CoVe (Dhuliawala et al., 2023) and Verify-and-
+                                                                                          Edit (Zhao et al., 2023), which do not target this
+Q3. What is the method
+of moving food in the
+                           Q4.
+                           A4.
+                               Q5. What is the        Passages
+                                                      Swallowing is the process
+                                                                                          aspect. For a more detailed discussion, please refer
+                               normal
+Foodtubes system called?
+A3. Transport by
+                               movement of            that allows for a substance to      to Appendix B.2.
+                                                      pass from the mouth and into
+                                                                                          Adaptive Generation. Numerous studies have
+                               food called in
+underground pipeline                                  the esophagus … After
+                               esophagus, also
+capsules                                              chewing, the food (now called
+                               known as the
+                                                      a bolus) is swallowed. It           examined adaptive strategies that dynamically de-
+                           Q8. food pipe, in
+                                                                                          termine the need for retrieval, utilizing only the
+                                                      enters the esophagus and via
+Q6. What    Q7. What       A8. humans?                peristalsis continues on to
+is …        is …               A5. Peristaltic
+A6.         A7.                contractions
+                                                      the stomach …
+                                                                                          internal knowledge of LLMs when unnecessary
+                                                                                          (Mallen et al., 2023; Feng et al., 2023). Mallen
+                                                      Interpretations from Psgs
+ Q9. What is the            Q10. What is the          Q1.What is the general              et al. (2023) used an empirical method to retrieval,
+ normal movement            process called when
+ of food through the        the esophagus
+                                                      term for the movement of
+                                                      food in the esophagus?              activating relying on the frequency of entity. Adap-
+ esophagus in
+ humans called?
+                            moves food towards
+                            the stomach in
+                                                      A1. Peristalsis
+                                                      Q2. What is the term for
+                                                                                          tiveRAG (Jeong et al., 2024) dynamically chooses
+                            humans?                   the movement of food from           the optimal response generation strategy tailored to
+ A9. Esophageal                                       the mouth to the esophagus?
+ peristalsis                A10. Swallowing           A2. Swallowing                      the complexity of the query. TA-ARE (Zhang et al.,
+ Ground-Truth Interpretations:                                                            2024) uses in-context learning to assess whether a
+ Q1. What is the mechanical action
+ that moves food into the esophagus?
+                                          Q2. What is the autonomic function that
+                                          moves food from esophagus to stomach?
+                                                                                          query necessitates retrieval.
+ A1. Swallowing                           A2. Peristalsis                                    Compared with recent studies that either over-
+                                                                                          look or inefficiently address the issue of low-quality
+               Figure 8: Case study with GPT-4.
+                                                                                          retrieval in ambiguous questions, we introduce the
+                                                                                          retrieval diversification method efficiently retrieves
+inference may appear to share similarities with ex-
+                                                                                          higher quality passages without relying on cumber-
+isting query reformulation approaches. The first
+                                                                                          some iterative processes. Additionally, we propose
+line of research is query decomposition (Min et al.,
+                                                                                          retrieval verification and adaptive generation strate-
+2019; Khot et al., 2022), which breaks down com-
+                                                                                          gies specifically designed for ambiguous questions,
+plex queries containing multi-hop relations or an
+                                                                                          while the existing works overlook these important
+overabundance of information. In contrast, our
+                                                                                          challenge of ambiguous questions. To the best
+work addresses the opposite challenge, ambigu-
+                                                                                          of our knowledge, this paper is the first effort to
+ity, caused by a lack of information within the
+                                                                                          thoroughly analyze and address the problem of
+query, rather than the overabundance of informa-
+                                                                                          low-quality retrieval in the context of ambiguous
+tion. Therefore, query decomposition and pseudo-
+                                                                                          questions and its potential solutions.
+interpretation inference are fundamentally different
+in purpose. Another line is query rewriting. Ma                                           7   Conclusion
+et al. (2023) utilize an LLM and naively designed                                         In this study, we examined the shortcomings of the
+prompt to rewrite the given query to improve the                                          current RAG-based method in dealing with ambigu-
+quality of retrieval. Compared to Ma et al. (2023),                                       ous questions, specifically its low-quality retrieval
+the primary innovation of D IVA lies in its unique                                        and inefficiency. Our proposed framework, D IVA ,
+and well-designed prompting method, which imi-                                            effectively diversifies the retrieved passages to cap-
+tates human reasoning chains to infer the pseudo-                                         ture various interpretations, verifies their quality,
+interpretations from ambiguous queries.                                                   and adapts the most appropriate approach based
+Retrieval Quality Verification. Many studies                                              on that quality. This strategy improves QA perfor-
+have noted that low-quality retrieval introduces sig-                                     mance while minimizing inefficiency.
+nificant irrelevant information to the RAG frame-
+work and have proposed various solutions. Self-                                           Limitations
+RAG (Asai et al., 2023) fine-tunes LLM to gener-
+ate a reflection token that assesses the relevance of                                     While D IVA demonstrates clear advantages in effec-
+a passage to the question at hand. Llatrieval (Li                                         tiveness and efficiency through retrieval diversifi-
+et al., 2023) employs LLM to check if retrieved                                           cation and adaptive generation, its design is specif-
+                                                                                       1220
+ically tailored for ambiguous questions. In real-         Reinald Kim Amplayo, Kellie Webster, Michael Collins,
+world QA systems, where queries can be a mix                Dipanjan Das, and Shashi Narayan. 2022. Query
+of ambiguous and unambiguous, the applicability             refinement prompts for closed-book long-form ques-
+                                                            tion answering. arXiv preprint arXiv:2210.17525.
+of D IVA may be limited. However, recent work
+has introduced methods to classify whether a query        Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+is ambiguous (Cole et al., 2023), which leads to            Hannaneh Hajishirzi. 2023. Self-rag: Learning to
+utilizing the suitable approach according to its am-        retrieve, generate, and critique through self-reflection.
+biguity. Although Cole et al. (2023) proposed sim-          arXiv preprint arXiv:2310.11511.
+ple approaches, there is still significant potential to   Tom B Brown. 2020. Language models are few-shot
+enhance these methods using advanced techniques             learners. arXiv preprint ArXiv:2005.14165.
+like in-context learning and RAG. Future research
+could focus on developing systematic approaches           Aakanksha Chowdhery, Sharan Narang, Jacob Devlin,
+for classifying the ambiguity of queries. Further-          Maarten Bosma, Gaurav Mishra, Adam Roberts, Paul
+                                                            Barham, Hyung Won Chung, Charles Sutton, Se-
+more, the performance of our proposed retrieval             bastian Gehrmann, et al. 2023. Palm: Scaling lan-
+verification module is somewhat sensitive to the            guage modeling with pathways. Journal of Machine
+choice of LLM. Specifically, it tends to work better        Learning Research, 24(240):1–113.
+with GPT-4 than with GPT-3.5, though this may
+negatively impact the efficiency of D IVA. There-         Jeremy R Cole, Michael JQ Zhang, Daniel Gillick, Ju-
+                                                             lian Martin Eisenschlos, Bhuwan Dhingra, and Jacob
+fore, future work should focus on developing a               Eisenstein. 2023. Selectively answering ambiguous
+more efficient and robust retrieval quality verifier         questions. arXiv preprint arXiv:2305.14613.
+LLM, tailored to handling ambiguous questions, to
+enhance both effectiveness and efficiency.                Shehzaad Dhuliawala, Mojtaba Komeili, Jing Xu,
+                                                            Roberta Raileanu, Xian Li, Asli Celikyilmaz, and Ja-
+Ethics Statement                                            son Weston. 2023. Chain-of-verification reduces hal-
+                                                            lucination in large language models. arXiv preprint
+Given that D IVA is built on the RAG framework of           arXiv:2309.11495.
+QA systems, it is important to consider the follow-       Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey,
+ing points: (1) the retrieved passages may contain          Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman,
+offensive or harmful content, which could result in         Akhil Mathur, Alan Schelten, Amy Yang, Angela
+similarly harmful responses, and (2) user queries           Fan, et al. 2024. The llama 3 herd of models. arXiv
+themselves may be offensive or harmful. Therefore,          preprint arXiv:2407.21783.
+developing methods to detect harmful user queries         Zhangyin Feng, Weitao Ma, Weijiang Yu, Lei Huang,
+and selectively retrieve passages that are free from        Haotian Wang, Qianglong Chen, Weihua Peng, Xi-
+harmful content could be a crucial focus for future         aocheng Feng, Bing Qin, et al. 2023. Trends in inte-
+research.                                                   gration of knowledge and large language models: A
+                                                            survey and taxonomy of methods, benchmarks, and
+Acknowledgements                                            applications. arXiv preprint arXiv:2311.05876.
+
+This work was supported by Institute of Infor-            Yifan Gao, Henghui Zhu, Patrick Ng, Cicero
+                                                            Nogueira dos Santos, Zhiguo Wang, Feng Nan, De-
+mation & Communications Technology Planning                 jiao Zhang, Ramesh Nallapati, Andrew O Arnold,
+& Evaluation(IITP) grant funded by the Korea                and Bing Xiang. 2020. Answering ambiguous ques-
+government(MSIT) (RS-2023-00216011, Devel-                  tions through generative evidence fusion and round-
+opment of artificial complex intelligence for con-          trip prediction. arXiv preprint arXiv:2011.13137.
+ceptually understanding and inferring like human)
+                                                          Gautier Izacard and Edouard Grave. 2021. Leveraging
+and National Research Foundation of Korea(NRF)              passage retrieval with generative models for open
+funded by Ministry of Science and ICT (NRF-                 domain question answering. In Proceedings of the
+2022M3J6A1063021).                                          16th Conference of the European Chapter of the
+                                                            Association for Computational Linguistics: Main
+                                                            Volume, pages 874–880, Online. Association for
+References                                                  Computational Linguistics.
+
+Josh Achiam, Steven Adler, Sandhini Agarwal, Lama         Soyeong Jeong, Jinheon Baek, Sukmin Cho, Sung Ju
+  Ahmad, Ilge Akkaya, Florencia Leoni Aleman,               Hwang, and Jong C Park. 2024. Adaptive-rag: Learn-
+  Diogo Almeida, Janko Altenschmidt, Sam Altman,            ing to adapt retrieval-augmented large language mod-
+  Shyamal Anadkat, et al. 2023. Gpt-4 technical report.     els through question complexity. arXiv preprint
+  arXiv preprint arXiv:2303.08774.                          arXiv:2403.14403.
+                                                      1221
+Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke               When not to trust language models: Investigating
+ Zettlemoyer. 2017. TriviaQA: A large scale distantly          effectiveness of parametric and non-parametric mem-
+ supervised challenge dataset for reading comprehen-           ories. In Proceedings of the 61st Annual Meeting
+ sion. In Proceedings of the 55th Annual Meeting               of the Association for Computational Linguistics
+ of the Association for Computational Linguistics              (Volume 1: Long Papers), pages 9802–9822,
+ (Volume 1: Long Papers), pages 1601–1611, Van-                Toronto, Canada. Association for Computational Lin-
+ couver, Canada. Association for Computational Lin-            guistics.
+ guistics.
+                                                            Sewon Min, Kenton Lee, Ming-Wei Chang, Kristina
+Omar Khattab, Keshav Santhanam, Xiang Lisa                    Toutanova, and Hannaneh Hajishirzi. 2021. Joint
+ Li, David Hall, Percy Liang, Christopher Potts,              passage ranking for diverse multi-answer retrieval.
+ and Matei Zaharia. 2022. Demonstrate-search-                 arXiv preprint arXiv:2104.08445.
+ predict: Composing retrieval and language mod-
+ els for knowledge-intensive nlp. arXiv preprint            Sewon Min, Julian Michael, Hannaneh Hajishirzi, and
+ arXiv:2212.14024.                                            Luke Zettlemoyer. 2020. Ambigqa: Answering
+                                                              ambiguous open-domain questions. arXiv preprint
+Omar Khattab and Matei Zaharia. 2020. Colbert: Effi-          arXiv:2004.10645.
+ cient and effective passage search via contextualized
+ late interaction over bert.                                Sewon Min, Victor Zhong, Luke Zettlemoyer, and Han-
+Tushar Khot, Harsh Trivedi, Matthew Finlayson, Yao            naneh Hajishirzi. 2019. Multi-hop reading compre-
+  Fu, Kyle Richardson, Peter Clark, and Ashish Sab-           hension through question decomposition and rescor-
+  harwal. 2022. Decomposed prompting: A modular               ing. arXiv preprint arXiv:1906.02916.
+  approach for solving complex tasks. arXiv preprint
+  arXiv:2210.02406.                                         Colin Raffel, Noam Shazeer, Adam Roberts, Katherine
+                                                              Lee, Sharan Narang, Michael Matena, Yanqi Zhou,
+Gangwoo Kim, Sungdong Kim, Byeongguk Jeon, Joon-              Wei Li, and Peter J Liu. 2020. Exploring the lim-
+  suk Park, and Jaewoo Kang. 2023. Tree of clarifica-         its of transfer learning with a unified text-to-text
+  tions: Answering ambiguous questions with retrieval-        transformer. Journal of machine learning research,
+  augmented large language models. arXiv preprint             21(140):1–67.
+  arXiv:2310.14696.
+                                                            Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-             Amnon Shashua, Kevin Leyton-Brown, and Yoav
+  field, Michael Collins, Ankur Parikh, Chris Alberti,        Shoham. 2023. In-context retrieval-augmented lan-
+  Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-      guage models. Transactions of the Association for
+  ton Lee, Kristina Toutanova, Llion Jones, Matthew           Computational Linguistics, 11:1316–1331.
+  Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  Uszkoreit, Quoc Le, and Slav Petrov. 2019. Nat-           Nils Reimers and Iryna Gurevych. 2019. Sentence-bert:
+  ural questions: A benchmark for question answer-            Sentence embeddings using siamese bert-networks.
+  ing research. Transactions of the Association for           arXiv preprint arXiv:1908.10084.
+  Computational Linguistics, 7:452–466.
+                                                            Zhihong Shao and Minlie Huang. 2021.         An-
+Angeliki Lazaridou, Elena Gribovskaya, Wojciech               swering open-domain multi-answer questions via
+  Stokowiec, and Nikolai Grigorev. 2022. Internet-            a recall-then-verify framework. arXiv preprint
+  augmented language models through few-shot                  arXiv:2110.08544.
+  prompting for open-domain question answering.
+  arXiv preprint arXiv:2203.05115.                          Weijia Shi, Sewon Min, Michihiro Yasunaga, Min-
+                                                             joon Seo, Rich James, Mike Lewis, Luke Zettle-
+Xiaonan Li, Changtai Zhu, Linyang Li, Zhangyue Yin,          moyer, and Wen-tau Yih. 2023. Replug: Retrieval-
+  Tianxiang Sun, and Xipeng Qiu. 2023. Llatrieval:           augmented black-box language models. arXiv
+  Llm-verified retrieval for verifiable generation. arXiv    preprint arXiv:2301.12652.
+  preprint arXiv:2311.07838.
+Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Man-         Ivan Stelmakh, Yi Luan, Bhuwan Dhingra, and
+  dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,                Ming-Wei Chang. 2022. Asqa: Factoid ques-
+  Luke Zettlemoyer, and Veselin Stoyanov. 2019.                tions meet long-form answers. arXiv preprint
+  Roberta: A robustly optimized bert pretraining ap-           arXiv:2204.06092.
+  proach. arXiv preprint arXiv:1907.11692.
+                                                            Weiwei Sun, Hengyi Cai, Hongshen Chen, Pengjie Ren,
+Xinbei Ma, Yeyun Gong, Pengcheng He, Hai Zhao,                Zhumin Chen, Maarten de Rijke, and Zhaochun Ren.
+  and Nan Duan. 2023. Query rewriting for retrieval-          2023. Answering ambiguous questions via iterative
+  augmented large language models. arXiv preprint             prompting. arXiv preprint arXiv:2307.03897.
+  arXiv:2305.14283.
+                                                            Shi-Qi Yan, Jia-Chen Gu, Yun Zhu, and Zhen-Hua Ling.
+Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,          2024. Corrective retrieval augmented generation.
+  Daniel Khashabi, and Hannaneh Hajishirzi. 2023.             arXiv preprint arXiv:2401.15884.
+                                                        1222
+Michael Zhang and Eunsol Choi. 2021. SituatedQA:        Algorithm 1 diversify-verify-adapt (D IVA)
+  Incorporating extra-linguistic contexts into QA. In
+                                                        Input: Question qi , large language model LLM(·),
+  Proceedings of the 2021 Conference on Empirical
+  Methods in Natural Language Processing, pages             the retriever R(·), candidate passages Ci
+  7371–7387, Online and Punta Cana, Dominican Re-       Output: generated response ri
+  public. Association for Computational Linguistics.     1: Q̂i ← Use LLM(·) function to infer the pseudo-
+Zihan Zhang, Meng Fang, and Ling Chen. 2024. Re-            interpretations by Eq.3
+  trievalqa: Assessing adaptive retrieval-augmented      2: P̃i ← Use R(·) function to retrieve relevant
+  generation for short-form open-domain question an-        and diverse passages by Eq.4
+  swering. arXiv preprint arXiv:2402.16457.              3: Si ← {}
+Ruochen Zhao, Xingxuan Li, Shafiq Joty, Chengwei         4: for j = 1 to |P̃i | do
+  Qin, and Lidong Bing. 2023. Verify-and-edit: A         5:       S(p̃i,j ) ← Obtain noise score by Eq.5
+  knowledge-enhanced chain-of-thought framework.         6:       Si ← Si ∪ S(p̃i,j )
+  arXiv preprint arXiv:2305.03268.
+                                                         7: end for
+                                                         8: Pi ← Select top-K passages from P̃i based on
+                                                            the score Si
+                                                         9: Vi ← {}
+                                                        10: for j = 1 to |Q̂i | do
+                                                        11:       Vi,j ← Use LLM(·) function to verify Pi to
+                                                            q̂i,j by Eq.7
+                                                        12:       Vi ← Vi ∪ Vi,j
+                                                        13: end for
+                                                        14: if Vi is Useful or PartialUseful then
+                                                        15:       ri ← Generate response using Pi by Eq.1
+                                                            and 2
+                                                        16: else
+                                                        17:       ri ← LLM(qi , Il )
+                                                        18: end if
+                                                        19: return ri
+
+
+
+                                                        A     Experimental details
+
+                                                        A.1    Datasets
+
+                                                        Our proposed method and all baseline models are
+                                                        assessed using the ASQA (Stelmakh et al., 2022)
+                                                        and SituatedQA (Zhang and Choi, 2021) datasets.
+                                                        ASQA is a long-form QA dataset derived from a
+                                                        subset of ambiguous questions in the AmbigNQ
+                                                        dataset (Min et al., 2020). The ASQA dataset con-
+                                                        tains 6,316 ambiguous questions and their corre-
+                                                        sponding comprehensive long-form answers that
+                                                        contain all plausible answers, split into 4,353 for
+                                                        training, 948 for development, and 1,015 for testing.
+                                                        SituatedQA is a short-form QA dataset featuring
+                                                        questions that specifically highlight ambiguities re-
+                                                        lated to temporal and geographical contexts. In
+                                                        this dataset, each question is subject to multiple
+                                                        interpretations, with corresponding answers vary-
+                                                        ing by context. We give these questions to the
+                                                        QA systems and assess how comprehensively the
+                                                        responses cover the possible interpretations.
+                                                    1223
+A.2 Evaluation Metrics                                 et al. (2022), we developed an in-context learn-
+Metrics for QA. For both datasets, following           ing method within a closed-book setup. First, we
+previous studies on ambiguous QA (Min et al.,          prompt the LLM to refine ambiguous questions
+2020), we mainly adopt F1-based metric. Specifi-       into multiple possible interpretations. These in-
+cally, for the short-form QA dataset (SituatedQA)      terpretations are then used as in-context examples
+we measure F1 based on the precision and recall        for the LLM to generate a response that addresses
+between the ground-truth answers and the gener-        all potential interpretations. We consider the back-
+ated responses. Given ASQA is the long-form QA         bone LLM as Llama3-70B-Instruct, GPT-3.5, and
+dataset, following Stelmakh et al. (2022), we use      GPT-4.
+Disambig-F1 (D-F1), which assesses the factual         6) Vanilla RAG. In this method, we begin by re-
+accuracy of long-form responses, instead of F1. Us-    trieving the top 5 relevant passages based on the
+ing a RoBERTa model (Liu et al., 2019) trained on      frozen SentenceBERT similarity between the given
+SQuAD2.0, we extract short answers from the gen-       query and candidate passages from Wikipedia. We
+erated long-form responses and compare them to         then use the RAC prompt from Kim et al. (2023)
+the ground-truth disambiguation questions (DQs).       to extract interpretations and generate correspond-
+The F1 score of these extracted answers indicates      ing answers. We consider the backbone LLM as
+whether the long-form answers contain correct in-      Llama3-70B-Instruct, GPT-3.5, and GPT-4.
+formation. We further leverage ROUGE-L (R-L)
+to measure correctness of the generated long-form      7) Iterative RAG. For this approach, we employ
+responses to the ground-truth long-form answers.       the state-of-the-art method ToC (Kim et al., 2023)
+Finally, Disambiguation-ROUGE (DR), combines           for handling ambiguous QA. Specifically, ToC iter-
+R-L and D-F1 scores as a geometric mean for over-      atively constructs a tree of possible interpretations
+all performance.                                       for the ambiguous question using few-shot prompt-
+Metrics for Passage Retrieval. Following Min           ing that leverages external knowledge, and then
+et al. (2021), we use MRecall@k to evaluate the        uses this tree to generate a long-form response.
+quality of retrieved passages by considering re-       Following the authors’ implementation, we set the
+trieval to be successful if all answers or at least    tree’s maximum depth to 3 and the maximum num-
+k answers in the plausible answer set are recovered    ber of nodes to 10. It is important to note that we do
+by the retrieved passages.                             not use the tree pruning method in our implementa-
+                                                       tion, as we observe that adding this method notably
+A.3 Baselines                                          degrades the QA performance. The retrieval set-
+For all baselines and D IVA, due to the significant    tings are identical to those used in Vanilla RAG.
+costs associated with evaluating RAG models, we        We consider the backbone LLM as Llama3-8B-
+perform experiments with a single run.                 Instruct, Llama3-70B-Instruct (Dubey et al., 2024),
+   We describe the details of models as follows:       GPT-3.5, and GPT-4.
+1) T5 closed-book. Stelmakh et al. (2022) fine-
+                                                       8) Self-RAG. The LLM is trained to adaptively
+tuned T5-large (Raffel et al., 2020) to generate
+                                                       manage retrieval and generation, initiating retrieval
+long-form response on the whole train set.
+                                                       when a special token is predicted above a certain
+2) T5 w/ JPR. Stelmakh et al. (2022) fine-tuned
+                                                       threshold, followed by generating the answer. We
+T5-large (Raffel et al., 2020) with JPR (Min et al.,
+                                                       consider the model trained on Llama2-13B.
+2021), fully trained dense retriever for ambiguous
+QA, to generate long-form response on the whole        9) CRAG. While the original implementation of
+train set.                                             CRAG utilized Llama-2-7B, we use GPT-4 as the
+3) PaLM w/ Soft Prompt Tuning. Amplayo et al.          backbone LLM for a fair comparison, ensuring
+(2022) employed a prompt engineering method to         consistency with the D IVA setup. In the CRAG
+PaLM (Chowdhery et al., 2023) that learn the soft      implementation, we first retrieve relevant passages
+prompts in the closed-book setup.                      for a given query, following the same procedure as
+4) Closed-book LLM. Closed-book LLM indi-              Vanilla RAG. Next, we apply CRAG’s retrieval ver-
+cates the traditional few-shot prompting method        ification and correction procedures to refine these
+used in Brown (2020). We consider the backbone         passages. The corrected passages are then fed into
+LLM as Llama3-70B-Instruct, GPT-3.5, and GPT-          GPT-4 using the same instructions as in the Vanilla
+4.                                                     RAG framework to generate the final response to
+5) Query refinement. Inspired by Amplayo               the query.
+                                                   1224
+A.4 Implementations Details                              to consolidate them with qi and Pi to generate a
+Since D IVA utilizes few-shot prompting, we dy-          response ri . In this function call, the averaged in-
+namically select k-shot examples through near-           put tokens are 1,963, and the output tokens are
+est neighbor search and incorporate them into the        249. Consequently, for Vanilla RAG, the total
+prompt, following the approach in Kim et al. (2023)      token consumption is 3,865 input tokens and 426
+using dsp package (Khattab et al., 2022). For the        output tokens.
+retrieved passages Pi , we set the number of pas-           Iterative RAG is formally represented as itera-
+sages |Pi | to 5. We use GPT-4 for both the retrieval    tive LLM function calls in Eq 1, followed by a single
+diversification and verification steps. For adaptive     LLM call in Eq 2. Specifically, after obtaining mul-
+response generation, we use the same LLM back-           tiple plausible interpretations Qi and their answers
+bones as the other baselines. For the retrieval diver-   Ai from Eq 1, each interpretation in Qi is used
+sification and verification modules, we assess the       for an additional LLM call in Eq 1. This process
+performance of GPT-3.5 (gpt-35-turbo) and GPT-4          is repeated, constructing a tree-like structure, until
+(gpt-4) across them, ultimately opting to use GPT-4      the stopping criterion is met. On average, during
+for both modules in the ASQA dataset and GPT-            this iterative process, the total number of LLM calls
+3.5 for both modules in the SituatedQA dataset for       converges to 5.5. As a result, the average number
+all experiments. The APIs provided by Microsoft          of input and output tokens during this process are
+Azure3 are employed for GPT-3.5-turbo and GPT-           10,627 and 936, respectively. Next, same as Vanilla
+4, with the following settings: max tokens set to        RAG in Eq 2, based on all Qi and Ai collected
+300, top-p to 1.0, and temperature to 0.3.               from the iterative process, the LLM is prompted
+                                                         to consolidate them with qi and Pi to generate a
+A.4.1 Retrieval Process                                  response ri . In this LLM call, the average number
+To retrieve relevant passages for the given question,    of input tokens is 2,187, and the output tokens is
+we follow the method utilized by Kim et al. (2023).      271. Consequently, for Iterative RAG, the total
+Specifically, we first gather relevant Wikipedia doc-    token consumption is 12,814 input tokens and
+uments for the question using two retrieval sys-         1,207 output tokens.
+tems: ColBERT (Khattab and Zaharia, 2020) and               For D IVA, in addition to the calls required by
+the Bing search engine4 . After compiling a set of       Vanilla RAG, additional LLM calls are introduced
+passages, we rerank and select the top-k passages.       through the operations of the RD (Retrieval Diver-
+For reranking, we utilize SentenceBERT (Reimers          sification) and RV (Retrieval Verification) modules.
+and Gurevych, 2019), pre-trained on MS-Marco,            These additional operations add to the overall to-
+as the backbone.                                         ken usage. More specifically, in RD, we require
+A.4.2 Token Consumption Calculation                      two LLM calls to infer a set of multiple pseudo-
+                                                         interpretations, where the number of input and out-
+In this subsection, we explain the overall process
+                                                         put tokens are 2,440 and 117, respectively. Follow-
+of each method and the token consumption calcula-
+                                                         ing this, the retrieval of relevant passages based on
+tion on GPT-4. Notably, the token count per query
+                                                         the inferred pseudo-interpretations does not require
+was determined by averaging the input and output
+                                                         any LLM calls. Verifying the set of retrieved pas-
+tokens across all test queries.
+                                                         sages requires the same number of LLM calls as
+   Vanilla RAG is formally described as a se-            the number of pseudo-interpretations. It is impor-
+quence of LLM functions as shown in Eq 1 and             tant to note that the retrieved passages are concate-
+2. In Eq 1, given the relevant Pi , the LLM is first     nated into a single passage before the verification
+prompted with the question qi and Pi to extract all      step, allowing for an efficient LLM call process
+plausible interpretations Qi and their correspond-       for each pseudo-interpretation. For the verification
+ing answers Ai . During this function call, the av-      step, the number of input and output tokens are
+erage number of input tokens is 1,902, while the         1,878 and 3, respectively. It is important to note
+average number of output tokens is 177. Note that        that if the verifier determines the retrieved passages
+the input text include task description, few-shot        are not useful, the response is generated using a
+demos, retrieved passages, and given questions,          Closed-book LLM instead of Vanilla RAG. The
+leading to substantial token consumption. Next, in       token consumption for the Closed-book LLM is
+Eq 2, based on the Qi and Ai , the LLM is prompted       significantly lower, with 913 input tokens and 123
+   3
+       https://azure.microsoft.com/                      output tokens. Consequently, for D IVA, the total
+   4
+       https://www.microsoft.com/bing                    token consumption is 7,873 input tokens and 515
+                                                     1225
+output tokens.                                              entirely different objectives—CoVe targets post-
+                                                            response accuracy, whereas D IVA emphasizes pre-
+        Method        # Input Tokens   # Output Tokens      response relevance.
+    Closed-book LLM        913               123               Target (“where to use”): The verifier in CoVe
+       Vanilla RAG        3,865              426
+      Iterative RAG      12,814             1,207           operates on the generated responses, whereas
+         D IVA            7,873             515             D IVA’s verifier focuses on the retrieved passages.
+                                                            Given that these targets possess distinct character-
+Table 4: The number of input and output token con-          istics and objectives, each verifier is uniquely de-
+sumption of each method.                                    signed to effectively capture the verification ratio-
+                                                            nale relevant to its specific target. This fundamental
+                                                            difference between CoVe and D IVA distinguishes
+B     Additional Discussion                                 the two approaches, making it challenging for the
+B.1    Regarding the Pseudo-interpretation                  verifiers to be compatible or interchangeable.
+       Inference                                               Timing ("when to use"): CoVe performs veri-
+We initially experimented with combining the am-            fication after the response has been generated and
+biguity detection and pseudo-interpretation infer-          presented to the user. In contrast, D IVA operates
+ence into a single step to simplify the process.            earlier in the pipeline by verifying the retrieved
+Specifically, we provided GPT-4 with newly de-              passages before generating a response. Therefore,
+signed instructions to execute both steps simulta-          D IVA is cost-efficient as it can anticipate whether a
+neously with appropriate few-shot demonstrations            generated response is likely to be incorrect before
+for inferring pseudo-interpretations. However, this         the response is even produced. This allows D IVA to
+approach performed significantly worse than our             avoid unnecessary response generation and associ-
+current method of separating the steps. The pri-            ated costs, enabling the application of an optimal
+mary reason for this performance drop is that han-          response strategy for the situation.
+dling both tasks simultaneously imposes a substan-             Additionally, D IVA introduces a novel aspect
+tial burden on a single LLM. Since each step re-            in its verification, specifically designed for han-
+quires detailed task descriptions and specific few-         dling ambiguous queries. It employs pseudo-
+shot demonstrations, merging them results in an             interpretations to evaluate how well the retrieved
+overload of information that negatively affects the         passages encompass multiple interpretations of the
+model’s reasoning process. This also highlights the         question. This approach is distinct from CoVe and
+challenges in effectively exploring various interpre-       further enhances the novelty of D IVA.
+tations without an iterative approach (i.e., iterative
+RAG). Despite this, our proposed Retrieval Diversi-         B.2.2   Comparison to Verify-and-Edit
+fication (RD) method still efficiently infers pseudo-       There are significant differences in the purposes of
+interpretations within the two-step framework and           the verification modules within D IVA and Verify-
+achieves strong results without the need for itera-         and-Edit (Zhao et al., 2023). The Verify-and-Edit
+tive processes. This emphasizes the effectiveness           framework aims to assess the correctness of a gen-
+and efficiency of our reasoning chain design, even          erated chain of thought (CoT) and edit the CoT
+when tasks are separated for clarity and precision.         using retrieved external knowledge, ensuring an
+                                                            accurate reasoning process. On the other hand,
+B.2    Comparison to Verification Methods                   D IVA’s verification module is tailored to evaluate
+B.2.1 Comparison to Chain-of-Verification                   the relevance of retrieved passages within the RAG
+The verification modules in D IVA and Chain-of-             framework.
+Verification (CoVe) (Dhuliawala et al., 2023) differ           These distinct goals highlight that the two meth-
+significantly in both their purpose ("why to use"),         ods are not only conceptually different but also
+target (“where to use”), and timing ("when to use").        serve different objectives. Therefore, our proposed
+   Purpose ("why to use"): The CoVe approach                verification module could be integrated into the
+focuses on assessing the correctness of a generated         Verify-and-Edit pipeline to improve the robustness
+response, ensuring the final output is accurate. In         of its editing process. Specifically, since the effec-
+contrast, D IVA’s verification module is designed to        tiveness of the Verify-and-Edit framework heavily
+assess the relevance of retrieved passages within           relies on external knowledge for accurate editing,
+the RAG framework before any response is gen-               ensuring the relevance of retrieved passages is cru-
+erated. These methods are therefore tailored for            cial. When there is ambiguity in the premise of the
+                                                         1226
+CoT, D IVA’s verification module can verify the re-      all unambiguous questions and then randomly sam-
+trieved passages’ relevance, enhancing the overall       pled 100 questions from this subset for our eval-
+editing process.                                         uation. In Table 5, our results indicate that the
+                                                         closed-book LLM achieves an EM score of 75,
+C    Additional Experiments                              while incorporating the Vanilla RAG framework
+                                                         boosts the EM score to 80. Significantly, D IVA out-
+C.1 Failure Cases                                        performs both the closed-book LLM and Vanilla
+We examined 50 randomly selected samples in              RAG, achieving QA performance on par with Iter-
+ASQA from those with a D-F1 value below 0.5,             ative RAG. As highlighted throughout the paper,
+where D-F1 ranges from 0 to 1.                           D IVA is also twice as efficient as Iterative RAG
+   The first failure scenario occurs when the re-        while delivering comparable performance. These
+trieval diversification (RD) module underperforms,       results confirm that D IVA, while tailored for am-
+accounting for 22 out of the 50 samples. These           biguous queries, also demonstrates strong perfor-
+failures arise from errors in the generated pseudo-      mance on unambiguous ones, showcasing its broad
+interpretations or the inherent limitations of the       applicability.
+base retriever (a frozen Sentence-BERT encoder).
+Utilizing fine-tuned retrievers, such as DPR, could                           Method          EM
+partially alleviate this issue.                                           Closed-book LLM    75.0
+   The second failure scenario occurs when the                               Vanilla RAG     80.0
+retrieval verification (RV) module underperforms.                           Iterative RAG    83.0
+Ideally, the RV module should prioritize the LLM’s                             D IVA         83.0
+internal knowledge over retrieved knowledge when
+the RD module underperforms. Hence, in this sce-         Table 5: QA performance on unambiguous questions.
+nario, we identify cases where the RV incorrectly
+chooses retrieved knowledge instead of the LLM’s            Additionally, we assessed the effectiveness of
+internal knowledge under RD underperformance,            D IVA’s Retrieval Diversification (RD) module on
+resulting in errors. This accounts for 8 out of 22       unambiguous queries using Recall@5. In Ta-
+samples, highlighting that our proposed RV mod-          ble 6, Vanilla RAG (row 1) refers to the base-
+ule is not yet robust enough and leaves room for         line approach, where passages are retrieved based
+future research on developing a more accurate RV         on a given question. + RD (Ours) applies our
+module for ambiguous questions. The remaining            RD method to the baseline, incorporating pseudo-
+14 out of 22 samples are particularly challenging        interpretations generated by D IVA to diversify re-
+and difficult for both RAG and closed-book LLMs.         trieval. The results indicate that the RD mod-
+   The third failure scenario occurs when the RD         ule does not hinder retrieval performance. In
+module performs well, but the LLM fails to gen-          fact, as shown in the table, it significantly im-
+erate sufficiently accurate responses based on the       proves Recall@5 when compared to Vanilla RAG.
+retrieved passages. This accounts for 16 out of 50       These findings demonstrate that RD effectively ad-
+samples and highlights an inherent limitation of the     dresses issues of low-quality retrieval, enhancing
+LLM rather than our framework, DIVA. Notably,            performance for both ambiguous and unambiguous
+there are no cases where the RV module underper-         queries.
+forms when the RD module performs well.
+                                                                    Row        Method       Recall@5
+   The final failure scenario arises from other fac-
+tors, such as the limitations of the evaluation metric                1      Vanilla RAG      84.0
+                                                                      2      + RD (Ours)      87.0
+D-F1, accounting for 12 out of 50 samples.
+                                                         Table 6: Retrieval accuracy on unambiguous questions.
+C.2 Experiments on Unambiguous Questions
+To assess the performance of D IVA on unambigu-
+ous questions, we randomly selected 100 unam-            C.3   Statistical Significance Test
+biguous questions from the NQ dataset. Specifi-          To verify that D IVA consistently outperforms
+cally, we used the AmbigNQ dataset (Min et al.,          Vanilla RAG, we conduct a statistical significance
+2020) to identify whether each question was am-          test on the D-F1 metric. Given the cost of GPT API
+biguous or unambiguous. Utilizing the identifier         calls, we use GPT-3.5-turbo as the backbone model.
+provided in the AmbigNQ dataset, we first isolated       A t-test is performed based on five experimental
+                                                     1227
+runs. The average D-F1 scores for Vanilla RAG
+and D IVA are 36.8 and 38.1, respectively. The re-
+sulting p-value of the t-statistic is 0.0242, which is
+significantly below the 0.05 threshold, confirming
+that D IVA achieves statistically significant improve-
+ments over Vanilla RAG.
+   Due to cost constraints, we were limited to five
+runs. However, we observed that each additional
+run led to a gradual decrease in the p-value. This
+suggests that with more runs, the p-value would
+likely decrease further, providing even stronger
+statistical evidence for D IVA’s superiority.
+
+D    Prompts
+Table 7 and Table 8 show an example of text prompt
+for inferring pseudo-interpretations (i.e., Ia and
+Ip in Eqn 3). Table 9 shows an example of text
+prompt for verifying the retrieved passages (i.e.,
+Iv in Eqn 7). Table 10 and 11 show an exmple of
+text prompt for response generation in vanilla RAG
+framework (i.e., Ie in Eqn 1 and Ig in Eqn 2)
+
+
+
+
+                                                     1228
+                                     Table 7: Example of Prompt Ia .
+                                                Instruction
+Your task is to determine which types of ambiguity are related to a given question. Types of ambiguity in a
+question can be defined as follows:
+
+1. [AmbSub]: This type of ambiguity arises when the subject of the question is not clear. The subject is the
+person, place, thing, or idea that is doing or being something. It’s the entity about which information is
+being sought.
+2. [AmbObj]: This type of ambiguity arises when the object of the question is unclear. The object
+refers to the entity that the action or state expressed by the verb is directed towards.
+3. [AmbPred]: This type of ambiguity arises when the predicate of the question is unclear. The predicate is
+the part of a sentence that tells us what the subject does or is. It includes the verb and everything else
+that comes after the subject.
+4. [AmbTime]: This type of ambiguity arises when the time frame of the question is unclear. This can lead to
+confusion because many actions or states can change over time.
+5. [AmbLoc]: This type of ambiguity arises when the location referred to in the question is unclear. Many
+events or entities can exist in different locations, leading to confusion.
+6. [N/A]: This type of ambiguity arises when there is no ambiguous point in the given question.
+
+Below are some examples that map the question to the types.
+
+Question: Who has scored the most goals in international soccer
+Types: [AmbSub]. The subject "Who" may refer to either men or women.
+
+Question: What is the date of the queen’s birthday?
+Types: [AmbObj]. The object "the date of the queen’s birthday" may refer to the date of Queen Elizabeth II’s
+birthday or Queen Victoria’s birthday.
+
+Question: Who appeared in the Wimbledon finals 2017?
+Types: [AmbPred]. The predicate "appeared" could refer to the tennis players or celebrities in the audience.
+
+Question: Where is the u21 euro championships being held?
+Types: [AmbTime]. You may need to clarify whether it refers to the championships being held in 2015, 2017,
+or 2019.
+
+Question: When is the new iPhone being released?
+Types: [AmbLoc]. This may need clarification on whether it refers to the release date in the United States,
+Europe, Asia, or another region.
+                                              Few-shot Demos
+Given the ambiguous question that can be interpreted in multiple ways, which types of ambiguity are related
+to the question? Suggest the types and provide reasons for your suggestions. Please use the format of:
+##Reason: {reason} ##Answer: {answer}.
+
+question: Who is top goalscorer in the world cup?
+
+##Reason: The subject "Who" in the question may refer to either men or women, as both men’s and women’s
+FIFA World Cups are held.
+##Answer: [AmbSub]
+                                            Actual Question
+
+Given the ambiguous question that can be interpreted in multiple ways, which types of ambiguity are related
+to the question? Suggest the types and provide reasons for your suggestions. Please use the format of:
+##Reason: {reason} ##Answer: {answer}.
+
+question: Who has the highest goals in world football?
+##Reason: The subject Ẅhoïn the question is ambiguous as it may refer to either men or
+women.
+The disambiguation clarifies this by specifying the gender.
+##Answer: [AmbSub]
+
+
+
+
+                                                    1229
+                                     Table 8: Example of Prompt Ip .
+                                               Instruction
+I will provide an ambiguous question that can have multiple answers based on different possible
+interpretations. Additionally, I will provide corresponding reasons why the question is ambiguous.
+Clarify the given question into several disambiguated questions based on the reasons for its ambiguity.
+Please use the format of: ##Disambiguations: {disambiguations}:
+                                            Few-shot Demos
+##Question: Who is top goalscorer in the world cup?
+
+##Reason: The subject "Who" in the question may refer to either men or women, as both men’s and
+women’s FIFA World Cups are held.
+
+##Disambiguations:
+1: Who is the top goalscorer in the men’s FIFA world cup?
+2: Who is the top goalscorer in the women’s FIFA world cup?
+                                          Actual Question
+
+##Question: Who has the highest goals in world football?
+
+##Reason: The subject "Who" in the question is ambiguous as it may refer to either men or women.
+The disambiguation clarifies this by specifying the gender.
+
+##Disambiguations:
+1: Which male player has the highest goals in world football?
+2: Which female player has the highest goals in world football?
+
+
+
+
+                                     Table 9: Example of Prompt Iv .
+                                              Instruction
+Given the question and its relevant passages, determine whether the passage contains the answer to the
+question. Please answer with Yes or No.
+                                           Actual Question
+
+Question: Which male player has the highest goals in world football?’
+Passage:
+[1] List of footballers with the most goals in a single game | This is a list of players with the most goals
+in a football game...
+...
+[5] List of men’s footballers with 50 or more international goals | In total, 79 male footballers to date
+have scored at least 50 goals with their national team at senior level ...
+
+Response:
+Yes.
+
+
+
+
+                                                  1230
+                                    Table 10: Example of Prompt Ie .
+                                              Instruction
+
+I will provide ambiguous questions that can have multiple answers based on their different possible
+interpretations. Clarify the given question into disambiguated questions as many as possible and
+provide short factoid answers to each question. Subsequently, summarize them into a detailed
+long-form answer of at least three sentences. Here are some examples.
+
+                                           Few shot demos
+
+Question: Who is top goalscorer in the world cup?
+
+Disambiguations:
+DQ 1: Who is the top goalscorer in the men’s FIFA world cup?
+DA 1: Miroslav Klose
+DQ 2: Who is the top goalscorer in the women’s FIFA world cup?
+DA 2: Marta
+
+Answer: There is a men’s and women’s FIFA world cup tournament. The the top goalscorer in the
+men’s FIFA world cup is German player, Miroslav Klose. And in the women’s division, the top
+goalscorer is a Brazilian player, most commonly known as Marta.
+
+                                           Actual Question
+
+Context:
+[1] List of footballers with 500 or more goals | Bican (Slavia Prague), Jimmy Jones (Glenavon), ...
+...
+[5] List of men’s footballers with 50 or more international goals | In total, 79 male footballers ...
+
+Question: Who has the highest goals in world football?
+
+Disambiguations:
+DQ 1: Who has scored the highest number of goals in their football career in
+history?
+DA 1: Josef Bican
+DQ 2: Who has scored the highest number of goals in a single football game?
+DA 2: Archie Thompson; Shokhan Nooraldin Salihi
+DQ 3: Who has scored the highest number of international goals in men’s football?
+DA 3: Cristiano Ronaldo
+DQ 4: Who has scored the highest number of goals in a calendar year in
+international matches?
+DA 4: Cristiano Ronaldo
+
+
+
+
+                                                 1231
+                                    Table 11: Example of Prompt Ig
+                                             Instruction
+I will provide ambiguous questions that can have multiple answers based on their different possible
+interpretations. Clarify the given question into disambiguated questions as many as possible and
+provide short factoid answers to each question. Subsequently, summarize them into a detailed
+long-form answer of at least three sentences. Here are some examples.
+
+                                          Few shot demos
+
+Question: Who is top goalscorer in the world cup?
+
+Disambiguations:
+DQ 1: Who is the top goalscorer in the men’s FIFA world cup?
+DA 1: Miroslav Klose
+DQ 2: Who is the top goalscorer in the women’s FIFA world cup?
+DA 2: Marta
+
+Answer: There is a men’s and women’s FIFA world cup tournament. The the top goalscorer in the
+men’s FIFA world cup is German player, Miroslav Klose. And in the women’s division, the top
+goalscorer is a Brazilian player, most commonly known as Marta.
+                                         Actual Question
+
+Context:
+[1] List of footballers with 500 or more goals | Bican (Slavia Prague), Jimmy Jones (Glenavon), ...
+...
+[5] List of men’s footballers with 50 or more international goals | In total, 79 male footballers ...
+
+Question: Who has the highest goals in world football?
+Disambiguations:
+DQ 1: Who has scored the highest number of goals in their football career in history?
+DA 1: Josef Bican
+DQ 2: Who has scored the highest number of goals in a single football game?
+DA 2: Archie Thompson; Shokhan Nooraldin Salihi
+DQ 3: Who has scored the highest number of international goals in men’s football?
+DA 3: Cristiano Ronaldo
+DQ 4: Who has scored the highest number of goals in a calendar year in international matches?
+DA 4: Cristiano Ronaldo
+
+Answer:
+The question "Who has the highest goals in world football?" can be interpreted
+in several ways. If we consider the highest number of goals scored in ...
+
+
+
+
+                                                 1232
+                                   Table 12: Example of Prompt Il
+                                           Instruction
+I will provide ambiguous questions that have multiple answers regarding different aspects of the
+question. Your task is to generate an answer that includes as many aspects as possible from the
+ambiguous questions.
+                                         Few shot demos
+
+Question: Who is top goalscorer in the world cup?
+
+Given the question, generate a comprehensive long-form answer.
+
+Final Answer: There is a men’s and women’s FIFA world cup tournament. The the top goalscorer
+in the men’s FIFA world cup is German player, Miroslav Klose. And in the women’s division, the
+top goalscorer is a Brazilian player, most commonly known as Marta.
+                                          Actual Question
+
+Question: Who has the highest goals in world football?
+
+Given the question, generate a comprehensive long-form answer.
+
+Final Answer:
+The highest goals in world football can be interpreted in different ways. If we
+are talking about the highest number of goals scored in a professional football
+career, the record belongs to Josef Bican, who scored an estimated 805 goals in
+competitive ...
+
+
+
+
+                                               1233
+

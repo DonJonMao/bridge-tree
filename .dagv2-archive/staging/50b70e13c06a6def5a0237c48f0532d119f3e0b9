@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:167\", \"source_id\": \"hotpotqa:167\"}]\nYassmin Alers\nYassmin Alers is an American actress born in New York City's Spanish Harlem as the middle child of a close-knit family of five children. She was dance captain and understudy in the original broadway cast of Jonathan Larson's \"RENT\" on Broadway. She also appeared in the Broadway production of Paul Simon's \"The Capeman\" and in the revival of \"The Rocky Horror Show\". Alers has appeared in the International Tour of \"The Who's Tommy\" and the National Tour of \"RENT\".\n\n[Passage {\"doc_id\": \"hotpotqa:7904\", \"source_id\": \"hotpotqa:7904\"}]\nLaura Benanti\nLaura Ilene Benanti (born Laura Ilene Vidnovic; July 15, 1979) is an American actress and singer. She played Louise in the 2008 Broadway revival of \"Gypsy\", winning the Tony Award, and appeared in the stage musical \"Women on the Verge of a Nervous Breakdown\" in 2010, winning the Drama Desk Award and Outer Critics Circle Award for Best Featured Actress in a Musical. She played Baroness Elsa Schräder in the 2013 NBC television production of \"The Sound of Music Live!\" and in 2015 began playing twin sisters Alura and Astra in the TV series \"Supergirl\". Beginning in 2017, Benanti appears as Edie in the TBS comedy \"The Detour\".",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:167\", \"source_id\": \"hotpotqa:167\"}]\nYassmin Alers\nYassmin Alers is an American actress born in New York City's Spanish Harlem as the middle child of a close-knit family of five children. She was dance captain and understudy in the original broadway cast of Jonathan Larson's \"RENT\" on Broadway. She also appeared in the Broadway production of Paul Simon's \"The Capeman\" and in the revival of \"The Rocky Horror Show\". Alers has appeared in the International Tour of \"The Who's Tommy\" and the National Tour of \"RENT\".\n\n[Passage {\"doc_id\": \"hotpotqa:171\", \"source_id\": \"hotpotqa:171\"}]\nAdam Pascal\nAdam Pascal (born October 25, 1970) is an American actor, singer, and musician, known for his performance as Roger Davis in the original cast of Jonathan Larson's musical \"Rent\" on Broadway 1996, the 2005 movie version of the musical, and the Broadway Tour of \"Rent\" in 2009. He is also known for originating the role of Radames in Elton John and Tim Rice's \"Aida\", for playing the Emcee from the 1998 revival of \"Cabaret\", and for playing Huey Calhoun in the Broadway Company of \"Memphis\". Most recently, he played William Shakespeare in the Tony Award-winning musical \"Something Rotten!\"\n\n[Passage {\"doc_id\": \"hotpotqa:7904\", \"source_id\": \"hotpotqa:7904\"}]\nLaura Benanti\nLaura Ilene Benanti (born Laura Ilene Vidnovic; July 15, 1979) is an American actress and singer. She played Louise in the 2008 Broadway revival of \"Gypsy\", winning the Tony Award, and appeared in the stage musical \"Women on the Verge of a Nervous Breakdown\" in 2010, winning the Drama Desk Award and Outer Critics Circle Award for Best Featured Actress in a Musical. She played Baroness Elsa Schräder in the 2013 NBC television production of \"The Sound of Music Live!\" and in 2015 began playing twin sisters Alura and Astra in the TV series \"Supergirl\". Beginning in 2017, Benanti appears as Edie in the TBS comedy \"The Detour\"."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "111",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599108.908603,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599110.669769
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.9865717466398989
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.979976559295341
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2596,
+      "completion_tokens": 4,
+      "total_tokens": 2600
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
