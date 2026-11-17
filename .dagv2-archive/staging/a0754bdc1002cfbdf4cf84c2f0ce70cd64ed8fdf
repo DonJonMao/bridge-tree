@@ -1,0 +1,35 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:55243/rerank",
+  "payload": {
+    "model": "fixture-pointwise",
+    "query": "Which country contains the city?",
+    "documents": [
+      "The city is located in France."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "2"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790164183.907278,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790164183.908778
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 1.0
+      }
+    ]
+  }
+}
