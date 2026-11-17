@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:5325\", \"source_id\": \"hotpotqa:5325\"}]\nDeputy Prime Minister of Pakistan\nThe office of the Deputy Prime Minister of Pakistan (Urdu: ‎ ) was created by the Prime Minister of Pakistan on 25 June 2012. The main coalition party, Pakistan Muslim League (Q) (PML-Q), demanded to make a post of Deputy Prime Minister which was accomplished by the newly elected Prime Minister Raja Pervez Ashraf. The main purpose of the post was to give a backup to the government in the absence of the Prime Minister. As a result of an agreement between the ruling Pakistan Peoples Party (PPP) and the PML-Q to share ministries in the federal cabinet, Chaudhry Pervaiz Elahi was made the first Deputy Prime Minister of Pakistan.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:5325\", \"source_id\": \"hotpotqa:5325\"}]\nDeputy Prime Minister of Pakistan\nThe office of the Deputy Prime Minister of Pakistan (Urdu: ‎ ) was created by the Prime Minister of Pakistan on 25 June 2012. The main coalition party, Pakistan Muslim League (Q) (PML-Q), demanded to make a post of Deputy Prime Minister which was accomplished by the newly elected Prime Minister Raja Pervez Ashraf. The main purpose of the post was to give a backup to the government in the absence of the Prime Minister. As a result of an agreement between the ruling Pakistan Peoples Party (PPP) and the PML-Q to share ministries in the federal cabinet, Chaudhry Pervaiz Elahi was made the first Deputy Prime Minister of Pakistan."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "142",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600500.1320121,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600502.225486
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.0028952138900040594
+      },
+      {
+        "index": 0,
+        "relevance_score": 1.6506847601724784e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1444,
+      "completion_tokens": 4,
+      "total_tokens": 1448
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

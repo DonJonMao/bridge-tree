@@ -1,0 +1,3286 @@
+{
+  "one_reason": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"decision\": false, \"reason\": \"D\"}",
+      "semantic_answer": {
+        "decision": false,
+        "reason": "D"
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "93a0efe3f17ab599186a7c29af8ccbef05e39b7a61a80f96c30b8a89e99a257d",
+      "sources": {
+        "node_versions": {
+          "decision": 3
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.fd2ddd44c1fe6b24"
+        },
+        "span_ids": [
+          "src_32c15e47dcce34accd8971fc",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m1",
+          "m4",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "return_age": 1,
+        "returned": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "fdd7e41f92b16b2042818c54e8564e402f7a6a51bc4b31824f952ce065ac296d",
+        "program_identity": "f2e05e15fcd8aa9f1e6f5920a334a9c58c93d205fa8e9c916237d311bb6dad90",
+        "program_revision": 1,
+        "output": {
+          "decision": false,
+          "reason": "D"
+        },
+        "fact_versions": {
+          "return_age": 1,
+          "returned": 1
+        },
+        "fact_identities": {
+          "return_age": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+          "returned": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b"
+        },
+        "source_ids": [
+          "src_32c15e47dcce34accd8971fc",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "D",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              {
+                "decision": false,
+                "reason": "D"
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "add_age",
+          "offline",
+          "result",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "54c8b9c98a4fb950a08b260ad383f0cafe38ff121865f8ebabbcc1597f9feb8c",
+          "route_ids": [
+            "fact_21d3876408ab525e7ae49fd8"
+          ]
+        },
+        "binding_dependencies": {
+          "return_age": {
+            "version": 1,
+            "identity": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+            "route_ids": [
+              "fact_0203cda6d512fb3b93864ea2"
+            ]
+          },
+          "returned": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_807eadff41e49dc616631c20"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "54c8b9c98a4fb950a08b260ad383f0cafe38ff121865f8ebabbcc1597f9feb8c",
+            "route_ids": [
+              "fact_21d3876408ab525e7ae49fd8"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_32c15e47dcce34accd8971fc",
+        "src_c2e5424a508b8c1f05421172",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 7,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 5,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 4,
+      "set_score_calls": 0,
+      "llm_attempts": 7,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "one_reason",
+          "result_type": "record",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "one"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.46509528160095215
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.4651672840118408
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1688,
+        "sequence": 13,
+        "elapsed_seconds": 0.4675750732421875
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1715,
+        "sequence": 22,
+        "elapsed_seconds": 0.4699552059173584
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "one_reason",
+          "fields": {
+            "D": {
+              "op": "not",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.4703681468963623
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2800,
+        "sequence": 27,
+        "elapsed_seconds": 0.4729893207550049
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2904,
+        "sequence": 35,
+        "elapsed_seconds": 0.476041316986084
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3006,
+        "sequence": 44,
+        "elapsed_seconds": 0.47945523262023926
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "decision": false,
+            "reason": "D"
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "D",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 45,
+        "elapsed_seconds": 0.4798409938812256
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "fd2ddd44c1fe6b246ad8ecb3ca944e82653302ccda7cc7036305a4fb75bf4547",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3263,
+        "audit_complete": true,
+        "sequence": 49,
+        "elapsed_seconds": 0.4835371971130371
+      }
+    ]
+  },
+  "all_failures": {
+    "answer": {
+      "status": "ok",
+      "prediction": "[\"D\", \"A\"]",
+      "semantic_answer": [
+        "D",
+        "A"
+      ],
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "47c2f6ff5c1477b85664a6bacd166ff9e54e18b25032b38ac0db8ac04ae81605",
+      "sources": {
+        "node_versions": {
+          "decision": 5
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.f271a19c5c513e66"
+        },
+        "span_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_3cc241a213df4ab814a4b78e",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m8",
+          "m1",
+          "m9",
+          "m4",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "add_age": 1,
+        "offline": 1,
+        "return_age": 1,
+        "returned": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "c199cfb6444954c5dc8223d0adf3975a84607e03378dd9c336616bfc8e9a507c",
+        "program_identity": "6998a31f30177c8560efca6c339f21b8996a4c5033ac3ccc65828ab1be578484",
+        "program_revision": 1,
+        "output": [
+          "D",
+          "A"
+        ],
+        "fact_versions": {
+          "add_age": 1,
+          "offline": 1,
+          "return_age": 1,
+          "returned": 1
+        },
+        "fact_identities": {
+          "add_age": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+          "offline": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+          "return_age": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+          "returned": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b"
+        },
+        "source_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_3cc241a213df4ab814a4b78e",
+          "src_c2e5424a508b8c1f05421172",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "constant_failures",
+            "used_variables": [
+              "add_age",
+              "offline",
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              [
+                "D",
+                "A"
+              ]
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "result",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "c9b2a63a0e9d5ccc1213057aa39e3ae720c45cac9da7bb7ed79882154722063c",
+          "route_ids": [
+            "fact_407d611eb858e850e4e6ec30"
+          ]
+        },
+        "binding_dependencies": {
+          "add_age": {
+            "version": 1,
+            "identity": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+            "route_ids": [
+              "fact_055ee2162fc4f3fe5542a9ce"
+            ]
+          },
+          "offline": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_debc697e1f03c5e0d16fecd8"
+            ]
+          },
+          "return_age": {
+            "version": 1,
+            "identity": "7b69759630f869f2723875f873935fed29d2d12b10ef763c1c33b8e0004cb405",
+            "route_ids": [
+              "fact_0203cda6d512fb3b93864ea2"
+            ]
+          },
+          "returned": {
+            "version": 1,
+            "identity": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+            "route_ids": [
+              "fact_807eadff41e49dc616631c20"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "c9b2a63a0e9d5ccc1213057aa39e3ae720c45cac9da7bb7ed79882154722063c",
+            "route_ids": [
+              "fact_407d611eb858e850e4e6ec30"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_18d27d59a3022d000066e217",
+        "src_32c15e47dcce34accd8971fc",
+        "src_3cc241a213df4ab814a4b78e",
+        "src_c2e5424a508b8c1f05421172",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 13,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 11,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 8,
+      "set_score_calls": 0,
+      "llm_attempts": 13,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "all_failures",
+          "result_type": "set",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "all"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0007710456848144531
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0008273124694824219
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1fd80ae31037fc784438969fc1ab0ce75d07baa6164ea2e6bf1b0931c067600f",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1687,
+        "sequence": 13,
+        "elapsed_seconds": 0.0025310516357421875
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1fd80ae31037fc784438969fc1ab0ce75d07baa6164ea2e6bf1b0931c067600f",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1715,
+        "sequence": 22,
+        "elapsed_seconds": 0.004703044891357422
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "not",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.005079030990600586
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6e1670ced8cf00b7cdd502fe0791f3dc2e9fb8f8bd7642de34ac5a08ee839b2c",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2800,
+        "sequence": 27,
+        "elapsed_seconds": 0.007896184921264648
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6e1670ced8cf00b7cdd502fe0791f3dc2e9fb8f8bd7642de34ac5a08ee839b2c",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2904,
+        "sequence": 35,
+        "elapsed_seconds": 0.010979175567626953
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6e1670ced8cf00b7cdd502fe0791f3dc2e9fb8f8bd7642de34ac5a08ee839b2c",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3006,
+        "sequence": 44,
+        "elapsed_seconds": 0.014482259750366211
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "const",
+              "value": false
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "D"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          }
+        ],
+        "outcome": "indeterminate",
+        "sequence": 45,
+        "elapsed_seconds": 0.01489114761352539
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "75a039b15315f1244bc229b0a9219996f822f65dca0c19dc5958747e7395b431",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2768,
+        "sequence": 49,
+        "elapsed_seconds": 0.017686128616333008
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "75a039b15315f1244bc229b0a9219996f822f65dca0c19dc5958747e7395b431",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2868,
+        "sequence": 57,
+        "elapsed_seconds": 0.02077794075012207
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "75a039b15315f1244bc229b0a9219996f822f65dca0c19dc5958747e7395b431",
+        "source_aliases": [
+          "s7"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6",
+          "s7"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2970,
+        "sequence": 66,
+        "elapsed_seconds": 0.02399611473083496
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "failures",
+          "fields": {
+            "D": {
+              "op": "const",
+              "value": false
+            },
+            "A": {
+              "op": "const",
+              "value": false
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "O"
+        ],
+        "paused_demands": [
+          "A"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          }
+        ],
+        "outcome": "indeterminate",
+        "sequence": 67,
+        "elapsed_seconds": 0.024357080459594727
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ae982197bfa944683e4f69ea9907a32066b849437fe9e957e8ddf9fcb7868919",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2756,
+        "sequence": 71,
+        "elapsed_seconds": 0.027086257934570312
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ae982197bfa944683e4f69ea9907a32066b849437fe9e957e8ddf9fcb7868919",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2856,
+        "sequence": 79,
+        "elapsed_seconds": 0.030097246170043945
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ae982197bfa944683e4f69ea9907a32066b849437fe9e957e8ddf9fcb7868919",
+        "source_aliases": [
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8",
+          "s9"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2958,
+        "sequence": 88,
+        "elapsed_seconds": 0.03368496894836426
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": [
+            "D",
+            "A"
+          ]
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_ge",
+            "used_variables": [
+              "return_age"
+            ]
+          },
+          {
+            "rule": "constant_and",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_not",
+            "used_variables": [
+              "return_age",
+              "returned"
+            ]
+          },
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "constant_failures",
+            "used_variables": [
+              "add_age",
+              "offline",
+              "return_age",
+              "returned"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 89,
+        "elapsed_seconds": 0.03405427932739258
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "f271a19c5c513e665027ae961119282b488fa2226d3e3f92d8f7d03f0c3eeb03",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s5",
+          "s7",
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s5",
+          "s3",
+          "s9",
+          "s7"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3947,
+        "audit_complete": true,
+        "sequence": 93,
+        "elapsed_seconds": 0.04008030891418457
+      }
+    ]
+  },
+  "V7_correction": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"decision\": false, \"reason\": \"A\"}",
+      "semantic_answer": {
+        "decision": false,
+        "reason": "A"
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "decision",
+      "output_identity": "93a0efe3f17ab599186a7c29af8ccbef05e39b7a61a80f96c30b8a89e99a257d",
+      "sources": {
+        "node_versions": {
+          "decision": 2
+        },
+        "alternative_ids": {
+          "decision": "decision.derivation.8e9d6f497c5df971"
+        },
+        "span_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "doc_ids": [
+          "m8",
+          "m1",
+          "m2"
+        ]
+      },
+      "dependency_versions": {
+        "add_age": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "fdd7e41f92b16b2042818c54e8564e402f7a6a51bc4b31824f952ce065ac296d",
+        "program_identity": "f2e05e15fcd8aa9f1e6f5920a334a9c58c93d205fa8e9c916237d311bb6dad90",
+        "program_revision": 1,
+        "output": {
+          "decision": false,
+          "reason": "A"
+        },
+        "fact_versions": {
+          "add_age": 1
+        },
+        "fact_identities": {
+          "add_age": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55"
+        },
+        "source_ids": [
+          "src_18d27d59a3022d000066e217",
+          "src_32c15e47dcce34accd8971fc",
+          "src_ca732da120c4de55443579f5"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "A",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              {
+                "decision": false,
+                "reason": "A"
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "offline",
+          "result",
+          "return_age",
+          "returned",
+          "rule"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "rule_assumptions": {
+          "variable": "rule",
+          "version": 1,
+          "identity": "54c8b9c98a4fb950a08b260ad383f0cafe38ff121865f8ebabbcc1597f9feb8c",
+          "route_ids": [
+            "fact_21d3876408ab525e7ae49fd8"
+          ]
+        },
+        "binding_dependencies": {
+          "add_age": {
+            "version": 1,
+            "identity": "bdc5d8a48c23897906b09a9a3680bd2e9c8b3121edbda36f949800f0959c8d55",
+            "route_ids": [
+              "fact_055ee2162fc4f3fe5542a9ce"
+            ]
+          },
+          "rule": {
+            "version": 1,
+            "identity": "54c8b9c98a4fb950a08b260ad383f0cafe38ff121865f8ebabbcc1597f9feb8c",
+            "route_ids": [
+              "fact_21d3876408ab525e7ae49fd8"
+            ]
+          }
+        }
+      },
+      "program_revision": 1,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_18d27d59a3022d000066e217",
+        "src_32c15e47dcce34accd8971fc",
+        "src_ca732da120c4de55443579f5"
+      ]
+    },
+    "cost": {
+      "generation_calls": 15,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 13,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 15,
+      "set_score_calls": 0,
+      "llm_attempts": 15,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "rules",
+            "question": "本次演示岚桥版本与当前适用规则是什么？",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "D",
+            "question": "根据{rules}检查删除后的返回观测。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "A",
+            "question": "根据{rules}检查新增可检索时间。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "O",
+            "question": "根据{rules}检查脱网可用性。",
+            "inputs": [
+              "rules"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "decision",
+            "question": "综合规则与符合性输出完整所需结果。",
+            "inputs": [
+              "rules",
+              "D",
+              "A",
+              "O"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "decision",
+        "output_contract": {
+          "mode": "one_reason",
+          "result_type": "record",
+          "entity_scope": "岚桥 V8 / R17-R2",
+          "time_scope": "本次演示",
+          "explanation": "one"
+        },
+        "F": {
+          "variables": {
+            "rule": {
+              "type": "rule",
+              "demand": "rules"
+            },
+            "result": {
+              "type": "record",
+              "demand": "decision"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "result"
+          },
+          "rules_complete": false,
+          "rule_binding": {
+            "variable": "rule",
+            "condition_demands": [
+              "D",
+              "A",
+              "O"
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0007097721099853516
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "result"
+        },
+        "active_demands": [
+          "rules",
+          "decision"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "decision",
+          "rules"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0007588863372802734
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1688,
+        "sequence": 13,
+        "elapsed_seconds": 0.002480745315551758
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "a6b442eda3f0919f6f2fb5d06054f8ad15f7078e75089065608253b71cb1b789",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1715,
+        "sequence": 22,
+        "elapsed_seconds": 0.004486799240112305
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "one_reason",
+          "fields": {
+            "D": {
+              "op": "not",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "ge",
+                      "args": [
+                        {
+                          "op": "var",
+                          "id": "return_age"
+                        },
+                        {
+                          "op": "const",
+                          "value": {
+                            "number": 60,
+                            "unit": "s"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "op": "var",
+                      "id": "returned"
+                    }
+                  ]
+                }
+              ]
+            },
+            "A": {
+              "op": "le",
+              "args": [
+                {
+                  "op": "var",
+                  "id": "add_age"
+                },
+                {
+                  "op": "const",
+                  "value": {
+                    "number": 600,
+                    "unit": "s"
+                  }
+                }
+              ]
+            },
+            "O": {
+              "op": "var",
+              "id": "offline"
+            }
+          }
+        },
+        "active_demands": [
+          "D",
+          "A",
+          "O"
+        ],
+        "paused_demands": [
+          "decision",
+          "rules"
+        ],
+        "reactivated_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 23,
+        "elapsed_seconds": 0.004840850830078125
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2800,
+        "sequence": 27,
+        "elapsed_seconds": 0.007467985153198242
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s4"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s4"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2904,
+        "sequence": 35,
+        "elapsed_seconds": 0.010477066040039062
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s5"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s5"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3006,
+        "sequence": 44,
+        "elapsed_seconds": 0.013605833053588867
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3005,
+        "sequence": 73,
+        "elapsed_seconds": 0.026784896850585938
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3004,
+        "sequence": 82,
+        "elapsed_seconds": 0.031103849411010742
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s7"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s7"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3004,
+        "sequence": 91,
+        "elapsed_seconds": 0.03562498092651367
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3006,
+        "sequence": 100,
+        "elapsed_seconds": 0.04355883598327637
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "d901e67c520301e4f993c96bf98dd36b1676a24aef73b6c46e27c688132b17bd",
+        "source_aliases": [
+          "s9"
+        ],
+        "visible_source_aliases": [
+          "s4",
+          "s3",
+          "s1",
+          "s9"
+        ],
+        "valid_rows": 2,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3006,
+        "sequence": 109,
+        "elapsed_seconds": 0.055925846099853516
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6a7a3ef7aadd160f7011c5b548f2fd861571f847ea5b8785146568095d0747d4",
+        "source_aliases": [
+          "s1",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2768,
+        "sequence": 116,
+        "elapsed_seconds": 0.06306576728820801
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6a7a3ef7aadd160f7011c5b548f2fd861571f847ea5b8785146568095d0747d4",
+        "source_aliases": [
+          "s6"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2868,
+        "sequence": 124,
+        "elapsed_seconds": 0.06675577163696289
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "6a7a3ef7aadd160f7011c5b548f2fd861571f847ea5b8785146568095d0747d4",
+        "source_aliases": [
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s6",
+          "s8"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2970,
+        "sequence": 133,
+        "elapsed_seconds": 0.07011985778808594
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 1,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "decision": false,
+            "reason": "A"
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "A",
+          "D",
+          "O"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_le",
+            "used_variables": [
+              "add_age"
+            ]
+          },
+          {
+            "rule": "necessary_condition_false_witness",
+            "field": "A",
+            "used_variables": [
+              "add_age"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 134,
+        "elapsed_seconds": 0.07045888900756836
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "8e9d6f497c5df9713dd69ea3b6fe0f830ffc58737b3df1c6289a9cc8732ce325",
+        "source_aliases": [
+          "s1",
+          "s3",
+          "s8"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s8"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 3029,
+        "audit_complete": true,
+        "sequence": 138,
+        "elapsed_seconds": 0.07427096366882324
+      }
+    ]
+  },
+  "entity_chain": {
+    "answer": {
+      "status": "ok",
+      "prediction": "River City",
+      "semantic_answer": "River City",
+      "answer_source": "dag_terminal",
+      "final_node_id": "city",
+      "output_identity": "06c8ad364c4fe9812fc88d64245143367a21bda1c910ce89936bc7fb7276b050",
+      "sources": {
+        "node_versions": {
+          "city": 1
+        },
+        "alternative_ids": {
+          "city": "city.derivation.d7c31789b4c94953"
+        },
+        "span_ids": [
+          "src_2dd180926c87437081fd7b99",
+          "src_2ec71f14a3445dbfb49207cb",
+          "src_49de4f7f53ee4d87ebff4716"
+        ],
+        "doc_ids": [
+          "school",
+          "city",
+          "film"
+        ]
+      },
+      "dependency_versions": {
+        "city": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "d078d3869595f616ebd2be268e4033f46e84b523858999ae195e66526487e2fd",
+        "program_identity": "8e96c3c928816fa27eaf7fcd99dc3f4cad605abc3cbe983a593aeadbe67f3ef6",
+        "program_revision": 0,
+        "output": "River City",
+        "fact_versions": {
+          "city": 1
+        },
+        "fact_identities": {
+          "city": "47e0685f6489e049930555419b639eb112d6cd3ec33072949b60d1decad657e4"
+        },
+        "source_ids": [
+          "src_2dd180926c87437081fd7b99",
+          "src_2ec71f14a3445dbfb49207cb",
+          "src_49de4f7f53ee4d87ebff4716"
+        ],
+        "derivation": [
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              "River City"
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [
+          "director",
+          "university"
+        ],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "city": {
+            "version": 1,
+            "identity": "47e0685f6489e049930555419b639eb112d6cd3ec33072949b60d1decad657e4",
+            "route_ids": [
+              "fact_1f556b10cf12e2e8281adc1e"
+            ]
+          },
+          "director": {
+            "version": 1,
+            "identity": "4587b6d3784531d852e65bf738a15835039b78447a071b0e0b6259c0c86595fa",
+            "route_ids": [
+              "fact_592c0e47d5d22acdbcf6dbde"
+            ]
+          },
+          "university": {
+            "version": 1,
+            "identity": "33a9dadb6dab2dd06483c275ed1606a0cda25dc8ee28a4b1a51d476a60f52527",
+            "route_ids": [
+              "fact_87b5e9b9104fd4f5f3188c5a"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_2dd180926c87437081fd7b99",
+        "src_2ec71f14a3445dbfb49207cb",
+        "src_49de4f7f53ee4d87ebff4716"
+      ]
+    },
+    "cost": {
+      "generation_calls": 7,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 5,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 3,
+      "set_score_calls": 0,
+      "llm_attempts": 7,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "director",
+            "question": "Who directed Ash Wind?",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "university",
+            "question": "Which university did {director} attend?",
+            "inputs": [
+              "director"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "city",
+            "question": "Which city contains {university}?",
+            "inputs": [
+              "university"
+            ],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          }
+        ],
+        "final_node_id": "city",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "entity",
+          "entity_scope": "Ash Wind",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "director": {
+              "type": "entity",
+              "demand": "director",
+              "open": true
+            },
+            "university": {
+              "type": "entity",
+              "demand": "university",
+              "open": true
+            },
+            "city": {
+              "type": "entity",
+              "demand": "city",
+              "open": true
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "city"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0007948875427246094
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "director",
+          "university",
+          "city"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "city",
+          "director",
+          "university"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0008518695831298828
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "1ccf54167d77a87939cc77d4728a659f9c8881d175550436c86ec0c55f344956",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1523,
+        "sequence": 13,
+        "elapsed_seconds": 0.0021660327911376953
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "university",
+          "city"
+        ],
+        "paused_demands": [
+          "director"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.0022249221801757812
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7fc084ed5c19db27a24b7aa0ca9790fa053db5e706e5e77e6eaede280fe75a74",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1576,
+        "sequence": 18,
+        "elapsed_seconds": 0.003130674362182617
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7fc084ed5c19db27a24b7aa0ca9790fa053db5e706e5e77e6eaede280fe75a74",
+        "source_aliases": [
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1663,
+        "sequence": 26,
+        "elapsed_seconds": 0.004556894302368164
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "city"
+        },
+        "active_demands": [
+          "city"
+        ],
+        "paused_demands": [
+          "university"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 27,
+        "elapsed_seconds": 0.004629850387573242
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee4808b3d1a38c8795f35675894866d4f90a0140bf5ef87e9ea57c744a6484a5",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1671,
+        "sequence": 31,
+        "elapsed_seconds": 0.0060079097747802734
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee4808b3d1a38c8795f35675894866d4f90a0140bf5ef87e9ea57c744a6484a5",
+        "source_aliases": [
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1",
+          "s3"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1757,
+        "sequence": 39,
+        "elapsed_seconds": 0.007838964462280273
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": "River City"
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "city"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "determined",
+        "sequence": 40,
+        "elapsed_seconds": 0.007918834686279297
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "d7c31789b4c94953fd40d83d836c6a4f8a289067dcc87a50d8688f774f4951d4",
+        "source_aliases": [
+          "s1",
+          "s2",
+          "s3"
+        ],
+        "visible_source_aliases": [
+          "s3",
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2383,
+        "audit_complete": true,
+        "sequence": 44,
+        "elapsed_seconds": 0.010256767272949219
+      }
+    ]
+  },
+  "comparison": {
+    "answer": {
+      "status": "ok",
+      "prediction": "true",
+      "semantic_answer": true,
+      "answer_source": "dag_terminal",
+      "final_node_id": "final",
+      "output_identity": "5e23ae7b808414a8a8dbed4a5d187a14f656105a1aacf6767f32e196519f6504",
+      "sources": {
+        "node_versions": {
+          "final": 2
+        },
+        "alternative_ids": {
+          "final": "final.derivation.491173c348e8d642"
+        },
+        "span_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "doc_ids": [
+          "y",
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "y": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "e11dd2927f3320e6d52a06d57796b27f28715dddc9b7dca27c76e1ab7e86974f",
+        "program_identity": "44e855c62f62d5b6ad03bdc9a1bac6aeb8bfdbc4913e8efd5b05bd820f4cd1be",
+        "program_revision": 0,
+        "output": true,
+        "fact_versions": {
+          "x": 1,
+          "y": 1
+        },
+        "fact_identities": {
+          "x": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "y": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        "source_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_lt",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              true
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "x": {
+            "version": 1,
+            "identity": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+            "route_ids": [
+              "fact_ed0a23cebfe675e75d9f6e3c"
+            ]
+          },
+          "y": {
+            "version": 1,
+            "identity": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+            "route_ids": [
+              "fact_7bbcc63082ab5d1b19bfa4ca"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_1574993b22b685749c4de25b",
+        "src_fdaf49dbca8f6b84332c8ebe"
+      ]
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 2,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 2,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "x",
+            "question": "Find x quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "y",
+            "question": "Find y quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "final",
+            "question": "Compare x and y",
+            "inputs": [
+              "x",
+              "y"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "final",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "bool",
+          "entity_scope": "quantities",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "x"
+            },
+            "y": {
+              "type": "number",
+              "demand": "y"
+            }
+          },
+          "expression": {
+            "op": "lt",
+            "args": [
+              {
+                "op": "var",
+                "id": "x"
+              },
+              {
+                "op": "var",
+                "id": "y"
+              }
+            ]
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0006830692291259766
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "lt",
+          "args": [
+            {
+              "op": "var",
+              "id": "x"
+            },
+            {
+              "op": "var",
+              "id": "y"
+            }
+          ]
+        },
+        "active_demands": [
+          "x",
+          "y"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "x",
+          "y"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0007488727569580078
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "ee7f70342191b6a1630ab01bad5f8309e1527410b89be7826f8531dbdff6df62",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1570,
+        "sequence": 13,
+        "elapsed_seconds": 0.0023818016052246094
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "lt",
+          "args": [
+            {
+              "op": "const",
+              "value": 0
+            },
+            {
+              "op": "var",
+              "id": "y"
+            }
+          ]
+        },
+        "active_demands": [
+          "y"
+        ],
+        "paused_demands": [
+          "x"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.002460956573486328
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "9f56b1de8288a6e81c330b702bf1c23dae0746fe4d5747dc96d1faa3ea502800",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1570,
+        "sequence": 22,
+        "elapsed_seconds": 0.00403594970703125
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": true
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "y"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_lt",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 23,
+        "elapsed_seconds": 0.004120826721191406
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "491173c348e8d6422110d84df29f242e24f20ec09e554a4ca2af8e8d51af5789",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2026,
+        "audit_complete": true,
+        "sequence": 27,
+        "elapsed_seconds": 0.005834102630615234
+      }
+    ]
+  },
+  "record_output": {
+    "answer": {
+      "status": "ok",
+      "prediction": "{\"x\": 0, \"y\": 2}",
+      "semantic_answer": {
+        "x": 0,
+        "y": 2
+      },
+      "answer_source": "dag_terminal",
+      "final_node_id": "final",
+      "output_identity": "2b6ff19d02a7322b2110824dcb3cec720e0d0433770587a3a5543e978242eeb7",
+      "sources": {
+        "node_versions": {
+          "final": 2
+        },
+        "alternative_ids": {
+          "final": "final.derivation.3f55f5251115301f"
+        },
+        "span_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "doc_ids": [
+          "y",
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "y": 1
+      },
+      "completion_kind": "certified_symbolic",
+      "certificate": {
+        "kind": "certified_symbolic",
+        "contract_identity": "03a4c92967995db240d7faf7be5efad9760dc9c44d46dffe26fba8c49a75a849",
+        "program_identity": "fd1532167412ad9d7289d90157106c2a8f6bf6bc4d434d8bb1cc689687d7813a",
+        "program_revision": 0,
+        "output": {
+          "x": 0,
+          "y": 2
+        },
+        "fact_versions": {
+          "x": 1,
+          "y": 1
+        },
+        "fact_identities": {
+          "x": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+          "y": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        "source_ids": [
+          "src_1574993b22b685749c4de25b",
+          "src_fdaf49dbca8f6b84332c8ebe"
+        ],
+        "derivation": [
+          {
+            "rule": "constant_record",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          },
+          {
+            "rule": "complete_conservative_world_envelope",
+            "worlds_checked": 1,
+            "constraints_identity": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "outputs": [
+              {
+                "x": 0,
+                "y": 2
+              }
+            ],
+            "nonempty_proven": true
+          }
+        ],
+        "eliminated_variables": [],
+        "conditional_on": "validated semantic interpretation; not proof that all counterevidence was retrieved",
+        "binding_dependencies": {
+          "x": {
+            "version": 1,
+            "identity": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+            "route_ids": [
+              "fact_ed0a23cebfe675e75d9f6e3c"
+            ]
+          },
+          "y": {
+            "version": 1,
+            "identity": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+            "route_ids": [
+              "fact_7bbcc63082ab5d1b19bfa4ca"
+            ]
+          }
+        }
+      },
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": [
+        "src_1574993b22b685749c4de25b",
+        "src_fdaf49dbca8f6b84332c8ebe"
+      ]
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 2,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 2,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "x",
+            "question": "Find x quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "y",
+            "question": "Find y quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "final",
+            "question": "Compare x and y",
+            "inputs": [
+              "x",
+              "y"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "final",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "record",
+          "entity_scope": "quantities",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "x"
+            },
+            "y": {
+              "type": "number",
+              "demand": "y"
+            }
+          },
+          "expression": {
+            "op": "record",
+            "fields": {
+              "x": {
+                "op": "var",
+                "id": "x"
+              },
+              "y": {
+                "op": "var",
+                "id": "y"
+              }
+            }
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0005888938903808594
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "record",
+          "fields": {
+            "x": {
+              "op": "var",
+              "id": "x"
+            },
+            "y": {
+              "op": "var",
+              "id": "y"
+            }
+          }
+        },
+        "active_demands": [
+          "x",
+          "y"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "x",
+          "y"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0006959438323974609
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "8eda92013ed21ac7ca05f02cea0c15d95e96654381b177759e211c5adef729a7",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1570,
+        "sequence": 13,
+        "elapsed_seconds": 0.002218008041381836
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "record",
+          "fields": {
+            "x": {
+              "op": "const",
+              "value": 0
+            },
+            "y": {
+              "op": "var",
+              "id": "y"
+            }
+          }
+        },
+        "active_demands": [
+          "y"
+        ],
+        "paused_demands": [
+          "x"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.002301931381225586
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "7cf02079ed25a171a6e89965865f30f4fa4123a6ead07e6b5c4171cbe4a088a3",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1570,
+        "sequence": 22,
+        "elapsed_seconds": 0.003916025161743164
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": {
+            "x": 0,
+            "y": 2
+          }
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "y"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [
+          {
+            "rule": "constant_record",
+            "used_variables": [
+              "x",
+              "y"
+            ]
+          }
+        ],
+        "outcome": "determined",
+        "sequence": 23,
+        "elapsed_seconds": 0.004006147384643555
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "3f55f5251115301fdf2996cc12a1018ad1febf57451b36c1d6d94ee699deab8a",
+        "source_aliases": [
+          "s1",
+          "s2"
+        ],
+        "visible_source_aliases": [
+          "s2",
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 2026,
+        "audit_complete": true,
+        "sequence": 27,
+        "elapsed_seconds": 0.005587100982666016
+      }
+    ]
+  },
+  "non_singleton_output": {
+    "answer": {
+      "status": "unresolved_or_exhausted",
+      "prediction": null,
+      "semantic_answer": null,
+      "answer_source": "dag_terminal",
+      "final_node_id": "uncertain",
+      "output_identity": "f5fe88e2e818b8d9f9a3d94f00f55fa46f77f20fcf387626b95e2debf80b9abb",
+      "sources": null,
+      "dependency_versions": {
+        "uncertain": 0
+      },
+      "completion_kind": "incomplete",
+      "certificate": null,
+      "program_revision": 0,
+      "terminal_input_doc_ids": [],
+      "certificate_source_ids": []
+    },
+    "cost": {
+      "generation_calls": 2,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 1,
+      "repair_calls": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 0,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 1,
+      "set_score_calls": 0,
+      "llm_attempts": 2,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "uncertain",
+            "question": "Find the undecided boolean condition",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          }
+        ],
+        "final_node_id": "uncertain",
+        "output_contract": {
+          "mode": "value",
+          "result_type": "bool",
+          "entity_scope": "undecided condition",
+          "time_scope": "本次演示",
+          "explanation": "none"
+        },
+        "F": {
+          "variables": {
+            "uncertain": {
+              "type": "bool",
+              "demand": "uncertain"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "uncertain"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0005490779876708984
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "uncertain"
+        },
+        "active_demands": [
+          "uncertain"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "uncertain"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0005860328674316406
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "cab2ad19a2e69781a0ee9690c4c45b9d8e0e041e22c167d44980eec5c4429103",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1541,
+        "sequence": 13,
+        "elapsed_seconds": 0.0016131401062011719
+      }
+    ]
+  },
+  "open_advice": {
+    "answer": {
+      "status": "ok",
+      "prediction": "Choose a quiet visit based on the sourced preference.",
+      "semantic_answer": "Choose a quiet visit based on the sourced preference.",
+      "answer_source": "dag_terminal",
+      "final_node_id": "advice",
+      "output_identity": "b0e8e6bca286de06458779216667d975f777eb245cf87789df7034e5678c1372",
+      "sources": {
+        "node_versions": {
+          "advice": 1
+        },
+        "alternative_ids": {
+          "advice": "advice.route.fact_4eb999fd9e7428702166ab95"
+        },
+        "span_ids": [
+          "src_5590d9b37108ceb8f38e88ed"
+        ],
+        "doc_ids": [
+          "x"
+        ]
+      },
+      "dependency_versions": {
+        "x": 1,
+        "advice": 1
+      },
+      "completion_kind": "semantic_assessment",
+      "certificate": null,
+      "program_revision": 0,
+      "terminal_input_doc_ids": [
+        "x"
+      ],
+      "certificate_source_ids": []
+    },
+    "cost": {
+      "generation_calls": 4,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 1,
+      "repair_calls": 0,
+      "semantic_compose_calls": 1,
+      "audit_calls": 1,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "ann_calls": 1,
+      "set_score_calls": 0,
+      "llm_attempts": 4,
+      "rerank_http_attempts": 0
+    },
+    "trajectory": [
+      {
+        "event": "typed_dag_initialized",
+        "dag": [
+          {
+            "output_slot": "preference",
+            "question": "Find x preference quantity",
+            "inputs": [],
+            "answer_type": "fact",
+            "execution": "retrieval"
+          },
+          {
+            "output_slot": "advice",
+            "question": "Recommend from {preference}",
+            "inputs": [
+              "preference"
+            ],
+            "answer_type": "fact",
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "advice",
+        "output_contract": {
+          "mode": "semantic",
+          "result_type": "text",
+          "entity_scope": "visitor",
+          "time_scope": "本次演示",
+          "explanation": "semantic"
+        },
+        "F": {
+          "variables": {
+            "x": {
+              "type": "number",
+              "demand": "preference"
+            },
+            "advice": {
+              "type": "text",
+              "demand": "advice"
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "advice"
+          }
+        },
+        "planning_before_first_retrieval": true,
+        "sequence": 4,
+        "elapsed_seconds": 0.0006039142608642578
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "advice"
+        },
+        "active_demands": [
+          "preference",
+          "advice"
+        ],
+        "paused_demands": [],
+        "reactivated_demands": [
+          "advice",
+          "preference"
+        ],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 5,
+        "elapsed_seconds": 0.0006458759307861328
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "joint_read",
+        "identity": "e81e3307e8bee8f673393586e784b31057aa2a57a3f4cbedd9dd54ed7c4b7cd1",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1517,
+        "sequence": 13,
+        "elapsed_seconds": 0.0017428398132324219
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "var",
+          "id": "advice"
+        },
+        "active_demands": [
+          "advice"
+        ],
+        "paused_demands": [
+          "preference"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "indeterminate",
+        "sequence": 14,
+        "elapsed_seconds": 0.0018029212951660156
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "semantic_compose",
+        "identity": "4d5f2ca2df0bb556b51e2da4397b6201e481ebdef51849cda01112095f96d642",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 1,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1566,
+        "sequence": 18,
+        "elapsed_seconds": 0.002669811248779297
+      },
+      {
+        "event": "residual_state",
+        "program_revision": 0,
+        "remaining_expression": {
+          "op": "const",
+          "value": "Choose a quiet visit based on the sourced preference."
+        },
+        "active_demands": [],
+        "paused_demands": [
+          "advice"
+        ],
+        "reactivated_demands": [],
+        "elimination_rules": [],
+        "outcome": "determined",
+        "sequence": 19,
+        "elapsed_seconds": 0.0027348995208740234
+      },
+      {
+        "event": "joint_read_completed",
+        "operation": "audit_joint",
+        "identity": "fc5cf99a84e3c5bc7839ec9d7eff716a0b5a255861bb37036097962b4c2c3864",
+        "source_aliases": [
+          "s1"
+        ],
+        "visible_source_aliases": [
+          "s1"
+        ],
+        "valid_rows": 0,
+        "failed_slots": [],
+        "complete": true,
+        "input_tokens": 1810,
+        "audit_complete": true,
+        "sequence": 23,
+        "elapsed_seconds": 0.0036249160766601562
+      }
+    ]
+  }
+}
