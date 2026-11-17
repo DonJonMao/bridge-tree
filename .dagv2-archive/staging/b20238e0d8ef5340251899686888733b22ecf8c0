@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/webwalker_runner.py", line 660, in <module>
+    main()
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/webwalker_runner.py", line 651, in main
+    result = preflight(args)
+             ^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/webwalker_runner.py", line 581, in preflight
+    report['model'] = reasoner.json('audit_web_preflight', 'Return {"ready":true}.', {}, validate,
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/reasoning.py", line 222, in json
+    return self.request(operation, system, current, validate, schema,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/reasoning.py", line 140, in request
+    accounting = self._count_payload(operation, payload)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/reasoning.py", line 113, in _count_payload
+    return self.calls.count_reasoning_tokens(stage, self.url, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/transport.py", line 75, in count_reasoning_tokens
+    return self.token_counter.count(wire)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/token_counting.py", line 254, in count
+    raw = self._fetch(request, event)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mao/projects/dagv2-webwalker-v4/dagbt/token_counting.py", line 221, in _fetch
+    raise failure from None
+dagbt.token_counting.TokenizationError: Deployment tokenization failed: connection_or_timeout

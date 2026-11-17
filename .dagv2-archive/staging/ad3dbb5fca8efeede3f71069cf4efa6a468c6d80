@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:3713\", \"source_id\": \"hotpotqa:3713\"}]\nNew York Minute (film)\nNew York Minute is a 2004 American teen comedy film starring Mary-Kate Olsen, Ashley Olsen and Eugene Levy. It was directed by Dennie Gordon and released on May 7, 2004. In the film Mary-Kate and Ashley play twins with opposing personalities who have a series of misadventures around New York City. \"New York Minute\" reunited Mary-Kate and Ashley with their \"Full House\" co-star, Bob Saget. It was the Olsen twins' first theatrical film release since 1995's \"It Takes Two\". It was also the last film featured by Olsen twins, and the last film released by Dualstar Entertainment before it went into dormancy.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:3713\", \"source_id\": \"hotpotqa:3713\"}]\nNew York Minute (film)\nNew York Minute is a 2004 American teen comedy film starring Mary-Kate Olsen, Ashley Olsen and Eugene Levy. It was directed by Dennie Gordon and released on May 7, 2004. In the film Mary-Kate and Ashley play twins with opposing personalities who have a series of misadventures around New York City. \"New York Minute\" reunited Mary-Kate and Ashley with their \"Full House\" co-star, Bob Saget. It was the Olsen twins' first theatrical film release since 1995's \"It Takes Two\". It was also the last film featured by Olsen twins, and the last film released by Dualstar Entertainment before it went into dormancy."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "162",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599206.75969,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599208.092741
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9935618967772937
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.0013773967328289684
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1318,
+      "completion_tokens": 4,
+      "total_tokens": 1322
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

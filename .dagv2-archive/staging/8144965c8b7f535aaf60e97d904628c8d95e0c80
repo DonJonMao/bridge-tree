@@ -1,0 +1,53 @@
+{
+  "unit_id": "5ab69f9a554299710c8d1ef8",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "What is the name of the fictional private detective that appears in \"The Adventure of the Seven Clocks\"?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:12\", \"source_id\": \"hotpotqa:12\"}]\nMichael Shayne\nMichael \"Mike\" Shayne is a fictional private detective character created during the late 1930s by writer Brett Halliday, a pseudonym of Davis Dresser. The character appeared in a series of seven films starring Lloyd Nolan for Twentieth Century Fox, five films from the low-budget Producers Releasing Corporation with Hugh Beaumont, a radio series under a variety of titles between 1944 and 1953, and later in 1960–1961 in a 32-episode NBC television series starring Richard Denning in the title role.\n\n[Passage {\"doc_id\": \"hotpotqa:17\", \"source_id\": \"hotpotqa:17\"}]\nPepe Carvalho\nPepe Carvalho is a fictional private detective, the protagonist of a series of novels written by Manuel Vázquez Montalbán."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f751db736af6df29a9c2a41798f3222ccfdcff972b6cee8bb575a0bb488e2867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "113",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599966.4356139,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599967.2142231
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.7981867777396212
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 634,
+      "completion_tokens": 2,
+      "total_tokens": 636
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
