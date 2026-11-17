@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7290\", \"source_id\": \"hotpotqa:7290\"}]\nDivision of Bland\nThe Division of Bland was an Australian Electoral Division in New South Wales. The division was created in 1900 and was one of the original 75 divisions contested at the first federal election. It was abolished in 1906. It was named for Dr William Bland, a New South Wales colonial politician. Based in rural southern New South Wales, it included the towns of Narrandera, Young, Wagga Wagga and West Wyalong. Bland was held by Chris Watson, the first Leader of the federal parliamentary Labor Party and Australia's first Labor Prime Minister. When Bland was abolished in 1906, Watson transferred to South Sydney.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:25\", \"source_id\": \"hotpotqa:25\"}]\nDistribution of Industry Act 1950\nThe Distribution of Industry Act 1950 was an Act of Parliament passed in the United Kingdom by the Labour government of Clement Attlee. It strengthened the powers of the Board of Trade in the Development Areas, making “further provision for the acquisition of land, creation of easements and carrying out of work in development areas.” It also authorized “the Board of Trade “to make grants, in exceptional cases in connection with the establishment in, or transfer to, development areas of industrial undertakings, and to make grants or loans to housing associations for the provision of dwellings in development areas.” In addition, the Act also provided for payments towards the cost of removal and resettlement of key workers and their dependants.\n\n[Passage {\"doc_id\": \"hotpotqa:7290\", \"source_id\": \"hotpotqa:7290\"}]\nDivision of Bland\nThe Division of Bland was an Australian Electoral Division in New South Wales. The division was created in 1900 and was one of the original 75 divisions contested at the first federal election. It was abolished in 1906. It was named for Dr William Bland, a New South Wales colonial politician. Based in rural southern New South Wales, it included the towns of Narrandera, Young, Wagga Wagga and West Wyalong. Bland was held by Chris Watson, the first Leader of the federal parliamentary Labor Party and Australia's first Labor Prime Minister. When Bland was abolished in 1906, Watson transferred to South Sydney."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "8",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600182.774884,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600184.4604008
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.9820137868795701
+      },
+      {
+        "index": 0,
+        "relevance_score": 5.154280439060016e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1420,
+      "completion_tokens": 4,
+      "total_tokens": 1424
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
