@@ -1,0 +1,927 @@
+                    Eliciting Critical Reasoning in Retrieval-Augmented Generation via
+                                          Contrastive Explanations
+
+                                    Leonardo Ranaldi (†) Marco Valentino (†) André Freitas(†,∗,‡)
+                                          †
+                                            Idiap Research Institute, Martigny, Switzerland
+                                  ∗
+                                    Department of Computer Science, University of Manchester, UK
+                               ‡
+                                 National Biomarker Centre (NBC), CRUK Manchester Institute, UK
+                                                [name].[surname]@idiap.ch
+
+
+                                      Abstract                                          (1) Document Retrieval                        (2) Contrastive RAG
+
+                                                                                  Who thought up nature's uniformity                         Teacher Model
+                                                                                             principle?                                       (e.g., GPT-4)
+
+                   Retrieval-augmented generation (RAG) has                                                                          (2.1) Contrastive Reasoning
+
+                   emerged as a critical mechanism in contempo-                                                                             and Explanation
+
+                                                                                            Retrieval Model                   The content [2] is more accurate in answering
+                   rary NLP to support Large Language Models                                  (e.g., DPR)                     the question because it points to David Hume
+                                                                                                                              as the originator of the principle of uniformity,
+                   (LLMs) in systematically accessing richer fac-                                                                 directly answering the question of who
+                                                                                                                                originated the principle. In contrast, paper
+
+                   tual context. However, the integration of RAG                   [1]: The principle that the future will
+                                                                                                                               [1] provides background on the principle but
+                                                                                                                                does not attribute it to any individual, thus
+                                                                                                                                    not directly answering the question.
+                   mechanisms brings its inherent challenges, as                     resemble the past, in that when
+                                                                                        sufficiently similar situations                     (2.2) Final Answer
+                   LLMs need to deal with potentially noisy con-                   recur, similar effects follow. [...] the
+                                                                                     problem of induction elaborated,           David Hume thought up nature's uniformity
+                                                                                  refined and developed by Immanuel
+                   texts. Recent studies have shown that LLMs
+                                                                                                                                               principle.
+                                                                                 Kant, Hume and Goodman's paradox.
+
+
+                   still struggle to critically analyse RAG-based                [2]: David Hume’s uniformity principle
+                                                                                  holds that unobserved instances are
+                                                                                                                                                       (3) Instruction Tuning
+
+
+                   in-context information, a limitation that may
+                                                                                 similar to observed instances and that
+                                                                                     the future resembles the past.            Contrastive                  Student Model
+                                                                                                                                Reasoning                    (e.g., Llama)
+                   lead to incorrect inferences and hallucinations.                                                           Demonstrations
+
+                   In this paper, we investigate how to elicit crit-
+                   ical reasoning in RAG via contrastive expla-
+                                                                             Figure 1: The overall pipeline of Contrastive-RAG (§3).
+                   nations. In particular, we propose Contrastive-
+                                                                             (i) A set of retried documents is provided as a context
+                   RAG (C-RAG), a framework that (i) retrieves
+                                                                             to an LLM that (ii) generates contrastive explanatory
+                   relevant documents given a query, (ii) selects
+                                                                             arguments to arrive at the final answer. (iii) The ex-
+                   and exemplifies relevant passages, and (iii)
+                                                                             planations generated by a teacher model are used as
+                   generates explanations that explicitly contrast
+                                                                             demonstrations to improve smaller student models.
+                   the relevance of the passages to (iv) support
+                   the final answer. We show the impact of C-
+                   RAG building contrastive reasoning demon-
+                   strations from LLMs to instruct smaller models
+                                                                                Despite the benefits of RAG, contemporary stud-
+                   for retrieval-augmented tasks. Extensive ex-              ies have identified a range of persisting limitations
+                   periments demonstrate that C-RAG improves                 emerging from noisy retrieval, where irrelevant or
+                   state-of-the-art RAG models while (a) requir-             contradictory in-context passages can introduce bi-
+                   ing significantly fewer prompts and demonstra-            ases in the models, particularly on smaller LMs
+                   tions and (b) being robust to perturbations in            (Petroni et al., 2020; Shi et al., 2023). These short-
+                   the retrieved documents.                                  comings stem from the inability of RAG to system-
+                                                                             atically and critically assess the retrieved passages
+                                                                             provided as context. While an emerging line of
+               1    Introduction
+                                                                             research attempted to improve the RAG pipeline
+               Retrieval-augmented generation (RAG) aims to im-              by incorporating multi-step reasoning strategies to
+               prove the factuality and memory access of Large               determine the relevance of in-context passages (Li
+               Language Models (LLMs) by systematically inte-                et al., 2023; Yoran et al., 2024), this usually comes
+               grating relevant knowledge from external sources              at the cost of significantly increasing the computa-
+               via retrieval mechanisms (Lewis et al., 2020). In             tional resources required for training and inference
+               particular, RAG is designed to mitigate some of               (Xia et al., 2024).
+               the well-known limitations of LLMs, including the                To tackle such limitations, this paper proposes
+               tendency for hallucinations and the lack of specific          Contrastive-RAG (C-RAG), a novel end-to-end
+               domain knowledge in the training data (Siriward-              framework designed to elicit a critical reasoning
+               hana et al., 2023; Zhang et al., 2023; Kandpal et al.,        process in retrieval-augmented language models
+               2023).                                                        in the form of contrastive explanations – i.e., ex-
+                                                                        11168
+Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies
+                                                       (Volume 1: Long Papers), pages 11168–11183
+                                         April 29 - May 4, 2025 ©2025 Association for Computational Linguistics
+                                                                                                Instructions
+                                                               1) Please consider the retrieved documents and
+                                                               exemplify which points are most helpful for           3) Please consider the passages in step
+                                                               answering the question.                               2) in detail, ensure they are correct.
+                                                                                                                     Then, discuss the provided passages by
+            Who sings the song Don't Let Me Down?              2) For each document, after extracting the most                                                             4) Finally, extract the answer in a
+                                                                                                                     delivering a single rationale that
+                                                               helpful passages discuss whether they are                                                                   short and concise format.
+                                                                                                                     considers the supporting motivations
+                                                               relevant or irrelevant for answering the              from a contrastive perspective.
+                                                               question.
+
+
+
+
+                                                                             (ii) Collecting                                    (iii) Contrastive
+                         (i) Retrieval                                                                                                                                                (iv) Answer
+                                                                            and Reasoning                                          Explanation
+
+
+
+                       Documents                                                                                                Demonstrations
+
+                                                                        **Document [1]** discusses Australian singer Grace, known for                                         The song "Don't Let Me Down"
+ [1] Grace (Australian singer) Grace Sewell (born 8 April 1997),                                                                                                              is sung by The Chainsmokers
+  known mononymously as Grace, is an Australian singer and                her cover of "You Don't Own Me." This document does not
+                                                                         provide any information about the song "Don't Let Me Down,"                                           featuring Daya (2016) and by
+     songwriter. She is best known for "You Don't Own Me"...
+                                                                                 and therefore is not relevant to the question.                                                     The Beatles (1969).
+ [2] Don't Let Me Down (The Chainsmokers song) "Don't Let Me
+        Down" is a song by American production duo The                   **Document [2]** clearly states that "Don't Let Me Down" is a
+ Chainsmokers. The song features the vocals of American singer             song by The Chainsmokers, featuring vocals by Daya. It
+         Daya, and was released on February 5, 2016...                     specifically mentions that the song was released in 2016        The question asks about the artist of the song titled "Don't Let Me
+                                                                           through Disruptor Records and Columbia Records. This             Down." Documents [2] and [4] both address this question but for
+      [3] Don't Let Me Be Misunderstood "Don't Let Me Be                document is highly relevant as it directly answers the question.     different songs with the same title. Document [2] identifies The
+  Misunderstood" is a song written by Bennie Benjamin, Gloria                                                                               Chainsmokers featuring Daya as the artists for their 2016 song.
+  Caldwell and Sol Marcus for the jazz singer and pianist Nina            **Document [3]** and **Document [5]** discuss songs with          Document [4] identifies The Beatles as the artists for their 1969
+             Simone, who first recorded it in 1964...                   similar names ("Don't Let Me Be Misunderstood" and "Don't Let            song. This indicates that there are two correct answers,
+                                                                           Me Be Lonely Tonight" respectively) but these songs are         depending on which song is being referred to. Documents [1], [3],
+ [4] "Don't Let Me Down" is a song by the English rock band the           distinct from "Don't Let Me Down" and do not pertain to the       and [5] are not relevant as they discuss different songs or artists
+  Beatles, recorded in 1969 during the Let It Be sessions. It was                                   question.                                       not associated with the title "Don't Let Me Down."
+ written by John Lennon and credited to the Lennon–McCartney
+                    songwriting partnership...                           **Document [4]** details "Don't Let Me Down" by The Beatles,
+                                                                        specifying that it was written by John Lennon, recorded in 1969,
+   [5] Don't Let Me Be Lonely Tonight "Don't Let Me Be Lonely            and featured Billy Preston on the keyboard. This document is
+  Tonight" is a song written and performed by American singer-             relevant to the question as it identifies another song of the
+ songwriter James Taylor, from his 1972 album One Man Dog. It                              same title by a different artist.
+        was released as the lead single from the album...
+
+
+
+
+Figure 2: An illustration of the C-RAG framework for improving the traditional RAG pipeline. We demonstrate
+that C-RAG can significantly improve the performance of RAG models while requiring fewer prompts, training
+examples, and annotation steps than state-of-the-art approaches.
+
+
+planations that explicitly compare and contrast the                                                                     RAG and 7.2% and 1.9% over Self-RAG
+relevance of the retrieved passages with respect to                                                                     (Asai et al., 2023) and Self-Reasoning (Xia
+the task to be addressed. Specifically, the aim of                                                                      et al., 2024) respectively.
+C-RAG is to improve the original RAG pipeline
+via a multi-step reasoning framework composed
+of the following steps: i) collecting step, where                                                                 2. We found that C-RAG is significantly more
+query and documents are analysed to extract pas-                                                                     efficient than state-of-the-art RAG frame-
+sages that are relevant for the query; ii) contrastive                                                               works requiring fewer prompts, annotation
+reasoning, where the LLMs construct explanatory                                                                      steps, and training examples (i.e., 2k vs 190k
+arguments about the relevance of the extracted pas-                                                                  required by Self-RAG) while achieving better
+sages, highlighting and contrasting relevant and                                                                     performance.
+irrelevant knowledge; iii) explanation, where the
+contrastive arguments are consolidated into a single
+final explanation; and iv) answering, where a short-                                                              3. We demonstrate that C-RAG is robust to per-
+form answer is generated to address the query.                                                                       turbations that are typically challenging for
+   We demonstrate the impact of C-RAG by build-                                                                      traditional RAG models, including the ran-
+ing reasoning demonstrations from LLMs and                                                                           dom shuffling of the retrieved documents and
+instructing smaller models to address retrieval-                                                                     random noise applied to in-context passages.
+augmented tasks via contrastive explanations. An
+extensive empirical evaluation on four public
+                                                                                                                 To the best of our knowledge, this is the first
+question-answering (QA) tasks led to the following
+                                                                                                              work to investigate the impact of contrastive expla-
+findings and conclusions:
+                                                                                                              nations on RAG and demonstrate how contrastive
+  1. Employing C-RAG to generate contrastive                                                                  reasoning demonstrations can consistently boost
+     reasoning demonstrations via large reasoning                                                             the performance of smaller LLMs, equipping them
+     models can significantly improve the perfor-                                                             with the ability to critically analyse external knowl-
+     mance of smaller RAG models leading to an                                                                edge and generate contrastive explanatory reason-
+     average increase in accuracy of 55.4% over                                                               ing for their predictions.
+                                                                                                    11169
+2   Contrastive Explanations                               ing demonstrations (§3.4) to enhance RAG models
+                                                           (§3.5) and to equip them with the capability of
+Contrastive explanations have been identified as
+                                                           critically analysing the questions and the retrieved
+fundamental modes of explanation in epistemol-
+                                                           documents and generate a contrastive explanation
+ogy, artificial intelligence, and cognitive science
+                                                           to arrive at the answer (Figure 2).
+(Lipton, 1990; Miller, 2019; Valentino and Freitas,
+2024a,b). A contrastive explanation is a type of           3.1   Collecting Step
+inference aimed at answering why-questions of the
+form “Why P rather than Q?”, where P is the ex-            RAG models leverage retrieved knowledge to im-
+planandum – i.e., the fact to be explained – and Q         prove accuracy and reduce hallucinations in LLMs.
+is a counterfactual event – i.e., the foil. The func-      Therefore, the first step in the proposed pipeline in-
+tion of a contrastive explanation is to describe what      volves retrieving relevant documents from a given
+makes the difference between the occurrence of the         reference document base D. In this paper, we use
+fact and the foil.                                         DPR (Karpukhin et al., 2020) and Contriever (Izac-
+   In this paper, we aim to leverage the notion of         ard et al., 2021) as the default retriever models
+contrastive explanation to elicit critical reasoning       R. Subsequently, we instruct the LLM to anal-
+in RAG. Our intuition is that contrastive explana-         yse the question and extract the most relevant pas-
+tions are a particularly fitting systematic reasoning      sages from the set of retrieved documents (i.e.,
+mechanism for determining the relevance of doc-            "#Reference Evidence"). We collect the retrieved
+uments and passages provided as a context within           documents and relevant passages for all the queries
+the RAG pipeline.                                          and refer to this step as α1 .
+   Formally, given a query q and a set of documents
+                                                           3.2   Contrastive Reasoning
+D = {d1 , d2 , . . . , dn }, we want to partition D into
+a set of relevant documents Pq ∈ D, and a set              Recent work has shown that exemplifying passages
+of irrelevant documents, Qq ∈ D. In particular,            from the retrieved documents and directly using
+we want these sets to be constructed through the           them as in-context knowledge for RAG can im-
+generation of a natural language explanation E that        prove LLMs’ accuracy (Asai et al., 2023). How-
+describes the factors that contribute to the relevance     ever, each passage may still contain irrelevant
+of Pq and the factors that contribute to the irrele-       or contradictory knowledge that can mislead the
+vance of Qq . In the context of RAG, therefore, E          model. Hence, after collecting the passages from
+aims to answer the question “Why is Pq relevant            the top-k documents (§3.1), we instruct the LLM
+to q rather than Qq ?”, where the set of relevant          to generate contrastive explanatory arguments to
+documents Pq corresponds to the fact, and the set          identify and compare relevant and irrelevant points
+of irrelevant documents Qq corresponds to the foil.        in the passages with respect to the question (§3.1).
+                                                           We perform this step by setting out the instructions
+3   Contrastive-RAG                                        as reported in Table 6. Hence, we collect the out-
+                                                           comes by defining this phase as α2 .
+To elicit contrastive explanations in RAG, we
+present a framework composed of four inference             3.3   Explanation & Answer
+stages (Figure 2): i) collecting step (§3.1), where,
+given a query, the retrieved documents are col-            Finally, we leverage the arguments in the previous
+lected and an LLM-based model extracts relevant            steps to generate a final contrastive explanation to
+passages; ii) contrastive reasoning (§3.2), where          derive the answer. In particular, we instruct the
+an LLM-based model generates critical and con-             LLM to explicitly consider the contrastive ratio-
+trastive explanations about the relevance of the ex-       nales and summarise the main points into a single
+tracted passages, by exemplifying and contrasting          explanation. We define this step as α3 . Subse-
+relevant and irrelevant aspects; iii) explanation          quently, we instruct the model to generate the final
+(§3.3), where the arguments constructed in ii) are         answer following the pattern "#Answer:". This
+summarised into a single explanation; iv) answer-          final step is defined as α4 .
+ing (§3.3), where a final short answer to the query
+is generated. The prompt adopted for C-RAG is il-          3.4   C-RAG Operability
+lustrated in Table 6. In this paper, we are interested     C-RAG leverages a set of structured instructions
+in employing C-RAG to generate synthetic reason-           to deliver multi-step explanations via contrastive
+                                                      11170
+reasoning. Thus, the operability of C-RAG is two-        3.5         Training
+fold, as it can be employed as both a prompting
+                                                         Thanks to the operability of C-RAG (3.4), a Lan-
+strategy and a synthetic annotation technique.
+                                                         guage Model π can be trained using the generated
+                                                         annotations1 , which are augmented with reason-
+3.4.1   C-RAG as a Prompting Strategy
+                                                         ing demonstrations α using the standard language
+By operating through the instructions in Table           modeling objective, maximizing likelihood:
+6, we adopt C-RAG to prompt GPT-4 (OpenAI,
+2023). Specifically, we instruct GPT-4 to extract            max E(q,α,y)∼DA log pπ (y | α, q)pπ (α | q) (1)
+                                                                 π
+the most crucial passages from the retrieved docu-
+ments (§3.1), explaining the relevant and irrelevant     where α = α1 ⊕ α2 ⊕ α3 ⊕ α4 is the combina-
+points to answer the given question by exempli-          tion of the multiple reasoning steps performed by
+fying the main passages (§3.2), provide a single         the model, ⊕ is the concatenation operator, and
+exhaustive explanation that best describes the crit-     α1 , α2 , are the respective annotations generated by
+ical points (§3.3); and finally, generate the final      the above processes. q is the provided question,
+answer in a strict format, in order to have a more       and y is the model output, including the interme-
+straightforward and less ambiguous downstream            diate steps and the final answer. DA is the train-
+assessment. However, although the sequence of in-        ing corpus augmented with contrastive reasoning
+structions is well-structured and defined, the ability   demonstrations.
+to perform sequential and complex reasoning tasks
+is limited to larger LLMs (such as GPT-4, as dis-        4       Experiments
+cussed in the experiments). Therefore, to transfer
+contrastive reasoning to smaller models, we use C-       We evaluate C-RAG on four open-domain
+RAG to generate synthetic annotations as training        question-answering tasks (§4.1). We perform the
+demonstrations.                                          retrieval and evaluation phases by following stan-
+                                                         dard approaches used to assess the RAG pipeline
+3.4.2   C-RAG as a Demonstration Strategy                (§4.2) and perform the tuning phase by using the
+                                                         setup presented in §4.3.
+Following recent work (Xia et al., 2024; Asai et al.,
+2023), we instruct smaller models via demonstra-
+                                                         4.1         Tasks & Datasets
+tions produced by high-performing LLMs that are
+capable of following structured instructions. In con-    We conduct an extensive experimental evaluation
+trast to previous methods, however, our approach         on the following question-answering (QA) tasks:
+is based on a single prompt composed of a series         (i) NaturalQuestion (NQ) (Kwiatkowski et al.,
+of sequential instructions (Figure 2). Although          2019), (ii) PopQA (Mallen et al., 2023), (iii) Trivi-
+GPT-4 have demonstrated the ability to follow se-        aQA (Joshi et al., 2017) and (iv) FEVER (Thorne
+quential instructions (Peng et al., 2023), we cannot     et al., 2018). Appendix D describes the composi-
+formally guarantee that the generated demonstra-         tion of each dataset.
+tions are correct. Therefore, we follow the method
+proposed by Xia et al. (2024), which computes            4.2         Experimental Setup
+the citation precision for the considered documents      Retriever We use DPR (Karpukhin et al., 2020)
+as a proxy for the quality of the demonstrations.        and Contriever-MS MARCO (Izacard et al., 2021)
+However, since C-RAG uses a different annotation         to retrieve the top top-k documents from the doc-
+mechanism, our heuristics firstly filter out the fi-     ument base. We chose k = 5 to have a fair
+nal correct answers through a strict, exact match;       comparison to related RAG approaches using the
+then, after the filtering (cutting off about 50% of      same value for k. By default, we operate via
+the demonstrations), it verifies that each retrieved     DPR on NQ, as DPR has been fine-tuned on the
+document along the reference evidence has been           dataset. On PopQA, where question and answer
+considered. The starting annotations consist of          pairs are created based on Wikipedia, we use the
+approximately 10,000 training samples delivered          Wikipedia_corpus as background knowledge as
+with GPT-4, which, after the first filtering strategy,   proposed in (Xia et al., 2024).
+are reduced to 4,500 and finally, through quality
+control, are reduced to 2,000 (see Appendix C).              1
+                                                                 we select annotations as described in Section 3.4.2
+
+                                                    11171
+           Models                    NQ     PopQA     TriviaQA      FEVER        Train data for LLM
+
+                                  Baseline (no RAG)                          Training Size    Annotation
+           Llama-2-7b                19.2    18.4        30.5        20.1           -              -
+           Llama-2-13b               24.0    22.6        38.5        25.2           -              -
+           C-RAG-7 B                 30.0    44.8        58.6        32.5           -              -
+           C-RAG-13 B                31.8    46.2        61.3        34.0           -              -
+           GPT-4-o                   35.2    52.4        64.3        36.5           -              -
+                                          RAG
+           Llama-2-7b                27.8    47.8        55.6        23.2           -              -
+           Llama-2-13b               34.0    48.1        59.2        25.3           -              -
+           GPT-4-o                   46.6    62.5        74.6        87.7           -              -
+           Llama-2-7b (C-RAG)        24.6    47.0        54.8        22.9           -              -
+           Llama-2-13b (C-RAG)       33.5    47.4        58.0        24.9           -              -
+           GPT-4-o (C-RAG)           49.4    64.8        76.4        90.3           -              -
+                          RAG + Tuning (Llama-2-7b, -13b)
+           Llama-2-7b (SFT)          36.8    54.4        61.9        67.5          2k         single-step
+           RECOMP                    38.4     -           -          39.1         150k          external
+           Self-RAG-7b               37.2    54.9        66.4        70.2         190k          external
+           Self-RAG-13b              38.8    55.8        67.2        72.2         190k          external
+           Self-Reasoning-7b         38.0    54.2         -          78.6          2k         double-step
+           Self-Reasoning-13b        41.4    57.3         -          83.9          2k         double-step
+           C-RAG-7 B                 40.2    56.4        68.4        79.2          2k         single-step
+           C-RAG-13 B                42.6    58.2        70.3        83.6          2k         single-step
+
+Table 1: Overall results on QA and fact verification tasks §4.1. The models are prompted as detailed in §4.4, and the
+values correspond to the Exact Match (%).
+
+
+ Evaluation Metrics We adopt two different eval-            tion process. By using the prompt shown in Table
+ uation metrics for QA and fact-verification tasks.         5 we set the temperature to 0.4 and maximum gen-
+ Specifically with regard to QA tasks (NQ, PopQA,           eration length of 2048, as we observed that these
+ and TriviaQA), we use a flexible exact-match ac-           settings deliver better overall performance.
+ curacy following Schick et al. (2023); Mallen et al.
+(2023), which is based on whether or not ground-            4.3.1    Training Setup
+ truth answers are included in the generated answers        To evaluate the impact of C-RAG contrastive rea-
+ provided by the models, instead of a strict exact          soning demonstrations on smaller models (§3),
+ match. For fact verification tasks, i.e., FEVER, we        we use the annotations produced following the C-
+ report the evaluation scheme proposed in (Thorne           RAG strategy (§3.4.2). Additionally, for a fair
+ et al., 2018) based on a three-class classification        comparison, we produce annotations using Llama-
+ accuracy. Finally, C-RAG uses a special label              2-SFT, where Llama-2 is fine-tuned on training
+‘#Answer’ (see Table 6) through which we instruct           samples without C-RAG. We compare our mod-
+ the models to deliver a short answer.                      els with several related RAG approaches trained
+                                                            with demonstrations generated by GPT-4 to estab-
+4.3 Models Setup                                            lish strong baselines (detailed in the last column of
+To get a comprehensive evaluation of existing RAG           Table 1). We fine-tune the Llama-2 models for 3
+pipelines and the impact of C-RAG, three different          epochs with a batch size of 32 and a learning rate
+LLMs are used: GPT-4 (OpenAI, 2023), Llama-2-7              equal to 3e-5 with a 0.001 weight decay. We use
+and Llama-2-13 (Touvron et al., 2023) along with            the cosine learning rate scheduler with a warmup
+their instruction-tuned chat version Llama-2-7-chat         ratio of 0.03. We conducted our experiments on a
+and Llama-2-13-chat. The models were chosen to              workstation equipped with four Nvidia RTX A6000
+have a common ground for comparison with state-             with 48GB of VRAM.
+of-the-art approaches.
+                                                            4.4     Prompting
+Inference Settings We use greedy decoding in all            We systematically prompt the models using two
+experiments to ensure a more deterministic genera-          main settings:
+                                                       11172
+      Models
+                   NQ        PQA      TQA                RAG (with an improvement of 68.9% for GPT-4,
+                  (%acc)    (%acc)    (%acc)             56.6% for Llama-2-7b and 65.4% for Llama-2-13-
+       F ULL       42.6      58.2      70.3              b), the results show that the impact of C-RAG as a
+      RANDOM       38.4      54.2      61.0              prompting strategy in a RAG setting is only evident
+      w/o (2)      33.2      52.2      60.6              for larger models (i.e., GPT-4-o) where C-RAG
+      w/o (3)      37.0      55.7      62.3              achieves an overall improvement of 3.9%. For
+      w/o (4)      40.8      57.4      69.4
+                                                         Llama-2-7b and Llama-2-13b, in fact, we observe
+                                                         a decrease in performance when compared to the
+Table 2: Evaluation of impacts of each component on
+three QA tasks with C-RAG-13 B. We eliminate (w/o)       standard RAG pipeline, indicating that such models
+or RANDOM shuffling the four defined steps (§3). C-      are unable to generate the contrastive reasomning
+RAG-7 Bs’ in Table 8.                                    required to support their answers.
+
+                                                         5.2   C-RAG as a Demonstration Strategy
+Baseline (no RAG) We evaluate the baseline ca-           The lower part of Table 1 reports the results of
+pabilities of selected models in a zero-shot manner      C-RAG when adopted as a demonstration strat-
+and without introducing any in-context documents         egy for different models. Here, the results show
+(without RAG) as in (Asai et al., 2023; Xia et al.,      that C-RAG is highly effective in improving the
+2024) using the prompt in Table 4.                       performance of Llama-2 models when used to gen-
+RAG Models We assess the impact of retrieved             erate reasoning demonstrations via GPT-4. In par-
+knowledge by instructing the evaluated models to         ticular, we found that C-RAG can outperform
+consider the top-5 retrieved documents. In line          state-of-the-art approaches, including RECOMP
+with (Xia et al., 2024), we use retrievers described     (+1.8%), Self-RAG (+7.2%), and Self-Reasoning
+in §4.2 as in Table 5. To complete the settings, we      (+1.9%). Moreover, as shown in Table 1, C-RAG
+use C-RAG as a prompting strategy as in Table 6.         can achieve such results using a fraction of the rea-
+                                                         soning demonstrations used by related approaches,
+5     Results & Discussions                              also requiring fewer prompts and annotation steps.
+                                                         Specifically, our approach uses significantly fewer
+The results of the empirical evaluation are reported     demonstrations when compared to RECOMP (Xu
+in Table 1. Overall, the experiments confirm that C-     et al., 2023) and Self-RAG (Asai et al., 2023), (2k
+RAG can improve the capabilities of LLMs to han-         demonstrations vs. 150k and 190k). Similarly, in
+dle retrieved documents for QA and fact verifica-        contrast to Self-Reasoning (Xia et al., 2024), C-
+tion tasks demonstrating the impact of contrastive       RAG operates via a single-step prompting. This
+reasoning and explanations on RAG models. We             experimental setting significantly reduces the use
+found that C-RAG is particularly effective as a          of resources and simplifies the training process.
+demonstration strategy to improve the performance           In addition, we observe that Llama-2 models
+of smaller Llama-2 models, achieving state-of-the-       fine-tuned via C-RAG can outperform GPT4-o by
+art performance when compared to related fine-           6.1% and substantially improve the performance of
+tuning approaches in the literature (Xu et al., 2023;    all the evaluated Llama-2 models (with and without
+Asai et al., 2023; Xia et al., 2024). In the following   RAG). These results strongly demonstrate the im-
+sections, we analyse the impact of C-RAG when            pact of the training signal provided by contrastive
+adopted as both a prompting strategy (§5.1) and          explanations and their ability to efficiently elicit
+as a framework for generating annotations to in-         critical arguments in smaller LMs (as shown in an
+struct LLMs (§5.2). Finally, we analyse the role of      inference example in Appendix G).
+the contrastive explanations (§5.3) and provide evi-
+dence of robustness on challenging perturbations         5.3   The Role of Contrastive Explanations
+and low-resource settings (§5.4).                        Table 2 evaluates the impact of the end-to-end con-
+                                                         trastive reasoning framework on the final perfor-
+5.1    C-RAG as a Prompting Strategy                     mance. In particular, the table shows the effect of
+The middle part of Table 1 reports the results of        eliminating one of the steps or randomly shuffling
+C-RAG when adopted as a prompting strategy for           them to produce the demonstrations.
+different models. While we can observe an over-             The results demonstrate the importance of each
+all improvement over the baseline models without         stage in the multi-step reasoning process intro-
+                                                    11173
+Figure 3: Robustness experiment results on four QA datasets (§4.1) using the same evaluation settings proposed for
+C-RAG-13 B in Table 1. We provide retrieved documents by randomly shuffling them (Random Shuffle) and using
+50% of irrelevant (Random Noise).
+
+
+duced in §3. In particular, we observe the highest        fled the order of the retrieved documents (Ran-
+decrease in performance when removing step 2 (i.e.,       dom Shuffle) and inserted two irrelevant documents
+Contrastive Reasoning, with a decrease of -17.2%)         (Random Noise). Figure 3 reports the experimental
+and step 3 (i.e., Explanation, with a decrease of         results. We found that the C-RAG framework con-
+-10.4%), demonstrating the crucial impact of the          sistently outperforms the baseline model (Llama-
+contrastive explanatory arguments on the final per-       2-13b), as well as Self-RAG and Self-Reasoning,
+formance.                                                 finding that perturbations have a lower impact on
+                                                          the final performance. In particular, the random
+5.4 Robustness & Ablation Analysis                        shuffling of retrieved documents has a minimal
+The C-RAG framework instructs models to rea-              impact on performance, demonstrating the permu-
+son on the retrieved documents independently of           tation invariance property of C-RAG. Moreover,
+their order of occurrence (i.e., invariance to docu-      when noisy documents are added, all the evaluated
+ments’ permutations) and attempts to elicit critical      models suffer a higher performance drop. How-
+explanations to identify irrelevant or contradictory      ever, the drop for C-RAG is typically lower than
+knowledge in the extracted passages (i.e., robust-        the RAG baseline, which shows that the proposed
+ness to the bias) as revealed in Figure 3. In addition,   method is more robust even when dealing with
+the benefits of C-RAG also emerge when reducing           noisier results.
+the number of demonstrations, showing that con-
+trastive explanations can improve data efficiency          Quantity of Instructions Figure 4 shows the be-
+(Figure 4). To assess such properties in more detail,      haviour of C-RAG when scaling-up the number
+we performed a robustness analysis along with an           of training examples. While we found that the
+evaluation of how scaling the training demonstra-          quantity of the demonstrations used in C-RAG is
+tions affects models’ behaviours.                          important in determining the final performance, we
+                                                           found that C-RAG can outperform the baselines
+Robustness to Perturbations Since noisy re-                RAG models with only 50% of training demonstra-
+trieval can negatively affect the performance of           tions, also achieving superior training performance
+LLMs (Petroni et al., 2020), we follow the method-         when compared to the fine-tuned SFT model (i.e.,
+ology introduced in (Asai et al., 2023; Xia et al.,        the model fine-tuned without contrastive reasoning
+2024) to evaluate robustness. Specifically, we shuf-       demonstrations as explained in §4). This further
+                                                     11174
+Figure 4: Performances assessment of C-RAG-7 B and -13 B by scaling training data. We replicated experimental
+settings proposed in §4.3 changing the number of tuning instructions.
+
+
+      Training   Model          Evaluation                 shows that models trained through demonstrations
+                          NQ PQA TQA FEV                   can improve the performance of RAG models on
+                 Baseline 19.2 18.4   30.5    20.1         tasks they have not been trained on.
+                 (+RAG) 27.8 47.8     55.6    23.2
+                                                              Finally, we performed a sanity check to verify
+      NQ          SFT     36.5 48.0    56.2   41.4         the impact of the quality of the demonstrations in
+                 C-RAG    39.8 52.7    62.6   45.2
+                                                           Table 9 (in Appendix). Here, we performed adver-
+      PopQA       SFT     31.0 50.2    54.3   40.4
+                 C-RAG    33.6 55.9    57.4   43.7
+                                                           sarial experiments to study the impact of the quality
+                                                           of the demonstrations used to instruct the C-RAG
+      TQA         SFT     32.2 49.6    60.7   39.3
+                 CRAG     34.2 52.2    68.0   45.6         models. We replicated the proposed experimental
+                                                           setting, operating via misleading instructions (de-
+      FEVER       SFT     29.4 50.3    52.9   66.6
+                 C-RAG    34.6 53.0    68.4   78.6         fined in Appendix F) to ensure a complete under-
+                                                           standing of the impact of the demonstrations. The
+Table 3: By replicating the experimental setting (§4.3),   results (Table 9) show that the quality of the instruc-
+we trained the models (Llama-2-7b) on a single task and    tions matters. Models instructed with high-quality
+systematically evaluated them on other tasks. As SFT,      demonstrations (filtered as detailed in Appendix C)
+we mean models (Llama-2-7b) instructed with input-
+                                                           achieve better performance than misleading demon-
+output demonstrations consisting of queries, documents,
+and target answers.                                        strations, which can degrade the accuracy below
+                                                           the baselines.
+
+highlights the quality of the training signal pro-         6   Related Work
+vided by the contrastive explanations.
+                                                           Previous research investigated the advantages
+Quality of Instructions To complete the exper-             of augmenting Large Language Models (LLMs)
+iment, we assessed the transferability of C-RAG            through retrieved text passages, a technique known
+and analysed the impact of the quality of demon-           as Retrieval-augmented Generative (RAG) (Lewis
+strations using adversarial examples. Concerning           et al., 2020; Ram et al., 2023). However, recent
+transferability, we performed the training on a sin-       work showed that the benefits of RAG can be un-
+gle task (we use the split reported in Table 7) and        dermined by noisy retrieval, thus decreasing con-
+evaluated the models on another task. Table 3              sistency and reliability (Liu et al., 2023; Petroni
+                                                      11175
+et al., 2020; Shi et al., 2023). Hence, several works    outperform state-of-the-art models while requiring
+proposed techniques to improve RAG reliability by        fewer prompts and demonstrations and being robust
+enabling the models to elicit the critical steps to      to perturbations in the retrieved documents, lay-
+arrive at the final answer (Menick et al., 2022; Gao     ing the foundation for integrating natural language
+et al., 2023b). Similarly, recent work focused on        explanations within RAG-based architectures and
+improving the retrieval phase by fine-tuning LLMs        improving efficiency, consistency and reliability.
+to perform dynamic retrieval vi adaptive reasoning          In future developments, we plan to extend our
+strategies Jiang et al. (2023); Yao et al. (2023); Gao   contribution to non-English languages to broaden
+et al. (2023a); Zhang et al. (2024). Nevertheless,       the beneficial impacts and operability of C-RAG
+the use of multi-step reasoning strategies usually       for multi-lingual alignment (Ranaldi and Freitas,
+comes at the cost of increasing the computational        2024a) and augmentation approaches (Ranaldi
+resources in terms of number of prompts and train-       et al., 2024). Another possible extension for
+ing examples(Fan et al., 2024; Gao et al., 2024).        C-RAG is to investigate the integration of con-
+   For instance, Asai et al. (2023) instructed mod-      trastive explanations with different types of ex-
+els to retrieve information using special reflection     planatory arguments studied in Philosophy of Sci-
+tokens. However, this solution requires the training     ence (Valentino and Freitas, 2024a; Valentino et al.,
+of two external models, requiring tens of thousands      2022, 2021). A potential direction, in fact, would
+of additional training samples. Xu et al. (2023) at-     be to explore how different types of explanations
+tempted to lower the computational cost for multi-       can be leveraged to further improve reasoning in
+step RAG pipelines, but their approach still requires    LLMs and RAG and develop more efficient instruc-
+additional models to summarise the retrieved doc-        tion tuning techniques to improve smaller models
+uments. Finally, Xia et al. (2024) eliminated the        using a lower amount of data.
+dependence on special tokens and external com-
+ponents by introducing reasoning trajectories that       8   Limitations
+are employed to boost the performance of LLMs
+                                                         In this work, we proposed an approach to instruct
+directly. Although the solution improves efficiency,
+                                                         Large Language Models (LLMS) to improve per-
+the framework operates through a multi-step mech-
+                                                         formance in RAG settings. Specifically, we in-
+anism that requires multiple annotation phases.
+                                                         troduced a framework eliciting LLMs to deliver
+   Similarly to recent work investigating the im-        contrastive reasoning for open-domain question an-
+pact of natural language explanations on LLMs            swering and fact verification. Although the frame-
+(He et al., 2024; Dalal et al., 2024; Ye and Dur-        work can handle the distribution of realistic ques-
+rett, 2022; Quan et al., 2024b,a; Ranaldi and Fre-       tions, as evaluated standard datasets, it remains to
+itas, 2024b), we propose a method to integrate via       be assessed the impact of this framework on more
+multi-step explanations into RAG. To the best of         complex reasoning scenarios, such as multi-hop
+our knowledge, however, this is the first work to        reasoning, code generation, and arithmetic reason-
+investigate the impact of contrastive explanations       ing. In future work, we will tackle more challeng-
+on RAG and demonstrate how contrastive reason-           ing reasoning tasks. While C-RAG can serve as
+ing demonstrations can boost the performance of          a mechanism to mitigate factual hallucinations in
+smaller LMs.                                             LLMs and improve the robustness of RAG, there
+                                                         is still a risk that our approach might induce hallu-
+7   Conclusion & Future Work                             cinations.
+RAG has shown great potential in boosting the per-       Acknowledgements
+formance of LLMs on knowledge-intensive tasks.
+Despite the success of RAG, noisy retrieval repre-       This work was funded by the Swiss National
+sents a major limitation. To tackle such challenges,     Science Foundation (SNSF) project “NeuMath”
+we introduce Contrastive-RAG (C-RAG), a frame-           (200021_204617), by the Innosuisse project “SIN-
+work that (i) retrieves relevant documents given a       FONIA” (n. 104.170 IP-ICT), by the CRUK Na-
+query, (ii) selects and exemplifies relevant passages,   tional Biomarker Centre, and supported by the
+and (iii) generates explanations that explicitly con-    Manchester Experimental Cancer Medicine Centre
+trast the relevance of the passages to (iv) support      and the NIHR Manchester Biomedical Research
+the final answer. We demonstrate that C-RAG can          Centre.
+                                                    11176
+References                                                  Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke
+                                                             Zettlemoyer. 2017. TriviaQA: A large scale distantly
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and          supervised challenge dataset for reading comprehen-
+  Hannaneh Hajishirzi. 2023. Self-rag: Learning to re-       sion. In Proceedings of the 55th Annual Meeting of
+  trieve, generate, and critique through self-reflection.    the Association for Computational Linguistics (Vol-
+Dhairya Dalal, Marco Valentino, Andre Freitas, and           ume 1: Long Papers), pages 1601–1611, Vancouver,
+  Paul Buitelaar. 2024. Inference to the best expla-         Canada. Association for Computational Linguistics.
+  nation in large language models. In Proceedings
+  of the 62nd Annual Meeting of the Association for         Nikhil Kandpal, Haikang Deng, Adam Roberts, Eric
+  Computational Linguistics (Volume 1: Long Papers),          Wallace, and Colin Raffel. 2023. Large language
+  pages 217–235, Bangkok, Thailand. Association for           models struggle to learn long-tail knowledge.
+  Computational Linguistics.
+                                                            Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick
+Wenqi Fan, Yujuan Ding, Liangbo Ning, Shijie Wang,            Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and
+ Hengyun Li, Dawei Yin, Tat-Seng Chua, and Qing               Wen-tau Yih. 2020. Dense passage retrieval for open-
+ Li. 2024. A survey on rag meeting llms: Towards              domain question answering. In Proceedings of the
+ retrieval-augmented large language models. In Pro-           2020 Conference on Empirical Methods in Natural
+ ceedings of the 30th ACM SIGKDD Conference on                Language Processing (EMNLP), pages 6769–6781,
+ Knowledge Discovery and Data Mining, KDD ’24,                Online. Association for Computational Linguistics.
+ page 6491–6501, New York, NY, USA. Association
+ for Computing Machinery.                                   Tom Kwiatkowski, Jennimaria Palomaki, Olivia Red-
+                                                              field, Michael Collins, Ankur Parikh, Chris Alberti,
+Luyu Gao, Zhuyun Dai, Panupong Pasupat, Anthony               Danielle Epstein, Illia Polosukhin, Jacob Devlin, Ken-
+  Chen, Arun Tejasvi Chaganty, Yicheng Fan, Vincent           ton Lee, Kristina Toutanova, Llion Jones, Matthew
+  Zhao, Ni Lao, Hongrae Lee, Da-Cheng Juan, and               Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob
+  Kelvin Guu. 2023a. RARR: Researching and revis-             Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natu-
+  ing what language models say, using language mod-           ral questions: A benchmark for question answering
+  els. In Proceedings of the 61st Annual Meeting of the       research. Transactions of the Association for Compu-
+  Association for Computational Linguistics (Volume 1:        tational Linguistics, 7:452–466.
+  Long Papers), pages 16477–16508, Toronto, Canada.
+  Association for Computational Linguistics.                Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+                                                              Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+Tianyu Gao, Howard Yen, Jiatong Yu, and Danqi Chen.           rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+   2023b. Enabling large language models to generate          täschel, et al. 2020. Retrieval-augmented generation
+   text with citations. In Proceedings of the 2023 Con-       for knowledge-intensive nlp tasks. Advances in Neu-
+   ference on Empirical Methods in Natural Language           ral Information Processing Systems, 33:9459–9474.
+  Processing, pages 6465–6488, Singapore. Associa-
+   tion for Computational Linguistics.                      Daliang Li, Ankit Singh Rawat, Manzil Zaheer, Xin
+                                                              Wang, Michal Lukasik, Andreas Veit, Felix Yu, and
+Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia,
+                                                              Sanjiv Kumar. 2023. Large language models with
+  Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Meng Wang,
+                                                              controllable working memory. In Findings of the As-
+  and Haofen Wang. 2024. Retrieval-augmented gen-
+                                                              sociation for Computational Linguistics: ACL 2023,
+  eration for large language models: A survey.
+                                                              pages 1774–1793, Toronto, Canada. Association for
+Xuanli He, Yuxiang Wu, Oana-Maria Camburu,                    Computational Linguistics.
+  Pasquale Minervini, and Pontus Stenetorp. 2024. Us-
+  ing natural language explanations to improve robust-      Peter Lipton. 1990. Contrastive explanation. Royal
+  ness of in-context learning. In Proceedings of the          Institute of Philosophy Supplements, 27:247–266.
+  62nd Annual Meeting of the Association for Compu-
+  tational Linguistics (Volume 1: Long Papers), pages       Nelson Liu, Tianyi Zhang, and Percy Liang. 2023. Eval-
+  13477–13499, Bangkok, Thailand. Association for             uating verifiability in generative search engines. In
+  Computational Linguistics.                                  Findings of the Association for Computational Lin-
+                                                              guistics: EMNLP 2023, pages 7001–7025, Singapore.
+Gautier Izacard, Mathilde Caron, Lucas Hosseini, Se-          Association for Computational Linguistics.
+  bastian Riedel, Piotr Bojanowski, Armand Joulin,
+  and Edouard Grave. 2021. Unsupervised dense in-           Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das,
+  formation retrieval with contrastive learning. arXiv        Daniel Khashabi, and Hannaneh Hajishirzi. 2023.
+  preprint arXiv:2112.09118.                                  When not to trust language models: Investigating
+                                                              effectiveness of parametric and non-parametric mem-
+Zhengbao Jiang, Frank Xu, Luyu Gao, Zhiqing Sun,              ories. In Proceedings of the 61st Annual Meeting of
+  Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie               the Association for Computational Linguistics (Vol-
+  Callan, and Graham Neubig. 2023. Active retrieval           ume 1: Long Papers), pages 9802–9822, Toronto,
+  augmented generation. In Proceedings of the 2023            Canada. Association for Computational Linguistics.
+  Conference on Empirical Methods in Natural Lan-
+  guage Processing, pages 7969–7992, Singapore. As-         Jacob Menick, Maja Trebacz, Vladimir Mikulik,
+  sociation for Computational Linguistics.                    John Aslanides, Francis Song, Martin Chadwick,
+                                                       11177
+  Mia Glaese, Susannah Young, Lucy Campbell-                Timo Schick, Jane Dwivedi-Yu, Roberto Dessì, Roberta
+  Gillingham, Geoffrey Irving, and Nat McAleese.              Raileanu, Maria Lomeli, Luke Zettlemoyer, Nicola
+  2022. Teaching language models to support answers           Cancedda, and Thomas Scialom. 2023. Toolformer:
+  with verified quotes.                                       Language models can teach themselves to use tools.
+                                                              arXiv preprint arXiv:2302.04761.
+Tim Miller. 2019. Explanation in artificial intelligence:
+  Insights from the social sciences. Artificial intelli-    Freda Shi, Xinyun Chen, Kanishka Misra, Nathan
+  gence, 267:1–38.                                            Scales, David Dohan, Ed Chi, Nathanael Schärli, and
+                                                              Denny Zhou. 2023. Large language models can be
+OpenAI. 2023. Gpt-4 technical report.                         easily distracted by irrelevant context.
+
+Baolin Peng, Chunyuan Li, Pengcheng He, Michel Gal-         Shamane Siriwardhana, Rivindu Weerasekera, Elliott
+  ley, and Jianfeng Gao. 2023. Instruction tuning with        Wen, Tharindu Kaluarachchi, Rajib Rana, and
+  gpt-4.                                                      Suranga Nanayakkara. 2023. Improving the domain
+                                                              adaptation of retrieval augmented generation (RAG)
+Fabio Petroni, Patrick Lewis, Aleksandra Piktus, Tim          models for open domain question answering. Trans-
+  Rocktäschel, Yuxiang Wu, Alexander H. Miller, and           actions of the Association for Computational Linguis-
+  Sebastian Riedel. 2020. How context affects lan-            tics, 11:1–17.
+  guage models’ factual predictions.
+                                                            James Thorne,       Andreas Vlachos,         Christos
+Xin Quan, Marco Valentino, Louise Dennis, and An-             Christodoulopoulos, and Arpit Mittal. 2018.
+  dre Freitas. 2024a. Enhancing ethical explanations          FEVER: a large-scale dataset for fact extraction
+  of large language models through iterative symbolic         and VERification. In Proceedings of the 2018
+  refinement. In Proceedings of the 18th Conference of        Conference of the North American Chapter of
+  the European Chapter of the Association for Compu-          the Association for Computational Linguistics:
+  tational Linguistics (Volume 1: Long Papers), pages         Human Language Technologies, Volume 1 (Long
+  1–22, St. Julian’s, Malta. Association for Computa-         Papers), pages 809–819, New Orleans, Louisiana.
+  tional Linguistics.                                         Association for Computational Linguistics.
+Xin Quan, Marco Valentino, Louise A. Dennis, and An-        Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-
+  dre Freitas. 2024b. Verification and refinement of nat-     bert, Amjad Almahairi, Yasmine Babaei, Nikolay
+  ural language explanations through LLM-symbolic             Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti
+  theorem proving. In Proceedings of the 2024 Con-            Bhosale, et al. 2023. Llama 2: Open founda-
+  ference on Empirical Methods in Natural Language            tion and fine-tuned chat models. arXiv preprint
+  Processing, pages 2933–2958, Miami, Florida, USA.           arXiv:2307.09288.
+  Association for Computational Linguistics.
+                                                            Marco Valentino and André Freitas. 2024a. On the
+Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,          nature of explanation: An epistemological-linguistic
+  Amnon Shashua, Kevin Leyton-Brown, and Yoav                perspective for explanation-based natural language
+  Shoham. 2023. In-context retrieval-augmented lan-          inference. Philosophy & Technology, 37(3):88.
+  guage models. Transactions of the Association for
+  Computational Linguistics, 11:1316–1331.                  Marco Valentino and André Freitas. 2024b. Reasoning
+                                                             with natural language explanations. In Proceedings
+Leonardo Ranaldi and Andre Freitas. 2024a. Aligning          of the 2024 Conference on Empirical Methods in
+  large and small language models via chain-of-thought       Natural Language Processing: Tutorial Abstracts,
+  reasoning. In Proceedings of the 18th Conference of        pages 25–31, Miami, Florida, USA. Association for
+  the European Chapter of the Association for Compu-         Computational Linguistics.
+  tational Linguistics (Volume 1: Long Papers), pages
+  1812–1827, St. Julian’s, Malta. Association for Com-      Marco Valentino, Mokanarangan Thayaparan, Deborah
+  putational Linguistics.                                    Ferreira, and André Freitas. 2022. Hybrid autore-
+                                                             gressive inference for scalable multi-hop explanation
+Leonardo Ranaldi and Andre Freitas. 2024b. Self-refine       regeneration. Proceedings of the AAAI Conference
+  instruction-tuning for aligning reasoning in language      on Artificial Intelligence, 36(10):11403–11411.
+  models. In Proceedings of the 2024 Conference on
+  Empirical Methods in Natural Language Processing,         Marco Valentino, Mokanarangan Thayaparan, and An-
+  pages 2325–2347, Miami, Florida, USA. Association          dré Freitas. 2021. Unification-based reconstruction
+  for Computational Linguistics.                             of multi-hop explanations for science questions. In
+                                                             Proceedings of the 16th Conference of the European
+Leonardo Ranaldi, Giulia Pucci, and Andre Fre-               Chapter of the Association for Computational Lin-
+  itas. 2024. Empowering cross-lingual abilities             guistics: Main Volume, pages 200–211, Online. As-
+  of instruction-tuned large language models by              sociation for Computational Linguistics.
+  translation-following demonstrations. In Findings of
+  the Association for Computational Linguistics: ACL        Yuan Xia, Jingbo Zhou, Zhenhui Shi, Jun Chen, and
+  2024, pages 7961–7973, Bangkok, Thailand. Associ-           Haifeng Huang. 2024. Improving retrieval aug-
+  ation for Computational Linguistics.                        mented language model with self-reasoning.
+                                                       11178
+Fangyuan Xu, Weijia Shi, and Eunsol Choi. 2023. Re-
+  comp: Improving retrieval-augmented lms with com-
+  pression and selective augmentation.
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+  Shafran, Karthik Narasimhan, and Yuan Cao. 2023.
+  React: Synergizing reasoning and acting in language
+  models.
+Xi Ye and Greg Durrett. 2022. The unreliability of
+  explanations in few-shot prompting for textual rea-
+  soning. Advances in neural information processing
+  systems, 35:30378–30392.
+Ori Yoran, Tomer Wolfson, Ori Ram, and Jonathan
+  Berant. 2024. Making retrieval-augmented language
+  models robust to irrelevant context.
+Tianjun Zhang, Shishir G. Patil, Naman Jain, Sheng
+  Shen, Matei Zaharia, Ion Stoica, and Joseph E. Gon-
+  zalez. 2024. Raft: Adapting language model to do-
+  main specific rag.
+Yue Zhang, Yafu Li, Leyang Cui, Deng Cai, Lemao Liu,
+  Tingchen Fu, Xinting Huang, Enbo Zhao, Yu Zhang,
+  Yulong Chen, Longyue Wang, Anh Tuan Luu, Wei
+  Bi, Freda Shi, and Shuming Shi. 2023. Siren’s song
+  in the ai ocean: A survey on hallucination in large
+  language models.
+
+
+
+
+                                                   11179
+A   Prompting Approaches
+
+
+     #Role
+     You are an experienced expert skilled in answering various questions.
+
+
+     #Task
+     Please answer the question following the detailed requirements.
+
+
+     #Requirements
+        Please answer the question based on your knowledge using the format “#Answer:”
+
+
+     #Question
+     {question}
+
+
+
+                                      Table 4: Baseline prompting example.
+
+
+
+     #Role
+     You are an experienced expert skilled in answering various questions.
+
+
+     #Task
+     Please answer the question based on the documents provided and following the detailed requirements using the
+     format “#Answer:”
+
+
+     #Reference Documents
+     [1] {Document1 }
+     [2] {Document2 }
+     [3] {Document3 }
+     [4] {Document4 }
+     [5] {Document5 }
+
+
+     #Requirements
+        Please consider the retrieved documents provided “#Reference Documents” and answer the question.
+
+
+     #Question
+     {question}
+
+
+
+                        Table 5: Retrieval-augmented Generation prompting example.
+
+
+
+
+                                                       11180
+B    C-RAG prompting Requirements
+
+
+       #Role
+       You are an experienced expert skilled in answering various questions.
+
+
+       #Task
+       Please answer the question based on the documents provided and following the detailed requirements.
+
+
+       #Reference Documents
+       [1] {Document1 }
+       [2] {Document2 }
+       [3] {Document3 }
+       [4] {Document4 }
+       [5] {Document5 }
+
+
+       #Requirements
+          1) Please consider the retrieved documents provided “#Reference Documents” and understand the main
+          points. Follow the directions in detail and use only the information in the Documents, exemplifying which
+          points are most helpful for answering the question #Question.
+          Do not forget any documents, and be as precise as possible.
+
+           2) For each document, after extracting the most helpful passages discuss whether they are actually relevant
+           or irrelevant for answering the #Question.
+           For clarity in your answer, provide the exact passages of each document referring to the document number,
+           organizing the explanation as follows: passage claims [1] that [1], in contrast [4] claims.....
+
+           3) Please consider the passages in step 2) in detail, ensure they are correct. Then, discuss the provided
+           passages by delivering a single rationale that considers the supporting motivations from a contrastive
+           perspective as concern relevant and irrelevant passages.
+           For clarity, provide a detailed explanation by marking it as “#Explanation:”
+
+           4) Finally, after explaining the rationale supporting the final answer to facilitate the final evaluation, extract
+           the answer in a short and concise format by marking it as “#Answer:”
+
+
+       #Question
+       {question}
+
+
+
+Table 6: The Contrastive RAG (C-RAG) framework instructs the model to deliver multi-step reasoning paths that
+lead the models to solve the task by providing an explanation that contrasts the perspectives that have emerged.
+
+
+
+
+                                                              11181
+                                                       D    Data Composition
+                                                            Task       Total Correct C-RAG Used
+                                                            NQ    2, 5k      1, 9k      1.10k 515
+                                                            PQA   2, 5k      1, 1k     0, 75K 500
+                                                            TQA   2, 5k      1, 5k     0, 51K 500
+                                                            FEVER 2, 5k      0, 9k     0, 48K 485
+                                                            Total 10k        6, 0k      2, 8k 2,0k
+
+                                                       Table 7: Data used to construct C-RAG instructions.
+                                                       We applied the annotation as explained in §3.4.2. We
+                                                       obtained the following correct answers, filtered accord-
+                                                       ing to the heuristics in Appendix C, and balanced for
+                                                       the four tasks. *(1k is equal to 1000).
+C    Instructions Data
+As introduced in §3, we use our Contrastive RAG        E    Eliminating Components
+(C-RAG) to instruct Llama-2-7b and Llama-2-            We reproduced the experiment discussed in §5 Ta-
+13 to address knowledge-intensive tasks using re-      ble 2. However, we used the -7b version unlike the
+trieved documents using contrastive perspective        previous one.
+(§3.5). Since C-RAG alone do not benefit from
+the abilities of the baseline models (particularly                           NQ          PopQA             TriviaQA
+                                                            Models
+Llama-2-7b and Llama-2-13b without further tun-                             (%acc)       (%acc)             (%acc)
+ing as reported in Table 1), we use GPT-4 (version         C OMPLETE         40.2            56.4            68.4
+gpt-4o-2024-05-13) as the annotation model.                 RANDOM           32.0            52.6            57.0
+                                                             w/o (2)         31.6            50.8            59.8
+We systematically prompt GPT-4 using the instruc-            w/o (3)         36.8            54.2            61.3
+tions reported in Table 6.                                   w/o (4)         38.7            55.6            66.2
+We operate through GPT-4, which produced syn-
+thetic demonstrations, to instruct models to deliver   Table 8: Ablation study on three QA task with C-RAG-
+                                                       7 B. We analyze the impact of each component on tuning
+C-RAG multi-step reasoned-solving strategies. Al-
+                                                       by eliminating (w/o) or RANDOM shuffling the four
+though this model addresses the tasks by following     defined steps (§3).
+the instructions provided exhaustively (Peng et al.,
+2023), these may still be incorrect and contain mis-
+leading information. Therefore, we checked the         F    Misleading C-RAG
+quality by filtering out high-quality demonstrations   Since the annotations produced through C-RAG
+to refine the instruction set. Hence, by examin-       are not always of good quality and correct (see Ta-
+ing the answers, we eliminated all incorrect ones      ble 7 ), we define these demonstrations as mislead-
+(i.e., all generations that do not contain the final   ing (obtained through prompting C-RAG but with
+target string metric better known as Exact Match).     an incorrect final target). To observe their impact
+We then checked that all the necessary steps were      on tuning, we produced the experimental setting
+encoded in the remaining answers.                      of §4 by varying the demonstrations as shown in
+                                                       Table 9.
+                                                        Models             NQ        PopQA      TriviaQA FEVER
+                                                                         (%acc)      (%acc)     (%acc)       (%acc)
+                                                        baseline          27.8        47.8          55.6      23.2
+                                                        CL-RAG-7 B        40.2        56.4          68.4      79.2
+                                                        mixed             28.0        49.8          56.7      67.3
+                                                        misleading        27.2        48.6          54.2      30.8
+
+                                                       Table 9: The instructions used for our CL-RAG-7 B
+                                                       and -13 B are selected and filtred as detailed in §3.4.2.
+                                                       We conducted tuning on incorrect (i.e., misleading) and
+                                                       mixed (50% misleading and 50% filtred correct demon-
+                                                       strations) and reported the baseline (Llama-2-7b).
+
+                                                  11182
+G    Example Generations
+      Question: When was catch me if you can made?
+
+      Llama-2-7b (baseline)
+      The movie "Catch Me If You Can" is a biographical crime drama directed by Spielberg released in 2000.
+      Llama-2-7b (RAG)
+      Based on the information retrieved from Documents [1-5], we can determine that the Catch Me if You Can
+      development began in 1980 and was released on 1989.
+      Self-Reasoning-7b (extracted from (Xia et al., 2024))
+      Relevant: True
+      Relevant Reason: The provided documents are relevant with question.
+      Cite content: [1] the original start date was January 2002, but was pushed to February 7 in Los Angeles
+      Reason to cite: This piece provides information on the commencement and location of filming for ’Catch Me If
+      You Can’, indicating that it started in April 2002
+      Cite content: [3] When production finished, the studio that had promised to distribute the movie had gone out of
+      business, and it was eventually released by MCA Inc. in July 1989.
+      Reason to cite: This piece provides information on the release date of ’Catch Me If You Can’, indicating that it
+      was eventually released by MCA Inc. in July.
+      The film ’Catch Me If You Can’ was made in 2002. It started filming in April 2002 in Park Avenue, just
+      outside the Waldorf-Astoria Hotel, and moved to Orange, New Jersey, before returning to Brooklyn for bank and
+      courthouse scenes [1]
+      C-RAG-7 B
+      # Reference Documents:
+      - [1]: The film due to her busy schedule [...]
+      - [2]: Development for the film started in 1980 but did not book [...]
+      - [3]: The film was Sommers’s directorial debut and was written by him. When production finished [...]
+      [other # Reference Documents]
+      # Analysis:
+      [1] Passage claims: "The original start date was January 2002, but was pushed to February 7 in Los Angeles,
+      California." Relevance: This is directly relevant as it provides the specific production start date for *Catch Me If
+      You Can* in early 2002.
+      [2] Passage claims: "Development for the film started in 1980, but did not progress until 1997, when Spielberg’s
+      DreamWorks bought the film rights to Abagnale’s book." Relevance: Relevant for providing context on the film’s
+      development timeline, but no specific filming dates.
+      [3] Passage claims: "It was funded independently and had a budget of 800,000...released by MCA Inc. in July
+      1989." Relevance: Irrelevant as it pertains to a different film.
+      # Explanation:
+      Document #1 provides the direct answer with filming starting in February 2002. Document #2 gives development
+      context but no dates for filming. Document #3 is unrelated and irrelevant. (explanations for the remaining Docs)
+      # Answer:
+      *Catch Me If You Can* was made in early 2002, with filming beginning in February 2002.
+
+Table 10: An example of C-RAG inference compared to other approaches. C-RAG generates reasoned explanations,
+delivering the final correct answer.
+
+
+
+
+                                                            11183
+

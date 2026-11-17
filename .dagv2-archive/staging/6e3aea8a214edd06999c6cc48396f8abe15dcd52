@@ -1,0 +1,81 @@
+{
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Plan an executable dependency DAG of 1 to 6 tasks using only the question.\nReturn steps with question, output_slot, answer_type, inputs, execution, plus final_node_id.\nDo not answer, guess intermediate entities, or use outside knowledge. Preserve all entity,\nyear, relation and scope constraints. Ground later queries with {parent_slot} placeholders.\nexecution=retrieval obtains missing factual evidence; execution=compose combines supported\nparent conclusions and their necessary sources. Compose tasks must declare their necessary\nparents. Include the final comparison or synthesis in this same plan when needed.\nfinal_node_id identifies the existing task that answers the requested question completely.\nfinal_node_id MUST exactly equal that task's output_slot string. Never use a positional\nname such as step2 unless step2 is literally the declared output_slot. For example,\nif the final task has output_slot=\"city\", return final_node_id=\"city\".\nFor a natural chain such as director -> university -> city, city is the final task; do not\nappend a redundant answer task. The final task has no children. Independent tasks are allowed.\nUse unique simple output slots, no cycles, no hidden extra nodes. \nAlso return output_contract and program. Before ANY retrieval, plan every foreseeable\ndownstream task, its input dependencies and the designated terminal. Unknown entities,\nrules and conditions are UNBOUND INPUTS, not grounds to omit downstream tasks.\nF is the typed solving relation of this DAG; a reduced F_t never replaces the DAG.\noutput_contract has mode(value/one_reason/all_failures/semantic), result_type\n(bool/entity/number/record/set/text), entity_scope, time_scope and explanation\n(none/one/all/semantic), optional fields. Do not reduce the user's output requirements.\nprogram has variables (ID -> declaration), expression, optional constraints,\nrules_complete and rule_binding. Declaration has type, demand (a planned task ID),\noptional domain, open, unit. Variables may share a task for bounded multi-field reading.\nOmit optional fields that do not apply; optional does not mean fill with null.\nAn unknown/unrestricted domain is represented by OMITTING domain, not null, a string,\na scalar, or an empty array. For an open entity/text variable use, for example,\n{\"type\":\"entity\",\"demand\":\"place\",\"open\":true} with no domain field.\nA known finite domain is an array of correctly typed possible values; only use\nvalues explicitly constrained by the question, never guessed answers or candidates.\nOnly number variables may use an interval domain: {\"lower\":0,\"upper\":null}.\nInterval endpoints are numbers or null (unbounded); lower_closed/upper_closed are\noptional booleans. Null endpoints are legal; a null domain itself is not.\nA numeric domain states legal possible values, NOT an acceptance threshold. Keep\nthresholds in comparison expressions, never exclude a possible failing observation.\nUnknown numeric bounds and memory-derived rules must remain unknown until sourced.\nExpressions ONLY use {op:const,value:...}, {op:var,id:...}, {op:and/or/not/eq/ne/lt/le/gt/ge/if/tuple,args:[...]},\nor {op:record/failures/one_reason,fields:{name:expression}}. No code.\nUse symbolic value mode for ordinary sourced facts/entity chains and comparisons.\nFor genuinely open advice use semantic mode, with the terminal text variable as expression.\nRules from memory: do NOT invent thresholds. Plan a rule task and all foreseeable\ncondition-checking tasks with that rule as an unbound parent. Set rules_complete=false.\nrule_binding={variable:rule_variable,condition_demands:[preplanned task IDs]} permits a\nsourced rule reading to instantiate internal conditions within those tasks. Initially\nuse an unbound result variable in the expression. Keep the output contract fixed.\nEvery variable's demand must exist; parameter dependencies use the DAG inputs.\nThe terminal may be compose even when some parents will later be short-circuited.\nOptional program.task_expressions maps intermediate compose variables to whitelist\nexpressions over declared earlier DAG parents. These are free deterministic bindings;\npartial evaluation runs before demanding every planned parent. Do not use this to\ninvent sourced facts or create paid tasks. Unsupported compose remains semantic reading.\n\n\nFor a personalized query, relevant preferences, past experiences, dislikes,\nreasons, historical stages and constraints are evidence even when they do not repeat the new event.\nA recommendation needs evidence of the user's tastes; the history need not already contain the recommendation.\nA conversational update is not a request to discover unspecified event names, dates, locations or schedules.\nRequire these details only if actually requested. Adapt to the query: do not impose a change/reason template\non every question. Preserve uncertain cross-domain connections as implicit/partial, not explicit facts.\nDo not treat an assistant suggestion as a user preference or observation order as calendar event time.\nThis task is a personalized reply. Plan retrieval of relevant personal history, not a questionnaire for missing external facts. Keep independent history needs independent; do not block them on guessed names.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"final_node_id\": {\"type\": \"string\"}, \"output_contract\": {\"additionalProperties\": false, \"properties\": {\"entity_scope\": {\"type\": \"string\"}, \"explanation\": {\"enum\": [\"none\", \"one\", \"all\", \"semantic\"]}, \"fields\": {\"items\": {\"minLength\": 1, \"type\": \"string\"}, \"minItems\": 1, \"type\": \"array\", \"uniqueItems\": true}, \"mode\": {\"enum\": [\"value\", \"one_reason\", \"all_failures\", \"semantic\"]}, \"result_type\": {\"enum\": [\"bool\", \"entity\", \"number\", \"record\", \"set\", \"text\"]}, \"time_scope\": {\"type\": \"string\"}}, \"required\": [\"mode\", \"result_type\", \"entity_scope\", \"time_scope\", \"explanation\"], \"type\": \"object\"}, \"program\": {\"additionalProperties\": false, \"properties\": {\"constraints\": {\"items\": {\"type\": \"object\"}, \"type\": \"array\"}, \"expression\": {\"type\": \"object\"}, \"rule_binding\": {\"additionalProperties\": false, \"properties\": {\"condition_demands\": {\"items\": {\"type\": \"string\"}, \"minItems\": 1, \"type\": \"array\", \"uniqueItems\": true}, \"variable\": {\"type\": \"string\"}}, \"required\": [\"variable\", \"condition_demands\"], \"type\": \"object\"}, \"rules_complete\": {\"type\": \"boolean\"}, \"task_expressions\": {\"additionalProperties\": {\"type\": \"object\"}, \"type\": \"object\"}, \"variables\": {\"additionalProperties\": {\"additionalProperties\": false, \"properties\": {\"demand\": {\"minLength\": 1, \"type\": \"string\"}, \"domain\": {\"anyOf\": [{\"items\": {}, \"type\": \"array\", \"uniqueItems\": true}, {\"additionalProperties\": false, \"properties\": {\"lower\": {\"type\": [\"number\", \"null\"]}, \"lower_closed\": {\"type\": \"boolean\"}, \"unit\": {\"enum\": [null, \"cm\", \"h\", \"hours\", \"km\", \"m\", \"min\", \"minutes\", \"ms\", \"s\", \"seconds\"]}, \"upper\": {\"type\": [\"number\", \"null\"]}, \"upper_closed\": {\"type\": \"boolean\"}}, \"required\": [\"lower\", \"upper\"], \"type\": \"object\"}], \"description\": \"Optional legal domain; omit if unrestricted. Arrays list finite values; interval objects apply only to number variables.\"}, \"open\": {\"type\": \"boolean\"}, \"type\": {\"enum\": [\"bool\", \"entity\", \"number\", \"text\", \"set\", \"record\", \"rule\"]}, \"unit\": {\"enum\": [null, \"cm\", \"h\", \"hours\", \"km\", \"m\", \"min\", \"minutes\", \"ms\", \"s\", \"seconds\"]}}, \"required\": [\"type\", \"demand\"], \"type\": \"object\"}, \"type\": \"object\"}}, \"required\": [\"variables\", \"expression\"], \"type\": \"object\"}, \"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"execution\": {\"enum\": [\"retrieval\", \"compose\"]}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\", \"execution\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\", \"final_node_id\", \"output_contract\", \"program\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"I recently attended an event where there was a unique blend of modern beats with Pacific sounds.\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "algorithm_version": "dagbt_residual_memory_v1",
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791767852.265567,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791767860.881818
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-8ed1e31c70f20b00",
+    "object": "chat.completion",
+    "created": 1791767852,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What events have I attended recently that involved music or performances?\",\n      \"output_slot\": \"recent_events\",\n      \"answer_type\": \"set\",\n      \"inputs\": [],\n      \"execution\": \"retrieval\"\n    },\n    {\n      \"question\": \"Which of my recent events featured a unique blend of modern beats with Pacific sounds?\",\n      \"output_slot\": \"event\",\n      \"answer_type\": \"entity\",\n      \"inputs\": [\"recent_events\"],\n      \"execution\": \"compose\"\n    }\n  ],\n  \"final_node_id\": \"event\",\n  \"output_contract\": {\n    \"mode\": \"value\",\n    \"result_type\": \"entity\",\n    \"entity_scope\": \"event\",\n    \"time_scope\": \"recent\",\n    \"explanation\": \"one\"\n  },\n  \"program\": {\n    \"variables\": {\n      \"recent_events\": {\n        \"type\": \"set\",\n        \"demand\": \"recent_events\",\n        \"open\": true\n      },\n      \"event\": {\n        \"type\": \"entity\",\n        \"demand\": \"event\",\n        \"open\": true\n      }\n    },\n    \"expression\": {\n      \"op\": \"var\",\n      \"id\": \"event\"\n    },\n    \"rules_complete\": true\n  }\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 1926,
+      "total_tokens": 2220,
+      "completion_tokens": 294,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 1926,
+    "observed_prompt_tokens": 1926,
+    "tokenization_request_sha256": "2fc5a18a6c18a2bd64a98ec85b93f502a5e1a7b9abc4183698c39e76894ce3fb"
+  }
+}

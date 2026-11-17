@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:338\", \"source_id\": \"hotpotqa:338\"}]\nLea Thompson\nLea Katherine Thompson (born May 31, 1961) is an American actress, television director, and television producer. She is known for her role as Lorraine Baines in the \"Back to the Future\" trilogy and as the title character in the 1990s NBC sitcom \"Caroline in the City\". Other films for which she is known include \"All the Right Moves\" (1983), \"Red Dawn\" (1984), \"Howard the Duck\" (1986) \"Some Kind of Wonderful\" (1987), and \"The Beverly Hillbillies\" (1993). From 2011-2017, she co-starred as Kathryn Kennish in the Freeform (formerly ABC Family) series \"Switched at Birth\".\n\n[Passage {\"doc_id\": \"hotpotqa:7000\", \"source_id\": \"hotpotqa:7000\"}]\nPitch Perfect 3\nPitch Perfect 3 is an upcoming American musical comedy film directed by Trish Sie and written by Kay Cannon. A sequel to \"Pitch Perfect 2\" (2015) and the third and final installment in the \"Pitch Perfect\" trilogy, the film will star Anna Kendrick, Anna Camp, Rebel Wilson, Brittany Snow, Hailee Steinfeld, Alexis Knapp, Ester Dean, Hana Mae Lee, Chrissie Fit, Kelley Jakle and Shelley Regner, with Elizabeth Banks and John Michael Higgins. The film is scheduled to be released on December 22, 2017."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "312",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599359.0898728,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599360.00595
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00028573606385376763
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 916,
+      "completion_tokens": 2,
+      "total_tokens": 918
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

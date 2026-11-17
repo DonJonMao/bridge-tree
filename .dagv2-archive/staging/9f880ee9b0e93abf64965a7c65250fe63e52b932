@@ -1,0 +1,837 @@
+[
+  {
+    "unit_id": "7f7c4177-a11b-4a29-add6-b78ff733799c",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/e325929157d840c70b6e5b8d7477fd1ae4b9e765abd7baa0dac8343e121ab113.json.gz",
+    "question": "Last weekend, I quickly packed for an overnight trip.",
+    "initial_dag": [
+      {
+        "question": "What was the overnight trip I took last weekend?",
+        "output_slot": "trip",
+        "answer_type": "entity",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What did I pack for the trip?",
+        "output_slot": "packed_items",
+        "answer_type": "set",
+        "inputs": [
+          "trip"
+        ],
+        "execution": "retrieval"
+      }
+    ],
+    "contract": {
+      "mode": "value",
+      "result_type": "set",
+      "entity_scope": "personal items",
+      "time_scope": "last weekend",
+      "explanation": "none"
+    },
+    "variables": {
+      "trip": {
+        "type": "entity",
+        "demand": "trip",
+        "open": true,
+        "scope": {
+          "entity_scope": "personal trips",
+          "time_scope": "last weekend"
+        }
+      },
+      "packed_items": {
+        "type": "set",
+        "demand": "packed_items",
+        "open": true,
+        "scope": {
+          "entity_scope": "personal items",
+          "time_scope": "last weekend"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "trip",
+        "stance": "unknown",
+        "n": 1
+      },
+      {
+        "variable": "trip",
+        "stance": "partial",
+        "n": 1
+      },
+      {
+        "variable": "trip",
+        "stance": "support",
+        "n": 3
+      },
+      {
+        "variable": "packed_items",
+        "stance": "partial",
+        "n": 1
+      }
+    ],
+    "gaps": [
+      [
+        "No text explicitly identifies an overnight trip that occurred last weekend.",
+        1
+      ],
+      [
+        "No text in the provided source spans describes an overnight trip taken last weekend. The conversation discusses planning future local experiences and a scenic road trip, but does not mention any specific trip that was actually taken last weekend.",
+        1
+      ],
+      [
+        "The user mentions attending an expo with travel packages and destinations, but does not state what the overnight trip was last weekend.",
+        1
+      ],
+      [
+        "No explicit text identifies a specific trip taken last weekend.",
+        1
+      ],
+      [
+        "No explicit evidence that the planned food tour was taken last weekend or that it was an overnight trip.",
+        1
+      ],
+      [
+        "No source text describes what items were packed for the trip. The conversation discusses trip planning and destinations but does not mention any packed items.",
+        1
+      ],
+      [
+        "The specific items packed are not enumerated in the available text; only generic categories (versatile outfits, toiletries, essentials) are mentioned.",
+        1
+      ]
+    ],
+    "candidate_n": 22,
+    "ann": 36,
+    "joint_reads": 7,
+    "semantic_calls": 0,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "indeterminate",
+      "active_demands": [
+        "packed_items"
+      ],
+      "paused_demands": [
+        "trip"
+      ]
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  },
+  {
+    "unit_id": "3315a6fd-fcc2-4101-8766-f6b01d457713",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/5ea4b60669dd67cc40eed2a79f1a60ad33a89379addd7cfa24702e179fb91b0d.json.gz",
+    "question": "User: Interestingly, I also restarted my blog to document my personal finance journey and tips. This decision came after reflecting on my past financial successes and the mistakes I made along the way. I thought that by sharing my experiences, I could not only help myself stay on track but also provide insight to others who might be struggling. The process of writing about finances has been enlightening, as I realize how much my views on money have evolved over the years. It gives me a sense of purpose to meticulously outline my journey, hoping that my words may inspire or guide at least one reader towards better financial decisions.",
+    "initial_dag": [
+      {
+        "question": "What is the user's personal finance blog about?",
+        "output_slot": "blog_topic",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What motivated the user to restart their blog?",
+        "output_slot": "motivation",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What does the user hope to achieve by sharing their financial experiences?",
+        "output_slot": "goal",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "How has the process of writing about finances affected the user?",
+        "output_slot": "effect",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What is the user's overall sentiment about their blog and financial journey?",
+        "output_slot": "sentiment",
+        "answer_type": "text",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "Synthesize the user's blog restart: topic, motivation, goal, effect, and sentiment.",
+        "output_slot": "summary",
+        "answer_type": "text",
+        "inputs": [
+          "blog_topic",
+          "motivation",
+          "goal",
+          "effect",
+          "sentiment"
+        ],
+        "execution": "compose"
+      }
+    ],
+    "contract": {
+      "mode": "semantic",
+      "result_type": "text",
+      "entity_scope": "user's personal finance blog",
+      "time_scope": "present",
+      "explanation": "semantic"
+    },
+    "variables": {
+      "blog_topic": {
+        "type": "text",
+        "demand": "blog_topic",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      },
+      "motivation": {
+        "type": "text",
+        "demand": "motivation",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      },
+      "goal": {
+        "type": "text",
+        "demand": "goal",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      },
+      "effect": {
+        "type": "text",
+        "demand": "effect",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      },
+      "sentiment": {
+        "type": "text",
+        "demand": "sentiment",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      },
+      "summary": {
+        "type": "text",
+        "demand": "summary",
+        "scope": {
+          "entity_scope": "user's personal finance blog",
+          "time_scope": "present"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "blog_topic",
+        "stance": "support",
+        "n": 2
+      },
+      {
+        "variable": "motivation",
+        "stance": "support",
+        "n": 4
+      },
+      {
+        "variable": "goal",
+        "stance": "support",
+        "n": 2
+      },
+      {
+        "variable": "effect",
+        "stance": "support",
+        "n": 2
+      },
+      {
+        "variable": "sentiment",
+        "stance": "support",
+        "n": 18
+      },
+      {
+        "variable": "sentiment",
+        "stance": "contradiction",
+        "n": 2
+      },
+      {
+        "variable": "summary",
+        "stance": "support",
+        "n": 1
+      }
+    ],
+    "gaps": [
+      [
+        "The user expresses both positive and negative sentiments about their blog and financial journey. Positive evidence includes restarting the blog, finding it fulfilling, and launching a podcast. Negative evidence includes removing the blog due to disheartening criticism. The overall sentiment is mixed, with both support and contradiction present.",
+        1
+      ],
+      [
+        "The user expresses both positive and negative sentiments about their blog and financial journey across different messages, creating a conflict that cannot be resolved into a single sentiment.",
+        1
+      ]
+    ],
+    "candidate_n": 17,
+    "ann": 36,
+    "joint_reads": 8,
+    "semantic_calls": 1,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "determined",
+      "active_demands": [
+        "sentiment"
+      ],
+      "paused_demands": [
+        "summary"
+      ]
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  },
+  {
+    "unit_id": "bf1209ec-2d77-4385-be78-04abfba82f31",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/7ee29cb50b3bfa45ebd4e53a3f48689ff0bed51c9a239501865d1c290099fa1e.json.gz",
+    "question": "I recently took another course related to my field.",
+    "initial_dag": [
+      {
+        "question": "What courses have I taken recently that are related to my field?",
+        "output_slot": "recent_courses",
+        "answer_type": "set",
+        "inputs": [],
+        "execution": "retrieval"
+      }
+    ],
+    "contract": {
+      "mode": "value",
+      "result_type": "set",
+      "entity_scope": "user's recent courses",
+      "time_scope": "recent",
+      "explanation": "none"
+    },
+    "variables": {
+      "recent_courses": {
+        "type": "set",
+        "demand": "recent_courses",
+        "open": true,
+        "scope": {
+          "entity_scope": "user's recent courses",
+          "time_scope": "recent"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "recent_courses",
+        "stance": "support",
+        "n": 60
+      }
+    ],
+    "gaps": [
+      [
+        "The user mentions reading academic papers and exploring learning styles, but these are not structured courses.",
+        1
+      ],
+      [
+        "The user mentions writing an essay for class, but this is not a course taken recently.",
+        1
+      ],
+      [
+        "The user mentions changes in study habits and interests, but no specific course is named.",
+        1
+      ]
+    ],
+    "candidate_n": 22,
+    "ann": 36,
+    "joint_reads": 10,
+    "semantic_calls": 0,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "indeterminate",
+      "active_demands": [
+        "recent_courses"
+      ],
+      "paused_demands": []
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  },
+  {
+    "unit_id": "89393cad-6d64-438d-a897-d0784d7eb3b1",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/2ed97357431ed914e5099dc2310272739a177f0d311c6f507e01b1b0b097efb4.json.gz",
+    "question": "I made a traditional dish from another culture recently.",
+    "initial_dag": [
+      {
+        "question": "What traditional dish did I make recently?",
+        "output_slot": "dish",
+        "answer_type": "entity",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What culture is the dish from?",
+        "output_slot": "culture",
+        "answer_type": "entity",
+        "inputs": [
+          "dish"
+        ],
+        "execution": "retrieval"
+      }
+    ],
+    "contract": {
+      "mode": "value",
+      "result_type": "entity",
+      "entity_scope": "the culture of the dish I made",
+      "time_scope": "recent",
+      "explanation": "none"
+    },
+    "variables": {
+      "dish": {
+        "type": "entity",
+        "demand": "dish",
+        "open": true,
+        "scope": {
+          "entity_scope": "the dish I made",
+          "time_scope": "recent"
+        }
+      },
+      "culture": {
+        "type": "entity",
+        "demand": "culture",
+        "open": true,
+        "scope": {
+          "entity_scope": "the culture of the dish I made",
+          "time_scope": "recent"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "dish",
+        "stance": "unknown",
+        "n": 4
+      }
+    ],
+    "gaps": [
+      [
+        "The user mentions making a traditional dish from another culture recently but does not specify which dish.",
+        1
+      ],
+      [
+        "No mention of any dish, traditional or otherwise, in the provided conversation.",
+        1
+      ],
+      [
+        "No text in the provided source spans mentions any dish, traditional or otherwise, that the user made recently.",
+        1
+      ],
+      [
+        "No text in the provided source spans mentions any traditional dish I made recently. The conversation discusses a dating profile and personal growth, but does not specify a dish.",
+        1
+      ],
+      [
+        "No information about any dish made by the user is present in the provided text.",
+        1
+      ],
+      [
+        "No evidence found in the provided source spans about a traditional dish I made recently.",
+        1
+      ]
+    ],
+    "candidate_n": 18,
+    "ann": 36,
+    "joint_reads": 6,
+    "semantic_calls": 0,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "indeterminate",
+      "active_demands": [
+        "dish",
+        "culture"
+      ],
+      "paused_demands": []
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  },
+  {
+    "unit_id": "1d914339-dec5-4e6d-90e2-881c5ca505fc",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/e2a5158877ed1cb1ed94c513ff55543c53f23d97ebca5ce6ffe7b308f4a9a8c0.json.gz",
+    "question": "I'm curious about some new reading suggestions in different genres. Could you recommend a unique blend of themes that might offer fresh perspectives or storytelling styles?",
+    "initial_dag": [
+      {
+        "question": "What are the user's past reading preferences, favorite genres, and any disliked themes or authors?",
+        "output_slot": "user_prefs",
+        "answer_type": "record",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What are some notable recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles?",
+        "output_slot": "candidates",
+        "answer_type": "set",
+        "inputs": [
+          "user_prefs"
+        ],
+        "execution": "retrieval"
+      },
+      {
+        "question": "Based on the user's preferences and the candidate books, which book offers a unique blend of themes and a fresh perspective or storytelling style?",
+        "output_slot": "recommendation",
+        "answer_type": "text",
+        "inputs": [
+          "user_prefs",
+          "candidates"
+        ],
+        "execution": "compose"
+      }
+    ],
+    "contract": {
+      "mode": "semantic",
+      "result_type": "text",
+      "entity_scope": "user",
+      "time_scope": "present",
+      "explanation": "semantic"
+    },
+    "variables": {
+      "user_prefs": {
+        "type": "record",
+        "demand": "user_prefs",
+        "scope": {
+          "entity_scope": "user",
+          "time_scope": "past"
+        }
+      },
+      "candidates": {
+        "type": "set",
+        "demand": "candidates",
+        "open": true,
+        "scope": {
+          "entity_scope": "books",
+          "time_scope": "recent"
+        }
+      },
+      "recommendation": {
+        "type": "text",
+        "demand": "recommendation",
+        "open": true,
+        "scope": {
+          "entity_scope": "user",
+          "time_scope": "present"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "user_prefs",
+        "stance": "support",
+        "n": 8
+      },
+      {
+        "variable": "candidates",
+        "stance": "unknown",
+        "n": 1
+      }
+    ],
+    "gaps": [
+      [
+        "No explicit statement about specific disliked authors.",
+        1
+      ],
+      [
+        "No explicit statement about specific disliked themes beyond the genres mentioned.",
+        1
+      ],
+      [
+        "No source documents provide information about notable recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles. The provided source spans only contain the user's past reading preferences and conversations about their reading habits, not book recommendations or titles.",
+        1
+      ],
+      [
+        "No source text provides specific book titles, authors, or recommendations for recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles. The available text only discusses the user's past reading preferences and experiences, not external book recommendations.",
+        1
+      ],
+      [
+        "No source documents provide information about notable recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles. The available source documents only contain the user's past reading preferences and do not include any book recommendations or lists of recent books.",
+        1
+      ],
+      [
+        "No source text provides specific book titles, authors, or recommendations for recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles. The user's preferences are established, but no retrieval or recommendation data is present in the provided source spans.",
+        1
+      ],
+      [
+        "No source documents provide information about notable recent books (last 5 years) in genres the user has not explored much, with unique themes or narrative styles. The provided source spans only contain the user's past reading preferences and do not include any book recommendations or recent book data.",
+        1
+      ],
+      [
+        "No source text provides any specific recent book titles, authors, or recommendations that match the user's unexplored genres with unique themes or narrative styles. The available text only discusses the user's past preferences and general reading habits, not specific book candidates.",
+        1
+      ]
+    ],
+    "candidate_n": 20,
+    "ann": 36,
+    "joint_reads": 9,
+    "semantic_calls": 0,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "indeterminate",
+      "active_demands": [
+        "candidates",
+        "recommendation"
+      ],
+      "paused_demands": [
+        "user_prefs"
+      ]
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  },
+  {
+    "unit_id": "6defbf8e-0c2e-42f6-99e0-809ec183852e",
+    "path": "compressed_rows/personamem/dagbt_residual_memory_v1/rows/9241a394a85b0098e451b262c92e8f74ff627fd87379eea181c88fb5370d1071.json.gz",
+    "question": "I've been thinking about diversifying my activities and am considering attending some workshops or events to boost my knowledge. Any recommendations on what I should look into?",
+    "initial_dag": [
+      {
+        "question": "What are the user's past interests, hobbies, or activities that could inform workshop recommendations?",
+        "output_slot": "user_interests",
+        "answer_type": "set",
+        "inputs": [],
+        "execution": "retrieval"
+      },
+      {
+        "question": "What workshops or events are available that align with the user's interests?",
+        "output_slot": "workshops",
+        "answer_type": "set",
+        "inputs": [
+          "user_interests"
+        ],
+        "execution": "retrieval"
+      },
+      {
+        "question": "Based on the user's interests and available workshops, what are the top recommendations?",
+        "output_slot": "recommendations",
+        "answer_type": "text",
+        "inputs": [
+          "user_interests",
+          "workshops"
+        ],
+        "execution": "compose"
+      }
+    ],
+    "contract": {
+      "mode": "semantic",
+      "result_type": "text",
+      "entity_scope": "user",
+      "time_scope": "present",
+      "explanation": "semantic"
+    },
+    "variables": {
+      "user_interests": {
+        "type": "set",
+        "demand": "user_interests",
+        "scope": {
+          "entity_scope": "user",
+          "time_scope": "past"
+        }
+      },
+      "workshops": {
+        "type": "set",
+        "demand": "workshops",
+        "scope": {
+          "entity_scope": "workshops",
+          "time_scope": "present"
+        }
+      },
+      "recommendations": {
+        "type": "text",
+        "demand": "recommendations",
+        "scope": {
+          "entity_scope": "user",
+          "time_scope": "present"
+        }
+      }
+    },
+    "stance_counts": [
+      {
+        "variable": "user_interests",
+        "stance": "support",
+        "n": 11
+      },
+      {
+        "variable": "workshops",
+        "stance": "unknown",
+        "n": 1
+      },
+      {
+        "variable": "workshops",
+        "stance": "partial",
+        "n": 1
+      }
+    ],
+    "gaps": [
+      [
+        "No source text describes any currently available workshops or events. The user's past activities (e.g., investment workshop, digital nomad workshop, stock market analysis workshop, photography workshop, sustainable travel workshop, cultural festivals, travel planning workshop, international festival visit, budget workshop, online financial forum) are all historical and do not indicate present offerings. No explicit mention of present workshops or events exists in the provided source spans.",
+        1
+      ],
+      [
+        "No source text identifies any currently available workshops or events that align with the user's interests. The assistant suggests attending workshops in general (s58, s59, s60) but does not name any specific available workshop or event. The user's past activities (investment, digital nomad, stock market, photography, travel planning, sustainable travel, cultural festivals, budget workshops, online forums) are not matched to any present-time offerings in the provided source spans.",
+        1
+      ],
+      [
+        "No source text describes any currently available workshops or events. The user mentions past workshops and a personal finance course commitment (s140), but no present offerings are identified.",
+        1
+      ],
+      [
+        "No source text identifies specific workshops or events currently available that align with the user's interests.",
+        1
+      ],
+      [
+        "No specific workshop names, dates, or detailed descriptions are provided in the source text to populate a set of workshop objects. The only present-time workshop mentioned is a financial seminar, but its name and other attributes are missing.",
+        1
+      ],
+      [
+        "No source text in this batch describes any currently available workshops or events that align with the user's interests. The provided text only covers the user's past activities and recent networking/seminar participation, not present workshop offerings.",
+        1
+      ]
+    ],
+    "candidate_n": 20,
+    "ann": 36,
+    "joint_reads": 7,
+    "semantic_calls": 0,
+    "trace_keys": [
+      "candidate_ids",
+      "new_candidate_ids",
+      "local_candidate_ids",
+      "trace",
+      "stop_reason"
+    ],
+    "last_trace_status": "budget_exhausted",
+    "last_state": {
+      "outcome": "indeterminate",
+      "active_demands": [
+        "workshops",
+        "recommendations"
+      ],
+      "paused_demands": [
+        "user_interests"
+      ]
+    },
+    "fact_state_keys": [
+      "initial_program",
+      "program",
+      "contract",
+      "program_revision",
+      "facts",
+      "sources",
+      "route_ids",
+      "versions",
+      "routes",
+      "pending_variables",
+      "rule_route_ids",
+      "instantiations",
+      "history"
+    ]
+  }
+]

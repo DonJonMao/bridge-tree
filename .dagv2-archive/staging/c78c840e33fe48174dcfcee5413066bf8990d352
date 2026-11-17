@@ -1,0 +1,704 @@
+{
+  "source_commit": "fcd315e",
+  "run": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4",
+  "reviewed_unix": 1791878569.828141,
+  "scope": "Read-only review of the first at most three residual questions; no evaluation labels, correctness scoring, API credentials or transport headers.",
+  "manual_findings": [
+    {
+      "finding": "Observed first-question historical responses use history_evidence and only slots; no r3 terminal-field leakage is present in these inspected completed responses."
+    },
+    {
+      "finding": "attended_events is a set variable, but the model repeatedly supplies two distinct singleton support values. The declared protocol treats each support as a complete alternative value, so these conflict instead of establishing their union. Observed batches contain new sources; this is not a repeated identical-window loop."
+    }
+  ],
+  "questions": [
+    {
+      "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+      "requests": [
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/a4554d018487cce6a1a0f603da269b4bdf4412ebfe2ae82974ccc4294d5d94d2.json",
+          "stage": [
+            "joint_read",
+            "2"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "obs_attended_events_1",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "obs_attended_events_2",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/ba87bf75a1d65ef49150823425f44ad64980697345ef46cfd7289f29c29149f3.json",
+          "stage": [
+            "joint_read",
+            "3"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "fact_bcca37a6338553a664e9d635",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "fact_ef9113dffd5d74071251ab90",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/021f8305324345d2681643c4a5855a50beb367e0d2af22ae35cdbf58b1c41382.json",
+          "stage": [
+            "joint_read",
+            "4"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "fact_bcca37a6338553a664e9d635",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "fact_ef9113dffd5d74071251ab90",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/423953671f93f7180b36893c512bce9d41858b1ee42ff062c068019e423dc82e.json",
+          "stage": [
+            "joint_read",
+            "5"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "fact_bcca37a6338553a664e9d635",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "fact_ef9113dffd5d74071251ab90",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/c88004893167390ce58333b30d6a5c3a0e4adc0d968b766c9ea9fb6f7f474173.json",
+          "stage": [
+            "joint_read",
+            "6"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "fact_bcca37a6338553a664e9d635",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "fact_ef9113dffd5d74071251ab90",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/7f98d59a44859e0ca7b9b22ca9b60cf2eb5d06090f90ea8cb53d5e2a6f2989b0/attempt-001/requests/1787e1ce57fe4c0453accddc17d633754b237846a3b9c5d69d51341b43520cc3.json",
+          "stage": [
+            "joint_read",
+            "7"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What events has the user attended that involved music or sound?",
+            "output_slot": "attended_events",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "attended_events",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "fact_bcca37a6338553a664e9d635",
+                  "stance": "support",
+                  "value": [
+                    "a local electronic music festival that featured some surprising Pacific Islander artists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                },
+                {
+                  "id": "fact_ef9113dffd5d74071251ab90",
+                  "stance": "support",
+                  "value": [
+                    "a festival featuring traditional Pacific music in 2012"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "reader_batches": [
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 32.05937886238098,
+          "batch_source_count": 123
+        },
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 49.88212609291077,
+          "batch_source_count": 12
+        },
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 60.72448992729187,
+          "batch_source_count": 9
+        },
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 84.660973072052,
+          "batch_source_count": 11
+        },
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 127.11883687973022,
+          "batch_source_count": 11
+        },
+        {
+          "operation": "joint_read",
+          "identity": "304e1bf73c269d1c61ca5618ba4dc88e8528227df63452c52fa6712d04de7234",
+          "valid_rows": 2,
+          "failed_slots": [],
+          "complete": true,
+          "elapsed_seconds": 139.22874402999878,
+          "batch_source_count": 8
+        }
+      ],
+      "result_status": "budget_exhausted"
+    },
+    {
+      "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+      "requests": [
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/90b48e2915d426327e5f6dac41122b1c24b8d85065b1b4430bc9b4259cea7ddf.json",
+          "stage": [
+            "joint_read",
+            "3"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What creative hobbies or activities has the user previously enjoyed or expressed interest in?",
+            "output_slot": "creative_interests",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": true,
+          "top_fields": [
+            "slots"
+          ],
+          "history_envelope_valid": true,
+          "slots": [
+            {
+              "variable": "creative_interests",
+              "unresolved": [],
+              "observations": [
+                {
+                  "id": "obs_creative_1",
+                  "stance": "support",
+                  "value": [
+                    "digital music remixing",
+                    "audio production",
+                    "original music composition",
+                    "podcasting about music fusion",
+                    "attending live music performances",
+                    "exploring music genres and cultural significance",
+                    "discovering album artwork, lyrics, and song stories",
+                    "creating mood-based playlists"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 14
+                },
+                {
+                  "id": "obs_creative_2",
+                  "stance": "contradiction",
+                  "value": [
+                    "researching historical music trends",
+                    "audio production techniques (as a fulfilling activity)",
+                    "music theory study",
+                    "watching music documentaries (as a fulfilling activity)",
+                    "collaborative band work",
+                    "board games"
+                  ],
+                  "parent_versions": {},
+                  "retract_ids": [],
+                  "source_count": 14
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "request_path": "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r4/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/236a61bc93a0559f2d4577a62d47caa1e8dd5a9d97fdafe970a5d1b95e705be7.json",
+          "stage": [
+            "joint_read_repair",
+            "4"
+          ],
+          "phase": "history_evidence",
+          "task": {
+            "question": "What creative hobbies or activities has the user previously enjoyed or expressed interest in?",
+            "output_slot": "creative_interests",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          "public_options_present": false,
+          "required_parent_versions": {},
+          "complete": false
+        }
+      ],
+      "reader_batches": [],
+      "result_status": null
+    }
+  ],
+  "first_question_set_conflict": {
+    "repeat_with_known_evidence": {
+      "stage": [
+        "joint_read",
+        "3"
+      ],
+      "known_observations": [
+        {
+          "id": "fact_bcca37a6338553a664e9d635",
+          "stance": "support",
+          "value": [
+            "a local electronic music festival that featured some surprising Pacific Islander artists"
+          ],
+          "source_ids": [
+            "s33"
+          ],
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {},
+          "retract_ids": [],
+          "reason": "The user explicitly states attending a local electronic music festival with Pacific Islander artists, which involves music.",
+          "variable": "attended_events",
+          "revoked": [],
+          "semantic_status": "model_judgment"
+        },
+        {
+          "id": "fact_ef9113dffd5d74071251ab90",
+          "stance": "support",
+          "value": [
+            "a festival featuring traditional Pacific music in 2012"
+          ],
+          "source_ids": [
+            "s67"
+          ],
+          "entity_scope": "user",
+          "time_scope": "past",
+          "parent_versions": {},
+          "retract_ids": [],
+          "reason": "The user explicitly states attending a festival featuring traditional Pacific music in 2012, which involves music.",
+          "variable": "attended_events",
+          "revoked": [],
+          "semantic_status": "model_judgment"
+        }
+      ],
+      "observations": [
+        {
+          "observation": {
+            "id": "fact_bcca37a6338553a664e9d635",
+            "stance": "support",
+            "value": [
+              "a local electronic music festival that featured some surprising Pacific Islander artists"
+            ],
+            "source_ids": [
+              "s33"
+            ],
+            "entity_scope": "user",
+            "time_scope": "past",
+            "parent_versions": {},
+            "retract_ids": [],
+            "reason": "The user explicitly states attending a local electronic music festival with Pacific Islander artists, which involves music."
+          },
+          "cited_sources": [
+            {
+              "id": "s33",
+              "doc_id": "d1",
+              "start": 105,
+              "end": 442,
+              "text": "User: I had a spectacular week with music recently! I attended a local electronic music festival that featured some surprising Pacific Islander artists. It was such a delight to see how their traditional sounds merged with modern electronic beats, creating a unique auditory experience that was both familiar and alien at the same time. ",
+              "source_role": "user",
+              "source_message_indices": [
+                48
+              ]
+            }
+          ]
+        },
+        {
+          "observation": {
+            "id": "fact_ef9113dffd5d74071251ab90",
+            "stance": "support",
+            "value": [
+              "a festival featuring traditional Pacific music in 2012"
+            ],
+            "source_ids": [
+              "s67"
+            ],
+            "entity_scope": "user",
+            "time_scope": "past",
+            "parent_versions": {},
+            "retract_ids": [],
+            "reason": "The user explicitly states attending a festival featuring traditional Pacific music in 2012, which involves music."
+          },
+          "cited_sources": [
+            {
+              "id": "s67",
+              "doc_id": "d2",
+              "start": 104,
+              "end": 392,
+              "text": "User: Oh for sure! I also attended a festival featuring traditional Pacific music in 2012, which made me appreciate the depth of my cultural roots. Being surrounded by talented artists and witnessing the rich heritage displayed through their performances was a transformative experience. ",
+              "source_role": "user",
+              "source_message_indices": [
+                8,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "initial_read": {
+      "stage": [
+        "joint_read",
+        "2"
+      ],
+      "known_observations": [],
+      "observations": [
+        {
+          "observation": {
+            "id": "obs_attended_events_1",
+            "stance": "support",
+            "value": [
+              "a local electronic music festival that featured some surprising Pacific Islander artists"
+            ],
+            "source_ids": [
+              "s33"
+            ],
+            "entity_scope": "user",
+            "time_scope": "past",
+            "parent_versions": {},
+            "retract_ids": [],
+            "reason": "The user explicitly states attending a local electronic music festival with Pacific Islander artists, which involves music."
+          },
+          "cited_sources": [
+            {
+              "id": "s33",
+              "doc_id": "d4",
+              "start": 105,
+              "end": 442,
+              "text": "User: I had a spectacular week with music recently! I attended a local electronic music festival that featured some surprising Pacific Islander artists. It was such a delight to see how their traditional sounds merged with modern electronic beats, creating a unique auditory experience that was both familiar and alien at the same time. ",
+              "source_role": "user",
+              "source_message_indices": [
+                48
+              ]
+            }
+          ]
+        },
+        {
+          "observation": {
+            "id": "obs_attended_events_2",
+            "stance": "support",
+            "value": [
+              "a festival featuring traditional Pacific music in 2012"
+            ],
+            "source_ids": [
+              "s67"
+            ],
+            "entity_scope": "user",
+            "time_scope": "past",
+            "parent_versions": {},
+            "retract_ids": [],
+            "reason": "The user explicitly states attending a festival featuring traditional Pacific music in 2012, which involves music."
+          },
+          "cited_sources": [
+            {
+              "id": "s67",
+              "doc_id": "d7",
+              "start": 104,
+              "end": 392,
+              "text": "User: Oh for sure! I also attended a festival featuring traditional Pacific music in 2012, which made me appreciate the depth of my cultural roots. Being surrounded by talented artists and witnessing the rich heritage displayed through their performances was a transformative experience. ",
+              "source_role": "user",
+              "source_message_indices": [
+                8,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "planner_task": {
+      "question": "What events has the user attended that involved music or sound?",
+      "output_slot": "attended_events",
+      "answer_type": "set",
+      "inputs": [],
+      "execution": "retrieval"
+    },
+    "variable_declaration": {
+      "type": "set",
+      "demand": "attended_events",
+      "scope": {
+        "entity_scope": "user",
+        "time_scope": "past"
+      }
+    }
+  },
+  "first_question_outcome": {
+    "status": "budget_exhausted",
+    "facts": {},
+    "pending_variables": [],
+    "cost": {
+      "generation_calls": 7,
+      "node_resolve_calls": 0,
+      "mapping_calls": 0,
+      "joint_read_calls": 6,
+      "repair_calls": 0,
+      "json_repair_reservations": 0,
+      "semantic_compose_calls": 0,
+      "audit_calls": 0,
+      "planner_calls": 1,
+      "global_final_selector_calls": 0,
+      "independent_reader_calls": 0,
+      "independent_option_matcher_calls": 0,
+      "ann_calls": 36,
+      "set_score_calls": 0,
+      "llm_attempts": 7,
+      "rerank_http_attempts": 0
+    },
+    "ledger": {
+      "limits": {
+        "ann": 36,
+        "set_score": 0,
+        "llm": 24,
+        "reader": 0,
+        "json_repairs": 6
+      },
+      "used": {
+        "llm": 7,
+        "http_attempts": 43,
+        "ann": 36,
+        "embedding_http": 36
+      },
+      "remaining": {
+        "ann": 0,
+        "set_score": 0,
+        "llm": 17,
+        "reader": 0,
+        "json_repairs": 6
+      }
+    }
+  }
+}

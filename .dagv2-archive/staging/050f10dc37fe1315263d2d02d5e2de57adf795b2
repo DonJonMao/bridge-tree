@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:6000\", \"source_id\": \"hotpotqa:6000\"}]\nJeff Bridges\nJeffrey Leon Bridges (born December 4, 1949) is an American actor, singer and producer. He comes from a prominent acting family and appeared on the television series \"Sea Hunt\" (1958–60), with his father, Lloyd Bridges and brother, Beau Bridges. He won the Academy Award for Best Actor for his role as Otis \"Bad\" Blake in the 2009 film \"Crazy Heart\", and earned Academy Award nominations for his roles in \"The Last Picture Show\" (1971), \"Thunderbolt and Lightfoot\" (1974), \"Starman\" (1984), \"The Contender\" (2000), \"True Grit\" (2010), and \"Hell or High Water\" (2016). His other films include \"Tron\" (1982), \"Jagged Edge\" (1985), \"The Fabulous Baker Boys\" (1989), \"The Fisher King\" (1991), \"Fearless\" (1993), \"The Big Lebowski\" (1998), \"Seabiscuit\" (2003), \"Iron Man\" (2008), \"\" (2010), and \"The Giver\" (2014)."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "333",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599377.110164,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599378.083102
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0028393743849786717
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 998,
+      "completion_tokens": 2,
+      "total_tokens": 1000
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
