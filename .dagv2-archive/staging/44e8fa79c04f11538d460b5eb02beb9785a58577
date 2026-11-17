@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:171\", \"source_id\": \"hotpotqa:171\"}]\nAdam Pascal\nAdam Pascal (born October 25, 1970) is an American actor, singer, and musician, known for his performance as Roger Davis in the original cast of Jonathan Larson's musical \"Rent\" on Broadway 1996, the 2005 movie version of the musical, and the Broadway Tour of \"Rent\" in 2009. He is also known for originating the role of Radames in Elton John and Tim Rice's \"Aida\", for playing the Emcee from the 1998 revival of \"Cabaret\", and for playing Huey Calhoun in the Broadway Company of \"Memphis\". Most recently, he played William Shakespeare in the Tony Award-winning musical \"Something Rotten!\"\n\n[Passage {\"doc_id\": \"hotpotqa:6000\", \"source_id\": \"hotpotqa:6000\"}]\nJeff Bridges\nJeffrey Leon Bridges (born December 4, 1949) is an American actor, singer and producer. He comes from a prominent acting family and appeared on the television series \"Sea Hunt\" (1958–60), with his father, Lloyd Bridges and brother, Beau Bridges. He won the Academy Award for Best Actor for his role as Otis \"Bad\" Blake in the 2009 film \"Crazy Heart\", and earned Academy Award nominations for his roles in \"The Last Picture Show\" (1971), \"Thunderbolt and Lightfoot\" (1974), \"Starman\" (1984), \"The Contender\" (2000), \"True Grit\" (2010), and \"Hell or High Water\" (2016). His other films include \"Tron\" (1982), \"Jagged Edge\" (1985), \"The Fabulous Baker Boys\" (1989), \"The Fisher King\" (1991), \"Fearless\" (1993), \"The Big Lebowski\" (1998), \"Seabiscuit\" (2003), \"Iron Man\" (2008), \"\" (2010), and \"The Giver\" (2014)."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "279",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599327.781657,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599328.773393
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.00040329870481757546
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1194,
+      "completion_tokens": 2,
+      "total_tokens": 1196
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

@@ -1,0 +1,107 @@
+print('开始中途评分，正在读取已保存结果……', flush=True)
+import fcntl, hashlib, json, os
+from copy import deepcopy
+from pathlib import Path
+from types import SimpleNamespace
+from dagbt import webwalker_runner as w
+from dagbt.transport import digest, save
+
+def read(p):
+    return json.loads(p.read_text())
+
+src = Path('outputs/webwalkerqa_v4_access_v13_full').resolve()
+base = src.with_name(src.name + '_inline_scores')
+base.mkdir(parents=True, exist_ok=True)
+lock = (base / 'interim.lock').open('a+')
+try:
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    raise SystemExit('已有中途评分在运行，请等待它结束。')
+config_path = os.environ.get('DAGBT_WEBWALKER_JUDGE_CONFIG', os.environ.get('DAGBT_WEBWALKER_CONFIG', 'configs/webwalker-v4.json'))
+cfg = w.effective_config(config_path)
+questions, data_manifest = w.load_questions('data/webwalkerqa')
+m = read(src / 'manifest.json')
+if (m.get('protocol') != w.VERSION or m.get('data') != data_manifest
+        or m.get('generation_source_hashes') != w.generation_sources()):
+    raise SystemExit('源码或数据与生成时不一致，请在原 v2 部署目录运行。')
+if (not m['arms'] or not set(m['arms']) <= set(w.ARMS)
+        or len(set(m['arms'])) != len(m['arms'])
+        or not set(m['question_ids']) <= {q['id'] for q in questions}
+        or len(set(m['question_ids'])) != len(m['question_ids'])
+        or m['tasks'] != len(m['arms']) * len(m['question_ids'])):
+    raise SystemExit('生成任务清单不合法。')
+published = []
+records_path = src / 'generation_records.json'
+records = read(records_path) if records_path.exists() else None
+for qid in m['question_ids']:
+    for arm in m['arms']:
+        p = w.task_path(src, qid, arm) / 'result.json'
+        if p.is_file():
+            raw = p.read_bytes()
+            h = hashlib.sha256(raw).hexdigest()
+            if records is not None and records.get(str(p.relative_to(src))) != h:
+                raise SystemExit('结果哈希不一致：' + str(p))
+            published.append((w.validate_result(json.loads(raw), qid, arm), raw, h, p))
+for row, raw, h, p in published:
+    if p.read_bytes() != raw:
+        raise SystemExit('快照读取期间结果发生变化，请重新执行。')
+if read(src / 'manifest.json') != m:
+    raise SystemExit('生成任务清单发生变化，请重新执行。')
+excluded = w.environment_exclusions([x[0] for x in published])
+valid = [x for x in published if x[0]['unit_id'] not in excluded
+         and x[0]['answer']['status'] == 'ok'
+         and w.has_prediction(x[0]['answer'].get('prediction'))]
+print(f'已发布终态 {len(published)}/{m["tasks"]}；可评分有效答案 {len(valid)}', flush=True)
+cache = base / digest({'generation': m, 'judge': digest(cfg)})
+w.configure_model_network(cfg)
+outcomes = []
+for result, raw, h, original in valid:
+    qid, arm = result['unit_id'], result['method']
+    d = cache / qid / arm / h
+    evaluation = d / 'evaluation.json'
+    marker = d / 'attempt_started.json'
+    if not evaluation.exists() and not marker.exists():
+        snap = deepcopy(m)
+        snap.update(arms=[arm], question_ids=[qid], tasks=1)
+        target = w.task_path(d, qid, arm) / 'result.json'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+        save(d / 'manifest.json', snap)
+        save(d / 'generation_records.json', {str(target.relative_to(d)): h})
+        save(d / 'progress.json', {'state': 'complete', 'completed': 1, 'total': 1})
+        save(marker, {'question_id': qid, 'arm': arm})
+        print('正在评分：' + qid + ' / ' + arm, flush=True)
+        try:
+            w.score(SimpleNamespace(output=str(d), config=config_path, data='data/webwalkerqa'))
+        except Exception as exc:
+            save(d / 'failure.json', w.redacted_error(exc))
+            print('裁判未完成：' + str(w.redacted_error(exc)), flush=True)
+    correct = None
+    if evaluation.exists():
+        ev = read(evaluation)
+        if (ev.get('protocol') != 'reference_complete_nonconflicting_llm_judge_v1'
+                or ev.get('judge_config_identity') != digest(cfg) or len(ev.get('rows', [])) != 1):
+            raise SystemExit('评分缓存身份不一致：' + str(d))
+        v = ev['rows'][0]
+        if v.get('question_id') != qid or v.get('arm') != arm:
+            raise SystemExit('评分缓存任务不一致：' + str(d))
+        if v.get('judge_status') == 'ok' and type(v.get('correct')) is bool:
+            correct = v['correct']
+    outcomes.append({'question_id': qid, 'arm': arm, 'correct': correct})
+summary = {}
+for arm in m['arms']:
+    group = [r for r in outcomes if r['arm'] == arm]
+    n = len(group)
+    judged = sum(type(r['correct']) is bool for r in group)
+    good = sum(r['correct'] is True for r in group)
+    unknown = n - judged
+    accuracy = good / n if n and not unknown else None
+    label = f'{accuracy:.2%}' if accuracy is not None else '暂无有效答案' if not n else '尚有未确定评分'
+    name = 'joint' if arm == w.JOINT else 'residual'
+    print(f'{name}：有效答案 {n}，已评分 {judged}，答对 {good}，准确率 {label}')
+    if unknown:
+        print(f'  未确定 {unknown}；有效答案准确率范围 {good/n:.2%}—{(good+unknown)/n:.2%}')
+    summary[arm] = {'valid_answers': n, 'judged': judged, 'correct': good, 'unknown': unknown, 'accuracy': accuracy}
+save(base / 'report.json', {'source': str(src), 'judge_model': cfg['llm_model'], 'arms': summary, 'rows': outcomes})
+print('报告：' + str(base / 'report.json'))
+print('统计范围为本次有效答案快照；失败或中断的裁判不会自动重试。')
