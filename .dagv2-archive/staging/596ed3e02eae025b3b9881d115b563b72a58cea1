@@ -1,0 +1,130 @@
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+....................................................................ssss [ 36%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 42%]
+sssssssssssss.s......................................................... [ 48%]
+...................................................................F.... [ 54%]
+........................................................................ [ 60%]
+........................................................................ [ 66%]
+........................................................................ [ 72%]
+........................................................................ [ 78%]
+........................................................................ [ 85%]
+........................................................................ [ 91%]
+........................................................................ [ 97%]
+..........ss.....................                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_stop_foreground_relative_output_path ___________________
+
+tmp_path = PosixPath('/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-407/test_stop_foreground_relative_0')
+
+    def test_stop_foreground_relative_output_path(tmp_path):
+        config = r.load(r.ROOT / "configs/paired.legacy.json")
+        config["experiment"]["fixture_delay"] = 30
+        config_path = tmp_path / "config.json"
+        r.save(config_path, config)
+        output = tmp_path / "relative_run"
+        script = Path(__file__).parent / "fixtures/dagbt.runner.fixture.py"
+        with (tmp_path / "foreground.log").open("w") as log:
+            process = subprocess.Popen([sys.executable, str(script), "run", "--config", str(config_path),
+                                        "--output", os.path.relpath(output, r.ROOT), "--datasets", "hotpotqa",
+                                        "--limit", "1", "--offline-preflight"], cwd=r.ROOT, stdout=log, stderr=log)
+        try:
+            await_progress(output, {"generating"})
+            assert r.stop(output)["stopped"]
+>           assert process.wait(timeout=10) == 130
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_paired_runner.py:439: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/subprocess.py:1264: in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 1 args: ['/Users/mao/projects/dagv2/.venv/bin/python', '...>
+timeout = 10
+
+    def _wait(self, timeout):
+        """Internal implementation of wait() on POSIX."""
+        if self.returncode is not None:
+            return self.returncode
+    
+        if timeout is not None:
+            endtime = _time() + timeout
+            # Enter a busy loop if we have a timeout.  This busy loop was
+            # cribbed from Lib/threading.py in Thread.wait() at r71065.
+            delay = 0.0005 # 500 us -> initial delay of 1 ms
+            while True:
+                if self._waitpid_lock.acquire(False):
+                    try:
+                        if self.returncode is not None:
+                            break  # Another thread waited.
+                        (pid, sts) = self._try_wait(os.WNOHANG)
+                        assert pid == self.pid or pid == 0
+                        if pid == self.pid:
+                            self._handle_exitstatus(sts)
+                            break
+                    finally:
+                        self._waitpid_lock.release()
+                remaining = self._remaining_time(endtime)
+                if remaining <= 0:
+>                   raise TimeoutExpired(self.args, timeout)
+E                   subprocess.TimeoutExpired: Command '['/Users/mao/projects/dagv2/.venv/bin/python', '/Users/mao/projects/dagv2-personamem-a48/tests/fixtures/dagbt.runner.fixture.py', 'run', '--config', '/private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-407/test_stop_foreground_relative_0/config.json', '--output', '../../../../private/var/folders/3k/s8psmqt14hq_z8td99549b2h0000gn/T/pytest-of-mao/pytest-407/test_stop_foreground_relative_0/relative_run', '--datasets', 'hotpotqa', '--limit', '1', '--offline-preflight']' timed out after 10 seconds
+
+/opt/homebrew/Cellar/python@3.11/3.11.15/Frameworks/Python.framework/Versions/3.11/lib/python3.11/subprocess.py:2045: TimeoutExpired
+=============================== warnings summary ===============================
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-a48/dagresolve/flow.py:222: RuntimeWarning: divide by zero encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-a48/dagresolve/flow.py:222: RuntimeWarning: overflow encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-a48/dagresolve/flow.py:222: RuntimeWarning: invalid value encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-a48/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_paired_runner.py::test_stop_foreground_relative_output_path
+1 failed, 1092 passed, 92 skipped, 69 warnings in 70.21s (0:01:10)

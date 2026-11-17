@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:3218\", \"source_id\": \"hotpotqa:3218\"}]\nCharles Craig (Unionist MP)\nCharles Curtis Craig (18 February 1869 – 28 January 1960), was an Irish UnionIst and later Ulster Unionist politician. He was Member of Parliament (MP) for constituencies in County Antrim from 1903 to 1929, taking his seat in the House of Commons of the United Kingdom. The son of a self-made millionaire whisky distiller, among his brothers was Northern Ireland's first Prime Minister, The Viscount Craigavon.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:23\", \"source_id\": \"hotpotqa:23\"}]\nPrime Minister of Northern Ireland\nThe Prime Minister of Northern Ireland was the head of the Government of Northern Ireland between 1921 and 1972. No such office was provided for in the Government of Ireland Act 1920, however the Lord Lieutenant, as with Governors-General in other Westminster Systems such as in Canada, chose to appoint someone to head the executive even though no such post existed in statute law. The office-holder assumed the title \"Prime Minister\" to draw parallels with the Prime Minister of the United Kingdom. On the advice of the new Prime Minister, the Lord Lieutenant then created the \"Department of the Prime Minister\". The office of Prime Minister of Northern Ireland was abolished in 1972, along with the contemporary government, when direct rule of Northern Ireland was transferred to London.\n\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:3218\", \"source_id\": \"hotpotqa:3218\"}]\nCharles Craig (Unionist MP)\nCharles Curtis Craig (18 February 1869 – 28 January 1960), was an Irish UnionIst and later Ulster Unionist politician. He was Member of Parliament (MP) for constituencies in County Antrim from 1903 to 1929, taking his seat in the House of Commons of the United Kingdom. The son of a self-made millionaire whisky distiller, among his brothers was Northern Ireland's first Prime Minister, The Viscount Craigavon."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "119",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600343.899306,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600345.564259
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.851952809486198
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.7248702761768248
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 1592,
+      "completion_tokens": 4,
+      "total_tokens": 1596
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

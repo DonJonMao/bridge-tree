@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:4254\", \"source_id\": \"hotpotqa:4254\"}]\nDonnie Wahlberg\nDonald Edmond Wahlberg Jr. (born August 17, 1969) is an American singer, songwriter, actor, record producer, and film producer. He is a founding member of the boy band New Kids on the Block. Outside of music, he has had roles in the \"Saw\" films, \"The Sixth Sense\", \"Dreamcatcher\", and \"Righteous Kill\", also appearing in the World War II miniseries \"Band of Brothers\" as First Lieutenant Carwood Lipton. From 2002 to 2003, he starred in the crime drama \"Boomtown\". He has been starring in the drama series \"Blue Bloods\" as Danny Reagan with Tom Selleck (his TV father) and Bridget Moynahan (his TV sister) since 2010, and since 2014 is an executive producer of the TNT reality television show \"Boston's Finest\". He was nominated for \"Choice Scream\" at the 2008 Teen Choice Awards for his work in the \"Saw\" films. He has also produced and starred in \"Rock this Boat\", \"Donnie Loves Jenny\" and \"Return of the Mac\" on Pop TV. He also produces and stars in \"Wahlburgers\" on A&E TV."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "330",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599374.515001,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599375.432943
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0026112488453794687
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 976,
+      "completion_tokens": 2,
+      "total_tokens": 978
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

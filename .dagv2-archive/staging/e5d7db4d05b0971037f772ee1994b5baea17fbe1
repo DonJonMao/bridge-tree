@@ -1,0 +1,197 @@
+{
+  "run": "v4_validation_r17",
+  "source_commit": "bcbd16f6b9e2cc5545d32b15cc21ae1d6a74cc94",
+  "question_index": 0,
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "labels_read": false,
+  "new_service_calls": 0,
+  "status": "unresolved_or_exhausted",
+  "ledger": {
+    "limits": {
+      "ann": 36,
+      "set_score": 0,
+      "llm": 24,
+      "reader": 0,
+      "json_repairs": 6
+    },
+    "used": {
+      "llm": 18,
+      "http_attempts": 23,
+      "ann": 5,
+      "embedding_http": 5,
+      "json_repairs": 6
+    },
+    "remaining": {
+      "ann": 31,
+      "set_score": 0,
+      "llm": 6,
+      "reader": 0,
+      "json_repairs": 0
+    }
+  },
+  "operation_counts": {
+    "planner": 1,
+    "joint_read": 11,
+    "joint_read_repair": 6
+  },
+  "truncations": [
+    {
+      "sequence": 144,
+      "operation": "joint_read",
+      "finish_reason": "length",
+      "initial_output_cap": 445,
+      "structure_floor_tokens": 377,
+      "prefix_groups": 68
+    },
+    {
+      "sequence": 305,
+      "operation": "joint_read",
+      "finish_reason": "length",
+      "initial_output_cap": 395,
+      "structure_floor_tokens": 390,
+      "prefix_groups": 66
+    },
+    {
+      "sequence": 491,
+      "operation": "joint_read",
+      "finish_reason": "length",
+      "initial_output_cap": 352,
+      "structure_floor_tokens": 332,
+      "prefix_groups": 70
+    }
+  ],
+  "repairs": [
+    {
+      "response_sequence": 155,
+      "logical_call_index": 4,
+      "feedback": [
+        {
+          "category": "provider_output_truncated",
+          "required_source_count": 0,
+          "missing_source_count": 0
+        }
+      ]
+    },
+    {
+      "response_sequence": 316,
+      "logical_call_index": 8,
+      "feedback": [
+        {
+          "category": "provider_output_truncated",
+          "required_source_count": 0,
+          "missing_source_count": 0
+        }
+      ]
+    },
+    {
+      "response_sequence": 327,
+      "logical_call_index": 9,
+      "feedback": [
+        {
+          "category": "summary_revision_missing_original_sources",
+          "required_source_count": 19,
+          "missing_source_count": 13
+        }
+      ]
+    },
+    {
+      "response_sequence": 502,
+      "logical_call_index": 13,
+      "feedback": [
+        {
+          "category": "provider_output_truncated",
+          "required_source_count": 0,
+          "missing_source_count": 0
+        }
+      ]
+    },
+    {
+      "response_sequence": 596,
+      "logical_call_index": 16,
+      "feedback": [
+        {
+          "category": "mandatory_downstream_context_capacity",
+          "required_source_count": 0,
+          "missing_source_count": 0
+        }
+      ]
+    },
+    {
+      "response_sequence": 610,
+      "logical_call_index": 17,
+      "feedback": [
+        {
+          "category": "mandatory_downstream_context_capacity",
+          "required_source_count": 0,
+          "missing_source_count": 0
+        }
+      ]
+    }
+  ],
+  "handoff_capacity_rejections": [
+    {
+      "sequence": 585,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 37,
+      "source_ids_preserved": true,
+      "context_tokens": 16384
+    },
+    {
+      "sequence": 599,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 37,
+      "source_ids_preserved": true,
+      "context_tokens": 16384
+    },
+    {
+      "sequence": 613,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 37,
+      "source_ids_preserved": true,
+      "context_tokens": 16384
+    },
+    {
+      "sequence": 635,
+      "next_operation": "semantic_compose",
+      "next_node_id": "response",
+      "source_spans": 44,
+      "source_ids_preserved": true,
+      "context_tokens": 16384
+    }
+  ],
+  "failed_batches": [
+    {
+      "operation": "joint_read",
+      "selected_sources": 51,
+      "visible_sources": 51,
+      "failed_slots": 1,
+      "categories": [
+        "mandatory_downstream_context_capacity"
+      ]
+    },
+    {
+      "operation": "joint_read",
+      "selected_sources": 119,
+      "visible_sources": 119,
+      "failed_slots": 1,
+      "categories": [
+        "mandatory_downstream_context_capacity"
+      ]
+    }
+  ],
+  "pending_variables": 2,
+  "evidence_obligations": 0,
+  "failed_batch_reviews": 2,
+  "unread_sources": 0,
+  "error_count": 0,
+  "actual_requests_with_shared_history_texts": 0,
+  "classification": "History-reading output truncation and one source-preservation repair consumed 4 JSON repairs; the last 2 repairs could not admit 37-source downstream composition. A subsequent 44-source draft also failed admission. No actual compose/audit request was sent. The local limiting resources were downstream 16k context and exhausted JSON repairs; total LLM calls were 18 of 24.",
+  "codec_scope": "No actual request sent shared_history_texts, so this is not demonstrated model misuse of shared input references. Prospective handoff admission may have used the codec, so absence from sent requests does not prove the codec had no trajectory effect.",
+  "evidence_hashes": {
+    "result_sha256": "9f9d4fa86e3da0b63902c58dc184e2b1db41f1e1bad9ea47cde2f099ab41aa5e",
+    "events_sha256": "8657f7c62ee1f87379d04e00f89903fa9041ba3d329adcc576b39e3a1d92beab"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://127.0.0.1:62368/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "The painter uses blue pigments.",
+      "The city is located in France.",
+      "Personal memories: [No personal memories supplied.]"
+    ],
+    "top_n": 3,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "5",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790231776.71332,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790231776.714039
+    }
+  ],
+  "response": {
+    "model": "Qwen3-Reranker-8B",
+    "results": [
+      {
+        "index": 2,
+        "relevance_score": 0.1
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.1
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.1
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

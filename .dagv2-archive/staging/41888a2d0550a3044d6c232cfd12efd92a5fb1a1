@@ -1,0 +1,40 @@
+{
+  "unit_id": "preflight_pointwise_protocol",
+  "url": "http://127.0.0.1:55267/rerank",
+  "payload": {
+    "model": "fixture-pointwise",
+    "query": "Which country contains the city?",
+    "documents": [
+      "The painter uses blue pigments."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "3"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790164193.3732722,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790164193.373798
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.1
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

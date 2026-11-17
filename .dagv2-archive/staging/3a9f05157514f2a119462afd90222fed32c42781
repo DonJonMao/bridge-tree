@@ -1,0 +1,1449 @@
+          Failure Modes in Multi-Hop QA: The Weakest Link Effect and the
+                              Recognition Bottleneck
+
+             Meiru Zhang                             Zaiqiao Meng                            Nigel Collier
+         University of Cambridge                 University of Cambridge                University of Cambridge
+           mz468@cam.ac.uk                         zm324@cam.ac.uk                        nhc30@cam.ac.uk
+
+
+
+                           Abstract                                due to attention failures, such as the Lost-in-the-
+                                                                   Middle phenomenon (Liu et al., 2024b), primacy
+         Despite scaling to massive context windows,
+                                                                   bias (Liu et al., 2024b), and recency bias (Press
+         Large Language Models (LLMs) struggle with
+         multi-hop reasoning due to inherent position              et al., 2021; Sun et al., 2021), where information
+         bias, which causes them to overlook informa-              at specific positions is systematically overlooked.
+         tion at certain positions. Whether these fail-            This bias is often attributed to model mechanisms
+         ures stem from an inability to locate evidence            such as position embedding (Wang et al., 2025c),
+         (recognition failure) or integrate it (synthe-            attention sinks (Xiao et al., 2024), where initial to-
+         sis failure) is unclear. We introduce Multi-              kens monopolize attention mass, and the failure of
+         Focus Attention Instruction (MFAI), a seman-              induction heads (Olsson et al., 2022) to effectively
+         tic probe to disentangle these mechanisms by
+                                                                   copy information from mid-context positions.
+         explicitly steering attention towards selected
+         positions. Across 5 LLMs on two multi-hop                    Recent research extends position bias analysis to
+         QA tasks (MuSiQue and NeoQA), we iden-                    Multi-Hop Question Answering (MHQA), where
+         tify the “Weakest Link Effect”: in our 18-                models must synthesize disconnected evidence (Yu
+         document, 3-bucket setting, multi-hop reason-             et al., 2025a; Huang et al., 2025; Baker et al., 2024).
+         ing performance collapses to the level of the             While prior work suggests performance degrades
+         least visible evidence, governed by absolute po-          linearly with the distance between facts (Baker
+         sition rather than the linear distance between
+                                                                   et al., 2024; Huang et al., 2025) and the number of
+         facts. While matched MFAI resolves recogni-
+         tion bottlenecks, improving accuracy by up to             document splits (Levy et al., 2025), we challenge
+         11.49% in low-visibility positions, misleading            this view by analyzing evidence topology. By parti-
+         MFAI yields divergent effects modulated by                tioning the context into positional “buckets”, we ob-
+         task topology: entity-centric tasks with vertical         serve a step-function behavior: the between-bucket
+         reasoning chains are vulnerable, whereas event-           gap on MuSiQue is roughly 4× larger than the
+         centric tasks with horizontal evidence struc-             within-bucket variation (mean 8.31% vs. 1.87%;
+         tures are more resilient. Finally, we demon-              up to 14.75% for Ministral-8B-Instruct), indicating
+         strate that “thinking” models utilizing System-
+                                                                   that attention operates at bucket-level granularity
+         2 reasoning effectively locate and integrate
+         the required information, matching gold-only              rather than fine-grained distance. Instead, multi-
+         baselines even in noisy, long-context settings.           hop reasoning follows a “Weakest Link Effect”:
+         Supplementary experiments on 2WikiMulti-                  performance is governed by the absolute bucket
+         HopQA, extended 3–4 hop counts, and a 32B                 position of the least visible evidence. If a single
+         model confirm these findings generalize across            reasoning hop falls into an under-attended region,
+         datasets, reasoning depths, and model scales.             the entire chain collapses.
+                                                                      Existing position bias mitigation methods are
+    1    Introduction
+                                                                   predominantly resource-intensive, relying on fine-
+    While the theoretical capacity of Large Language               tuning for data augmentation (Li et al., 2024c;
+    Models (LLMs) has expanded exponentially, with                 He et al., 2024) or modifying inference compute
+    context windows scaling from 4k to millions of                 via mechanistic modifications (Wang et al., 2025c;
+    tokens, the effective utilization of this context re-          Chen et al., 2025). In contrast, Zhang et al. (2024a)
+    mains fundamentally constrained (Kamradt, 2023;                propose Attention Instruction, a training-free in-
+    An et al., 2025; Hsieh et al., 2024). Previous studies         tervention that uses natural language to explicitly
+    have characterized this limitation as position bias            direct the model’s focus. They demonstrated that
+                                                             41823
+Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 41823–41846
+                                 July 2-7, 2026 ©2026 Association for Computational Linguistics
+absolute indexing (e.g., “Document 1”) can ef-                 drops are largely recognition-based rather
+fectively override position bias, allowing retrieval           than reasoning-based.
+from the typically lost middle. While this valida-
+                                                             • The Differential Impact of Attention Steer-
+tion was limited to one-hop question answering,
+                                                               ing: We reveal that while matched MFAI neu-
+the ability to steer attention provides a powerful
+                                                               tralizes position bias, unmatched (misleading)
+control variable. It allows us to artificially restore
+                                                               MFAI yields divergent effects modulated by
+evidence visibility, potentially isolating the recog-
+                                                               task topology. Misleading cues degrade entity-
+nition failures (overlooked evidence) from synthe-
+                                                               centric tasks with vertical reasoning chains
+sis failures (inability to connect facts).
+                                                               (MuSiQue) but have limited impact on event-
+   Building on these observations, we intro-
+                                                               centric tasks with horizontal evidence struc-
+duce Multi-Focus Attention Instruction
+                                                               tures (NeoQA).
+(MFAI).1 MFAI acts as a semantic probe, explicitly
+indexing evidence locations to simulate successful           • System-2 Reasoning Robustness: We show
+recognition within a factorial experiment (details             that models utilizing extended test-time com-
+in Section 3). By comparing performance with                   pute (e.g., Qwen3-8B-Think) override context
+and without these instructions, we aim to isolate              retrieval artifacts, exhibiting superior robust-
+recognition failures from synthesis failures. This             ness to both inherent position bias and adver-
+distinction offers insights for Retrieval-Augmented            sarial prompts.
+Generation (RAG) architectures (Lewis et al., 2020;
+Yu et al., 2024a).                                       2    Related Work
+   By deploying MFAI on the two MHQA datasets,
+MuSiQue (Trivedi et al., 2022) and NeoQA (Glock-         Multi-Hop Reasoning and Retrieval-Augmented
+ner et al., 2025), we address three research ques-       Challenges. Benchmarks for multi-hop ques-
+tions: (1) Does linear distance between supporting       tion answering evolved from entity-centric
+facts or their absolute position within the context      tasks like HotpotQA (Yang et al., 2018) and
+govern multi-hop performance? (2) Can MFAI               MuSiQue (Trivedi et al., 2022) to complex
+effectively mitigate position bias in MHQA and           challenges requiring event bridging (Li et al.,
+isolate recognition errors from intrinsic synthesis      2024b; Glockner et al., 2025). Despite this evolu-
+limitations? (3) Does extended test-time compute         tion, LLMs frequently exhibited “disconnected
+(System-2 reasoning) confer robustness against           reasoning”, arriving at answers via shortcuts rather
+misleading attention cues?                               than valid logical chains (Min et al., 2019; Li et al.,
+                                                         2024a; Schnitzler et al., 2024). Recent taxonomies
+Contributions In summary, this work offers the           categorized the failures of LLMs on MHQA
+following contributions:                                 into two distinct dimensions: evidence selection
+   • The “Weakest Link Effect”: We provide a             failures and synthesis failures (Xu et al., 2025).
+     granular analysis of position bias in MHQA,         Yang et al. (2024) and Song et al. (2025) validated
+     showing that performance collapses to the           this split, observing that models often recalled
+     level of the least visible evidence bucket,         entities successfully yet failed to utilize them
+     regardless of the distance between facts.           for subsequent reasoning. While recent works
+     This pattern generalizes across an additional       addressed synthesis via specialized training (Wang
+     dataset (2WikiMultiHopQA; Ho et al., 2020),         et al., 2025b), long-context robustness remains
+     longer reasoning chains (3–4 hops), and a 4×        under-explored.
+     larger model (Qwen2.5-32B; Qwen Team and               RAG aims to bridge the knowledge gaps, though
+     Others, 2025).                                      retrieved context often requires extensive denoising
+                                                         to handle conflicting evidence (Liu et al., 2024a;
+   • Mechanistic Disentanglement: We demon-              Wang et al., 2025a). Cuconasu et al. (2024) re-
+     strate that steering attention with semantic        vealed the “noise paradox”, where distractors para-
+     instructions resolves the recognition bottle-       doxically improved model performance. LLM-
+     neck, restoring accuracy in low-visibility          based interventions, such as generating sequential
+     positions. This confirms that performance           reasoning notes (Yu et al., 2024b) or re-structuring
+   1
+    Code and data are available at https://github.com/   raw information (Li et al., 2025b), have shown
+cambridgeltl/weakest-link-effect.                        promise in improving robustness of LLMs. We
+                                                    41824
+                                 Prompt Structure: [Task] [Attn Instr] [Documents 1..18] [Question]
+               (a) Spread Test                             (b) Cross Test                          (c) Unmatched Logic
+
+ Beginning                                  Beginning                                Gold Bucket
+
+                                                              idx k                                    Loc idx k
+                                                                                                                   Mirroring:
+                                                                                                                   Pts to same
+    Middle                                    Middle                                                               local index
+
+                   Dist varies                                                   Non-gold Bucket
+
+      Tail                                       Tail                                                  Loc idx k
+
+                                                              idx k
+Figure 1: Experimental setups shown in vertical columns. (a) Spread Test: Gold documents (orange) are placed
+in the Middle bucket, and the distance between them varies. (b) Cross Test: Gold documents are split between
+the Beginning and Tail buckets, maintaining the same local index k. (c) Unmatched Logic: This illustrates how a
+misleading (unmatched) instruction points to non-gold documents (red) in an unselected bucket by mirroring the
+local index k of the true gold documents.
+
+extend this line of work by using MFAI to mechan-              virtual buckets of six documents each: Beginning
+ically isolate how evidence topology interacts with            (d0 to d5 ), Middle (d6 to d11 ), and Tail (d12 to d17 ).
+recognition and synthesis failures.                            We enforce a two-gold document set (|G| = 2) to
+                                                               isolate the effects of absolute position and inter-
+Mechanisms and Mitigation of Position Bias.
+                                                               gold-document distance.
+Position bias (e.g., Lost-in-the-Middle, recency
+bias) represents a systematic failure in RAG, where
+                                                                3.1     Multi-Focus Attention Instruction
+models fail to utilize retrieved information located
+in certain positions (Liu et al., 2024b; Wang et al.,           Building on the single-document attention steer-
+2023; Sun et al., 2021). Mechanistically, this bias             ing (Zhang et al., 2024a), we implement MFAI to
+is linked to attention sinks (Xiao et al., 2024) and            probe multi-hop scenarios. MFAI explicitly directs
+the decay of induction head efficacy in deep con-               model focus to two documents, dX and dY , using
+text (Olsson et al., 2022). While prior studies mod-            the template: “The answer is in Document X and
+eled performance degradation as a linear decay rela-            Document Y . Use the information from Document
+tive to the distance between supporting facts (Baker            X and Document Y as the main reference.” We
+et al., 2024; Huang et al., 2025), our analysis chal-           design three experimental conditions based on the
+lenges this continuous view, proposing a discrete               relationship between the instructed indices {X, Y }
+step-wise “Weakest Link Effect”.                                and the gold set G:
+   Existing mitigation strategies predominantly re-
+lied on training data augmentation (Li et al., 2024c;                 • No MFAI (NA): The baseline condition with
+He et al., 2024), architectural modification (Chen                      no MFAI, requiring the model to perform
+et al., 2023; Zhang et al., 2024b; Wang et al.,                         both recognition and synthesis of evidence
+2025c; Adiga et al., 2025; Yu et al., 2025b), or                        unaided.
+inference-time reordering (Yu et al., 2025a; Yi
+et al., 2025). In contrast, we adopt a training-free                  • Matched MFAI: The instruction references
+semantic steering approach. By building on At-                          the true global gold document indices
+tention Instruction (Zhang et al., 2024a), a natural                    (X, Y ∈ G), simulating successful recogni-
+language prompt to anchor attention towards a sin-                      tion.
+gle document, we introduce MFAI to explicitly                         • Unmatched MFAI: The instruction deliber-
+probe LLMs and mitigate position bias.                                  ately points to indices in a non-gold bucket
+                                                                        (X, Y ∈ / G) to test robustness against mislead-
+3    Experimental Setup
+                                                                        ing recognition signals. We select adversarial
+We design a factorial experiment to disentan-                           indices by mirroring the local bucket index
+gle position bias mechanisms using a fixed con-                         of the gold documents in a non-gold bucket
+text of N = 18 documents, denoted as D =                                (Figure 1(c)), isolating cross-bucket position
+{d0 , . . . , d17 }. The context is partitioned into three              bias from local-index effects.
+                                                          41825
+Diagnostic Scope. MFAI is designed as a diag-            at the bucket start (local idx 0) and vary the sec-
+nostic probe rather than a deployable technique:         ond gold document within the same bucket. This
+it relies on oracle knowledge of gold document           tests the model’s ability to synthesize information
+positions to create controlled experimental condi-       over varying inter-gold-document distances while
+tions. We note that directing the model to gold          holding the absolute bucket position constant.
+documents not only steers attention but also im-
+plicitly reduces the effective search space from 18      Cross Test (Split across Buckets): As shown in
+candidates to 2 highlighted documents, potentially       Figure 1(b), we place gold documents in different
+easing synthesis as well. The performance gain           buckets (e.g., Beginning and Tail) while maintain-
+from Matched MFAI therefore provides an upper-           ing the same local index k. This tests the impact of
+bound estimate of the recognition bottleneck rather      crossing bucket boundaries.
+than a precise isolation of it. We use the gold-only
+                                                         3.4   Datasets
+ablation (Appendix A.6), where models receive
+only the two gold documents with no distractors,         We evaluate our methods on two MHQA bench-
+as a ceiling reference that quantifies the remaining     marks representing distinct reasoning paradigms:
+gap attributable to search-space difficulty.             MuSiQue (Trivedi et al., 2022) and NeoQA (Glock-
+                                                         ner et al., 2025) (examples in Appendix A.3).
+3.2 Research Questions                                   MuSiQue is an entity-based benchmark with ques-
+We investigate three core questions:                     tions derived from real-world Wikipedia docu-
+                                                         ments, requiring reasoning to bridge connections
+   • RQ1 (Topology): Does the linear distance be-        between named entities. It serves as a proxy for
+     tween distributed facts or the absolute position    standard RAG tasks. In contrast, NeoQA is a fully
+     govern multi-hop reasoning? We address this         synthesized dataset constructed from fictional event
+     by comparing the Spread protocol (distance          timelines. It demands complex reasoning over en-
+     variation within buckets) against the Cross         tities involved in multiple sequential events, effec-
+     protocol (split across buckets), as detailed in     tively eliminating parametric knowledge shortcuts.
+     Section 3.3.                                        We filter for questions requiring exactly two gold
+                                                         documents and use a fixed context size of 18 docu-
+   • RQ2 (Mechanism): Are failures driven by             ments (2 gold, 16 distractors). The final evaluation
+     recognition deficits or intrinsic synthesis limi-   set comprises 1,246 MuSiQue examples (evaluated
+     tations? We probe this by applying Matched          via Exact Match (EM)) and 402 NeoQA examples
+     MFAI to isolate recognition failures from syn-      (evaluated via Accuracy (Acc.)). We further vali-
+     thesis failures.                                    date on the Compositional and Inference subsets of
+                                                         2WikiMultiHopQA (Ho et al., 2020), MuSiQue 3-
+   • RQ3 (Robustness): Does System-2 reason-
+                                                         hop and 4-hop subsets, and NeoQA with alternative
+     ing improve robustness against misleading sig-
+                                                         distractor settings (Appendix A.7).
+     nals? We test Unmatched MFAI (mislead-
+     ing cues) on standard instruction-following         3.5   Models
+     models vs. thinking models (e.g., Qwen3-
+     8B-Think) to evaluate test-time verification        We evaluate five state-of-the-art Large Language
+     capabilities.                                       Models: Qwen2.5-7B-Instruct (Qwen Team and
+                                                         Others, 2025), Qwen2.5-14B-Instruct (Qwen Team
+3.3 Spread and Cross Protocols                           and Others, 2025), Llama-3.1-8B-Instruct (Meta
+To characterize reasoning failures, we employ two        Llama Team, 2024), Ministral-8B-Instruct (Mis-
+topological protocols (visualized in Figure 1). We       tral AI, 2024), and Qwen3-8B (Yang et al., 2025).
+evaluate both protocols under all three MFAI condi-      Qwen3-8B is assessed in both thinking (trig-
+tions (No MFAI, Matched, Unmatched) and report           gered via <think>) and non-thinking (triggered
+the Unmatched performance as the average accu-           via </no_think>) modes to determine the impact
+racy across specific adversarial variants (detailed      of test-time compute on robustness against position
+in Appendix A.9).                                        bias and misleading MFAI cues. All models are
+                                                         evaluated at a temperature of 0.0 for reproducibil-
+Spread Test (Distance within Bucket): As                 ity, consistent with prior work (Levy et al., 2025).
+shown in Figure 1(a), we fix one gold document           We additionally evaluate Qwen2.5-32B-Instruct-
+                                                    41826
+                                             (a) MuSiQue dataset
+
+
+
+
+                                              (b) NeoQA dataset
+
+Figure 2: Model performance across three MFAI conditions (No MFAI, Matched, Unmatched) on MuSiQue and
+NeoQA in the Spread Test. Bars show mean accuracy (%) for No MFAI (bucket-colored), Matched (dark blue), and
+Unmatched (red), pooled across five distances within each bucket. Error bars are 95% bootstrap CIs. Unmatched
+averages over adversarial variants (Appendix A.9).
+
+GPTQ-Int8 to assess scalability (Appendix A.7).         bias on NeoQA.
+
+4   Results and Discussion                              Performance follows a Step-Function, not Lin-
+                                                        ear Decay. The Spread Test results (Figure 4)
+4.1 Evidence Topology: Absolute Position
+                                                        demonstrate that reasoning performance is largely
+    Governs Performance (RQ1)
+                                                        independent of the distance between evidence doc-
+We first investigate whether multi-hop reasoning        uments. Within any fixed bucket (e.g., Beginning),
+performance is determined by the linear distance        varying the distance between two gold documents
+between supporting facts or their absolute posi-        from 1 to 5 results in negligible performance vari-
+tion (RQ1). Focusing on the baseline (No MFAI)          ance (typically ±3%). For instance, Qwen2.5-14B-
+results, we observe that position bias is dataset-      Instruct maintains ∼ 28% in the Middle bucket re-
+sensitive: the severity of position bias is much        gardless of spread on MuSiQue. However, shifting
+larger on MuSiQue as compared to NeoQA and              the entire evidence set from a high-visibility zone
+has different patterns. For example, Figure 2 shows     (Beginning) to a low-visibility zone (Tail) causes
+that Ministral-8B-Instruct experiences significant      significant drops (e.g., Ministral-8B-Instruct drops
+recency bias on MuSiQue but less obvious primacy        by 14.75% on MuSiQue). This confirms that at-
+                                                   41827
+                                              (a) MuSiQue dataset
+
+
+
+
+                                              (b) NeoQA dataset
+
+Figure 3: Model performance across three MFAI conditions (No MFAI, Matched, Unmatched) on MuSiQue
+and NeoQA in the Cross Test. Bars show mean accuracy (%) for No MFAI (pair-colored), Matched (dark blue),
+and Unmatched (red), pooled across six local indices within each bucket pair. Error bars are 95% bootstrap CIs.
+Unmatched averages over adversarial variants (Appendix A.9).
+
+
+tention functions as a step-function governed by         The “Weakest Link Effect” of Multi-Hop Rea-
+coarse-grained bucket location. The Cross Test           soning. The Cross Test (Figure 3) further reveals
+(Figure 3) shows much smaller variation across           the fragility of multi-hop reasoning. When evi-
+the three bucket-pairs (B+M, B+T, M+T) than              dence is split between a high-visibility bucket and
+across single buckets: for example, on MuSiQue,          a low-visibility bucket, performance does not av-
+Qwen2.5-14B-Instruct varies by only 2.46% across         erage out; it collapses toward the weaker bucket.
+the bucket-pairs (30.12%, 29.12%, 27.66%), com-          For instance, Ministral-8B-Instruct on MuSiQue
+pared to 8.06% across the corresponding single           achieves 29.71% when both gold documents are
+buckets (35.67%, 28.15%, 27.61%). Furthermore,           in the Beginning bucket and 18.67% when both
+Figure 6 shows that performance remains flat             are in the Middle; with gold split across Begin-
+across local indices (0 to 5) as long as the bucket-     ning+Middle (B+M), accuracy drops to 21.54%
+pair is constant, indicating that the model’s atten-     — below the 24.19% naive average and close to
+tional focus is governed by bucket membership            the weaker Middle rate. We term this the Weak-
+rather than fine-grained offset.                         est Link Effect: the probability of successful rea-
+                                                         soning is bounded by the minimum recognition
+
+                                                    41828
+                                               (a) MuSiQue dataset
+
+
+
+
+                                                (b) NeoQA dataset
+
+Figure 4: Model performance across various inter-gold-document distances in each positional bucket. The solid line
+represents the No MFAI accuracy, whereas the dashed line represents the matched instruction accuracy.
+
+
+
+
+                (a) Layer-wise Heatmap.                                    (b) Head-wise Heatmap.
+
+Figure 5: Attention mass difference (Matched − No MFAI) of Qwen2.5-7B-Instruct on NeoQA when gold
+documents are placed in the Beginning bucket (Doc 1 and Doc 2), averaged over 100 examples. The y-axis
+lists document spans; the x-axis is layer index in (a) and head index in (b). The color bar on the right shows
+the percentage-point change in normalized attention mass per token. Blue cells indicate a drop; red indicates an
+increase.
+
+
+probability of any supporting fact. If the model           recognition deficits or synthesis limitations?
+cannot robustly attend to the second hop, the entire
+reasoning chain breaks, regardless of how salient          Matched MFAI Restores Performance by Re-
+the first hop was. These step-function and Weak-           solving Recognition Deficits. We probe this dis-
+est Link patterns replicate on 2WikiMultiHopQA             tinction by applying Matched MFAI, which explic-
+(Table 5, Table 7, Table 12), extend to MuSiQue            itly indexes the gold documents G. For MuSiQue,
+3-/4-hop (Table 8, Table 11), and persist at 32B           as shown in Figure 4(a) and Figure 6(a), matched
+scale (Table 9); full results in Appendix A.7.             MFAI (dashed lines) consistently boosts the model
+                                                           performance across all inter-gold-document dis-
+4.2   The Nature of Failure: Recognition as the            tances and local indices. It elevates performance
+      Bottleneck (RQ2)                                     in the Tail bucket by 4.83% to 11.49% across mod-
+Having established where failures occur (position          els on MuSiQue, effectively bridging the gap to
+bias), we examine why: are these drops driven by           Beginning-bucket performance (Figure 2(a)). In
+                                                     41829
+addition, the performance gap between buckets is         Divergent Effects of Unmatched Instructions:
+significantly lower than the baseline (No MFAI,          Task Topology as a Moderating Factor. We ob-
+white text) in Figure 2(a). This provides evidence       serve a distinct difference in how models handle
+for the recognition bottleneck hypothesis: mod-          Unmatched MFAI. On MuSiQue, unmatched in-
+els possess the inherent ability to synthesize, but      structions degrade performance and, for the most
+this capacity is bottlenecked by attentional failures.   instruction-sensitive model Llama-3.1-8B-Instruct,
+NeoQA behaves differently: because the baseline          trigger a ∼ 3× increase in response length on the
+position bias is limited, Matched MFAI provides          Spread Test (∼331 to ∼1,052 characters), signal-
+smaller gains, primarily boosting the Beginning          ing confusion. Conversely, on NeoQA, unmatched
+bucket on Spread Test (Figure 2(b)) but shows            instructions maintain or even slightly improve ac-
+nearly equal boosting on Cross Test (Figure 3(b)).       curacy. We trace this divergence to the underlying
+This suggests that when models can already effec-        task topology. MuSiQue forms a strictly vertical
+tively reason without bias, Matched MFAI acts as         causal chain: extracting Entity A from Document 1
+a confirmation signal and further boosts the perfor-     is the prerequisite to searching for Entity B in Doc-
+mance. The Matched MFAI rescue also holds on             ument 2; if attention shifts away from Document 1,
+2WikiMultiHopQA (Table 6) and at larger scale            the chain breaks entirely. NeoQA, by contrast, is a
+on Qwen2.5-32B-Instruct-GPTQ-Int8 (Table 10,             horizontal parallel task in which independent evi-
+Table 13).                                               dence segments (e.g., two dates) can be retrieved
+                                                         separately; even if locally misled, the model can
+Redistributing Attention Mass. This recovery             still scan the context to recover both facts. In addi-
+of model performance is driven by an observable          tion, NeoQA’s original distractors come from the
+shift in internal attention. As shown in the attention   same fictional timeline, creating high semantic re-
+heatmaps (Figure 5), averaged over 100 NeoQA             dundancy that masks positional neglect. When we
+examples where Qwen2.5-7B-Instruct produced              replaced these same-timeline distractors with doc-
+a correct answer under Matched MFAI (priority-           uments from random timelines, a clear primacy
+sampled toward cases in which MFAI causally              bias emerged: for Qwen2.5-7B-Instruct, accuracy
+rescued a No-MFAI failure; see Appendix A.4),            dropped by 3.83% from Beginning (62.29%) to
+we observe that attention mass shifts toward the         Tail (58.46%). Matched MFAI reduced this gap
+gold documents among all documents (red cells).          to 0.65%, demonstrating that the attention steer-
+This increase is uniform across heads but concen-        ing mechanism neutralizes positional bias even in
+trated in deep layers. The same reallocation pat-        horizontal tasks (Table 14). Detailed analysis of
+tern replicates on MuSiQue (Figure 7), confirming        specific unmatched variants (Appendix A.9) fur-
+that the effect generalizes across multi-hop bench-      ther shows that partially correct instructions (one
+marks. This redistribution confirms that the fail-       gold index provided) outperform random non-gold
+ure mode is a recognition bottleneck driven by a         indices, confirming that even imperfect cues can
+lack of attention. The fact that Matched MFAI            partially resolve the recognition bottleneck.
+restores performance implies that the “composi-
+tionality gap” (Press et al., 2023) is frequently an     System-2 Reasoning Overrides the Recogni-
+attention allocation failure rather than a reasoning     tion Artifact. Comparing standard instruction-
+deficit. McNemar’s paired tests (McNemar, 1947)          following models with System-2 reasoning models
+confirm that this improvement is statistically signif-   (e.g., Qwen3-8B-Think) reveals that extended test-
+icant: across all 6 model configurations, 2 datasets,    time compute (∼ 6× more output tokens than its
+2 protocols, and 3 positional buckets, 62 of 72 com-     non-thinking counterpart on NeoQA; see Table 15)
+parisons reach p < 0.05 and 56 reach p < 0.01            functions as a verification filter. While standard
+(Tables 1 and 2).                                        models passively follow unmatched instructions,
+                                                         the thinking model maintains high accuracy with
+                                                         low variance.
+4.3 Robustness and Verification: Unmatched
+    MFAI and System-2 Reasoning (RQ3)                    4.4   Ablation Analysis: The Cost of Noise
+Finally, we investigate model robustness against         Comparing full-context performance to a gold-only
+misleading signals and the role of test-time com-        baseline (Table 3 in Appendix A.6), standard mod-
+pute (thinking mode) (RQ3).                              els (e.g., Llama-3.1-8B) suffer a significant penalty
+                                                    41830
+                                                (a) MuSiQue dataset
+
+
+
+
+                                                 (b) NeoQA dataset
+
+Figure 6: Model performance across various local indices within the selected pair of positional buckets in the cross
+test. The solid line represents the No MFAI accuracy, dashed line represents the matched instruction accuracy.
+
+
+in the 18-document setting (e.g., dropping from             reasoning chains (MuSiQue) are more vulnerable
+40.45% to avg. 23.28% on MuSiQue), confirm-                 to misleading attention cues than horizontal tasks
+ing that noise filtering is a primary bottleneck for        (NeoQA), and context homogeneity can mask the
+instruction-following models. In contrast, Qwen3-           underlying bias. Importantly, misleading instruc-
+8B-Think defies this trend, matching or exceeding           tions exhibit a graded effect: partially correct cues
+its gold-only performance even with noise. This             (one gold index) still improve over unguided base-
+suggests that distractors may paradoxically aid             lines, while fully random cues harm performance,
+thinking models by triggering more rigorous verifi-         reinforcing that even imperfect recognition signals
+cation. The recognition bottleneck and its rescue by        can partially break the weakest-link bottleneck.
+Matched MFAI persist at larger scale on Qwen2.5-
+32B-Instruct-GPTQ-Int8 (Table 10, Table 13). A                 These findings point to several actionable di-
+no-document ablation (Table 4 in Appendix A.6)              rections. (1) Since absolute position governs per-
+confirms that performance is driven by the provided         formance, RAG reranking should prioritize high-
+context rather than parametric memory, as accuracy          visibility placement of critical evidence; more
+drops to near-zero when documents are removed.              broadly, training objectives should target recog-
+                                                            nition under noisy retrieval, not solely reasoning
+5   Conclusion                                              capabilities. (2) Developing lightweight mechanis-
+                                                            tic probes (e.g., attention patterns, logprob signals)
+We analyzed position bias in long-context multi-            would make position bias diagnosis practical with-
+hop reasoning, distinguishing between recognition           out the extensive factorial evaluation our prompt-
+and synthesis deficits. We identified the “Weak-            level approach requires. (3) Thinking models over-
+est Link Effect”: multi-hop performance is con-             ride position bias at substantial cost (∼6× output
+strained by the absolute position of the least vis-         tokens; Table 15); distilling this self-verification
+ible evidence and driven primarily by a recog-              into standard inference remains open. (4) Whether
+nition bottleneck. This effect replicates across            other reasoning structures (e.g., comparative, tem-
+datasets (MuSiQue, NeoQA, 2WikiMultiHopQA),                 poral) exhibit distinct vulnerability profiles under
+hop counts (2-, 3-, 4-hop), and model scales (7B–           the vertical–horizontal topology is an open ques-
+32B). Task topology modulates the impact: vertical          tion for task-specific mitigation.
+                                                      41831
+Limitations                                            ments. Code and data are publicly available.2
+                                                          We are committed to the full reproducibility of
+Our core experiments cover two datasets                this study. The complete source code and all cu-
+(MuSiQue, NeoQA) and five models; supplemen-           rated data artifacts are released under a permis-
+tary evaluations extend to 2WikiMultiHopQA, 3-         sive open-source license. Key implementation
+/4-hop subsets, and Qwen2.5-32B (Appendix A.7),        details and hyperparameters are described in Ap-
+but these use representative models rather than        pendix A.1.
+the full suite, and frontier-scale models (70B+)       Disclosure of AI Use: We acknowledge the use
+remain untested. We did not perform a mechanistic      of AI assistants for linguistic polishing and gram-
+analysis using logprobs or perplexity, nor explore     matical and stylistic revision during the prepara-
+prompt variations, different bucket counts, or         tion of this manuscript. While these tools were
+context sizes beyond 18 documents. A pilot study       employed to enhance clarity and readability, the
+on MFAI index ordering (Appendix A.8) shows            authors conducted all experiments and verified all
+negligible sensitivity (median 2.52% relative          AI-assisted coding. All experimental design, data
+change), but was tested on only two models.            analysis, scientific reasoning, and final conclusions
+MuSiQue uses open-ended generation while               were produced by the authors, who maintain full re-
+NeoQA is multiple-choice; the answer options in        sponsibility for the content and scientific accuracy
+NeoQA may act as lexical anchors that partially        of the final paper.
+mask position bias independently of task topology,
+so our attribution of the MuSiQue–NeoQA                Acknowledgments
+divergence to topology may be confounded by
+this format difference. We also report strict Exact    This work was supported by the Gates Cambridge
+Match (EM) for open-ended generation; softer           Scholarship.
+alternatives such as token-level F1 or Contains
+(normalized substring match) would raise absolute
+                                                       References
+accuracy on MuSiQue by roughly 8–15 percentage
+points, since they credit sentence-form responses      Rishabh Adiga, Besmira Nushi, and Varun Chan-
+                                                         drasekaran. 2025. Attention speaks volumes: Lo-
+that overlap with (F1) or contain (Contains) the         calizing and mitigating bias in language models. In
+gold answer rather than requiring exact-string           Proceedings of the 63rd Annual Meeting of the As-
+equality, though we expect the relative patterns we      sociation for Computational Linguistics (Volume 1:
+report to be largely preserved. Finally, we used a       Long Papers), pages 26403–26423.
+fixed distractor order to isolate position bias from   Chenxin An, Jun Zhang, Ming Zhong, Lei Li, Shansan
+semantic similarity effects; real-world scenarios        Gong, Yao Luo, Jingjing Xu, and Lingpeng Kong.
+with retrieval rerankers remain future work.             2025. Why does the effective context length of llms
+                                                         fall short? In The Thirteenth International Confer-
+                                                         ence on Learning Representations.
+Ethics Statement                                       George Arthur Baker, Ankush Raut, Sagi Shaier,
+                                                         Lawrence E Hunter, and Katharina von der Wense.
+We affirm that this research follows the ACL Code        2024. Lost in the middle, and in-between: Enhancing
+                                                         language models’ ability to reason over long contexts
+of Ethics. Our study uses publicly available mod-
+                                                         in multi-hop qa. arXiv preprint arXiv:2412.10079.
+els and datasets (MuSiQue (Trivedi et al., 2022)
+and NeoQA (Glockner et al., 2025)) and does not        Jiabei Chen, Guang Liu, Shizhu He, Kun Luo, Yao Xu,
+involve human subjects or private information. By         Jun Zhao, and Kang Liu. 2025. Search-in-context:
+                                                          Efficient multi-hop qa over long contexts via monte
+establishing the “Weakest Link Effect” to explain         carlo tree search with dynamic kv retrieval. In Find-
+position bias in LLMs in multi-hop question an-           ings of the Association for Computational Linguistics:
+swering, our research contributes to the develop-         ACL 2025, pages 26443–26455.
+ment of more transparent and reliable reasoning
+                                                       Shouyuan Chen, Sherman Wong, Liangjian Chen, and
+systems. We acknowledge the societal risks as-           Yuandong Tian. 2023. Extending context window of
+sociated with reasoning LLMs. Our experiments            large language models via positional interpolation.
+operate within the existing paradigm of multi-hop        arXiv preprint arXiv:2306.15595.
+reasoning and retrieval-augmented generation. We          2
+                                                           https://github.com/cambridgeltl/
+do not introduce novel risks through our experi-       weakest-link-effect
+
+                                                  41832
+Florin Cuconasu, Giovanni Trappolini, Federico Sicil-     Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying
+  iano, Simone Filice, Cesare Campagnano, Yoelle           Sheng, Lianmin Zheng, Cody Hao Yu, Joseph Gon-
+  Maarek, Nicola Tonellotto, and Fabrizio Silvestri.       zalez, Hao Zhang, and Ion Stoica. 2023. Efficient
+  2024. The power of noise: Redefining retrieval for       memory management for large language model serv-
+  rag systems. In Proceedings of the 47th International    ing with pagedattention. In Proceedings of the 29th
+  ACM SIGIR Conference on Research and Develop-            symposium on operating systems principles, pages
+  ment in Information Retrieval, pages 719–729.            611–626.
+
+Bradley Efron and RJ Tibshirani. 1994. An Introduction    Shahar Levy, Nir Mazor, Lihi Shalmon, Michael Has-
+  to the Bootstrap. CRC Press.                              sid, and Gabriel Stanovsky. 2025. More documents,
+                                                            same length: Isolating the challenge of multiple doc-
+Max Glockner, Xiang Jiang, Leonardo F. R. Ribeiro,          uments in RAG. In Findings of the Association for
+ Iryna Gurevych, and Markus Dreyer. 2025. NeoQA:            Computational Linguistics: EMNLP 2025, pages
+ Evidence-based question answering with generated           19539–19547, Suzhou, China. Association for Com-
+ news events. In Findings of the Association for            putational Linguistics.
+ Computational Linguistics: ACL 2025, pages 11842–
+ 11926, Vienna, Austria. Association for Computa-         Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+ tional Linguistics.                                        Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+                                                            rich K"uttler, Mike Lewis, Wen-tau Yih, Tim
+Daya Guo, Dejian Yang, Haowei Zhang, Junxiao                Rockt"aschel, and 1 others. 2020.        Retrieval-
+  Song, Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shi-             augmented generation for knowledge-intensive nlp
+  rong Ma, Peiyi Wang, Xiao Bi, and 1 others. 2025.         tasks. Advances in neural information processing
+  Deepseek-r1: Incentivizing reasoning capability in        systems, 33:9459–9474.
+  llms via reinforcement learning. arXiv preprint
+  arXiv:2501.12948.                                       Bangzheng Li, Ben Zhou, Fei Wang, Xingyu Fu, Dan
+                                                            Roth, and Muhao Chen. 2024a. Deceptive semantic
+Junqing He, Kunhao Pan, Xiaoqun Dong, Zhuoyang              shortcuts on reasoning chains: How far can models
+  Song, Yibo Liu, Qianguo Sun, Yuxin Liang, Hao             go without hallucination? In Proceedings of the 2024
+  Wang, Enming Zhang, and Jiaxing Zhang. 2024.              Conference of the North American Chapter of the
+  Never lost in the middle: Mastering long-context          Association for Computational Linguistics: Human
+  question answering with position-agnostic decom-          Language Technologies (Volume 1: Long Papers),
+  positional training. In Proceedings of the 62nd An-       pages 7675–7688.
+  nual Meeting of the Association for Computational
+                                                          Ruosen Li, Zimu Wang, Son Quoc Tran, Lei Xia, and
+  Linguistics (Volume 1: Long Papers), pages 13628–
+                                                            Xinya Du. 2024b. Meqa: a benchmark for multi-hop
+  13642.
+                                                            event-centric question answering with explanations.
+                                                            In Proceedings of the 38th International Conference
+Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,
+                                                            on Neural Information Processing Systems, NIPS ’24,
+  and Akiko Aizawa. 2020. Constructing a multi-hop
+                                                            Red Hook, NY, USA. Curran Associates Inc.
+  qa dataset for comprehensive evaluation of reasoning
+  steps. In Proceedings of the 28th International Con-    Yanyang Li, Shuo Liang, Michael Lyu, and Liwei Wang.
+  ference on Computational Linguistics, pages 6609–         2024c. Making long-context language models better
+  6625.                                                     multi-hop reasoners. In Proceedings of the 62nd
+                                                            Annual Meeting of the Association for Computational
+Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shan-          Linguistics (Volume 1: Long Papers), pages 2462–
+  tanu Acharya, Dima Rekesh, Fei Jia, and Boris Gins-       2475.
+  burg. 2024. Ruler: What’s the real context size of
+  your long-context language models? In First Confer-     Zhong-Zhi Li, Duzhen Zhang, Ming-Liang Zhang, Ji-
+  ence on Language Modeling.                                axin Zhang, Zengyan Liu, Yuxuan Yao, Haotian Xu,
+                                                            Junhao Zheng, Pei-Jie Wang, Xiuyi Chen, and 1 oth-
+Wenyu Huang, Pavlos Vougiouklis, Mirella Lapata, and        ers. 2025a. From system 1 to system 2: A survey
+  Jeff Z Pan. 2025. Masking in multi-hop qa: An analy-      of reasoning large language models. arXiv preprint
+  sis of how language models perform with context per-      arXiv:2502.17419.
+  mutation. In Proceedings of the 63rd Annual Meet-
+  ing of the Association for Computational Linguistics    Zhuoqun Li, Xuanang Chen, Haiyang Yu, Hongyu Lin,
+ (Volume 1: Long Papers), pages 17781–17795.                Yaojie Lu, Qiaoyu Tang, Fei Huang, Xianpei Han,
+                                                            Le Sun, and Yongbin Li. 2025b. Structrag: Boosting
+Aaron Jaech, Adam Kalai, Adam Lerer, Adam Richard-          knowledge intensive reasoning of llms via inference-
+  son, Ahmed El-Kishky, Aiden Low, Alec Helyar,             time hybrid information structurization. In The Thir-
+  Aleksander Madry, Alex Beutel, Alex Carney, and 1         teenth International Conference on Learning Repre-
+  others. 2024. Openai o1 system card. arXiv preprint       sentations.
+  arXiv:2412.16720.
+                                                          Jingyu Liu, Jiaen Lin, and Yong Liu. 2024a. How much
+Gregory Kamradt. 2023. Needle In A Haystack - pres-          can rag help the reasoning of llm? arXiv preprint
+  sure testing LLMs. Github.                                 arXiv:2410.02338.
+                                                     41833
+Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paran-         Simeng Sun, Kalpesh Krishna, Andrew Mattarella-
+  jape, Michele Bevilacqua, Fabio Petroni, and Percy          Micke, and Mohit Iyyer. 2021. Do long-range lan-
+  Liang. 2024b. Lost in the middle: How language              guage models actually use long-range context? In
+  models use long contexts. Transactions of the Asso-         Proceedings of the 2021 Conference on Empirical
+  ciation for Computational Linguistics, 12:157–173.          Methods in Natural Language Processing, pages 807–
+                                                              822.
+Wenjie Ma, Jingxuan He, Charlie Snell, Tyler Griggs,
+ Sewon Min, and Matei Zaharia. 2025. Reasoning              Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+ models can be effective without thinking. arXiv              and Ashish Sabharwal. 2022. MuSiQue: Multi-
+ preprint arXiv:2504.09858.                                   hop questions via single-hop question composition.
+                                                              Transactions of the Association for Computational
+Quinn McNemar. 1947. Note on the sampling error               Linguistics, 10:539–554.
+  of the difference between correlated proportions or
+  percentages. Psychometrika, 12(2):153–157.                Han Wang, Archiki Prasad, Elias Stengel-Eskin, and
+                                                              Mohit Bansal. 2025a. Retrieval-augmented gen-
+Meta Llama Team. 2024. Llama 3.1-8b-instruct.                 eration with conflicting evidence. arXiv preprint
+ https://huggingface.co/meta-llama/Llama-3.                   arXiv:2504.13079.
+ 1-8B-Instruct. Accessed: 2026-01-01.
+                                                            Yiwei Wang, Yujun Cai, Muhao Chen, Yuxuan Liang,
+Sewon Min, Eric Wallace, Sameer Singh, Matt Gardner,          and Bryan Hooi. 2023. Primacy effect of chatgpt. In
+  Hannaneh Hajishirzi, and Luke Zettlemoyer. 2019.            Proceedings of the 2023 Conference on Empirical
+  Compositional questions do not necessitate multi-hop        Methods in Natural Language Processing, pages 108–
+  reasoning. In Proceedings of the 57th Annual Meet-          115.
+  ing of the Association for Computational Linguistics,
+  pages 4249–4257.                                          Zhengren Wang, Jiayang Yu, Dongsheng Ma, Zhe Chen,
+                                                              Yu Wang, Zhiyu Li, Feiyu Xiong, Yanfeng Wang, Lin-
+Mistral AI. 2024.     Ministral-8b-instruct-2410.             peng Tang, Wentao Zhang, and 1 others. 2025b. Rare:
+  https://huggingface.co/mistralai/                           Retrieval-augmented reasoning modeling. arXiv
+  Ministral-8B-Instruct-2410.          Accessed:              preprint arXiv:2503.23513.
+  2026-01-01.
+                                                            Ziqi Wang, Hanlin Zhang, Xiner Li, Kuan-Hao Huang,
+Catherine Olsson, Nelson Elhage, Neel Nanda, Nicholas         Chi Han, Shuiwang Ji, Sham M Kakade, Hao Peng,
+  Joseph, Nova DasSarma, Tom Henighan, Ben Mann,              and Heng Ji. 2025c. Eliminating position bias of lan-
+  Amanda Askell, Yuntao Bai, Anna Chen, and 1 oth-            guage models: A mechanistic approach. In The Thir-
+  ers. 2022. In-context learning and induction heads.         teenth International Conference on Learning Repre-
+  arXiv preprint arXiv:2209.11895.                            sentations.
+
+Ofir Press, Noah A Smith, and Mike Lewis. 2021. Short-      Jason Weston and Sainbayar Sukhbaatar. 2023. System
+  former: Better language modeling using shorter in-           2 attention (is something you might need too). arXiv
+  puts. In Proceedings of the 59th Annual Meeting of           preprint arXiv:2311.11829.
+  the Association for Computational Linguistics and
+  the 11th International Joint Conference on Natu-          Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song
+  ral Language Processing (Volume 1: Long Papers),            Han, and Mike Lewis. 2024. Efficient streaming lan-
+  pages 5493–5505.                                            guage models with attention sinks. In The Twelfth
+                                                              International Conference on Learning Representa-
+Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt,            tions.
+  Noah A Smith, and Mike Lewis. 2023. Measuring
+  and narrowing the compositionality gap in language        Fangzhi Xu, Qika Lin, Jiawei Han, Tianzhe Zhao, Jun
+  models. In Findings of the Association for Computa-         Liu, and Erik Cambria. 2025. Are large language
+  tional Linguistics: EMNLP 2023, pages 5687–5711.            models really good logical reasoners? a comprehen-
+                                                              sive evaluation and beyond. IEEE Transactions on
+Qwen Team and Others. 2025. Qwen2.5 technical re-             Knowledge and Data Engineering.
+ port. Preprint, arXiv:2412.15115.
+                                                            An Yang, Anfeng Li, Baosong Yang, Beichen Zhang,
+Julian Schnitzler, Xanh Ho, Jiahao Huang, Florian             Binyuan Hui, Bo Zheng, Bowen Yu, Chang
+   Boudin, Saku Sugawara, and Akiko Aizawa. 2024.             Gao, Chengen Huang, Chenxu Lv, and 1 others.
+   Morehopqa: More than multi-hop reasoning. arXiv            2025. Qwen3 technical report. arXiv preprint
+   preprint arXiv:2406.13397.                                 arXiv:2505.09388.
+
+Maojia Song, Renhang Liu, Xinyu Wang, Yong Jiang,           Sohee Yang, Elena Gribovskaya, Nora Kassner, Mor
+ Pengjun Xie, Fei Huang, Jingren Zhou, Dorien Her-            Geva, and Sebastian Riedel. 2024. Do large language
+ remans, and Soujanya Poria. 2025. Demystifying               models latently perform multi-hop reasoning? In
+ deep search: a holistic evaluation with hint-free multi-     Proceedings of the 62nd Annual Meeting of the As-
+ hop questions and factorised metrics. arXiv preprint         sociation for Computational Linguistics (Volume 1:
+ arXiv:2510.05137.                                            Long Papers), pages 10210–10229.
+                                                       41834
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio,       all experiments, the temperature was set to 0 to en-
+  William Cohen, Ruslan Salakhutdinov, and Christo-        force greedy sampling, with the random seed fixed
+  pher D Manning. 2018. Hotpotqa: A dataset for
+                                                           at 42 for reproducibility. Despite greedy decoding,
+  diverse, explainable multi-hop question answering.
+  In Proceedings of the 2018 conference on empiri-         vLLM inference is not strictly bit-deterministic un-
+  cal methods in natural language processing, pages        der concurrent batching (due to kernel-level nu-
+  2369–2380.                                               merical noise and batch-size-dependent attention
+Zihao Yi, Delong Zeng, Zhenqing Ling, Haohao Luo,          computations), so exact per-cell EM values may
+  Zhe Xu, Wei Liu, Jian Luan, Wanxia Cao, and Ying         drift by a fraction of a percentage point on re-
+  Shen. 2025. Attention basin: Why contextual posi-        runs; the directional conclusions we report are ro-
+  tion matters in large language models. arXiv preprint    bust to this residual stochasticity. Inference on the
+  arXiv:2508.05128.
+                                                           full dataset required approximately 0.5 hours for
+Hao Yu, Aoran Gan, Kai Zhang, Shiwei Tong, Qi Liu,         standard instruction-following models on 2x3090,
+  and Zhaofeng Liu. 2024a. Evaluation of retrieval-        faster on A100 and A6000. Qwen3-8B-Think re-
+  augmented generation: A survey. In CCF Conference
+  on Big Data, pages 102–120. Springer.                    quired roughly 3 hours per run. In total, the full
+                                                           Spread and Cross tests for each model involved 150
+Sangwon Yu, Ik-hwan Kim, Jongyoon Song, Saehyung           discrete inference runs.
+  Lee, Junsung Park, and Sungroh Yoon. 2025a. Un-
+  leashing multi-hop reasoning potential in large lan-
+                                                              We selected the tested LLMs based on their max-
+  guage models through repetition of misordered con-       imum context window length and GPU compatibil-
+  text. In Findings of the Association for Computa-        ity. This includes Ministral-8B-Instruct, released
+  tional Linguistics: NAACL 2025, pages 6435–6455.         in 2024, specifically Ministral-8B-Instruct-2410.3
+Wenhao Yu, Hongming Zhang, Xiaoman Pan, Peixin             For Qwen3-8B, we evaluated both “thinking” and
+ Cao, Kaixin Ma, Jian Li, Hongwei Wang, and Dong           “non-thinking” modes following the official vLLM
+ Yu. 2024b. Chain-of-note: Enhancing robustness in         deployment guidelines.4
+ retrieval-augmented language models. In Proceed-
+ ings of the 2024 conference on empirical methods in       A.2    Additional Related Work on System-2
+ natural language processing, pages 14672–14685.
+                                                                  Reasoning
+Yijiong Yu, Huiqiang Jiang, Xufang Luo, Qianhui
+  Wu, Chin-Yew Lin, Dongsheng Li, Yuqing Yang,             An emerging paradigm for mitigating reasoning
+  Yongfeng Huang, and Lili Qiu. 2025b. Mitigate po-        failures involves transitioning from fast System 1
+  sition bias in llms via scaling a single hidden states   processing to deliberate System-2 reasoning (Li
+  channel. In Findings of the Association for Computa-     et al., 2025a). Models such as the OpenAI o1 se-
+  tional Linguistics: ACL 2025, pages 6092–6111.
+                                                           ries (Jaech et al., 2024) and DeepSeek-R1 (Guo
+Eric Zelikman, Georges Harik, Yijia Shao, Varuna           et al., 2025) leverage large-scale reinforcement
+  Jayasiri, Nick Haber, and Noah D Goodman. 2024.          learning to internalize chain-of-thought verifica-
+  Quiet-star: Language models can teach themselves         tion without supervised fine-tuning. Similarly, the
+  to think before speaking. In First Conference on
+  Language Modeling.                                       Qwen3 series (Yang et al., 2025) unifies “think-
+                                                           ing” and standard “non-thinking” modes within
+Meiru Zhang, Zaiqiao Meng, and Nigel Collier. 2024a.       a dynamic compute budget. Beyond explicit rea-
+ Can we instruct llms to compensate for position bias?
+ In Findings of the Association for Computational          soning models, techniques like Quiet-STaR (Zelik-
+ Linguistics: EMNLP 2024, pages 12545–12556.               man et al., 2024) and System-2 Attention (Weston
+                                                           and Sukhbaatar, 2023) act as implicit context re-
+Zhenyu Zhang, Runjin Chen, Shiwei Liu, Zhewei
+  Yao, Olatunji Ruwase, Beidi Chen, Xiaoxia Wu,            construction mechanisms, generating internal ra-
+  Zhangyang Wang, and 1 others. 2024b. Found in            tionales or filtering context before attending. Al-
+  the middle: How language models use long contexts        though Ma et al. (2025) question the strict neces-
+  better via plug-and-play positional encoding. Ad-        sity of explicit thought tokens in low-budget set-
+  vances in Neural Information Processing Systems,
+  37:60755–60775.
+                                                           tings, our work empirically demonstrates that this
+                                                           extended test-time compute is crucial for robust-
+A    Appendix                                              ness against position bias. We show that “thinking”
+                                                           models actively verify retrieval artifacts, overcom-
+A.1 Implementation Details
+                                                              3
+We utilized vLLM (v0.8.5.post1) (Kwon et al.,                   https://huggingface.co/mistralai/
+                                                           Ministral-8B-Instruct-2410
+2023) to perform inference in the default bf16 pre-           4
+                                                                https://qwen.readthedocs.io/en/latest/
+cision on A6000, 2x3090, and A100 GPUs. For                deployment/vllm.html
+
+                                                      41835
+ing the topological limitations of standard LLMs.                    NeoQA Example 1 (time-span question)
+                                                                     Event: Viroscope app lifecycle and governance
+                                                                     changes .
+                                                                     Question: What is the total duration between the
+                                                                     inferred start of the Viroscope app’s six-month testing
+                                                                     phase in Misterine City and the release of the report
+                                                                     by HealthStream Tech Solutions about the feasibility
+                                                                     of the citizen-led data trust model?
+A.3 Examples of MuSiQue and NeoQA                                    Answer: 1 year, 2 months, and 28 days
+                                                                     Gold Doc 1 (meta): article_id=epidemics_3_0-
+                                                                     ev7-3; title=Major Overhaul Planned for Viroscope
+                                                                     App...; date=2025-08-12
+                                                                     Gold Doc 1 (text): HealthStream Tech Solutions ...
+                                                                     released a detailed report ... about adapting Viroscope
+   MuSiQue Example 1                                                 to a citizen-led data trust model. The report, released
+                                                                     on August 12, 2025, confirms ... a decentralized
+   Question: Which county does Lloyd Dane’s birth-                   framework...
+   place belong to?                                                  Gold Doc 2 (meta): article_id=epidemics_3_0-ev0-
+   Answer: Miller County                                             9; title=Drenvale Institute Launches "Viroscope"...;
+   Gold Doc 1 (meta): id=para_3; title=Lloyd Dane;                   date=2024-11-15
+   paragraph_idx=3                                                   Gold Doc 2 (text): The Drenvale Institute ... unveiled
+   Gold Doc 1 (text): Lloyd Dane (August 19, 1925 –                  its mobile app "Viroscope" on November 15, 2024,
+   December 11, 2015) was a NASCAR Grand National                    in a bold move to revolutionize epidemic tracking
+   Series driver from Eldon, Missouri. He participated               ... "Viroscope" underwent six months of testing in
+   part-time in the 1951 and 1954 to 1964 seasons, cap-              Misterine City...
+   turing four wins, all in his own car...                           Logical Connection: Testing lasted 6 months;
+   Gold Doc 2 (meta): id=para_11; title=Eldon, Mis-                  inferred start is 6 months before 2024-11-15, which
+   souri; paragraph_idx=11                                           is 2024-5-15; compute interval to 2025-08-12, the
+   Gold Doc 2 (text): Eldon is a city in Miller County,              answer is 1 year, 2 months, and 28 days.
+   Missouri, United States, located thirty miles south-              Distractor                Example                (meta):
+   west of Jefferson City...                                         article_id=epidemics_3_0-ev4-10;             title=Pilot
+   Logical Connection: Lloyd Dane was born in Eldon;                 Study of Viroscope App in Larnwick...
+   Eldon is in Miller County.                                        Distractor Example (text): The Drenvale Institute
+   Distractor Example (meta): id=para_19; ti-                        for Public Health is moving forward with the pilot
+   tle=Minsk Region                                                  rollout of the Viroscope app in Larnwick, scheduled
+   Distractor Example (text): Minsk Region or Minsk                  to begin on July 1, 2025...
+   Voblasć or Minsk Oblast ... is one of the regions of
+   Belarus. Its administrative center is Minsk...
+
+
+
+
+   MuSiQue Example 2
+   Question: Who wrote "Turn Me On" by performer of
+   "Happy Pills"?
+   Answer: John D. Loudermilk
+   Gold Doc 1 (meta): id=para_0; title=Happy Pills
+   (song); paragraph_idx=0
+   Gold Doc 1 (text): "Happy Pills" is a song by the
+   American singer-songwriter Norah Jones. It is the
+   lead single from her fifth studio album "Little Broken
+   Hearts"...
+   Gold Doc 2 (meta): id=para_10; title=Turn Me On
+   (Mark Dinning song); paragraph_idx=10
+   Gold Doc 2 (text): “Turn Me On” Single by Norah
+   Jones from the album First Sessions ... Songwriter(s)
+   John D. Loudermilk ...
+   Logical Connection: Performer of "Happy Pills" is
+   Norah Jones; she performs "Turn Me On"; songwriter
+   is John D. Loudermilk.
+   Distractor Example (meta): id=para_17; title=Birth
+   control
+   Distractor Example (text): In 1909, Richard Richter
+   developed the first intrauterine device ... Further de-
+   velopments followed in the 1950s...
+
+
+                                                             41836
+   NeoQA Example 2                                               output-specialized layers)Pto obtain a per-head span
+                                                                                      1
+                                                                 matrix Hσ,h = |Lvalid  ||σ|  l∈Lvalid , i∈σ al,h,i . We fix
+   Event: Norhaven rollout delay and privacy oversight
+   debate in the epidemics timeline (event-centric               one bucket–distance configuration per figure (e.g.,
+   multi-hop).                                                   gold_at_b_dist1 for the Beginning-bucket panel)
+   Question: What specific process confirmed the                 and average the matrices across N =100 instances
+   compliance of the app with data protection standards,
+   as stated by the individual who expressed regret over         selected from that configuration by a priority-fill
+   delays in Norhaven and emphasized public trust?               sampler: it first takes every Matched-correct / NA-
+   Answer: Independent security audit by a third-party
+   firm
+                                                                 incorrect case (causal-lift cases) and fills the re-
+   Gold Doc 1 (meta): article_id=epidemics_3_0-ev0-              mainder from cases where both modes are correct;
+   11; title="Drenvale Institute Launches ’Viroscope’            Matched-incorrect / NA-correct cases are excluded.
+   App Amid Privacy Concerns"; date=2024-11-15
+   Gold Doc 1 (text): The Drenvale Institute for                 Per-document share difference. Figure 7 shows
+   Public Health announced the release of its latest
+   innovation ... addressed privacy concerns around              the quantity we report: the difference, between
+   Viroscope. Dr. Elara Tovrin ... stated the app does not       two modes, of per-layer- (or per-head-) normalized
+   collect personal identifiers ... the app underwent an         document shares. Restricting Ml,σ to the D doc-
+   independent security audit conducted by a third-party
+   firm, which confirmed its compliance with data                ument spans and normalizing so that each P layer’s
+   protection standards...                                       doc shares sum to one, M̃l,d = Ml,d / d′ Ml,d′ ,
+   Gold Doc 2 (meta): article_id=epidemics_3_0-                              matched − M̃ NA . The per-head version
+                                                                 we plot M̃l,d
+   ev8-7; title=Privacy Concerns and Oversight Delay                                     l,d
+   Viroscope App Rollout in Norhaven; date=2025-10-              uses the analogous column normalization of Hd,h ,
+   05                                                            with a final avg column appended that is the row
+   Gold Doc 2 (text): The Viroscope rollout in
+   Norhaven was delayed due to privacy concerns ...
+                                                                 mean over heads. Normalizing before differenc-
+   Dr. Elara Tovrin expressed regret over the delay and          ing factors out each layer’s (or head’s) overall
+   reaffirmed that public trust remains the institute’s top      doc-attention budget, so colors reflect realloca-
+   priority...
+   Logical Connection: Gold Doc 2 identifies the                 tion among documents: red = larger share under
+   speaker (Dr. Elara Tovrin). Gold Doc 1 states the             Matched, blue = smaller. Gold documents are
+   process she cited as confirming compliance, which is          marked with an asterisk; instruction-targeted docu-
+   the independent third-party security audit.
+   Distractor               Example                (meta):       ments are highlighted in red. Per-document labels
+   article_id=epidemics_3_0-ev8-1; title=Norhaven                show the mean of the normalized-share difference
+   Launches Review of Viroscope App Amid Privacy                 over layers (or heads), multiplied by 100 (percent-
+   Concerns
+   Distractor Example (text): Norhaven’s Ministry                age points); the colorbar reports the raw signed
+   of Citizen Protection announced a comprehensive               share difference per cell, so a colorbar value of
+   review ... emphasized compliance with the Data
+   Protection Act of 2023 ... announced oversight and
+                                                                 0.02 corresponds to a +2 pp reallocation.
+   evaluation plans...
+                                                                 A.5    Statistical Analysis
+                                                                 We apply two statistical tests to validate the relia-
+A.4 Heatmap Computation and Visualization
+                                                                 bility of our experimental results: bootstrap confi-
+We visualize the attention of the first generated                dence intervals for the accuracy estimates reported
+answer token, aggregated into semantic spans and                 in the bar charts, and McNemar’s test for the sig-
+differenced across MFAI conditions.                              nificance of performance differences between the
+                                                                 No MFAI and Matched MFAI conditions.
+Extraction and aggregation. For each instance
+we render the prompt with the model’s chat tem-                  Bootstrap Confidence Intervals. Each accuracy
+plate and run the forward pass with the eager atten-             value reported in our figures is a point estimate
+tion implementation, reusing the KV cache so only                computed over a finite sample of question–answer
+the target-token attention is computed. Let al,h,i be            pairs. To quantify the uncertainty of these esti-
+that attention weight at layer l, head h for input to-           mates, we construct 95% confidence intervals (CIs)
+ken i. The prompt is segmented into S spans: task                using the bootstrap percentile method (Efron and
+instruction, attention instruction (when present),               Tibshirani, 1994). For a given experimental con-
+question, answer options, and D document blocks.                 dition (model, dataset, protocol, position bucket),
+We average over heads     to obtain a per-layer span             let s = (s1 , . . . , sN ) denote the vector of N binary
+                  1 P
+matrix Ml,σ = H|σ| h, i∈σ al,h,i , and over a valid-             scores. We draw B = 10,000 bootstrap samples of
+layer range Lvalid = {1, . . . , 26} (excluding layer            size N with replacement and compute the replicate
+0, which is embedding-dominated, and the last                    accuracy for each. The 95% CI is given by the
+                                                              41837
+                (a) Layer-wise Heatmap.                                       (b) Head-wise Heatmap.
+
+Figure 7: Normalized document-share difference (Matched − No MFAI) of Qwen2.5-7B-Instruct on MuSiQue
+when gold documents are placed in the Beginning bucket (Doc 1 and Doc 2, configuration gold_at_b_dist1),
+averaged over 100 examples drawn with the priority-fill sampler described in Appendix A.4. Y-axis: document
+spans (with per-document mean over layers/heads, ×100, shown in the label). X-axis: layer index in (a), head index
+in (b) with a final head-averaged avg column. The colorbar reports the raw signed share difference per cell; e.g.,
+0.02 corresponds to a +2 pp reallocation. Red = larger share under Matched; blue = smaller.
+
+
+2.5th and 97.5th percentiles of the empirical distri-       Dataset   Model            Beginning   Middle     Tail
+bution. These confidence intervals are displayed as                 Llama-3.1-8B        +7.22∗∗    +11.46∗∗ +11.49∗∗
+                                                                    Ministral-8B        +1.73∗∗    +7.83∗∗ +7.91∗∗
+error bars on the bar charts in Figures 2 and 3.                    Qwen2.5-7B          +7.26∗∗    +12.12∗∗ +11.04∗∗
+                                                            MuSiQue
+                                                                    Qwen2.5-14B         +5.07∗∗    +9.49∗∗ +7.58∗∗
+McNemar’s Test. To test whether Matched                             Qwen3-8B            +2.99∗∗    +8.56∗∗ +8.31∗∗
+                                                                    Qwen3-8B-Think      +2.57∗∗    +5.26∗∗ +4.83∗∗
+MFAI significantly improves accuracy relative to
+                                                                      Llama-3.1-8B      +2.94∗∗    +4.28∗∗   +2.39∗
+the No MFAI baseline, we apply McNemar’s                              Ministral-8B      +6.37∗∗    +3.13∗∗   +4.18∗∗
+test (McNemar, 1947), which is appropriate for                        Qwen2.5-7B        +3.98∗∗     +0.45     +1.79
+                                                            NeoQA
+                                                                      Qwen2.5-14B       +4.23∗∗    +3.33∗∗    +1.14
+comparing paired binary outcomes on the same set                      Qwen3-8B          +1.79∗      +1.14     +0.80
+                                                                      Qwen3-8B-Think    +2.89∗∗    +2.44∗∗    +0.95
+of examples. For each setting (model, dataset, pro-
+tocol, position bucket), we evaluate the same N           Table 1: McNemar’s test: Matched MFAI vs. No MFAI
+questions under both conditions, producing paired         on the Spread Test (MuSiQue, NeoQA). Rows are
+outcomes (sna       matched ) summarized in a 2×2 con-
+               i , si                                     the five core instruction-tuned models plus Qwen3-8B-
+tingency table. Let b count questions correct under       Think; columns are position buckets. Cell values are ∆
+No MFAI but incorrect under Matched (degraded),           accuracy (%) = Matched − NA. Significance markers: ∗
+and c count the reverse (improved). Under the null        p < 0.05, ∗∗ p < 0.01 (McNemar’s test with continuity
+hypothesis that Matched MFAI has no effect, the           correction; two-sided, paired binary outcomes).
+test statistic with continuity correction is:
+                       (|b − c| − 1)2                      few cells with small ∆ (e.g., Qwen2.5-7B Spread
+                χ2 =                               (1)     Middle/Tail, Qwen3-8B Cross B+M) do not reach
+                            b+c
+                                                           significance, reflecting the smaller effect sizes on
+which follows a χ2 distribution with one degree of         NeoQA’s more homogeneous same-timeline con-
+freedom. We report significance at both p < 0.05           text (No-MFAI baseline accuracies of ∼50–70%
+and p < 0.01 thresholds.                                   on NeoQA vs. ∼10–35% on MuSiQue). Per proto-
+   Tables 1 and 2 report the paired McNemar re-            col, the Spread test yields 28/36 cells at p < 0.01
+sults for the five core instruction-tuned models plus      and 30/36 at p < 0.05, while the Cross test yields
+Qwen3-8B-Think on MuSiQue and NeoQA, un-                   28/36 at p < 0.01 and 32/36 at p < 0.05; aggre-
+der the Spread and Cross protocols respectively.           gated, 56/72 cells reach p < 0.01 and 62/72 reach
+On MuSiQue, Matched MFAI significantly im-                 p < 0.05.
+proves over No MFAI in every cell at p < 0.01
+(36/36 across both protocols), consistent with the         A.6    Ablation
+recognition-bottleneck interpretation: explicitly         Gold-Only Ablation. To establish an upper
+steering attention toward gold documents reliably         bound on model performance and isolate the impact
+rescues performance. On NeoQA, the effect is              of distractors, we conducted a gold-only ablation
+smaller and the significance pattern is mixed: most       where models receive only the two gold documents.
+cells still reach p < 0.01 or p < 0.05, but a             Table 3 presents the results. This setting represents
+                                                     41838
+ Dataset   Model              B+M            B+T         M+T         formance on NeoQA also declines when distract-
+         Llama-3.1-8B   +10.69∗∗ +10.96∗∗ +11.88∗∗                   ing documents are added, though at a similar level
+         Ministral-8B   +6.07∗∗ +6.06∗∗ +7.85∗∗
+         Qwen2.5-7B     +11.81∗∗ +10.22∗∗ +12.23∗∗                   to the drop caused by position bias. Surprisingly,
+ MuSiQue
+         Qwen2.5-14B    +9.16∗∗ +8.53∗∗ +8.45∗∗                      Qwen3-8B-Think appears to benefit from the noise,
+         Qwen3-8B       +6.93∗∗ +7.41∗∗ +8.12∗∗
+         Qwen3-8B-Think +4.24∗∗ +4.79∗∗ +5.35∗∗                      which suggests that distractors may trigger more
+           Llama-3.1-8B      +3.19∗∗     +2.86∗∗         +1.49       rigorous verification in “thinking” models. The
+           Ministral-8B      +3.94∗∗     +3.77∗∗        +3.11∗∗      gold-only upper bound generally drops from 2-hop
+           Qwen2.5-7B        +3.73∗∗     +4.02∗∗        +2.20∗
+ NeoQA
+           Qwen2.5-14B       +1.78∗      +2.74∗∗         +1.41       to 3-hop (see 3-hop and 4-hop columns of Table 3),
+           Qwen3-8B           +1.16      +1.99∗         +1.78∗
+           Qwen3-8B-Think    +2.86∗∗     +1.87∗∗         +1.24       though the trend is non-monotone at 4-hop for sev-
+                                                                     eral models.
+Table 2: McNemar’s test: Matched MFAI vs. No MFAI
+on the Cross Test (MuSiQue, NeoQA). Rows are the                     No-Document Ablation. To verify that model
+five core instruction-tuned models plus Qwen3-8B-                    performance is driven by the provided context
+Think; columns are bucket pairs (Beginning+Middle,                   rather than parametric memory, we removed all
+Beginning+Tail, Middle+Tail). Cell values are ∆ ac-                  documents from the input. As shown in Table 4,
+curacy (%) = Matched − NA. Significance markers: ∗                   accuracy drops to near-zero across all models
+p < 0.05, ∗∗ p < 0.01 (McNemar’s test with continuity                for MuSiQue at all hop counts (2-, 3-, and 4-
+correction; two-sided, paired binary outcomes).                      hop) and for NeoQA, with most models correctly
+                                                                     outputting “Unanswerable” (except Qwen2.5-7B-
+the ideal scenario where recognition is perfect and                  Instruct). This confirms that models are indeed re-
+the model only needs to perform reasoning or syn-                    lying on the retrieved documents rather than mem-
+thesis over the minimal necessary context. The                       orized knowledge, validating the integrity of our
+performance gap between this gold-only condition                     experimental setup even as hop count increases.
+and the full 18-document setting (reported in Fig-
+                                                                      Model                            NeoQA        MuSiQue EM (%)
+ure 2 in Section 4.1) quantifies the cost of distrac-
+                                                                                              Acc. (%) Unans. (%)   2h     3h     4h
+tion, revealing the extent to which noise filtering                   Llama-3.1-8B-Instruct     0.00      100.00    0.08   0.26   0.25
+bottlenecks each model.                                               Ministral-8B-Instruct     0.00      100.00    1.77   0.00   0.00
+                                                                      Qwen2.5-7B-Instruct      14.93       61.44    0.00   0.00   0.00
+                                                                      Qwen2.5-14B-Instruct      0.00      100.00    0.00   0.26   0.25
+ Model                   NeoQA         MuSiQue EM (%)                 Qwen3-8B                  1.74       94.03    0.16   0.00   0.25
+                                                                      Qwen3-8B-Think            0.00      100.00    0.08    —      —
+                         Acc. (%)       2h         3h      4h
+ Llama-3.1-8B-Instruct      66.42      40.45   35.54      32.84      Table 4: No-document ablation exact-match accuracy
+ Ministral-8B-Instruct      63.18      37.40   25.76      34.81      (%) for NeoQA and MuSiQue at 2-hop, 3-hop, and 4-
+ Qwen2.5-7B-Instruct        68.91      19.58   15.19      17.78
+                                                                     hop. Documents are removed from the prompt; NeoQA
+ Qwen2.5-14B-Instruct       69.15      41.57   37.65      48.15
+ Qwen3-8B                   71.64      42.46   34.21      42.22      “Unans.” is the rate at which the model selects “Unan-
+ Qwen3-8B-Think             71.64      44.70    —          —         swerable”. “—” marks cells where the experiment was
+                                                                     not run.
+Table 3: Gold-only exact-match accuracy (%) for
+NeoQA and MuSiQue at 2-hop, 3-hop, and 4-hop. Each
+setting feeds the model only the gold supporting doc-                A.7      Supplementary Validation: Additional
+uments (no distractors). “—” marks cells where the                            Datasets and Model Scale
+experiment was not run for that model. Qwen3-8B-
+                                                                     To assess the generalizability of the Weakest Link
+Think has 2-hop only.
+                                                                     Effect beyond the two primary datasets and the five
+                                                                     core models, we conducted supplementary eval-
+   Specifically, all models, including Qwen3-8B-                     uations on additional datasets, hop counts, and a
+Think, exhibit performance degradation when dis-                     larger model.
+tractors are present compared to the high-visibility
+Beginning bucket on MuSiQue. However, this                           A.7.1 2WikiMultiHopQA
+degradation is typically less severe than the drop                   We evaluated the Compositional and Inference sub-
+caused by position bias. For example, the perfor-                    sets of 2WikiMultiHopQA (2-hop; 2,685 and 736
+mance of Ministral-8B-Instruct drops by 7.69%                        examples respectively) on the five core models.
+due to distractors when gold documents are in the                    The key patterns from MuSiQue replicate across
+Beginning bucket, but moving the gold documents                      both subsets. To reduce compute load on this sup-
+to the Middle bucket leads to 11.04% drop. Per-                      plementary evaluation, we sampled a sparse subset
+                                                                  41839
+of the inter-gold distance and cross local-index grid                  Subset Model            Bucket   NA    Matched (∆) Unmatched (∆)
+                                                                                          Beginning 34.56 38.83 (+4.27)        32.45 (-2.12)
+used for MuSiQue and NeoQA: Spread distances                                 Llama-3.1-8B Middle 24.83 37.27 (+12.44)         23.34 (-1.49)
+d ∈ {1, 3, 5} (vs. 1–5 on MuSiQue/NeoQA) and                                                Tail    23.30 36.82 (+13.52)
+                                                                                          Beginning 39.65 40.09 (+0.43)
+                                                                                                                              21.92 (-1.38)
+                                                                                                                               38.04 (-1.61)
+Cross local indices ∈ {0, 3, 5} (vs. 0–5), which                             Ministral-8B  Middle 28.89 33.53 (+4.64)         26.44 (-2.45)
+                                                                                            Tail    25.02 30.75 (+5.74)       21.99 (-3.03)
+still spans the within-bucket range.5                                                     Beginning 27.25 32.97 (+5.72)        24.54 (-2.71)
+                                                                       Comp. Qwen2.5-7B    Middle 16.34 28.38 (+12.04)        13.73 (-2.61)
+                                                                                            Tail    17.55 28.23 (+10.68)      15.56 (-2.00)
+Step-function position bias. Table 5 reports the                                          Beginning 41.58 43.70 (+2.12)       28.00 (-13.58)
+Spread NA accuracy per bucket across inter-gold                              Qwen2.5-14B Middle 34.89 42.83 (+7.95)
+                                                                                            Tail    34.81 41.01 (+6.19)
+                                                                                                                              26.18 (-8.71)
+                                                                                                                              29.26 (-5.56)
+distances 1, 3, and 5. Within-bucket variation is                                         Beginning 39.84 39.86 (+0.02)        34.58 (-5.26)
+                                                                             Qwen3-8B      Middle 31.00 37.01 (+6.01)         26.36 (-4.64)
+generally small (particularly in the Compositional                                          Tail    29.40 35.12 (+5.72)       24.63 (-4.77)
+
+subset), but shifting the evidence set between buck-                                         Beginning 28.49 37.14 (+8.65)     22.42 (-6.07)
+                                                                                Llama-3.1-8B  Middle 12.91 26.95 (+14.04)     12.79 (-0.11)
+ets causes a large drop, replicating the step-function                                         Tail    12.14 24.05 (+11.91)   12.70 (+0.57)
+                                                                                             Beginning 25.05 28.58 (+3.53)     21.63 (-3.42)
+pattern observed on MuSiQue.                                                    Ministral-8B  Middle    8.83 15.44 (+6.61)     7.93 (-0.91)
+                                                                                               Tail     7.11 13.09 (+5.98)     6.16 (-0.95)
+                                                                                             Beginning 7.56 15.44 (+7.88)       7.16 (-0.41)
+ Subset Model            Bucket    d=1 d=3 d=5             Avg         Infer.   Qwen2.5-7B    Middle    5.03 12.86 (+7.84)     4.82 (-0.20)
+                                                                                               Tail     5.57 11.73 (+6.16)     5.71 (+0.14)
+                       Beginning   35.20   34.67   33.82   34.56                             Beginning 30.03 33.42 (+3.40)    17.57 (-12.45)
+          Llama-3.1-8B  Middle     24.88   24.99   24.62   24.83                Qwen2.5-14B Middle 11.96 21.51 (+9.56)         8.88 (-3.08)
+                         Tail      23.02   21.86   25.03   23.30                               Tail    10.28 19.34 (+9.06)     8.74 (-1.54)
+                       Beginning   41.08   39.74   38.14   39.65                             Beginning 20.02 25.27 (+5.25)     13.99 (-6.02)
+          Ministral-8B  Middle     29.91   28.90   27.86   28.89                Qwen3-8B      Middle    8.11 17.98 (+9.87)     5.82 (-2.29)
+                         Tail      25.74   24.51   24.80   25.02                               Tail     6.20 15.35 (+9.15)     5.41 (-0.79)
+                       Beginning   28.23   26.52   27.00   27.25
+ Comp.    Qwen2.5-7B    Middle     16.95   16.09   15.98   16.34
+                         Tail      16.57   16.65   19.44   17.55
+                                                                      Table 6: 2WikiMultiHopQA Spread protocol MFAI
+                       Beginning   43.17   40.97   40.60   41.58      effects per bucket. ∆ is relative to NA in the same cell.
+          Qwen2.5-14B   Middle     35.83   34.53   34.30   34.89
+                         Tail      35.08   34.64   34.71   34.81
+                       Beginning   41.12   39.93   38.47   39.84
+          Qwen3-8B      Middle     31.62   31.40   29.98   31.00      Weakest Link Effect on Cross. Table 12 reports
+                         Tail      29.46   29.05   29.68   29.40
+                                                                      the Cross protocol results with Weakest Link refer-
+                       Beginning   30.98   28.80   25.68   28.49
+          Llama-3.1-8B  Middle     13.86   12.77   12.09   12.91      ences. Cross NA typically falls between Spread
+                         Tail      12.64   10.87   12.91   12.14      Min and Spread Avg and sits well below the
+                       Beginning   31.66   22.83   20.65   25.05
+          Ministral-8B  Middle      9.24    8.56    8.70    8.83      stronger constituent bucket, confirming the Weak-
+                         Tail       7.34    6.25    7.74    7.11      est Link Effect on 2WikiMultiHopQA.
+                       Beginning    7.88    7.07    7.74    7.56
+ Infer.   Qwen2.5-7B    Middle      5.43    4.76    4.89    5.03
+                         Tail       5.98    4.62    6.11    5.57      A.7.2 MuSiQue 3-Hop and 4-Hop
+                       Beginning   36.55   28.53   25.00   30.03
+          Qwen2.5-14B   Middle     13.04   12.64   10.19   11.96      The MuSiQue 3-hop (757 examples) and 4-hop
+                         Tail      10.87    9.51   10.46   10.28      (405 examples) subsets confirm that the Weakest
+                       Beginning   23.51   19.02   17.53   20.02
+          Qwen3-8B      Middle      8.56    8.15    7.61    8.11      Link Effect generalizes to longer reasoning chains.
+                         Tail       6.25    6.25    6.11    6.20
+                                                                      Placement configurations. Each placement la-
+Table 5: 2WikiMultiHopQA Spread NA accuracy (%)                       bel concatenates bucket-letter + local-index to-
+per bucket across inter-gold distances 1, 3, and 5.                   kens per gold document, with bucket letters B
+                                                                      (global 0–5), M (6–11), T (12–17) and local in-
+MFAI effects on Spread. Table 6 shows that                            dex ∈ {0, . . . , 5}. For example, b0b1b2 places
+Matched MFAI consistently rescues the low-                            three golds in Beginning; b0b1m2 is a “2B+1M”
+visibility buckets (positive ∆), while Unmatched                      split; 4-hop labels extend the pattern (b0b1b2b3,
+MFAI degrades performance (negative ∆), demon-                        b0b1b2m3, etc.). Table 8 uses the all-in-one-
+strating the asymmetric response to correct vs. mis-                  bucket configs (b0b1b2, m0m1m2, t0t1t2 and 4-
+leading attention steering.                                           hop analogues). Table 11 uses the mixed configs
+                                                                      2B+1M (b0b1m2 / b0b1b2m3) and 2B+1T (b0b1t2 /
+Cross local-index invariance. Table 7 shows                           b0b1b2t3). Spread Max is the all-Beginning refer-
+that Cross accuracy is relatively stable across local                 ence; Spread Min is the all-one-bucket NA for the
+indices (0, 3, 5) within each bucket-pair, indicat-                   weaker constituent (all-M or all-T).
+ing that bucket-pair membership rather than fine-
+grained offset is the primary driver of performance.                  Unmatched mirror. The Unmatched column in
+    5
+                                                                      Table 11 keeps the gold documents in place but
+      Within-bucket variation is small on MuSiQue (cf. Fig-
+ure 2); sampling every other distance and index was chosen to         redirects the MFAI instruction into an empty (gold-
+preserve the near-extreme cases while halving GPU cost.               free) bucket at the same local indices as the golds
+                                                                   41840
+ Subset Model            Pair   idx 0   idx 3   idx 5   Avg             Model             Hop    All-B      All-M   All-T
+                       B+M      33.67   27.15   24.58   28.47                             3h     25.10      19.55    19.68
+          Llama-3.1-8B B+T      32.51   26.07   26.37   28.32           Llama-3.1-8B
+                                                                                          4h     21.48      15.31    16.54
+                       M+T      24.88   22.57   24.92   24.12                             3h     20.87      13.47     9.64
+                       B+M      37.09   29.68   28.12   31.63           Ministral-8B
+                                                                                          4h     19.01      16.30    15.56
+          Ministral-8B B+T      35.64   26.85   27.52   30.01
+                       M+T      26.82   25.14   25.07   25.67
+                                                                                          3h     11.10      12.02    12.55
+                                                                        Qwen2.5-7B
+                       B+M      25.92   17.13   15.98   19.68                             4h     16.54      14.32    12.35
+ Comp.    Qwen2.5-7B   B+T      25.70   17.84   20.37   21.30                             3h     32.36      23.65    22.85
+                                                                        Qwen2.5-14B
+                       M+T      15.72   17.54   19.52   17.59                             4h     33.58      27.41    27.65
+                       B+M      40.37   35.83   34.64   36.95                             3h     29.85      23.25    20.34
+                                                                        Qwen3-8B
+          Qwen2.5-14B B+T       39.96   35.31   35.27   36.85                             4h     39.26      30.62    28.64
+                       M+T      33.93   34.08   34.82   34.28
+                       B+M      37.73   32.81   30.61   33.72
+          Qwen3-8B     B+T      36.31   30.91   30.50   32.58      Table 8: MuSiQue multi-hop single-bucket baseline ac-
+                       M+T      29.80   28.60   29.16   29.19      curacy (%) at 3-hop and 4-hop, with all gold documents
+                       B+M      24.18   14.81   12.77   17.26      placed entirely in the Beginning / Middle / Tail bucket.
+          Llama-3.1-8B B+T      22.15   14.27   13.45   16.62
+                       M+T      12.64   10.33   11.41   11.46
+                       B+M      19.16   10.73    9.24   13.04      the first 600 MuSiQue examples. The findings
+          Ministral-8B B+T      16.30   9.51    8.97    11.59
+                       M+T       8.56    7.07    7.34    7.65      align with the smaller models along three axes.
+                       B+M       7.61    3.80    5.57    5.66
+ Infer.   Qwen2.5-7B   B+T      7.74    3.80    5.71     5.75      Step-function at 32B. Table 9 shows that within-
+                       M+T       4.89    4.76    5.84    5.16      bucket distance variation remains small while
+                       B+M      25.54   13.32   11.55   16.80
+          Qwen2.5-14B B+T       20.65   13.18   11.82   15.22      between-bucket variation is substantial, replicat-
+                       M+T      11.28   10.19   10.05   10.51      ing the MuSiQue pattern at larger scale.
+                       B+M      17.66    8.97    7.34   11.32
+          Qwen3-8B     B+T      14.54   8.70    8.42    10.55
+                       M+T       7.61    6.79    6.39    6.93            Bucket        d=1      d=3      d=5        Avg
+                                                                         Beginning     40.33    38.00       36.33   38.22
+Table 7: 2WikiMultiHopQA Cross NA accuracy (%) at                        Middle        32.83    32.17       31.00   32.00
+local indices 0, 3, and 5 within each bucket-pair.                       Tail          32.67    31.83       33.83   32.78
+
+                                                                   Table 9: Qwen2.5-32B-Instruct-GPTQ-Int8 Spread NA
+— i.e., the local-index pattern is preserved, only                 accuracy (%) per bucket across inter-gold distances 1,
+the bucket letter is swapped. When more than                       3, and 5 (first 600 MuSiQue examples).
+one bucket is empty, we choose by priority T >
+M > B. Concretely: b0b1m2 (B, M occupied) →
+                                                                   MFAI at 32B. Table 10 confirms that Matched
+t0t1t2; b0b1b2 (only B occupied) → t0t1t2 (T
+                                                                   MFAI rescues low-visibility buckets and Un-
+preferred over M); b0b1b2t3 (B, T occupied) →
+                                                                   matched degrades performance, mirroring the
+m0m1m2m3. Configurations that fill all three buck-
+                                                                   smaller-model pattern.
+ets (e.g., b0m1t2) are excluded because no empty
+bucket is available for the mirror.
+                                                                    Bucket        NA       Matched (∆)        Unmatched (∆)
+Single-bucket position bias. Table 8 reports ac-                    Beginning     38.22     47.06 (+8.83)      19.00 (-19.22)
+curacy when all gold documents are placed in a                      Middle        32.00    44.39 (+12.39)      21.11 (-10.89)
+                                                                    Tail          32.78    44.72 (+11.94)       28.72 (-4.06)
+single bucket. Position bias persists at higher hop
+counts: Beginning yields substantially higher accu-                Table 10: Qwen2.5-32B-Instruct-GPTQ-Int8 Spread
+racy than Middle or Tail for most models.                          protocol MFAI effects per bucket, pooled across dis-
+                                                                   tances 1, 3, 5. ∆ is relative to NA.
+Cross Weakest Link. Table 11 shows that when
+gold documents are split between buckets, Cross
+performance approaches the weaker single-bucket                    Weakest Link at 32B. Table 13 shows that Cross
+reference (Spread Min) rather than the average, and                performance falls at or below Spread Min and is
+Matched MFAI rescues the drop — confirming the                     fully restored by Matched MFAI, confirming the
+Weakest Link Effect at 3-hop and 4-hop.                            recognition bottleneck persists at scale.
+A.7.3 Model Scale: Qwen2.5-32B                                     A.7.4  NeoQA with Random-Timeline
+To address whether the Weakest Link Effect per-                           Distractors
+sists at larger model scales, we evaluated Qwen2.5-                As discussed in Section 4.3, NeoQA’s original
+32B-Instruct-GPTQ-Int8 on a subset comprising                      same-timeline distractors create context homogene-
+                                                                41841
+   Model          Config     Cross NA Cross Matched Cross Unmatched Spread Min Spread Max ∆ Max
+                3h 2B+1M       21.00        32.63             17.97          19.55         25.10     − 4.10
+                3h 2B+1T       19.42        30.52             17.44          19.68         25.10     − 5.68
+   Llama-3.1-8B
+                4h 3B+1M       18.27        31.11             20.49          15.31         21.48     − 3.21
+                4h 3B+1T       15.80        29.38             17.04          16.54         21.48     − 5.68
+                3h 2B+1M       14.13        16.51             12.68          13.47         20.87     − 6.74
+                3h 2B+1T        9.64        13.87              8.45           9.64         20.87     −11.23
+   Ministral-8B
+                4h 3B+1M       14.81        15.56             14.07          16.30         19.01     − 4.20
+                4h 3B+1T       14.57        15.56             13.83          15.56         19.01     − 4.44
+                3h 2B+1M        8.72        18.23              5.81          12.02         11.10     − 2.38
+                3h 2B+1T        8.98        16.78              7.27          12.55         11.10     − 2.11
+   Qwen2.5-7B
+                4h 3B+1M       13.58        22.96             10.62          14.32         16.54     − 2.96
+                4h 3B+1T       13.33        21.23             12.59          12.35         16.54     − 3.21
+                3h 2B+1M       26.29        33.03             15.72          23.65         32.36     − 6.08
+                3h 2B+1T       23.51        28.27             14.93          22.85         32.36     − 8.85
+   Qwen2.5-14B
+                4h 3B+1M       31.60        39.75             20.74          27.41         33.58     − 1.98
+                4h 3B+1T       30.12        36.54             18.77          27.65         33.58     − 3.46
+                3h 2B+1M       24.17        28.93             16.51          23.25         29.85     − 5.68
+                3h 2B+1T       21.66        28.01             15.06          20.34         29.85     − 8.19
+   Qwen3-8B
+                4h 3B+1M       32.59        38.52             27.90          30.62         39.26     − 6.67
+                4h 3B+1T       30.12        34.57             24.69          28.64         39.26     − 9.14
+
+Table 11: MuSiQue multi-hop Cross Weakest Link accuracy (%) for mixed-bucket gold placements. Config denotes
+gold-document distribution (e.g., 2B+1M = 2 in Beginning, 1 in Middle). Cross NA / Matched / Unmatched come
+from the mixed-placement files; Spread Min is the weaker single-bucket reference (M or T), Spread Max is the
+all-B single-bucket reference. ∆ Max = Cross NA − Spread Max.
+
+
+ Subset Model          Pair Cross NA Cross Matched Unm. (mirror) Unm. (random) Spread Avg Spread Min
+                    B+M        28.47        37.62           33.11          26.51         29.70       24.83
+       Llama-3.1-8B B+T        28.32        37.90           32.94          26.37         28.93       23.30
+                    M+T        24.12        36.54           31.16          23.45         24.07       23.30
+                    B+M        31.63        34.77           33.38          29.83         34.27       28.89
+       Ministral-8B B+T        30.01        33.49           30.92          27.88         32.33       25.02
+                    M+T        25.67        31.21           28.20          22.88         26.95       25.02
+                    B+M        19.68        30.54           24.46          16.51         21.79       16.34
+ Comp. Qwen2.5-7B B+T          21.30        30.66           26.28          19.73         22.40       17.55
+                    M+T        17.59        29.00           23.87          15.85         16.95       16.34
+                    B+M        36.95        42.87           38.38          25.41         38.23       34.89
+       Qwen2.5-14B B+T         36.85        42.21           37.77          29.10         38.19       34.81
+                    M+T        34.28        41.83           37.21          29.75         34.85       34.81
+                    B+M        33.72        37.63           34.41          28.22         35.42       31.00
+       Qwen3-8B     B+T        32.58        36.82           32.94          27.88         34.62       29.40
+                    M+T        29.19        35.22           31.39          25.13         30.20       29.40
+                       B+M     17.26        29.12           22.49          14.45         20.70       12.91
+          Llama-3.1-8B B+T     16.62        28.89           21.90          13.77         20.31       12.14
+                       M+T     11.46        23.96           19.38          14.90         12.52       12.14
+                       B+M     13.04        17.98           15.49          10.91         16.94        8.83
+          Ministral-8B B+T     11.59        16.35           13.81           9.69         16.08        7.11
+                       M+T      7.65        12.59           10.33           6.30          7.97        7.11
+                       B+M      5.66        14.54            8.99           5.07          6.30        5.03
+ Infer.   Qwen2.5-7B B+T        5.75        13.63            9.19           5.30          6.57        5.57
+                       M+T      5.16        12.64            9.90           5.84          5.30        5.03
+                       B+M     16.80        24.32           20.90          11.50         20.99       11.96
+          Qwen2.5-14B B+T      15.22        22.96           18.77          10.87         20.15       10.28
+                       M+T     10.51        19.47           15.76           8.24         11.12       10.28
+                       B+M     11.32        19.70           16.39           7.56         14.06        8.11
+          Qwen3-8B     B+T     10.55        17.35           13.68           7.34         13.11        6.20
+                       M+T      6.93        15.90           12.59           5.12          7.16        6.20
+
+Table 12: 2WikiMultiHopQA Cross protocol with Weakest Link references. Cross NA / Matched are per-pair
+accuracies (%); Unmatched is split into (mirror) = mean of the two partial-gold mirror variants, and (random) =
+the random-distractor variant. Spread Avg / Min are the mean and minimum of the two constituent single-bucket
+Spread NA values.
+
+                                                    41842
+             Pair   Cross NA Cross Matched Unm. (mirror) Unm. (random) Spread Avg Spread Min
+             B+M         30.50              46.67               35.83                14.00          35.11            32.00
+             B+T         31.67              44.67               38.00                25.17          35.50            32.78
+             M+T         31.83              43.50               39.00                27.50          32.39            32.00
+
+Table 13: Qwen2.5-32B-Instruct-GPTQ-Int8 Cross protocol with Weakest Link references. Cross NA / Matched
+are per-pair accuracies (%); Unmatched is split into (mirror) = mean of the two partial-gold mirror variants, and
+(random) = random-distractor variant. Spread Avg / Min are the mean and minimum of the two single-bucket Spread
+NA values.
+
+
+ity that masks position bias. Table 14 shows the                                Model                       Spread      Cross   Ratio
+effect of replacing these with random-timeline dis-                             Qwen3-8B (non-thinking)      243.1      248.8   1.00×
+tractors on Qwen2.5-7B-Instruct. Random distrac-                                Qwen3-8B-Think              1485.3     1512.7   6.09×
+tors make the task easier overall, but a clear pri-
+macy bias emerges. Matched MFAI closes this gap,                           Table 15: Mean output tokens per example on NeoQA
+                                                                           (same-timeline distractors) for Qwen3-8B in non-
+confirming that the attention steering mechanism is
+                                                                           thinking mode vs. Qwen3-8B-Think. Tokens counted
+effective even when the underlying task topology                           over reasoning_content + model_response using
+is horizontal.                                                             the Qwen3-8B tokenizer, pooled across all MFAI condi-
+                                                                           tions and bucket positions (Spread: n=24, 120; Cross:
+ Setting     Condition     Beg      Mid        Tail    Pos Bias (B–T)
+             NA           51.39%   51.04%     53.18%      -1.79%
+                                                                           n=36, 180).
+ Same TL     Matched      55.37%   51.49%     54.98%      +0.40%
+             Unmatched    51.77%   52.79%     55.77%      -4.00%
+             NA           62.29%   58.76%     58.46%      +3.83%
+ Random TL   Matched
+             Unmatched
+                          62.84%
+                          62.24%
+                                   62.59%
+                                   60.47%
+                                              62.19%
+                                              61.84%
+                                                          +0.65%
+                                                          +0.40%
+                                                                           the original ordering. The test covers 96 cells in
+                                                                           total (2 datasets × 2 models × 3 bucket-pairs ×
+Table 14: NeoQA Spread Test: Same-Timeline vs.                             2 local indices × 4 MFAI conditions). Table 16
+Random-Timeline distractors. Model: Qwen2.5-7B-                            reports both the absolute percentage-point change
+Instruct. Averages across distances 1–5. TL = Timeline.                    |∆| and the relative change |∆|/baseline, since a
+                                                                           4 pp shift means something very different on a 55%
+A.7.5    Test-Time Compute Cost: Thinking vs.                              baseline than on a 10% baseline.
+         Non-Thinking                                                         Across all 96 cells the mean absolute change
+The robustness gains of Qwen3-8B-Think come                                is 1.15 pp with a median of 0.80 pp, and the me-
+at a non-trivial inference cost. Table 15 reports                          dian relative change is 2.52%. MuSiQue-Llama
+the mean number of output tokens per example                               is essentially invariant (mean 0.69 pp, max rela-
+on NeoQA (same-timeline distractors) for Qwen3-                            tive 6.32%) and NeoQA-Llama has a median rel-
+8B in its non-thinking and thinking modes, pooled                          ative change of only 0.89%. The largest relative
+across all MFAI conditions and bucket positions.                           shifts are concentrated in MuSiQue-Qwen, where
+The thinking mode emits roughly 6× more output                             the baseline accuracy is close to random (9.71–
+tokens than its non-thinking counterpart on both                           23.52%) so small absolute wiggles inflate in rela-
+Spread and Cross protocols, quantifying the budget                         tive terms; all eight cells exceeding 10% relative
+required for the verification behavior discussed in                        change fall within unmatched_* control conditions
+the main text.                                                             rather than the matched cells that drive the main
+                                                                           findings. We therefore treat the MFAI index list as
+A.8 Attention Instruction Order Sensitivity                                order-agnostic throughout the paper.
+Our MFAI injects the target document indices as a
+natural-language list (e.g., “Document i, Document                         A.9      Unmatched Instruction Variants and
+j”). A potential concern is that the model could                                    Detailed Analysis
+latch onto the specific ordering of this list rather
+than treating it as a set of cited positions, in which                     To ensure that our Unmatched MFAI condition
+case reversing the index order inside the instruction                      tests robustness against misleading signals rather
+would materially change the answer. We re-run                              than random noise, we generate adversarial indices
+every Cross Test cell with the indices inside the                          by mirroring the local structure of the gold evi-
+attention instruction reversed and compare against                         dence. The specific variants for each protocol are:
+                                                                        41843
+Dataset    Model       Baseline    Mean |∆| Med. |∆| Max |∆| Med. rel. Max rel.
+                                                                                  gold2-mirror) remain helpful. The performance is
+MuSiQue Llama-3.1-8B 18.22–33.71       0.69     0.60     1.77    2.59%    6.32%
+MuSiQue Qwen2.5-7B 9.71–23.52
+NeoQA Llama-3.1-8B 54.73–60.45
+                                       1.25
+                                       1.11
+                                                1.24
+                                                0.50
+                                                         3.13
+                                                         4.48
+                                                                 7.20%
+                                                                 0.89%
+                                                                         17.18%
+                                                                          8.19%
+                                                                                  better than with random misleading instructions
+NeoQA Qwen2.5-7B 48.26–54.23           1.53     1.24     5.22    2.43%   10.82%
+                                                                                  and even exceeds the baseline (No MFAI), com-
+Pooled (96 cells)     9.71–60.45       1.15     0.80     5.22    2.52%   17.18%
+                                                                                  pared to solid lines in Figure 6. This reinforces
+Table 16: Effect of reversing the MFAI index order on                             the recognition bottleneck hypothesis that model
+Cross Test accuracy. Each per-model row aggregates                                failures stem primarily from positional neglect due
+n=24 cells (3 bucket-pairs × 2 local indices × 4 MFAI                             to attention deficiency, and even partially correct
+conditions). Baseline is the range of original accura-                            cues can restore the focus.
+cies (percent) over the 24 cells. |∆| is the absolute
+percentage-point change in accuracy when the instruc-                             A.10     Prompts
+tion indices are reversed, reported as the mean, median,
+and max over the 24 cells. rel. is the per-cell relative                          We used a uniform prompt for MuSiQue across
+change |∆c |/baselinec (as a percent); Med. rel. and                              all models. For NeoQA, however, we selected the
+Max rel. are the median and max of this quantity over                             optimal instruction for each model using gold-only
+the 24 cells.                                                                     settings, following the methodology established by
+                                                                                  prior work (Glockner et al., 2025).
+Spread Test Variants: When the gold set G re-
+                                                                                  A.10.1    The Prompt For MuSiQue
+sides entirely within one bucket (e.g., Beginning),
+we generate two unmatched variants:                                               The standard MuSiQue prompt:
+
+  1. Middle Mirror: The instruction points to doc-                                    MuSiQue Standard Prompt
+     uments in the Middle bucket that share the
+     same local indices as the gold documents.                                        In this task, you are presented with a
+                                                                                          question, and 18 documents that
+  2. Tail Mirror: The instruction points to docu-                                         covers the answer to that question.
+                                                                                          Deduce your answer solely from the
+     ments in the Tail bucket that share the same                                         provided documents, avoiding any
+     local indices.                                                                       external data sources. Keep the
+                                                                                          answer short and concise, leave
+Cross Test Variants: When G is split across two                                           behind any irrelevant details.
+                                                                                      {{ATTENTION_INSTRUCTION}}
+buckets (e.g., Beginning and Middle), we use three
+unmatched variants to average out the effects of                                      Question: {{QUESTION}}
+partial correctness:
+                                                                                      Documents:
+                                                                                      {{DOCUMENTS_BLOCK}}
+  1. Partial Erroneous Mirror (Gold-1 correct):
+     The instruction correctly points to the gold                                     If the documents don’t have the answer,
+     document in the first bucket (Beginning) but                                         set "is_answerable" to false in the
+                                                                                          output dictionary. If they do, set "
+     points to a mirrored distractor in the non-gold                                      is_answerable" to true and put the
+     bucket (Tail).                                                                       answer in "answer_content".
+
+  2. Partial Erroneous Mirror (Gold-2 correct):                                       Please provide your answer in the
+                                                                                          following format:
+     The instruction correctly points to the gold                                     {"is_answerable": true/false, "
+     document in the second bucket (Middle) but                                           answer_content": "your answer here"}
+     points to a mirrored distractor in the non-gold
+     bucket (Tail).
+                                                                                  The Formatting of Document        Each document
+  3. Random Distractor: The instruction points                                    is separated by line breaks.
+     to two randomly selected documents within
+     the non-gold bucket (Tail), ensuring no over-                                    MuSiQue Document Formatting
+     lap with the gold indices.
+                                                                                      Document 1: Title of Article
+Per-Variant Results. Figure 8 illustrates model                                       Text of the article content...
+performance on the unmatched variants of the
+                                                                                      Document 2: Title of Article
+Cross Test for MuSiQue and NeoQA. Compar-                                             Text of the article content...
+ing the variants in each bucket pair (rows), we ob-                                   ...
+serve that partially correct MFAI (gold1-mirror and
+                                                                              41844
+                                                   (a) MuSiQue
+
+
+
+
+                                                    (b) NeoQA
+
+Figure 8: Plot of the unmatched variants of Cross Test for MuSiQue and NeoQA datasets. Each subplot shows the
+performance of models in one of the three unmatched variants at the selected bucket pair. The x-axis represents
+the local index within the selected bucket pair, and the y-axis represents the accuracy. Each row corresponds to a
+different bucket pair, with the first row showing the Beginning–Middle bucket pair, etc. Each column corresponds to
+a different unmatched variant.
+
+
+                                                           A.10.2    The Prompt For NeoQA
+
+
+
+
+                                                      41845
+     Model                      Instruction Template
+     Qwen3-8B                   last-line-instructions-1               with certainty based on the news articles,
+                                                                       choose "Unanswerable" (if it is one of the
+     Qwen2.5-7B-Instruct        last-line-instructions-2               options). In the final line of your response,
+     Qwen2.5-14B-Instruct       last-line-instructions-1               provide the number of the correct answer option
+     Llama-3.1-8B-Instruct      last-line-instructions-2                using the format: "Answer: [answer number]" (
+     Ministral-8B-Instruct      last-line-instructions-1               for example, "Answer: X").
+
+
+Table 17: Mapping of models to NeoQA prompt instruc-
+tion files.                                                   News Articles Formatting (NEWS_ARTICLES)
+                                                              The documents are formatted using an XML-like
+                                                              structure that includes the title, date, and text con-
+   Prompt: last-line-instructions-1                           tent for each article. For each document in the
+                                                              context, the following structure is repeated, sepa-
+   Given the following news articles, the question, and
+         the answer options, answer the question.
+                                                              rated by two newlines:
+   If the question cannot be answered with certainty
+         based on the news articles, select the answer
+         option "Unanswerable".
+                                                                   Formatting of {{NEWS_ARTICLES}}
+   News Articles:
+   {{NEWS_ARTICLES}}                                               <article>
+                                                                   <title>Title of the Article</title>
+   Question: {{QUESTION}}                                          <date>YYYY-MM-DD</date>
+   Date of Question: {{DATE}}                                      <text>Full text of the news article...</text>
+                                                                   </article>
+   Answer options:
+   {{ANSWERS}}
+
+   Select the answer option that correctly answers the        Answer Options Formatting (ANSWERS) The
+         question. If the question cannot be answered
+         with certainty based on the news articles,           multiple-choice options are formatted as a num-
+         choose "Unanswerable" (if it is one of the
+         options). In the final line of your response,        bered list where each index is enclosed in square
+         provide the number of the correct answer option
+          using the format: "Answer: [answer number]" (
+                                                              brackets. The answer options are provided as a list
+         for example, "Answer: X").                           starting from index 1:
+
+                                                                   Formatting of {{ANSWERS}}
+   Prompt: last-line-instructions-2
+                                                                   [1] Text for option 1
+   You will receive news articles, a question, a date on
+                                                                   [2] Text for option 2
+          which the question is asked, and answer                  [3] Text for option 3
+         options.                                                  ...
+   Your task is to evaluate the articles, determine if             [4] Unanswerable
+         they provide enough information to answer the
+         question based on the date, and choose the
+         correct answer.
+
+   News Articles:
+   {{NEWS_ARTICLES}}
+
+   Question: {{QUESTION}}
+
+   Date of Question: {{DATE}}
+
+   Answer options:
+   {{ANSWERS}}
+
+   **Instructions:**
+   1. **Analyze the news articles:**
+   - Carefully read all the news articles.
+   - Compare the information in the articles with the
+         question.
+   - Check if the combined information from the articles
+          confirms all the details required to answer
+         the question.
+
+   2. **Select an Answer:**
+   - Choose the correct answer if all necessary details
+         are provided.
+   - If the articles lack information or any important
+         detail is missing, select the option for "
+         Unanswerable".
+
+   3. **Submit your Answer**
+   - Select the answer option that correctly answers the
+          question. If the question cannot be answered
+
+
+
+                                                           41846
+

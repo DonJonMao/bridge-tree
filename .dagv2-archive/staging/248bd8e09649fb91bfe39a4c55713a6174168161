@@ -1,0 +1,223 @@
+
+
+
+
+<!doctype html>
+<html lang="en">
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Sufficient Context: A New Lens on Retrieval Augmented Generation Systems</title>
+    <!-- Bootstrap CSS -->
+    <!-- https://codepen.io/surjithctly/pen/PJqKzQ -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css"
+          integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+
+    <!-- Custom CSS (after Bootstrap so it can override) -->
+    <link rel="stylesheet" href="/static/papers/css/papers.css">
+    <link rel="stylesheet" href="/static/papers/css/modern-theme.css?v=12">
+
+    
+
+    <meta name="citation_title" content="Sufficient Context: A New Lens on Retrieval Augmented Generation Systems">
+    
+        <meta name="citation_author" content="Joren, Hailey">
+    
+        <meta name="citation_author" content="Zhang, Jianyi">
+    
+        <meta name="citation_author" content="Ferng, Chun-Sung">
+    
+        <meta name="citation_author" content="Juan, Da-Cheng">
+    
+        <meta name="citation_author" content="Taly, Ankur">
+    
+        <meta name="citation_author" content="Rashtchian, Cyrus">
+    
+    <meta name="citation_journal_title" content="International Conference on Learning Representations">
+    <meta name="citation_volume" content="2025">
+    
+    
+        <meta name="citation_firstpage" content="20310">
+        <meta name="citation_lastpage" content="20334">
+    
+    
+    <meta name="citation_pdf_url" content="https://proceedings.iclr.cc/paper_files/paper/2025/file/33dffa2e3d2ab74a783d1a8c292f66d9-Paper-Conference.pdf">
+    <meta name="citation_publication_date" content="2025-05-01">
+
+
+
+
+
+    <script type="text/javascript" async
+            src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+      "tex2jax": {
+        "inlineMath": [["$","$"], ["\\(","\\)"]],
+        "displayMath": [["\\[","\\]"]],
+        "processEscapes": true
+      }
+    }
+    );
+
+    </script>
+
+    <style>
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #333;
+                color: #eee;
+            }
+        }
+
+        .btn-spacer {
+            margin: 2px;
+        }
+
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #eee;
+            color: black;
+        }
+
+
+    </style>
+
+</head>
+
+
+<body class="modern-theme">
+
+
+<nav class="navbar navbar-expand-md bg-body-tertiary">
+    <div class="container-fluid">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <a class="navbar-brand" href="/">ICLR Proceedings</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                <a class="nav-link" href="/admin/login/?next=/admin/"><i class="fas fa-sign-in-alt" title="Login"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/admin/logout/?nextp=/admin"><i class="fas fa-sign-out-alt" title="Logout"></i></a>
+            </li>
+
+            </ul>
+            <form class="d-flex" role="search" method="get" role="search" action="/papers/search">
+                <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" name="q">
+                <button class="btn btn-outline-success" type="submit">Search</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+
+
+
+<div class="container-fluid">
+    <div class="col p-3 paper-detail">
+
+    
+        <header class="paper-header">
+            <h1 class="paper-title">Sufficient Context: A New Lens on Retrieval Augmented Generation Systems</h1>
+            <p class="paper-authors">Hailey Joren, Jianyi Zhang, Chun-Sung Ferng, Da-Cheng Juan, Ankur Taly, Cyrus Rashtchian</p>
+            <p class="paper-meta">
+                <a href="/paper_files/paper/2025">International Conference on Learning Representations 2025  (ICLR 2025)</a>
+                <span class="paper-track">Conference</span>
+            </p>
+        </header>
+
+        <div class="paper-actions"><a href="/paper_files/paper/169-/bibtex" class="btn btn-light btn-spacer">Bibtex</a> <a class='btn btn-primary btn-spacer' href='/paper_files/paper/2025/file/33dffa2e3d2ab74a783d1a8c292f66d9-Paper-Conference.pdf'>Paper</a></div>
+
+        
+
+        <section class="paper-section">
+            <h2 class="section-label">Abstract</h2>
+            <p class="paper-abstract"><p>Augmenting LLMs with context leads to improved performance across many applications. Despite much research on Retrieval Augmented Generation (RAG) systems, an open question is whether errors arise because LLMs fail to utilize the context from retrieval or the context itself is insufficient to answer the query. To shed light on this, we develop a new notion of sufficient context, along with a method to classify instances that have enough information to answer the query. We then use sufficient context to analyze several models and datasets. By stratifying errors based on context sufficiency, we find that larger models with higher baseline performance (Gemini 1.5 Pro, GPT 4o, Claude 3.5) excel at answering queries when the context is sufficient, but often output incorrect answers instead of abstaining when the context is not. On the other hand, smaller models with lower baseline performance (Llama 3.1, Mistral 3, Gemma 2) hallucinate or abstain often, even with sufficient context. We further categorize cases when the context is useful, and improves accuracy, even though it does not fully answer the query and the model errs without the context. Building on our findings, we explore ways to reduce hallucinations in RAG systems, including a new selective generation method that leverages sufficient context information for guided abstention. Our method improves the fraction of correct answers among times where the model responds by 2--10% for Gemini, GPT, and Gemma. Code for our selective generation method and the prompts used in our autorater analysis are available on our <a href="https://github.com/hljoren/sufficientcontext">github</a>.</p>
+</p>
+        </section>
+
+        
+
+    
+
+    </div>
+</div>
+
+
+<script   src="https://code.jquery.com/jquery-3.7.1.min.js"
+          integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="   crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+        integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+        crossorigin="anonymous"></script>
+<script>
+    $('.dropdown-menu a.dropdown-toggle').on('click', function (e) {
+        if (!$(this).next().hasClass('show')) {
+            $(this).parents('.dropdown-menu').first().find('.show').removeClass("show");
+        }
+        var $subMenu = $(this).next(".dropdown-menu");
+        $subMenu.toggleClass('show');
+
+
+        $(this).parents('li.nav-item.dropdown.show').on('hidden.bs.dropdown', function (e) {
+            $('.dropdown-submenu .show').removeClass("show");
+        });
+
+
+        return false;
+    });
+</script>
+
+
+
+
+<br> 
+        <div class="modal fade" id="myModal">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h4 class="modal-title">Name Change Policy</h4>
+                <button type="button pull-right" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+              </div>
+              <div class="modal-body">
+                <p>Requests for name changes in the electronic proceedings will be accepted with no questions asked.  However name changes may cause bibliographic tracking issues.  Authors are asked to consider this carefully and discuss it with their co-authors prior to requesting a name change in the electronic proceedings.</p>
+
+<p>Use the "Report an Issue" link to request a name change.</p>
+
+              </div> 
+              <div class="modal-footer">
+
+
+              </div>
+            </div><!-- /.modal-content -->
+          </div><!-- /.modal-dialog -->
+        </div><!-- /.modal -->
+
+
+
+<footer class="footer">
+    <div class="btn-spacer">
+        <a href="https://iclr.cc/Help/Contact?select=Conference">Report an Issue</a> &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;        <a href="#" class="modal-link" data-toggle="modal" data-target="#myModal">Name Change Policy</a>
+    </div>
+
+</footer>
+<div class='hidden'>Do not remove: This comment is monitored to verify that the site is working properly</div>
+<!-- Do not remove: This comment is monitored to verify that the site is working properly -->
+
+</body>
+</html>
