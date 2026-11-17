@@ -1,0 +1,125 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+...................................................FF................... [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+........................................................................ [ 73%]
+........................................................................ [ 78%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row[support_first] _
+
+order = 'support_first'
+
+    @pytest.mark.parametrize("order", ["support_first", "counter_first"])
+    def test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row(order):
+        reader, engine, state, calls = fixture(max_repairs_per_request=0)
+        stable = engine.mapper.sources["s1"]["source_id"]
+        state.integrate([{**observation(sources=[stable]), "variable": "history"}])
+        route_id = next(iter(state.routes))
+        support = observation("duplicate-id", ["s1"])
+        counter = observation("duplicate-id", ["s2"], stance="contradiction", retract_ids=[route_id])
+        counter["value"] = None
+        rows = [support, counter] if order == "support_first" else [counter, support]
+        calls.respond = lambda index, data: {**response(*deepcopy(rows)), "audit_verdict": "supported"}
+        assert reader.read(engine.steps[0], "Read past creative activities", ["history"],
+                           ["piano", "painting"], "duplicate-audit", audit=True)
+        failures = reader.batches[-1]["failed_slots"]
+>       assert any(item["id"] == "duplicate-id" and "duplicate" in item["error"].lower()
+                   for item in failures), "Both occurrences must be checked before freezing an ID"
+E       AssertionError: Both occurrences must be checked before freezing an ID
+E       assert False
+E        +  where False = any(<generator object test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row.<locals>.<genexpr> at 0x110229380>)
+
+tests/test_personamem_joint_protocol.py:506: AssertionError
+_ test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row[counter_first] _
+
+order = 'counter_first'
+
+    @pytest.mark.parametrize("order", ["support_first", "counter_first"])
+    def test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row(order):
+        reader, engine, state, calls = fixture(max_repairs_per_request=0)
+        stable = engine.mapper.sources["s1"]["source_id"]
+        state.integrate([{**observation(sources=[stable]), "variable": "history"}])
+        route_id = next(iter(state.routes))
+        support = observation("duplicate-id", ["s1"])
+        counter = observation("duplicate-id", ["s2"], stance="contradiction", retract_ids=[route_id])
+        counter["value"] = None
+        rows = [support, counter] if order == "support_first" else [counter, support]
+        calls.respond = lambda index, data: {**response(*deepcopy(rows)), "audit_verdict": "supported"}
+        assert reader.read(engine.steps[0], "Read past creative activities", ["history"],
+                           ["piano", "painting"], "duplicate-audit", audit=True)
+        failures = reader.batches[-1]["failed_slots"]
+>       assert any(item["id"] == "duplicate-id" and "duplicate" in item["error"].lower()
+                   for item in failures), "Both occurrences must be checked before freezing an ID"
+E       AssertionError: Both occurrences must be checked before freezing an ID
+E       assert False
+E        +  where False = any(<generator object test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row.<locals>.<genexpr> at 0x110229e00>)
+
+tests/test_personamem_joint_protocol.py:506: AssertionError
+=============================== warnings summary ===============================
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4/dagresolve/flow.py:222: RuntimeWarning: divide by zero encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4/dagresolve/flow.py:222: RuntimeWarning: overflow encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_flow.py: 15 warnings
+tests/test_dagresolve_runner.py: 3 warnings
+  /Users/mao/projects/dagv2-personamem-v4/dagresolve/flow.py:222: RuntimeWarning: invalid value encountered in matmul
+    scores = matrix @ vector
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagv2/experiment.py:163: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagv2/experiment.py:163: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_dagresolve_runner.py::test_loopback_real_runner_planner_archive_binding_repair_reader_cache_and_retry
+tests/test_dagresolve_runner.py::test_incomplete_or_invalid_generation_is_rejected_before_labels_are_opened
+tests/test_dagresolve_runner.py::test_resume_refuses_changed_scope_or_orphaned_run_before_any_new_http
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagv2/experiment.py:163: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagbt/resources.py:382: RuntimeWarning: divide by zero encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagbt/resources.py:382: RuntimeWarning: overflow encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+tests/test_resources.py::test_derived_archive_matches_real_original_queries_pool_trace_and_stable_ties
+  /Users/mao/projects/dagv2-personamem-v4/dagbt/resources.py:382: RuntimeWarning: invalid value encountered in matmul
+    scores = vectors @ (v / np.linalg.norm(v))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_personamem_joint_protocol.py::test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row[support_first]
+FAILED tests/test_personamem_joint_protocol.py::test_duplicate_observation_id_cannot_hide_counter_as_an_already_frozen_row[counter_first]
+2 failed, 1367 passed, 69 warnings in 62.18s (0:01:02)

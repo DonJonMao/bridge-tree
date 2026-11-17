@@ -1,0 +1,849 @@
+          Retrieval Augmented Fact Verification by Synthesizing Contrastive
+                                    Arguments
+
+                          Zhenrui Yue
+                                  Huimin Zeng Lanyu Shang Yifan Liu
+                                  Yang Zhang Dong Wang
+                             University of Illinois Urbana-Champaign
+          {zhenrui3, huiminz3, lshang3, yifan40, yzhangnd, dwang24}@illinois.edu
+
+
+                            Abstract                               false information before it leads to severe conse-
+                                                                   quences (Litou et al., 2017; Hassan et al., 2017; Shu
+         The rapid propagation of misinformation poses             et al., 2017). For example, online fact-checking
+         substantial risks to public interest. To combat
+                                                                   services (e.g., Snopes2 ) employ professional fact-
+         misinformation, large language models (LLMs)
+         are adapted to automatically verify claim cred-           checkers to identify instances of misinformation.
+         ibility. Nevertheless, existing methods heav-             Nevertheless, human fact-checking involves a sig-
+         ily rely on the embedded knowledge within                 nificant amount of manual work, proving to be less
+         LLMs and / or black-box APIs for evidence                 efficient confronted with the vast volume of mis-
+         collection, leading to subpar performance with            information, particularly as it evolves and spreads
+         smaller LLMs or upon unreliable context. In               online (Micallef et al., 2020; Nakov et al., 2021).
+         this paper, we propose retrieval augmented fact
+                                                                      To perform fact-checking at scale, automated
+         verification through the synthesis of contrast-
+         ing arguments (RAFTS). Upon input claims,                 methods have emerged by leveraging large lan-
+         RAFTS starts with evidence retrieval, where we            guage models (LLMs) (Shu et al., 2022; Yang et al.,
+         design a retrieval pipeline to collect and re-rank        2022; Yue et al., 2023; Choi and Ferrara, 2024).
+         relevant documents from verifiable sources.               For example, RARG proposes to train and align
+         Then, RAFTS forms contrastive arguments                   LLMs for generating faithful explanations upon
+         (i.e., supporting or refuting) conditioned on             detected misinformation (Yue et al., 2024). De-
+         the retrieved evidence. In addition, RAFTS                spite their effectiveness, these methods typically re-
+         leverages an embedding model to identify infor-
+                                                                   quire extensive training data and may demonstrate
+         mative demonstrations, followed by in-context
+         prompting to generate the prediction and expla-           performance deterioration upon domain / concept
+         nation. Our method effectively retrieves rele-            shifts (Zhu et al., 2022; Nan et al., 2022; Gu et al.,
+         vant documents as evidence and evaluates argu-            2023; Shang et al., 2024a). Moreover, many mod-
+         ments from varying perspectives, incorporating            els are unaware of external evidence / knowledge
+         nuanced information for fine-grained decision-            and must be frequently re-trained to incorporate
+         making. Combined with informative in-context              up-to-date domain knowledge for accurate fact-
+         examples as prior, RAFTS achieves significant
+                                                                   verification (Izacard and Grave, 2021; Borgeaud
+         improvements to supervised and LLM base-
+         lines without complex prompts. We demon-                  et al., 2022; Yue et al., 2023).
+         strate the effectiveness of our method through               As a solution, evidence-based fact-checking
+         extensive experiments, where RAFTS can out-               methods are proposed to collect evidence (e.g., doc-
+         perform GPT-based methods with a signifi-                 uments, graphs etc.), followed by extracting rele-
+         cantly smaller 7B LLM1 .                                  vant information and assessing the credibility of
+                                                                   input claims through LLMs (Koloski et al., 2022;
+     1   Introduction                                              Kou et al., 2022b; Shang et al., 2022a; Wu et al.,
+     As the scope of social media and digital forums               2022b; Zhang and Gao, 2023; Wang and Shu, 2023;
+     continue to expand, increasing amount of misin-               Liu et al., 2024). An example is FOLK, which
+     formation has been observed across multiple plat-             leverages first-order-logic to construct sub-claims
+     forms (e.g., Twitter), posing risks to public inter-          and perform question answering-based verification
+     est (Chen et al., 2022). Therefore, fact-checking             to generate predictions and explanations (Wang
+     methods are proposed to prevent the spreading of              and Shu, 2023). Yet current approaches rely on the
+         1
+                                                                   assumption that input claims can be decomposed
+           Our implementation is publicly        available    at
+                                                                      2
+     https://github.com/yueeeeeeee/RAFTS.                                 https://www.snopes.com/
+
+                                                              10331
+Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 10331–10343
+                               August 11-16, 2024 ©2024 Association for Computational Linguistics
+          Reliable Source
+            of Documents             Input Claim                                                            Output
+                                   (e.g., Facebook has a                                          Prediction: False
+                                    policy against users'
+                                   posting the text of the                                        Explanation: Facebook's
+                                       Lord's Prayer.)                                            community standards make
+                                                             Retrieved
+                                                                                                  no mention of prohibiting
+                                                             Documents                            the posting of the Lord's
+                                                                                                  Prayer or other forms of
+                                                                                                  religious expression. Only
+                                      Document                                    Fact            hate speech directed at a
+                                                                                                  person's religious affiliation
+                                     Retrieval                                 Chechking          is disallowed under
+                                                                                                  Facebook's standards.
+
+
+
+                     Figure 1: Our retrieval augmented generation framework for fact verification.
+
+
+into a series of predicates (i.e., sub-claims) through             collected documents. Combined the informative in-
+complex prompts. Moreover, they depend on the                      context examples, RAFTS demonstrates enhanced
+embedded knowledge within LLMs and / or black-                     fact-checking performance and consistently gen-
+box APIs (e.g., SerpAPI3 ) to collect external infor-              erates high-quality explanations. To validate the
+mation, leading to subpar performance with smaller                 effectiveness of RAFTS, we adopt multiple bench-
+LLMs or provided with unreliable evidence (Zhang                   mark datasets and perform extensive experiments
+and Gao, 2023; Wang and Shu, 2023).                                on both document retrieval and fact verification.
+   Consequently, we consider a retrieval augmented                 Experiment results highlight the effectiveness of
+generation (RAG) framework designed to extract                     the proposed approach, where RAFTS can outper-
+relevant information from reliable documents (i.e.,                form state-of-the-art methods even with a signifi-
+Wikipedia, scholarly articles etc.), where the ex-                 cantly smaller LLM (e.g., Mistral 7B).
+tracted information can be used as supporting facts                   We summarize our contributions:
+to assess the claim credibility through LLMs. That
+                                                                       1. We propose a RAG-based framework, where
+is, given the input statement, our first objective is
+                                                                          relevant documents are retrieved from reliable
+to retrieve (and optionally re-rank) relevant docu-
+                                                                          sources to fact-check input claims.
+ments among an extensive collection of documents
+from verifiable sources. Subsequently, we utilize                      2. We design RAFTS in three key components:
+the retrieved documents to fact-check the input                           demonstration retrieval, document retrieval
+claim, aiming to either confirm the input or un-                          and in-context prompting. RAFTS identi-
+cover opposing information that identifies misin-                         fies informative examples and relevant doc-
+formation. Our framework is visually illustrated                          uments, followed by synthesizing contrastive
+in Figure 1, where the RAG-based fact verification                        arguments for fine-grained fact-checking.
+framework retrieves relevant documents, and then
+generates both prediction and explanation regard-                      3. We show the effectiveness of RAFTS by ex-
+ing the validity of the input statement.                                  perimenting on document retrieval and fact
+   To this end, we propose retrieval augmented fact                       verification tasks. Both quantitative and qual-
+verification through the synthesis of contrastive                         itative results demonstrate that RAFTS can
+arguments (RAFTS), which effectively retrieves                            outperform state-of-the-art methods in fact
+relevant documents and performs few-shot fact                             verification and explanation generation.
+verification using pretrained LLMs. RAFTS is
+                                                                   2     Related Work
+structured into three components: (1) demonstra-
+tion retrieval, where informative in-context exam-                 2.1    Large Language Models and Retrieval
+ples are collected to improve fact-checking perfor-                       Augmented Generation
+mance; (2) document retrieval, in which we de-                     Recent advancements in large language models
+sign a retrieve and re-rank pipeline to accurately                 (LLMs) have shown significantly enhanced capa-
+identify relevant documents for input claims; and                  bilities in language comprehension and genera-
+(3) few-shot fact verification through the synthe-                 tion (Raffel et al., 2020; Brown et al., 2020; Wei
+sis of contrasting arguments. Unlike current ap-                   et al., 2021; Ouyang et al., 2022; Chowdhery et al.,
+proaches, RAFTS formulates supporting and op-                      2022; Touvron et al., 2023; OpenAI, 2023; Jiang
+posing arguments derived from the facts within the                 et al., 2024). Due to the vast number of parame-
+   3
+       https://www.serpapi.com/                                    ters and extensive quantity of pretraining corpora,
+                                                             10332
+LLMs can embed global knowledge within their pa-           step-by-step prompting with off-the-shelf LLMs
+rameters, and thus achieve significant performance         and black-box question answering (QA) pipelines
+improvements across diverse applications (Ope-             to perform few-shot fact verification (Zhang and
+nAI, 2023; Penedo et al., 2023; Sun et al., 2023).         Gao, 2023). However, state-of-the-art fact verifica-
+However, LLMs often fail to capture fine-grained           tion methods primarily concentrate on improving
+knowledge and frequently generate inaccurate or            accuracy via sophisticated prompts and / or intrin-
+fabricated information (also known as hallucina-           sic knowledge of LLMs, causing performance de-
+tion) (Peng et al., 2023; Rawte et al., 2023). To          grade upon smaller LLMs or domain shifts (Wang
+access up-to-date knowledge without costly re-             and Shu, 2023; Pelrine et al., 2023; Chen and Shu,
+training, retrieval augmented generation (RAG) has         2023b). Therefore, we concentrate on retrieval
+been proposed to generate text based on collected          augmented fact verification by collecting relevant
+documents from verifiable sources (Guu et al.,             documents from reliable sources, enabling LLMs
+2020; Lewis et al., 2020; Izacard and Grave, 2021;         to augment their knowledge base for claim verifica-
+Borgeaud et al., 2022; Izacard et al., 2022; Shi et al.,   tion. Furthermore, we exploit in-context prompting
+2023; Ram et al., 2023; Wang et al., 2023a). For           by learning from demonstrations and synthesizing
+example, Self-RAG can dynamically fetch external           contrastive arguments, and thus significantly im-
+documents to generate contents through the usage           proves fact-checking performance.
+of special tokens for retrieval and reflection (Asai
+et al., 2023). Nevertheless, current RAG methods           3   Preliminary
+remain under-explored for fact verification, par-          We consider the following problem setup: given
+ticularly regarding accurate evidence retrieval and        input claim x (with label y) and k-shot demonstra-
+fine-grained classification (Wang and Shu, 2023;           tions {(xi , yi )}ki=1 , we aim to: (1) retrieve a set
+Zhang and Gao, 2023). As such, our work studies            of m documents {di }m     i=1 that provide relevant in-
+retrieval augmented fact verification, which gath-         formation to be used as supporting evidence; and
+ers evidence from reliable sources and integrates          (2) generate label ŷ and explanation e based on
+contrasting opinions to achieve fine-grained fact          the input x, k-shot examples {(xi , yi )}ki=1 and re-
+verification.                                              trieved evidence {di }m    i=1 . For each input x, we
+                                                           leverage a pretrained embedding model fembed to
+2.2 Fact Verification and Misinformation                   adaptively retrieve demonstrations {(xi , yi )}ki=1 ,
+    Detection                                              whereas a retrieval model is learnt to predict
+                                                           {di }mi=1 and provide relevant information from veri-
+Fact verification methods can generally be divided
+                                                           fiable sources. Based on the retrieved examples and
+into two main categories: (1) content-based ap-
+                                                           documents, the predicted ŷ should ideally match
+proaches, where machine learning models predict
+                                                           the ground truth label y. In addition, the generated
+and reason over input contents (e.g., text) to iden-
+                                                           explanation e should demonstrate desirable proper-
+tify misinformation (Yue et al., 2022; Jiang et al.,
+                                                           ties (e.g., factuality), see example in Figure 1. We
+2022; Yue et al., 2023; Chen and Shu, 2023a; Liu
+                                                           elaborate our settings in the following.
+et al., 2023; Mendes et al., 2023; Huang et al.,
+                                                           Input & Output: Given a dataset with train and
+2024). Incorporating additional attributes / modali-
+                                                           test splits X train and X test , we denote the docu-
+ties such as image and propagation paths can fur-
+                                                           ment retrieval pipeline as fretrieve and the LLM-
+ther enhance fact verification performance (Shang
+                                                           based fact-checking model as fcheck . Formally, our
+et al., 2021; Santhosh et al., 2022; Shang et al.,
+                                                           framework consists of two sub-problems in infor-
+2022b; Wu et al., 2022c; Zhou et al., 2023; Yao
+                                                           mation retrieval (i.e., evidence collection) and fact
+et al., 2023; Qu et al., 2024); (2) evidence-based ap-
+                                                           verification (i.e., prediction and explanation), with
+proaches, which involve gathering external knowl-
+                                                           each of the problem defined below:
+edge (e.g., knowledge graphs or document pieces)
+as evidence to validate input claims and identify          • Document Retrieval: Given input claim x,
+false information (Kou et al., 2021, 2022a; Wu               human annotated document d and a collec-
+et al., 2022a; Yang et al., 2022; Shang et al., 2022c;       tion of n documents {di }ni=1 (with d ∈
+Xu et al., 2022; Zhao et al., 2023; Chen et al., 2023;       {di }ni=1 ), our objective is to learn a retrieval
+Wang and Shu, 2023; Yue et al., 2024; Shang et al.,          model fretrieve that ranks the claim-document
+2024b). For example, HiSS adopts hierarchical                pair with the highest score (fretrieve (x, d) =
+                                                      10333
+    max{fretrieve (x, di )}ni=1 ). During training, in-    checking prediction ŷ given input x:
+    put x and d can be used to learn fretrieve . In
+    inference, we collect a subset of m documents                ŷ = arg max fcheck (y|{(xi , yi )}ki=1 , x),     (1)
+                                                                            y
+         i=1 for fact verification, where m ≪ n.
+    {di }m
+                                                           with fcheck returning the output probabilities of
+• Fact Verification: Subsequently, we leverage             the LLM. The prediction can be obtained by se-
+  both input x and collected documents {di }m        i=1
+                                                           lecting the output with the highest probability con-
+  from the previous step and utilize fcheck to gen-        ditioned on the provided in-context examples and
+  erate: (1) prediction ŷ on the input credibility;       input claim. In contrast to existing prompting meth-
+  and (2) explanation e on the reasoning of the            ods, in RAFTS, LLM receives the task description
+  prediction. To perform in-context prompting,             via in-context examples. As a result, the perfor-
+  we incorporate k-shot examples {(xi , yi )}ki=1          mance of fact verification is highly sensitive to the
+  from X train as input (xi ̸= x). In other words,         selection of {(xi , yi )}ki=1 . To this end, we design
+  ŷ, e = fcheck ({(xi , yi )}ki=1 , {di }m
+                                          i=1 , x)).
+                                                           a simple and efficient example retrieval pipeline,
+                                                           which is designed to choose semantically similar
+Learning: Our retrieval pipeline fretrieve is param-       examples from the training set to maximize the
+eterized by θ. To learn fretrieve , we maximize the        relevance and informativeness of demonstrations
+score of the sampled input-document pair (x, d).           {(xi , yi )}ki=1 during in-context learning.
+That is, we minimize the expected loss L over                 Specifically, we adopt a pretrained embedding
+X train : minθ E(x,d)∼X train [L(θ, (x, d))]. Mean-        model, denoted with fembed (kept frozen in our
+while, the fact-checking model fcheck (i.e., pre-          RAFTS framework). The objective of our re-
+trained LLM) remains unchanged to minimize                 trieval pipeline is to identify a set of k examples
+training expenses. To optimize fact-checking per-          {(xi , yi )}ki=1 for each claim x, with:
+formance of fcheck , we employ a lightweight em-
+bedding model fembed to select informative in-             {(xi , yi )}ki=1 = topk({sim(fembed (x),
+context demonstrations {(xi , yi )}ki=1 , we elaborate                                                     |X train |
+                                                                                            fembed (xi ))}i=1 ),
+the details in Section 4.1.                                                                                  (2)
+                                                           where topk returns k largest elements from the
+4    Methodology                                           given set (i.e., claims with highest similarity to
+                                                           x), while sim represents the cosine similarity func-
+4.1 In-Context Demonstrations                                                         a·b
+                                                           tion (i.e., sim(a, b) = ∥a∥∥b∥  ). In essence, Equa-
+Current LLM-based approaches for fact verifica-            tion (2) encodes the examples from the training set
+tion utilize sophisticated prompts to identify mis-        X train (only needs to be performed once), and then
+information, but depend on carefully designed              identifies the top-k nearest elements by comput-
+prompts and static in-context demonstrations (Wei          ing the highest cosine similarity scores. Overall,
+et al., 2022; Zhang and Gao, 2023). Nevertheless,          our in-context example retrieval pipeline performs
+the classification criteria often vary from domain         similarity-based filtering to select semantically rel-
+to domain, causing performance drops when iden-            evant examples, and thus optimizes the prior dis-
+tical prompts are applied across different contexts        tribution for in-context learning. We additionally
+(as we show in Section 5). In addition, diverse            apply similarity thresholding by establishing a min-
+and informative examples are found to be help-             imum cosine similarity of 0.5, and set k = 10 as
+ful for performance, in particular for smaller yet         the maximum number of demonstrations. In our
+more efficient LLMs (Liu et al., 2021; Zhang et al.,       implementation, SimCSE-RoBERTa is employed
+2022; Levy et al., 2023; Li and Qiu, 2023). As             as the embedding function fembed to encode input
+such, we design a retrieval pipeline to select in-         claims (Liu et al., 2019; Gao et al., 2021).
+context demonstrations, thereby enhancing the fact-
+checking performance and mitigating performance            4.2     Document Retrieval
+deterioration issues across domains.                       The majority of RAG and fact-checking methods
+   We formulate the in-context learning (ICL) prob-        utilize sparse retrieval algorithms, dense retrieval
+lem as follows. Provided with k-shot exam-                 models or third-party APIs to collect relevant doc-
+ples {(xi , yi )}ki=1 , we prompt a pretrained LLM         uments (Izacard and Grave, 2021; Izacard et al.,
+with them as demonstrations to generate the fact-          2022; Ram et al., 2023; Wang and Shu, 2023;
+                                                      10334
+                                                  Input Claim                                                                 Collected Documents
+                   Example                                                           Document
+                                               Claim: Facebook has                                               Document 1: Contrary to the online rumors, Facebook
+Retrieval         Retrieval                    a policy against users'
+                                                                                    Retrieval                    founder and CEO Mark Zuckerberg has not said…
+                                               posting the text of the                                           Document 2: In a March 2012 Financial Times article,
+                                               Lord's Prayer.                                                    referring to efforts to address the ongoing violence…
+
+
+
+
+                            Branch 1: Supporting Argument                                                        Branch 2: Refuting Argument
+ Argument        Supporting Argument: It's challenging to construct a direct                       Refuting Argument: It appears there is no direct evidence to
+                 supporting argument for the claim that "Facebook has a policy                     support the claim that Facebook has a policy against users posting
+Generation       against users' posting the text of the Lord's Prayer" since neither               the text of the Lord's Prayer. The first document explicitly
+                 document explicitly mentions such a policy. The first document…                   addresses and refutes online rumors associated with Mark…
+
+
+
+
+                                              Synthesis: Merge Arguments and Predict via In-Context Prompting
+                 Input: Claim: Claim Example 1; Supporting argument: Supporting Argument Example 1; Refuting argument: Supporting Argument Example 1
+                 Based on the claim, supporting and refuting arguments, it is clear that among “True”, “Half-True” and “False” the claim can be classified as Label 1
+In-Context                                                     ……………… Further in-context examples ………………
+1Synthesis       Claim: Facebook has a policy…; Supporting argument: It's challenging to construct a…; Refuting argument: It appears there is no direct evidence…
+                 Based on the claim, supporting and refuting arguments, it is clear that among “True”, “Half-True” and “False” the claim can be classified as _______
+                 Prediction: False
+                 Explanation: Given the analysis of both arguments, the validity of the claim leans towards false. The reasoning behind this conclusion is twofold…
+
+
+
+
+Figure 2: The proposed RAFTS, which performs few-shot fact verification by incorporating informative in-context
+demonstrations and contrastive arguments with nuanced information derived from the retrieved documents.
+
+
+Zhang and Gao, 2023). While sparse retrieval                                        To enhance re-ranking performance with limited
+methods are widely used, they often fall short in                                   annotated data, we exploit the BM25 scores as
+delivering optimal retrieval results for knowledge-                                 a coarse estimation of claim-document relevance.
+intensive tasks like fact verification. On the other                                That is, we utilize the BM25 scores from the previ-
+hand, dense retrieval methods suffer from effi-                                     ous retrieval stage, combined with a limited collec-
+ciency issues in processing massive document col-                                   tion of annotated examples, to train the dense re-
+lections and require extensive annotated data for                                   triever model. Specifically for claim-document pair
+optimal performance. These constraints render                                       (x, d), we sample l positive documents {dpi }li=1
+current retrieval approaches less effective for fact                                and l negative documents {dni }li=1 based on the
+verification, where no / limited annotated claim-                                   BM25 and inverse BM25 scores, which avoids in-
+document pairs are available for training.                                          troducing extensive noise in training. Using the
+   Therefore, we propose a two-stage pipeline                                       sampled documents, we construct a ranking loss
+fretrieve in RAFTS that performs coarse-to-fine                                     to expand the margin between document d and
+retrieval, which improves both computation effi-                                    the highest ranked document from {dpi }li=1 (i.e.,
+ciency and retrieval performance. Specifically, our                                 fden (x, d) − max({fden (x, dpi )}li=1 )). In addition, we
+pipeline includes: (1) sparse retrieval via BM25,                                   enhance the relevance between input-document
+which collects a subset {di }m̂                                                     pairs by imposing a penalty when the margin is
+                                 i=1 from a large col-
+lection of documents; and (2) an dense retrieval                                    below threshold τ . Furthermore, our training objec-
+model (denoted with θ) that re-ranks and refines                                    tive incorporates a contrastive term derived from In-
+the selection of retrieved documents. Based on x,                                   foNCE (Chen et al., 2020; Yue et al., 2024), which
+the first step narrows down to a subset from a much                                 improves the relevance estimation between input-
+larger collection {di }ni=1 , while the learnable dense                             document pairs by ‘pushing away’ negative docu-
+retriever further selects the m most relevant doc-                                  ments. Overall, the optimization objective is:
+uments {di }m  i=1 to verify input validity. Although
+BM25 may retrieve less relevant or even irrelevant                                  E(x,d)∼X [ max(0, max({f (x, dpi )}li=1 ) − f (x, d) + τ )
+elements, we note that with proper selection of m̂,                                                            exp(f (x, d))
+the desired documents tend to be found within the                                                      −λ            P                   ],
+                                                                                                    exp(f (x, d)) + 2l exp(f (x, di ))
+retrieved set for most cases. In our implementa-                                                                                       (3)
+tion, we use m̂ = 20 and m = 5 to balance the                                               P
+                                                                                    where 2l exp(f (x, di )) represents the exponen-
+document retrieval performance and efficiency.                                      tial sum of both positive examples {dpi }li=1 and neg-
+  Following the sparse BM25 retrieval, we elab-                                     ative examples {dni }li=1 . τ is the ranking margin
+orate the learning of our dense retrieval model.                                    threshold and λ is a scaling factor. For each pair of
+                                                                            10335
+x and d, the first term in Equation (3) becomes rel-     is found to form the argument, LLMs are instructed
+evant when fden (x, d) does not exceed the highest       to recognize the absence of evidence, as illustrated
+ranked document (i.e., also known as hard negative)      in branch 1 of Figure 2. Consequently, this allows
+score by τ . Moreover, the contrastive term max-         us to guide LLMs to take both arguments into con-
+imizes exponential score of the input-document           sideration, facilitating a comprehensive analysis on
+pair in contrast to the sum of scores from the sam-      the claim and its credibility.
+pled documents. Hence, the dense retriever model            Moving to the argument synthesis and infer-
+learns to prioritize highly relevant documents while     ence phase (i.e., in-context synthesis) of our fact-
+effectively filtering out those of less relevance to     checking framework, we aim to generate accurate
+improve fact verification performance.                   prediction on the claim validity by leveraging in-
+                                                         context examples along with the contrasting argu-
+4.3 Fact Verification by Synthesizing                    ments. Recall our in-context learning framework
+    Contrastive Arguments                                condition on the k-shot examples {(xi , yi )}ki=1 , we
+                                                         also incorporate the generated arguments and refor-
+To facilitate fact verification with LLMs, exist-        mulate our inference with:
+ing methods leverage intricate templates and tech-
+niques such as chain-of-thought (CoT), which de-         ŷ = arg max fcheck (y|{si , ri , xi , yi }ki=1 , s, r, x),
+                                                                     y
+composes input claims into sub-claims to ver-                                                              (4)
+ify (Wei et al., 2022; Wang and Shu, 2023).              where si , ri are the supporting and refuting argu-
+Yet when assessing the (sub)-claims, current ap-         ments for the i-th demonstration. Note that the
+proaches prompt LLMs to perform binary classi-           documents {di }m  i=1 are implicitly included in the
+fication (i.e., true or false), and thus often fail to   arguments and thus no longer used in the prompt.
+incorporate nuanced information for fine-grained         At this point, we adopt the following template for
+fact-checking (Zhang and Gao, 2023; Pelrine et al.,      each example in the final prompt:
+2023). Moreover, the extended context created
+by retrieved demonstrations and documents can                  Claim: Claim
+impair performance in LLMs with limited con-                   Supporting argument: Supporting Arg
+text windows or in smaller LLMs. Therefore, we                 Refuting argument: Refuting Arg
+propose a branching approach by generating and                 Based on the claim, its supporting and
+synthesizing contrastive arguments, in which we:               refuting arguments, it is clear that among
+(1) decompose the fact-checking task into generat-             Classes, the claim should be classified
+ing supporting and refuting arguments upon input               as Label.
+claim and retrieved documents; and (2) learn from        Here, Claim, Supporting Arg, Refuting Arg,
+informative in-context examples to synthesize the        Classes are populated with the input claim, sup-
+contrasting arguments, which incorporates adaptive       porting and refuting arguments and the set of all
+prior knowledge and varying viewpoints.                  classes. For in-context examples, Label is filled
+   Provided with claim and retrieved documents,          with the respective example’s label, whereas for
+our first sub-task involves creating two branches        the target example, Label is left blank for predic-
+in parallel that generate independent yet varying        tion. Following the prediction, the explanation is
+arguments from two opposing perspectives. In par-        generated in a similar fashion by integrating both
+ticular, we leverage the text comprehension and          arguments and prompting with instruction.
+summarization capabilities of LLMs and perform
+instruction prompting to extract relevant facts and      4.4   Summary of RAFTS
+generate supporting / refuting arguments. We adopt       Overall, the proposed RAFTS has three compo-
+a simple task description and optimize it to ob-         nents: (1) example retrieval; (2) document retrieval;
+tain concise, yet accurate arguments within a few        and (3) in-context fact verification. The first two
+sentences. For input x and retrieved documents           components are designed to collect relevant demon-
+     i=1 , the generated supporting / refuting argu-
+{di }m                                                   strations and supporting documents that provide
+ments are denoted with s and r. Therefore, for a         insightful context information. In the third compo-
+specific example (x, y) ∼ X , we enrich the input        nent, we propose to generate contrasting arguments
+to (s, r, x, y) by integrating both supporting and re-   upon the retrieved documents, followed by incor-
+futing arguments. Notably, if no pertinent evidence      porating these perspectives in inference to achieve
+                                                    10336
+                                    MS MARCO                                     Check-COVID
+        Model
+                  N@1 ↑     N@3 ↑     R@3 ↑    N@5 ↑     R@5 ↑      N@1 ↑   N@3 ↑     R@3 ↑    N@5 ↑     R@5 ↑
+        TFIDF      0.419    0.531     0.613     0.562    0.687      0.266    0.363    0.427     0.385     0.480
+        BM25       0.665    0.746     0.801     0.760    0.836      0.292    0.395    0.467     0.426     0.545
+        DPR        0.738    0.793     0.850     0.797    0.903      0.324    0.411    0.477     0.457     0.588
+        E5         0.796    0.855     0.895     0.865    0.920      0.445    0.584    0.679     0.609     0.741
+        RAFTS      0.802    0.858     0.896     0.868    0.920      0.513    0.631    0.712     0.646     0.750
+
+    Table 1: Evaluation results on document retrieval, with best results in bold and second best results underlined.
+
+
+fine-grained fact verification. With informative in-          et al., 2020; Wei et al., 2022; Yao et al., 2022;
+context examples featuring contrastive arguments,             Zhang and Gao, 2023). We adopt macro recall,
+RAFTS can perform well regardless of the LLM                  precision and F1 scores to evaluate fact-checking
+size. To demonstrate the efficacy of RAFTS, we                performance. Automated evaluation is used for ex-
+perform extensive experiments on multiple fact ver-           planation quality, including politeness, factuality
+ification datasets, revealing that RAFTS can sur-             and claim-relevance following (He et al., 2023).
+pass state-of-the-art fact-checking methods even
+with a significantly smaller LLM.                             5.2    Document Retrieval
+                                                              Our document retrieval results are reported in Ta-
+5     Experiments                                             ble 1. In this table, rows represent retrieval methods
+                                                              and the columns represent different datasets / met-
+5.1 Experiment Design
+                                                              rics. For top-1 scores, we use N@1 since top-1
+Document Retrieval. Our example retrieval model               NDCG and Recall scores are equivalent in this case.
+fembed uses the pretrained SimCSE-RoBERTa (Liu                From the results we observe: (1) RAFTS retriever
+et al., 2019; Gao et al., 2021). The document re-             consistently outperforms baseline methods across
+trieval model fretriever consists of BM25 and a               all metrics, with an average performance improve-
+dense retriever initialized with E5 (base) (Wang              ment of 3.56% across metrics and datasets. (2) In
+et al., 2022). We adopt MS MARCO and Check-                   contrast to sparse retrieval along, the additional
+COVID dataset for document retrieval (Nguyen                  dense retriever significantly improves the rank-
+et al., 2016; Wang et al., 2023b). The adopted met-           ing performance. For example, RAFTS achieves
+rics are NDCG and Recall (i.e., N@k and R@k)                  37.61% performance improvement in Recall@5
+with k ∈ [1, 3, 5]. For baselines, we adopt the               compared to BM25 on Check-COVID. (3) The per-
+sparse TFIDF and BM25 and dense models DPR                    formance gains through our retrieval pipeline are
+and E5 (Karpukhin et al., 2020; Wang et al., 2022).           more significant on the Check-COVID dataset. For
+Fact Verification. We adopt Mistral 7B and                    instance, the relative improvement of NDCG@5
+GPT-3.5 as our base LLM (Jiang et al., 2023;                  shifts from 0.35% to 8.05% when moving from
+Ouyang et al., 2022). We adopt three datasets                 MS MARCO to Check-COVID. Overall, we find
+with varying granularity: LIAR (True / Mostly-                the proposed retrieval pipeline in RAFTS performs
+true / Half-true / Barely-true / False / Pants-fire)),        well in collecting relevant documents. In addition,
+RAWFC (True / Half-true / False), and ANTiVax                 the retrieval pipeline proves to be essential for spe-
+(True / False) (Wang, 2017; Yang et al., 2022;                cialized domains like healthcare (e.g., COVID),
+Hayawi et al., 2022). For LIAR and RAWFC, we                  leading to notable performance improvements.
+adopt Wikipedia as document sources and use the
+MS MARCO trained retriever. The document col-                 5.3    Fact Verification
+lection for ANTiVax is collected from CORD and                We proceed to discuss our fact verification per-
+LitCOVID, thus we use the Check-COVID trained                 formance of RAFTS, with the results reported in
+retriever (Karpukhin et al., 2020; Wang et al., 2020;         Table 2. Similarly, methods are depicted in rows
+Chen et al., 2021). Our supervised baselines are dE-          and datasets / metrics are represented in columns.
+FEND, SentHAN, SBERT-FC and CofCED (Shu                       The first group of baseline methods comprise super-
+et al., 2019; Ma et al., 2019; Kotonya and Toni,              vised approaches (i.e. from dEFEND to CofCED),
+2020; Yang et al., 2022). GPT-3.5-based methods               followed by methods built upon GPT-3.5 (i.e. from
+include GPT-3.5, CoT, ReAct and HiSS (Brown                   GPT-3.5 to HiSS), and the bottom row incorporate
+                                                        10337
+                                               LIAR                         RAWFC                         ANTiVax
+       Model
+                                       P↑       R↑      F1 ↑           P↑     R↑       F1 ↑        P↑       R↑       F1 ↑
+       dEFEND                        0.230     0.185    0.205      0.449      0.432    0.440      0.729     0.839    0.781
+       SentHAN                       0.226     0.200    0.212      0.457      0.455    0.456      0.691     0.984    0.812
+       SBERT-FC                      0.241     0.221    0.231      0.511      0.460    0.484      0.736     0.951    0.830
+       CofCED                        0.295     0.296    0.295      0.530      0.510    0.520      0.731     0.956    0.828
+       GPT-3.5                       0.291     0.251    0.270      0.485      0.485    0.485      0.771     0.850    0.808
+       CoT                           0.226     0.242    0.237      0.424      0.466    0.444      0.816     0.877    0.845
+       ReAct                         0.332     0.290    0.310      0.512      0.485    0.498      0.820     0.864    0.841
+       HiSS                          0.468     0.313    0.375      0.534      0.544    0.539      0.823     0.887    0.853
+       RAFTS (w/ Mistral 7B)         0.616     0.305    0.408      0.626      0.516    0.566      0.839     0.873    0.854
+       RAFTS (w/ GPT-3.5)            0.471     0.379    0.420      0.628      0.526    0.573      0.886     0.908    0.897
+
+   Table 2: Evaluation results on fact verification, with best results in bold and second best results underlined.
+
+
+RAFTS with Mistral 7B and GPT-3.5. We use P,                           Dataset        Method       Po. ↑     Fa. ↑    Rel. ↑
+R and F1 to abbreviate precision, recall and F1                                       GPT-3.5      0.947     0.943    0.846
+scores4 , and we observe: (1) Both RAFTS vari-                         LIAR
+                                                                                      HiSS         0.967     0.964    0.848
+                                                                                      RAFTS (M)    0.973     0.969    0.883
+ants demonstrates superior fact-checking perfor-                                      RAFTS (G)    0.969     0.969    0.852
+mance across all datasets. For example, RAFTS
+                                                                                      GPT-3.5      0.965     0.949    0.856
+with Mistral 7B outperforms the best baseline                                         HiSS         0.971     0.955    0.861
+                                                                       RAWFC
+method in F1 by 8.8%, while RAFTS with GPT-                                           RAFTS (M)    0.974     0.971    0.757
+3.5 achieves a significant 12.0% performance gain                                     RAFTS (G)    0.970     0.960    0.862
+on F1. (2) RAFTS with GPT-3.5 delivers the best                                       GPT-3.5      0.958     0.963    0.774
+                                                                                      HiSS         0.986     0.974    0.768
+classification results overall. In particular, it leads                ANTiVax
+                                                                                      RAFTS (M)    0.987     0.976    0.800
+in precision / recall on two of the three datasets and                                RAFTS (G)    0.986     0.973    0.785
+achieves the highest F1 for all datasets, averaging
+a 7.8% increase in F1 performance. (3) Notably,                   Table 3: Evaluation results on explanation quality, with
+RAFTS w/ Mistral 7B backbone is superior than                     best results in bold and second best results underlined.
+all baseline methods on F1 scores despite its sig-
+nificantly smaller size (7B) than GPT-3.5. This                   claim relevance. For RAFTS, we use (M) and (G)
+suggests that the proposed in-context synthesis can               to denote the Mistral 7B and GPT-3.5 backbones.
+extract concise yet informative arguments and help                Our findings are: (1) both baselines and RAFTS
+LLMs generate accurate predictions on claim cred-                 perform well in generating explanations based on
+ibility. In summary, the RAFTS can outperform                     the fact-checking predictions, achieving average
+state-of-the-art fact verification methods by a sub-              scores above 0.9 for both politeness and factuality.
+stantial margin. Even when utilizing a notably                    (2) GPT-3.5-based methods show similar perfor-
+smaller model (Mistral 7B), RAFTS consistently                    mance regardless of prompting strategies. For in-
+exhibits superior performance, highlighting its effi-             stance, the average scores on ANTiVax across met-
+cacy in fact verification.                                        rics are 0.898, 0.909 and 0.915 for GPT-3.5, HiSS
+5.4 Explanation Generation                                        and RAFTS (G). (3) Surprisingly, RAFTS with
+                                                                  Mistral excels in explanation generation, achieving
+Based on the fact verification results, the expla-
+                                                                  the highest politeness and factuality scores on all
+nations for the prediction can be generated in a
+                                                                  datasets, which may be attributed to the instruction-
+similar fashion. To evaluate explanation quality,
+                                                                  following capabilities of Mistral 7B. In sum, the
+we benchmark against GPT-3.5 and HiSS, as super-
+                                                                  explanation evaluation shows that RAFTS can con-
+vised and the rest LLM methods are not designed
+                                                                  sistently generate high-quality explanations regard-
+to generate fact-checking explanations. We report
+                                                                  less of the choice of the LLM.
+the explanation quality results in Table 3, with Po.,
+Fa. and Rel. representing politeness, factuality and              6     Conclusion
+   4
+     In our experiments, F1 score is favored as it balances the
+trade-off between precision and recall, thereby offering a more   In this paper, we propose RAFTS, a novel retrieval
+comprehensive performance measure for fact verification.          augmented fact verification framework. RAFTS
+                                                               10338
+consists of three key components: (1) example                 Sebastian Borgeaud, Arthur Mensch, Jordan Hoff-
+retrieval, which provides informative in-context                mann, Trevor Cai, Eliza Rutherford, Katie Milli-
+                                                                can, George Bm Van Den Driessche, Jean-Baptiste
+demonstrations; (2) document retrieval that col-
+                                                                Lespiau, Bogdan Damoc, Aidan Clark, et al. 2022.
+lects relevant documents from verifiable sources;               Improving language models by retrieving from tril-
+and (3) in-context prompting, where few-shot                    lions of tokens. In International conference on ma-
+fact-checking is performed by considering both                  chine learning, pages 2206–2240. PMLR.
+informative examples and nuanced information
+                                                              Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+from contrastive arguments. As a result, RAFTS                  Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind
+achieves fine-grained fact verification without the             Neelakantan, Pranav Shyam, Girish Sastry, Amanda
+need for complex prompting techniques and large-                Askell, et al. 2020. Language models are few-shot
+size LLMs. Our experiment results on benchmark                  learners. Advances in neural information processing
+                                                                systems, 33:1877–1901.
+datasets highlight the superiority of RAFTS, which
+consistently outperforms state-of-the-art methods             Canyu Chen and Kai Shu. 2023a. Can llm-generated
+methods in both fact-checking performance and the               misinformation be detected?     arXiv preprint
+quality of generated explanations.                              arXiv:2309.13788.
+
+7   Limitations                                               Canyu Chen and Kai Shu. 2023b. Combating misinfor-
+                                                                mation in the age of llms: Opportunities and chal-
+                                                                lenges. arXiv preprint arXiv:2311.05656.
+Despite introducing RAFTS for retrieval aug-
+mented fact verification, we have not discussed               Canyu Chen, Haoran Wang, Matthew Shapiro, Yunyu
+the setting in which the document retrieval do-                 Xiao, Fei Wang, and Kai Shu. 2022. Combating
+main significantly differs from the fact-checking               health misinformation in social media: Characteriza-
+domain (e.g., using Wikipedia documents to fact-                tion, detection, intervention, and open issues. arXiv
+                                                                preprint arXiv:2211.05289.
+check COVID misinformation), which can cause
+performance deterioration for domain-generalized              Jifan Chen, Grace Kim, Aniruddh Sriram, Greg Durrett,
+applications. Furthermore, we have not examined                  and Eunsol Choi. 2023. Complex claim verification
+the robustness and reliability of our example re-                with evidence retrieved in the wild. arXiv preprint
+trieval and document retrieval, which could un-                  arXiv:2305.11859.
+lock additional improvements for fact verification.           Qingyu Chen, Alexis Allot, and Zhiyong Lu. 2021. Lit-
+Consequently, we plan to explore a more gener-                  covid: an open database of covid-19 literature. Nu-
+alized and domain-adaptive solution for retrieval               cleic acids research, 49(D1):D1534–D1540.
+augmented fact verification as future work.
+                                                              Ting Chen, Simon Kornblith, Mohammad Norouzi, and
+                                                                 Geoffrey Hinton. 2020. A simple framework for
+Acknowledgement                                                  contrastive learning of visual representations. In In-
+                                                                 ternational conference on machine learning, pages
+This research is supported in part by the National              1597–1607. PMLR.
+Science Foundation under Grant No. IIS-2202481,
+CHE-2105032, IIS-2130263, CNS-2131622, CNS-                   Eun Cheol Choi and Emilio Ferrara. 2024. Fact-gpt:
+2140999. The views and conclusions contained in                 Fact-checking augmentation via claim matching with
+                                                                llms. In Companion Proceedings of the ACM on Web
+this document are those of the authors and should
+                                                                Conference 2024, pages 883–886.
+not be interpreted as representing the official poli-
+cies, either expressed or implied, of the U.S. Gov-           Aakanksha Chowdhery, Sharan Narang, Jacob Devlin,
+ernment. The U.S. Government is authorized to                   Maarten Bosma, Gaurav Mishra, Adam Roberts,
+reproduce and distribute reprints for Government                Paul Barham, Hyung Won Chung, Charles Sutton,
+                                                                Sebastian Gehrmann, et al. 2022. Palm: Scaling
+purposes notwithstanding any copyright notation                 language modeling with pathways. arXiv preprint
+here on.                                                        arXiv:2204.02311.
+
+                                                              Tianyu Gao, Xingcheng Yao, and Danqi Chen. 2021.
+References                                                      SimCSE: Simple contrastive learning of sentence em-
+                                                                beddings. In Proceedings of the 2021 Conference
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and             on Empirical Methods in Natural Language Process-
+  Hannaneh Hajishirzi. 2023. Self-rag: Learning to              ing, pages 6894–6910, Online and Punta Cana, Do-
+  retrieve, generate, and critique through self-reflection.     minican Republic. Association for Computational
+  arXiv preprint arXiv:2310.11511.                              Linguistics.
+
+                                                         10339
+Jiawei Gu, Xuan Qian, Qian Zhang, Hongliang Zhang,         Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick
+   and Fang Wu. 2023. Unsupervised domain adapta-            Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and
+   tion for covid-19 classification based on balanced        Wen-tau Yih. 2020. Dense passage retrieval for open-
+   slice wasserstein distance. Computers in Biology and      domain question answering. In Proceedings of the
+   Medicine, page 107207.                                    2020 Conference on Empirical Methods in Natural
+                                                             Language Processing (EMNLP), pages 6769–6781,
+Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasu-            Online. Association for Computational Linguistics.
+  pat, and Mingwei Chang. 2020. Retrieval augmented
+  language model pre-training. In International confer-    Boshko Koloski, Timen Stepišnik Perdih, Marko
+  ence on machine learning, pages 3929–3938. PMLR.           Robnik-Šikonja, Senja Pollak, and Blaž Škrlj. 2022.
+                                                             Knowledge graph informed fake news classification
+Naeemul Hassan, Fatma Arslan, Chengkai Li, and Mark          via heterogeneous representation ensembles. Neuro-
+  Tremayne. 2017. Toward automated fact-checking:            computing.
+  Detecting check-worthy factual claims by claim-
+  buster. In Proceedings of the 23rd ACM SIGKDD            Neema Kotonya and Francesca Toni. 2020. Explainable
+  international conference on knowledge discovery and        automated fact-checking for public health claims. In
+  data mining, pages 1803–1812.                              Proceedings of the 2020 Conference on Empirical
+                                                             Methods in Natural Language Processing (EMNLP),
+Kadhim Hayawi, Sakib Shahriar, Mohamed Adel Ser-             pages 7740–7754, Online. Association for Computa-
+  hani, Ikbal Taleb, and Sujith Samuel Mathew. 2022.         tional Linguistics.
+  Anti-vax: a novel twitter dataset for covid-19 vaccine
+  misinformation detection. Public health, 203:23–30.      Ziyi Kou, Lanyu Shang, Yang Zhang, and Dong Wang.
+                                                             2022a. Hc-covid: A hierarchical crowdsource knowl-
+Bing He, Mustaque Ahamad, and Srijan Kumar.                  edge graph approach to explainable covid-19 mis-
+  2023.     Reinforcement learning-based counter-            information detection. Proceedings of the ACM on
+  misinformation response generation: A case study of        Human-Computer Interaction, 6(GROUP):1–25.
+  covid-19 vaccine misinformation. In Proceedings of
+  the ACM Web Conference 2023, pages 2698–2709.            Ziyi Kou, Lanyu Shang, Yang Zhang, Christina Youn,
+                                                             and Dong Wang. 2021. Fakesens: A social sensing
+Yue Huang, Kai Shu, Philip S Yu, and Lichao Sun.             approach to covid-19 misinformation detection on so-
+  2024. From creation to clarification: Chatgpt’s jour-      cial media. In 2021 17th International Conference on
+  ney through the fake news quagmire. In Companion           Distributed Computing in Sensor Systems (DCOSS),
+  Proceedings of the ACM on Web Conference 2024,             pages 140–147. IEEE.
+  pages 513–516.
+                                                           Ziyi Kou, Lanyu Shang, Yang Zhang, Zhenrui Yue,
+Gautier Izacard and Edouard Grave. 2021. Leveraging          Huimin Zeng, and Dong Wang. 2022b. Crowd, ex-
+  passage retrieval with generative models for open do-      pert & ai: A human-ai interactive approach towards
+  main question answering. In Proceedings of the 16th        natural language explanation based covid-19 misin-
+  Conference of the European Chapter of the Associ-          formation detection. In Proc. Int. Joint Conf. Artif.
+  ation for Computational Linguistics: Main Volume,          Intell.(IJCAI), pages 5087–5093.
+  pages 874–880, Online. Association for Computa-
+  tional Linguistics.                                      Itay Levy, Ben Bogin, and Jonathan Berant. 2023. Di-
+                                                              verse demonstrations improve in-context composi-
+Gautier Izacard, Patrick Lewis, Maria Lomeli, Lu-             tional generalization. In Proceedings of the 61st An-
+  cas Hosseini, Fabio Petroni, Timo Schick, Jane              nual Meeting of the Association for Computational
+  Dwivedi-Yu, Armand Joulin, Sebastian Riedel, and            Linguistics (Volume 1: Long Papers), pages 1401–
+  Edouard Grave. 2022. Few-shot learning with re-             1422, Toronto, Canada. Association for Computa-
+  trieval augmented language models. arXiv preprint           tional Linguistics.
+  arXiv:2208.03299.
+                                                           Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio
+Albert Q Jiang, Alexandre Sablayrolles, Arthur Men-          Petroni, Vladimir Karpukhin, Naman Goyal, Hein-
+  sch, Chris Bamford, Devendra Singh Chaplot, Diego          rich Küttler, Mike Lewis, Wen-tau Yih, Tim Rock-
+  de las Casas, Florian Bressand, Gianna Lengyel, Guil-      täschel, et al. 2020. Retrieval-augmented generation
+  laume Lample, Lucile Saulnier, et al. 2023. Mistral        for knowledge-intensive nlp tasks. Advances in Neu-
+  7b. arXiv preprint arXiv:2310.06825.                       ral Information Processing Systems, 33:9459–9474.
+Albert Q Jiang, Alexandre Sablayrolles, Antoine            Xiaonan Li and Xipeng Qiu. 2023. Finding support
+  Roux, Arthur Mensch, Blanche Savary, Chris Bam-            examples for in-context learning. In Findings of the
+  ford, Devendra Singh Chaplot, Diego de las Casas,          Association for Computational Linguistics: EMNLP
+  Emma Bou Hanna, Florian Bressand, et al. 2024.             2023, pages 6219–6235, Singapore. Association for
+  Mixtral of experts. arXiv preprint arXiv:2401.04088.       Computational Linguistics.
+Gongyao Jiang, Shuang Liu, Yu Zhao, Yueheng Sun,           Iouliana Litou, Vana Kalogeraki, Ioannis Katakis, and
+  and Meishan Zhang. 2022. Fake news detection via           Dimitrios Gunopulos. 2017. Efficient and timely mis-
+  knowledgeable prompt learning. Information Pro-            information blocking under varying cost constraints.
+  cessing & Management, 59(5):103029.                        Online Social Networks and Media, 2:19–31.
+
+                                                      10340
+Hui Liu, Wenya Wang, and Haoliang Li. 2023. Inter-         R OpenAI. 2023. Gpt-4 technical report. arXiv, pages
+  pretable multimodal misinformation detection with          2303–08774.
+  logic reasoning. In Findings of the Association for
+  Computational Linguistics: ACL 2023, pages 9781–         Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida,
+  9796, Toronto, Canada. Association for Computa-            Carroll Wainwright, Pamela Mishkin, Chong Zhang,
+  tional Linguistics.                                        Sandhini Agarwal, Katarina Slama, Alex Ray, et al.
+                                                             2022. Training language models to follow instruc-
+Hui Liu, Wenya Wang, Haoru Li, and Haoliang Li. 2024.        tions with human feedback. Advances in Neural
+  Teller: A trustworthy framework for explainable,           Information Processing Systems, 35:27730–27744.
+  generalizable and controllable fake news detection.
+  arXiv preprint arXiv:2402.07776.                         Kellin Pelrine, Anne Imouza, Camille Thibault, Meilina
+                                                             Reksoprodjo, Caleb Gupta, Joel Christoph, Jean-
+Jiachang Liu, Dinghan Shen, Yizhe Zhang, Bill Dolan,         François Godbout, and Reihaneh Rabbany. 2023. To-
+   Lawrence Carin, and Weizhu Chen. 2021. What               wards reliable misinformation mitigation: General-
+   makes good in-context examples for gpt-3? arXiv           ization, uncertainty, and GPT-4. In Proceedings of
+   preprint arXiv:2101.06804.                                the 2023 Conference on Empirical Methods in Natu-
+                                                             ral Language Processing, pages 6399–6429, Singa-
+Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Man-          pore. Association for Computational Linguistics.
+  dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,
+  Luke Zettlemoyer, and Veselin Stoyanov. 2019.            Guilherme Penedo, Quentin Malartic, Daniel Hesslow,
+  Roberta: A robustly optimized bert pretraining ap-         Ruxandra Cojocaru, Alessandro Cappelli, Hamza
+  proach. arXiv preprint arXiv:1907.11692.                   Alobeidli, Baptiste Pannier, Ebtesam Almazrouei,
+                                                             and Julien Launay. 2023. The refinedweb dataset
+Jing Ma, Wei Gao, Shafiq Joty, and Kam-Fai Wong.
+                                                             for falcon llm: outperforming curated corpora with
+   2019. Sentence-level evidence embedding for claim
+                                                             web data, and web data only. arXiv preprint
+   verification with hierarchical attention networks. In
+                                                             arXiv:2306.01116.
+   Proceedings of the 57th Annual Meeting of the Asso-
+   ciation for Computational Linguistics, pages 2561–      Baolin Peng, Michel Galley, Pengcheng He, Hao Cheng,
+   2571, Florence, Italy. Association for Computational      Yujia Xie, Yu Hu, Qiuyuan Huang, Lars Liden, Zhou
+   Linguistics.                                              Yu, Weizhu Chen, et al. 2023. Check your facts and
+Ethan Mendes, Yang Chen, Wei Xu, and Alan Ritter.            try again: Improving large language models with
+  2023. Human-in-the-loop evaluation for early misin-        external knowledge and automated feedback. arXiv
+  formation detection: A case study of COVID-19 treat-       preprint arXiv:2302.12813.
+  ments. In Proceedings of the 61st Annual Meeting of
+  the Association for Computational Linguistics (Vol-      Zhiguo Qu, Yunyi Meng, Ghulam Muhammad, and
+  ume 1: Long Papers), pages 15817–15835, Toronto,           Prayag Tiwari. 2024. Qmfnd: A quantum multi-
+  Canada. Association for Computational Linguistics.         modal fusion-based fake news detection model for
+                                                             social media. Information Fusion, 104:102172.
+Nicholas Micallef, Bing He, Srijan Kumar, Mustaque
+  Ahamad, and Nasir Memon. 2020. The role of the           Colin Raffel, Noam Shazeer, Adam Roberts, Katherine
+  crowd in countering misinformation: A case study of        Lee, Sharan Narang, Michael Matena, Yanqi Zhou,
+  the covid-19 infodemic. In 2020 IEEE international         Wei Li, and Peter J Liu. 2020. Exploring the limits
+  Conference on big data (big data), pages 748–757.          of transfer learning with a unified text-to-text trans-
+  IEEE.                                                      former. The Journal of Machine Learning Research,
+                                                             21(1):5485–5551.
+Preslav Nakov, David Corney, Maram Hasanain, Firoj
+  Alam, Tamer Elsayed, Alberto Barrón-Cedeño, Paolo        Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,
+  Papotti, Shaden Shaar, and Giovanni Da San Martino.        Amnon Shashua, Kevin Leyton-Brown, and Yoav
+  2021. Automated fact-checking for assisting human          Shoham. 2023. In-context retrieval-augmented lan-
+  fact-checkers. arXiv preprint arXiv:2103.07769.            guage models. arXiv preprint arXiv:2302.00083.
+
+Qiong Nan, Danding Wang, Yongchun Zhu, Qiang               Vipula Rawte, Swagata Chakraborty, Agnibh Pathak,
+  Sheng, Yuhui Shi, Juan Cao, and Jintao Li. 2022.           Anubhav Sarkar, SM Tonmoy, Aman Chadha, Amit P
+  Improving fake news detection of influential domain        Sheth, and Amitava Das. 2023. The troubling emer-
+  via domain- and instance-level transfer. In Proceed-       gence of hallucination in large language models–an
+  ings of the 29th International Conference on Com-          extensive definition, quantification, and prescriptive
+  putational Linguistics, pages 2834–2848, Gyeongju,         remediations. arXiv preprint arXiv:2310.04988.
+  Republic of Korea. International Committee on Com-
+  putational Linguistics.                                  Nikita Mariam Santhosh, Jo Cheriyan, and Lekshmi S
+                                                             Nair. 2022. A multi-model intelligent approach for
+Tri Nguyen, Mir Rosenberg, Xia Song, Jianfeng Gao,           rumor detection in social networks. In 2022 Inter-
+   Saurabh Tiwary, Rangan Majumder, and Li Deng.             national Conference on Computing, Communication,
+   2016. Ms marco: A human generated machine read-           Security and Intelligent Systems (IC3SIS), pages 1–5.
+   ing comprehension dataset. choice, 2640:660.              IEEE.
+
+                                                      10341
+Lanyu Shang, Ziyi Kou, Yang Zhang, Jin Chen, and         Kai Sun, Yifan Ethan Xu, Hanwen Zha, Yue Liu, and
+  Dong Wang. 2022a. A privacy-aware distributed            Xin Luna Dong. 2023. Head-to-tail: How knowl-
+  knowledge graph approach to qois-driven covid-           edgeable are large language models (llm)? aka will
+  19 misinformation detection. In 2022 IEEE/ACM            llms replace knowledge graphs? arXiv preprint
+  30th International Symposium on Quality of Service       arXiv:2308.10168.
+  (IWQoS), pages 1–10. IEEE.
+                                                         Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-
+Lanyu Shang, Ziyi Kou, Yang Zhang, and Dong Wang.          bert, Amjad Almahairi, Yasmine Babaei, Nikolay
+  2021. A multimodal misinformation detector for           Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti
+  covid-19 short videos on tiktok. In 2021 IEEE Inter-     Bhosale, et al. 2023. Llama 2: Open founda-
+  national Conference on Big Data (Big Data), pages        tion and fine-tuned chat models. arXiv preprint
+  899–908. IEEE.                                           arXiv:2307.09288.
+
+Lanyu Shang, Ziyi Kou, Yang Zhang, and Dong Wang.        Boxin Wang, Wei Ping, Peng Xu, Lawrence McAfee,
+  2022b. A duo-generative approach to explainable          Zihan Liu, Mohammad Shoeybi, Yi Dong, Oleksii
+  multimodal covid-19 misinformation detection. In         Kuchaiev, Bo Li, Chaowei Xiao, et al. 2023a. Shall
+  Proceedings of the ACM Web Conference 2022, pages        we pretrain autoregressive language models with
+  3623–3631.                                               retrieval? a comprehensive study. arXiv preprint
+                                                           arXiv:2304.06762.
+Lanyu Shang, Yang Zhang, Bozhang Chen, Ruohan
+  Zong, Zhenrui Yue, Huimin Zeng, Na Wei, and Dong       Gengyu Wang, Kate Harwood, Lawrence Chillrud,
+  Wang. 2024a. Mmadapt: A knowledge-guided multi-          Amith Ananthram, Melanie Subbiah, and Kathleen
+  source multi-class domain adaptive framework for         McKeown. 2023b. Check-COVID: Fact-checking
+  early health misinformation detection. In Proceed-       COVID-19 news claims with scientific evidence. In
+  ings of the ACM on Web Conference 2024, pages            Findings of the Association for Computational Lin-
+  4653–4663.                                               guistics: ACL 2023, pages 14114–14127, Toronto,
+                                                           Canada. Association for Computational Linguistics.
+Lanyu Shang, Yang Zhang, Zhenrui Yue, YeonJung
+  Choi, Huimin Zeng, and Dong Wang. 2022c. A             Haoran Wang and Kai Shu. 2023. Explainable claim
+  knowledge-driven domain adaptive approach to early       verification via knowledge-grounded reasoning with
+  misinformation detection in an emergent health do-       large language models. In Findings of the Associa-
+  main on social media. In 2022 IEEE/ACM Interna-          tion for Computational Linguistics: EMNLP 2023,
+  tional Conference on Advances in Social Networks         pages 6288–6304, Singapore. Association for Com-
+  Analysis and Mining (ASONAM), pages 34–41. IEEE.         putational Linguistics.
+
+Lanyu Shang, Yang Zhang, Zhenrui Yue, YeonJung           Liang Wang, Nan Yang, Xiaolong Huang, Binxing
+  Choi, Huimin Zeng, and Dong Wang. 2024b. A do-           Jiao, Linjun Yang, Daxin Jiang, Rangan Majumder,
+  main adaptive graph learning framework to early de-      and Furu Wei. 2022. Text embeddings by weakly-
+  tection of emergent healthcare misinformation on so-     supervised contrastive pre-training. arXiv e-prints,
+  cial media. In Proceedings of the International AAAI     pages arXiv–2212.
+  Conference on Web and Social Media, volume 18,
+  pages 1408–1421.                                       Lucy Lu Wang, Kyle Lo, Yoganand Chandrasekhar, Rus-
+                                                           sell Reas, Jiangjiang Yang, Douglas Burdick, Darrin
+Weijia Shi, Sewon Min, Michihiro Yasunaga, Min-            Eide, Kathryn Funk, Yannis Katsis, Rodney Kinney,
+ joon Seo, Rich James, Mike Lewis, Luke Zettle-            et al. 2020. Cord-19: The covid-19 open research
+ moyer, and Wen-tau Yih. 2023. Replug: Retrieval-          dataset. ArXiv.
+ augmented black-box language models. arXiv
+ preprint arXiv:2301.12652.                              William Yang Wang. 2017. “liar, liar pants on fire”:
+                                                          A new benchmark dataset for fake news detection.
+Kai Shu, Limeng Cui, Suhang Wang, Dongwon Lee,             In Proceedings of the 55th Annual Meeting of the
+  and Huan Liu. 2019. defend: Explainable fake news       Association for Computational Linguistics (Volume 2:
+  detection. In Proceedings of the 25th ACM SIGKDD         Short Papers), pages 422–426, Vancouver, Canada.
+  international conference on knowledge discovery &       Association for Computational Linguistics.
+  data mining, pages 395–405.
+                                                         Jason Wei, Maarten Bosma, Vincent Y Zhao, Kelvin
+Kai Shu, Ahmadreza Mosallanezhad, and Huan Liu.             Guu, Adams Wei Yu, Brian Lester, Nan Du, An-
+  2022. Cross-domain fake news detection on social          drew M Dai, and Quoc V Le. 2021. Finetuned lan-
+  media: A context-aware adversarial approach. In           guage models are zero-shot learners. arXiv preprint
+  Frontiers in Fake Media Generation and Detection,         arXiv:2109.01652.
+  pages 215–232. Springer.
+                                                         Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten
+Kai Shu, Amy Sliva, Suhang Wang, Jiliang Tang, and          Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou,
+  Huan Liu. 2017. Fake news detection on social me-         et al. 2022. Chain-of-thought prompting elicits rea-
+  dia: A data mining perspective. ACM SIGKDD ex-            soning in large language models. Advances in Neural
+  plorations newsletter, 19(1):22–36.                       Information Processing Systems, 35:24824–24837.
+
+                                                    10342
+Junfei Wu, Qiang Liu, Weizhi Xu, and Shu Wu. 2022a.          (Volume 1: Long Papers), pages 5223–5239, Toronto,
+  Bias mitigation for evidence-aware fake news detec-        Canada. Association for Computational Linguistics.
+  tion by causal intervention. In Proceedings of the
+  45th International ACM SIGIR Conference on Re-          Xuan Zhang and Wei Gao. 2023. Towards LLM-based
+  search and Development in Information Retrieval,          fact verification on news claims with a hierarchical
+  pages 2308–2313.                                          step-by-step prompting method. In Proceedings of
+                                                            the 13th International Joint Conference on Natural
+Junfei Wu, Weizhi Xu, Qiang Liu, Shu Wu, and Liang          Language Processing and the 3rd Conference of the
+  Wang. 2022b. Adversarial contrastive learning for         Asia-Pacific Chapter of the Association for Compu-
+  evidence-aware fake news detection with graph neu-        tational Linguistics (Volume 1: Long Papers), pages
+  ral networks. arXiv preprint arXiv:2210.05498.            996–1011, Nusa Dua, Bali. Association for Compu-
+                                                            tational Linguistics.
+Xueqing Wu, Kung-Hsiang Huang, Yi Fung, and Heng
+  Ji. 2022c. Cross-document misinformation detection      Yiming Zhang, Shi Feng, and Chenhao Tan. 2022. Ac-
+  based on event graph reasoning. In Proceedings of         tive example selection for in-context learning. In Pro-
+  the 2022 Conference of the North American Chapter         ceedings of the 2022 Conference on Empirical Meth-
+  of the Association for Computational Linguistics: Hu-     ods in Natural Language Processing, pages 9134–
+  man Language Technologies, pages 543–558, Seattle,        9148, Abu Dhabi, United Arab Emirates. Association
+  United States. Association for Computational Lin-         for Computational Linguistics.
+  guistics.
+                                                          Runcong Zhao, Miguel Arana-catania, Lixing Zhu,
+Weizhi Xu, Junfei Wu, Qiang Liu, Shu Wu, and Liang          Elena Kochkina, Lin Gui, Arkaitz Zubiaga, Rob Proc-
+ Wang. 2022. Evidence-aware fake news detection             ter, Maria Liakata, and Yulan He. 2023. PANACEA:
+ with graph neural networks. In Proceedings of the          An automated misinformation detection system on
+ ACM Web Conference 2022, pages 2501–2510.                  COVID-19. In Proceedings of the 17th Conference of
+                                                            the European Chapter of the Association for Compu-
+Zhiwei Yang, Jing Ma, Hechang Chen, Hongzhan Lin,           tational Linguistics: System Demonstrations, pages
+  Ziyang Luo, and Yi Chang. 2022. A coarse-to-fine          67–74, Dubrovnik, Croatia. Association for Compu-
+  cascaded evidence-distillation neural network for ex-     tational Linguistics.
+  plainable fake news detection. In Proceedings of the
+  29th International Conference on Computational Lin-     Yangming Zhou, Yuzhou Yang, Qichao Ying, Zhenxing
+  guistics, pages 2608–2621, Gyeongju, Republic of          Qian, and Xinpeng Zhang. 2023. Multimodal fake
+  Korea. International Committee on Computational           news detection via clip-guided learning. In 2023
+  Linguistics.                                              IEEE International Conference on Multimedia and
+                                                            Expo (ICME), pages 2825–2830. IEEE.
+Barry Menglong Yao, Aditya Shah, Lichao Sun, Jin-Hee
+  Cho, and Lifu Huang. 2023. End-to-end multimodal        Yongchun Zhu, Qiang Sheng, Juan Cao, Qiong Nan,
+  fact-checking and explanation generation: A chal-         Kai Shu, Minghui Wu, Jindong Wang, and Fuzhen
+  lenging dataset and models. In Proceedings of the         Zhuang. 2022. Memory-guided multi-view multi-
+  46th International ACM SIGIR Conference on Re-            domain fake news detection. IEEE Transactions on
+  search and Development in Information Retrieval,          Knowledge and Data Engineering.
+  pages 2733–2743.
+
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+  Shafran, Karthik Narasimhan, and Yuan Cao. 2022.
+  React: Synergizing reasoning and acting in language
+  models. arXiv preprint arXiv:2210.03629.
+
+Zhenrui Yue, Huimin Zeng, Ziyi Kou, Lanyu Shang,
+  and Dong Wang. 2022. Contrastive domain adapta-
+  tion for early misinformation detection: A case study
+  on covid-19. In Proceedings of the 31st ACM Inter-
+  national Conference on Information & Knowledge
+  Management, pages 2423–2433.
+
+Zhenrui Yue, Huimin Zeng, Yimeng Lu, Lanyu Shang,
+  Yang Zhang, and Dong Wang. 2024. Evidence-driven
+  retrieval augmented response generation for online
+  misinformation. arXiv preprint arXiv:2403.14952.
+
+Zhenrui Yue, Huimin Zeng, Yang Zhang, Lanyu Shang,
+  and Dong Wang. 2023. MetaAdapt: Domain adap-
+  tive few-shot misinformation detection via meta
+  learning. In Proceedings of the 61st Annual Meet-
+  ing of the Association for Computational Linguistics
+
+                                                     10343
+

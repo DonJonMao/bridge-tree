@@ -1,0 +1,519 @@
+{
+  "created_utc": "2026-10-16T03:29:49.482517+00:00",
+  "scope": "Only q0 joint generated read/repair calls6/7/8 and their exact originals; no labels or scoring.",
+  "common_presentation_conflict": "Use its\nentity_scope and time_scope strings exactly only when that scope actually applies;\notherwise return unknown/irrelevant.",
+  "records": [
+    {
+      "logical_call_index": 6,
+      "operation": "joint_read",
+      "original_question": "Which program funded the SUPPLY project involving EHA, when did the project start, and how long will it last?",
+      "requested_scopes": {
+        "funding_program": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "start_date": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "duration": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        }
+      },
+      "original_source": {
+        "id": "s48",
+        "doc_id": "web-c5488f35f88f78b37833d0fb",
+        "start": 4825,
+        "end": 5146,
+        "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+        "source_role": "document",
+        "source_message_indices": [],
+        "time_metadata": {}
+      },
+      "common_wrong_scope_unknown_or_irrelevant_sentence_in_actual_system": true,
+      "web_source_review_present": false,
+      "web_reading_protocol_diagnostics": null,
+      "web_repair_edit_scope": null,
+      "required_failed_ids": [],
+      "response": {
+        "slots": [
+          {
+            "variable": "funding_program",
+            "observations": [
+              {
+                "id": "o1",
+                "stance": "support",
+                "value": "EU funded",
+                "source_ids": [
+                  "s48"
+                ],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "Source s48 states 'ASCERTAIN ... is an EU funded project'. The question asks about the SUPPLY project involving EHA, but the provided text only describes the ASCERTAIN project, not a SUPPLY project. No text mentions a 'SUPPLY' project. Therefore, the only relevant evidence is that ASCERTAIN is EU funded, but this does not directly answer the question about a SUPPLY project. However, the scope requires the SUPPLY project involving EHA; no such project is found. The observation is partial because the text does not mention SUPPLY."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "start_date",
+            "observations": [
+              {
+                "id": "o2",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "No text in the provided sources mentions a 'SUPPLY' project or its start date. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the start date for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "duration",
+            "observations": [
+              {
+                "id": "o3",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "No text in the provided sources mentions a 'SUPPLY' project or its duration. The text discusses the ASCERTAIN project, but that is a different project. Therefore, the duration for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          }
+        ],
+        "audit_verdict": "unknown",
+        "final_prediction": null,
+        "semantic_answer": null
+      }
+    },
+    {
+      "logical_call_index": 7,
+      "operation": "joint_read_repair",
+      "original_question": "Which program funded the SUPPLY project involving EHA, when did the project start, and how long will it last?",
+      "requested_scopes": {
+        "funding_program": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "start_date": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "duration": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        }
+      },
+      "original_source": {
+        "id": "s48",
+        "doc_id": "web-c5488f35f88f78b37833d0fb",
+        "start": 4825,
+        "end": 5146,
+        "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+        "source_role": "document",
+        "source_message_indices": [],
+        "time_metadata": {}
+      },
+      "common_wrong_scope_unknown_or_irrelevant_sentence_in_actual_system": true,
+      "web_source_review_present": false,
+      "web_reading_protocol_diagnostics": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "repair_edit_scope_unchanged": true,
+        "errors": [
+          {
+            "variable": "duration",
+            "observation_id": "o3",
+            "path": "repair_scope.failed[0].slot.observations[0].source_ids",
+            "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+          },
+          {
+            "variable": "start_date",
+            "observation_id": "o2",
+            "path": "repair_scope.failed[4].slot.observations[0].source_ids",
+            "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+          }
+        ]
+      },
+      "web_repair_edit_scope": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "historical_marker_authorization_unchanged": true,
+        "slots": [
+          {
+            "variable": "funding_program",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o1"
+            ],
+            "required_observation_ids": [
+              "o1"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "start_date",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o2"
+            ],
+            "required_observation_ids": [
+              "o2"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "duration",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o3"
+            ],
+            "required_observation_ids": [
+              "o3"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          }
+        ]
+      },
+      "required_failed_ids": [
+        {
+          "variable": "duration",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "duration",
+          "id": "o3",
+          "feedback": "Observed draft has not been validated"
+        },
+        {
+          "variable": "funding_program",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "funding_program",
+          "id": "o1",
+          "feedback": "Observed draft has not been validated"
+        },
+        {
+          "variable": "start_date",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "start_date",
+          "id": "o2",
+          "feedback": "Observed draft has not been validated"
+        }
+      ],
+      "response": {
+        "slots": [
+          {
+            "variable": "funding_program",
+            "observations": [
+              {
+                "id": "o1",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "start_date",
+            "observations": [
+              {
+                "id": "o2",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "duration",
+            "observations": [
+              {
+                "id": "o3",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          }
+        ],
+        "audit_verdict": "unknown",
+        "final_prediction": null,
+        "semantic_answer": null
+      }
+    },
+    {
+      "logical_call_index": 8,
+      "operation": "joint_read_repair",
+      "original_question": "Which program funded the SUPPLY project involving EHA, when did the project start, and how long will it last?",
+      "requested_scopes": {
+        "funding_program": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "start_date": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        },
+        "duration": {
+          "entity_scope": "SUPPLY project involving EHA",
+          "time_scope": "project timeline"
+        }
+      },
+      "original_source": {
+        "id": "s48",
+        "doc_id": "web-c5488f35f88f78b37833d0fb",
+        "start": 4825,
+        "end": 5146,
+        "text": "ASCERTAIN – Affordability and Sustainability improvements through new pricing, Cost- Effectiveness and ReimbursemenT models to Appraise INnovative health technologies – is an EU funded project focused on improving the affordability and accessibility of innovative health technologies by developing a policy support tool. ",
+        "source_role": "document",
+        "source_message_indices": [],
+        "time_metadata": {}
+      },
+      "common_wrong_scope_unknown_or_irrelevant_sentence_in_actual_system": true,
+      "web_source_review_present": false,
+      "web_reading_protocol_diagnostics": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "repair_edit_scope_unchanged": true,
+        "errors": [
+          {
+            "variable": "duration",
+            "observation_id": "o3",
+            "path": "repair_scope.failed[0].slot.observations[0].source_ids",
+            "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+          },
+          {
+            "variable": "funding_program",
+            "observation_id": "o1",
+            "path": "repair_scope.failed[2].slot.observations[0].source_ids",
+            "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+          },
+          {
+            "variable": "start_date",
+            "observation_id": "o2",
+            "path": "repair_scope.failed[4].slot.observations[0].source_ids",
+            "error": "evidence_assessment requires a non-empty list of non-empty original-source alias strings."
+          }
+        ]
+      },
+      "web_repair_edit_scope": {
+        "read_only": true,
+        "grants_review_authority": false,
+        "historical_marker_authorization_unchanged": true,
+        "slots": [
+          {
+            "variable": "funding_program",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o1"
+            ],
+            "required_observation_ids": [
+              "o1"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "start_date",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o2"
+            ],
+            "required_observation_ids": [
+              "o2"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          },
+          {
+            "variable": "duration",
+            "mode": "whole_slot",
+            "additional_unique_observation_ids_allowed": true,
+            "writable_observation_ids": [
+              "o3"
+            ],
+            "required_observation_ids": [
+              "o3"
+            ],
+            "replaced_duplicate_ids": [],
+            "frozen_observation_ids": [],
+            "protected_counter_observations": [],
+            "new_support_requires_later_ordinary_read": false
+          }
+        ]
+      },
+      "required_failed_ids": [
+        {
+          "variable": "duration",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "duration",
+          "id": "o3",
+          "feedback": "Observed draft has not been validated"
+        },
+        {
+          "variable": "funding_program",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "funding_program",
+          "id": "o1",
+          "feedback": "Observed draft has not been validated"
+        },
+        {
+          "variable": "start_date",
+          "id": "*",
+          "feedback": "Malformed slot"
+        },
+        {
+          "variable": "start_date",
+          "id": "o2",
+          "feedback": "Observed draft has not been validated"
+        }
+      ],
+      "response": {
+        "slots": [
+          {
+            "variable": "funding_program",
+            "observations": [
+              {
+                "id": "o1",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [
+                  "s48"
+                ],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the funding program for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "start_date",
+            "observations": [
+              {
+                "id": "o2",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [
+                  "s48"
+                ],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the start date for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          },
+          {
+            "variable": "duration",
+            "observations": [
+              {
+                "id": "o3",
+                "stance": "unknown",
+                "value": null,
+                "source_ids": [
+                  "s48"
+                ],
+                "entity_scope": "SUPPLY project involving EHA",
+                "time_scope": "project timeline",
+                "parent_versions": {},
+                "retract_ids": [],
+                "reason": "The provided text discusses the ASCERTAIN project, not a 'SUPPLY' project. No text mentions a project named 'SUPPLY' involving EHA. Therefore, the duration for the SUPPLY project is unknown."
+              }
+            ],
+            "unresolved": [],
+            "reading_status": "evidence_assessment"
+          }
+        ],
+        "audit_verdict": "unknown",
+        "final_prediction": null,
+        "semantic_answer": null
+      }
+    }
+  ],
+  "findings": [
+    "Call6 emits support from a different project while its reason explicitly denies target applicability; other fields emit source-free unknown from the same mismatch.",
+    "Call7 retains required IDs and changes all three to source-free unknown. Call8 satisfies source-reference format with s48 but still explicitly says the source describes another project.",
+    "Current source-reference diagnostics explain a necessary format constraint, not relevance. The model repairs citation syntax without fixing evidence disposition.",
+    "New source-review cards do not trigger here: no prior known binding, old evidence obligation or offered frozen reference yet exists.",
+    "The unchanged common sentence directs a scope mismatch to unknown/irrelevant, conflicting with the Web new-window no_relevant_evidence disposition."
+  ],
+  "generic_next_iteration_options_not_applied": [
+    "Guarded reconciliation of the exact common scope-mismatch sentence for ordinary Web retrieval; preserve the true in-scope incomplete and existing-source review cases.",
+    "Show mutually exclusive empty-new-window versus genuine scoped incomplete dispositions adjacent to the authoritative requested scope, using invented contrasting examples rather than entity keyword heuristics.",
+    "For a required failed draft about an unrelated source, explain the legal same-ID irrelevant review when warranted; never force source padding into an unknown row merely to satisfy source_ids.",
+    "Do not automatically classify other entities from names, delete required IDs, override source semantics, or settle real partial/counter evidence."
+  ]
+}
