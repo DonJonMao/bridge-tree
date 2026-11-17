@@ -1,0 +1,53 @@
+{
+  "unit_id": "5ab69f9a554299710c8d1ef8",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "What is the name of the fictional private detective that appears in \"The Adventure of the Seven Clocks\"?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:11\", \"source_id\": \"hotpotqa:11\"}]\nHazell (TV series)\nHazell is a British television series that ran from 1978–1979, about a fictional private detective named James Hazell.\n\n[Passage {\"doc_id\": \"hotpotqa:15\", \"source_id\": \"hotpotqa:15\"}]\nNick Carter, Master Detective\nNick Carter, Master Detective was a Mutual radio crime drama based on tales of the fictional private detective Nick Carter from Street & Smith's dime novels and pulp magazines. Nick Carter first came to radio as The Return of Nick Carter, a reference to the character's pulp origins, but the title was soon changed to Nick Carter, Master Detective. A veteran radio dramatist, Ferrin Fraser, wrote many of the scripts."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f751db736af6df29a9c2a41798f3222ccfdcff972b6cee8bb575a0bb488e2867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "16",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599832.673064,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599835.231467
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.4493926197162523
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 564,
+      "completion_tokens": 2,
+      "total_tokens": 566
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
