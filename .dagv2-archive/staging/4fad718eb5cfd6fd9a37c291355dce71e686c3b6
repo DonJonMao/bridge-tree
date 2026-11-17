@@ -1,0 +1,774 @@
+        Enhancing Retrieval-Augmented Generation via Evidence Tree Search
+
+                           Hao Sun1,2 * , Hengyi Cai3† , Yuchen Li3 , Xuanbo Fan1,2
+                      Xiaochi Wei3 , Shuaiqiang Wang3 , Yan Zhang1,2 , Dawei Yin3
+                                                                         †
+
+        1
+          State Key Laboratory of General Artificial Intelligence, Peking University, Beijing, China
+               2
+                 School of Intelligence Science and Technology, Peking University, 3 Baidu Inc
+                                           sunhao@stu.pku.edu.cn
+
+
+
+                              Abstract                                      Evidence Finder               Evidence Tree Search
+                                                                                                                     𝑞
+
+            Retrieval-Augmented Generation (RAG) is                                                                           1
+            widely used to enhance Large Language Mod-                                                                              2
+            els (LLMs) by grounding responses in external
+            knowledge. However, in real-world applica-                                               1 Albert Einstein is best known for
+                                                                                                     developing the theory of relativity.
+            tions, retrievers often return lengthy documents                                         2 He was born in the Kingdom of
+            with redundant or irrelevant content, confusing              Long Grounding Article      Württemberg in the German Empire.
+            downstream readers. While evidence retrieval
+            aims to address this by extracting key informa-                  Search Engine                     Reader LLM
+            tion, it faces critical challenges: (1) inability
+                                                                        Where was the inventor of      Albert Einstein was born in the
+            to model synergistic inter-dependencies among               theory of relativity born?       Kingdom of Württemberg.
+            evidence sentences, (2) lack of supervision for
+                                                                             Input Query                      Final Answer
+            evaluating multi-sentence evidence quality, and
+            (3) computational inefficiency in navigating           Figure 1: Illustration of Evidence Retrieval for RAG.
+            exponentially growing search spaces of candi-          Given an input query, a long article is retrieved using a
+            date evidence sets. To tackle these challenges,        search engine and segmented into sentences. The evi-
+            we propose ETS (Evidence Tree Search), a               dence finder then performs a reward-guided tree search
+            novel framework that reformulates evidence             to identify the optimal set of evidence, which is subse-
+            retrieval as a dynamic tree expansion process.         quently passed to the reader LLM for answer generation.
+            Our approach first constructs an evidence tree
+            where each path represents a candidate evi-
+            dence set, explicitly modeling inter-sentence
+                                                                   that include hallucinated facts or inaccurate infor-
+            dependencies through context-aware node se-
+            lection. We then leverage Monte Carlo Tree             mation (Ji et al., 2023; Shuster et al., 2021; Zhang
+            Search (MCTS) to efficiently assess evidence           et al., 2023a), which undermines their reliability.
+            quality and introduce an Early-Terminating             To mitigate this issue, Retrieval-Augmented Gen-
+            Beam Search strategy to efficiently accelerate         eration (RAG) has been introduced, which inte-
+            the model inference. Extensive experiments on          grates external knowledge into the generation pro-
+            five datasets demonstrate that ETS significantly       cess (Ram et al., 2023; Shi et al., 2023; Rashkin
+            outperforms existing methods across different
+                                                                   et al., 2021; Gao et al., 2022; Bohnet et al., 2022;
+            readers. Our code and datasets will be released
+            to facilitate future research.                         Menick et al., 2022).
+                                                                      In typical RAG systems, a user’s query is uti-
+    1       Introduction                                           lized to retrieve relevant documents from external
+                                                                   sources, which are then fed into the reader LLM
+    Large Language Models (LLMs) (Taylor et al.,                   to produce more accurate responses. However, in
+    2022; Chowdhery et al., 2022; Zhao et al., 2023a)              real-world applications, imperfect retrievers often
+    have demonstrated remarkable performance across                return long documents, such as web pages, that may
+    a wide range of downstream tasks (Xia et al.,                  contain substantial irrelevant content. Only specific
+    2024; Yamauchi et al., 2023; Imani et al., 2023;               portions of these documents are relevant for answer-
+    Lewkowycz et al., 2022). Despite these advance-                ing the query. Directly using these lengthy docu-
+    ments, LLMs are still prone to generating responses            ments in RAG systems poses several challenges:
+        * Work done while the author was an intern at Baidu Inc.   readers may struggle with processing long texts,
+        †
+            Corresponding Authors.                                 and irrelevant content could distract the reader from
+                                                                24116
+Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), pages 24116–24127
+                             July 27 - August 1, 2025 ©2025 Association for Computational Linguistics
+generating the correct response. Therefore, evi-          ference latency, we introduce Early Terminating
+dence retrieval plays a critical role in addressing       during the expansion phase of beam search. This
+these issues by identifying and extracting the most       technique terminates the generation of candidate
+relevant evidence sentences from the retrieved doc-       sentences early when a sentence prefix uniquely
+uments before passing it to the reader.                   identifies its position in the original context, signifi-
+   However, evidence retrieval is a non-trivial task      cantly improving computational efficiency without
+due to several inherent challenges. First, rele-          compromising accuracy.
+vant evidence often comprises multiple interrelated          Our contributions are summarized as follows:
+pieces of information. Traditional retrieval meth-
+ods focus on modeling the relationship between                • We propose ETS, a tree-based framework that
+the query and each individual sentence, inherently              enhances LLMs’ evidence-grounding through
+failing to capture the complex inter-dependencies               a tree expansion process.
+among evidence sentences. Second, assessing the
+quality of evidence sets presents significant difficul-       • We introduce MCTS to assess evidence qual-
+ties due to the lack of explicit supervision signals.           ity and Early Terminating Beam Search to
+Most RAG corpora only provide binary document-                  reduce search space and improve selection ef-
+level relevance labels, offering no direct feedback             ficiency.
+on which specific sentence combinations optimally
+support answer generation. Finally, the combinato-            • Extensive experiments on five datasets show
+rial explosion of candidate evidence sets in lengthy            our method outperforms existing approaches
+documents creates an enormous search space, mak-                across different readers.
+ing it computationally intensive to efficiently iden-
+tify the optimal set of evidence.                         2    Background
+   To address these challenges, as depicted in Fig-
+ure 1, we propose ETS, a novel evidence retrieval         In Retrieval-Augmented Generation (RAG), a re-
+framework with Evidence Tree Search. To capture           triever first retrieves relevant text evidence D from
+the complex inter-dependencies among evidence             a corpus C given a query q. The retrieved evidence
+sentences, ETS models evidence retrieval as a dy-         is then used by a reader LLM to generate an an-
+namic tree expansion process, where each node             swer:
+represents a sentence and every root-to-leaf path
+constitutes a candidate evidence set. This hierar-            D = Retriever(q, C),       A = Reader(q, D),
+chical structure inherently captures inter-sentence
+dependencies — during tree growth, new sentences          The retriever can be implemented using open-
+are selected based on accumulated contextual ev-          source models (e.g., DPR (Karpukhin et al., 2020))
+idence along the current path, enabling holistic          or commercial search engines (e.g., Google), while
+evaluation of sentence combinations’ collective rel-      the reader is typically a LLM.
+evance to the query. In order to assess the qual-            In practice, retrievers often return lengthy docu-
+ity of evidence sets, we introduce Monte Carlo            ments (e.g., web pages or articles) instead of con-
+Tree Search (MCTS) (Silver et al., 2017) to guide         cise evidence, making it difficult for the reader to
+the exploration of potential evidence combinations.       generate accurate answers. To address this, evi-
+Through iterative MCTS simulations, rewards de-           dence retrieval aims to identify and extract a subset
+rived from reader correctness given the candidate         of key text spans, referred to as supporting evidence
+evidence set are back-propagated to update node           T = {t1 , . . . , tk } ⊂ D, that are most relevant to
+values, providing dense training signals for optimiz-     answering the query q. This selection process can
+ing evidence selection. To combat the exponential         be formalized as a mapping function f (·):
+search space, we propose pruning the search space
+using a value model trained on reward signals de-                      T = {t1 , . . . , tk } = f (D).
+rived from the evidence tree constructed through
+MCTS annotation. By leveraging this model, the            In this work, we define f (·) as a tree expansion
+framework efficiently narrows down the search             process, where each node represents a sentence,
+space, retaining only the most promising evidence         and the path from the root node to a leaf node
+combinations. Additionally, to further reduce in-         represents the selected evidence.
+                                                     24117
+               Selection                               Expansion                     Simulation                Backpropagation
+                                                          𝑞                           𝑞                               𝑞
+           𝑞   Where was the inventor of
+               theory of relativity born?
+                                                 S1      S2     S3              S1    S2     S3                S1     S2       S3
+                       Albert Einstein is best
+     S1   S2    S3     known for developing
+                       theory of relativity.             S4     S6     S13            S4    S6    S13                 S4      S6    S13
+
+                           𝐥𝐧 𝑵𝒑𝒂𝒓𝒆𝒏𝒕 (𝒔𝒕 )       S4      S5   S6 … S13                Reader LLM         𝑵 𝒔𝒕 ← 𝑵 𝒔𝒕 + 𝟏
+    𝑼𝑪𝑻 𝒔𝒕 = 𝑽 𝒔𝒕 + 𝝎
+                               𝑵(𝒔𝒕 )                                                                                        𝟏
+                                                      Parallel Expansion                                  𝑽 𝒔𝒕 ← 𝑽 𝒔𝒕 +          (𝑹 𝒔𝒕 − 𝑽 𝒔𝒕 )
+                                                                                                                            𝑵 𝒔𝒕
+
+
+Figure 2: Single iteration of MCTS Annotation. The iteration is repeated until the maximum number of iterations is
+reached or no further nodes in the tree can be expanded.
+
+
+3    Approach                                                                   conducts four operations to expand the tree:
+
+3.1 Overview                                                                    Selection During the i-th simulation of the
+                                                                                MCTS, the process begins with s0 , which repre-
+Figure 3 presents an overview of our framework.
+                                                                                sents the input query. The algorithm then proceeds
+The process begins with the application of the
+                                                                                to explore the tree by selecting nodes according
+Monte Carlo Tree Search (MCTS) algorithm to con-
+                                                                                to the Upper Confidence Bound for Trees (UCT)
+struct evidence trees for the queries in the training
+                                                                                criterion (Rosin, 2011). This selection process is
+dataset. From these trees, we extract both correct
+                                                                                mathematically represented as:
+and incorrect paths, which are subsequently uti-
+lized to train the policy model and the value model,                                                                  s
+respectively. During the inference phase, we in-                                                                          ln Nparent (st )
+                                                                                           U CT (st ) = V (st ) + w                               (1)
+troduce an early terminating beam search mech-                                                                                N (st )
+anism. This approach efficiently minimizes the
+search space and terminates the generation process                              where w controls the balance between exploration
+once the prefix uniquely identifies the evidence,                               and exploitation. The node value V (st ) and its vis-
+thereby optimizing computational efficiency and                                 iting count N (st ) will be updated as the search pro-
+accuracy. Next, we will first illustrate the process                            gresses. Nparent (st ) represents the visiting count
+of the MCTS annotation.                                                         of the parent node of st .
+                                                                                Expansion After selecting the node to be ex-
+3.2 MCTS Annotation
+                                                                                panded, the next step is to choose the most suitable
+Given an input query, a long article is retrieved                               sentence from the candidate set. A straightforward
+using a search engine and segmented into individ-                               way to evaluate the quality of the evidence set is to
+ual sentences, which serve as the initial candidate                             measure the likelihood of the reader generating the
+set. However, due to the excessive length of the                                correct answer when the evidence set is used as the
+article, the candidate set can become prohibitively                             model input. To accelerate the labeling process, we
+large, with many sentences being irrelevant to the                              employ parallel expansion, where we concurrently
+query. This not only increases the computational                                compute the likelihood of outputting the correct
+complexity of MCTS but also introduces noise into                               answer after incorporating each candidate sentence
+the labeling process. To address this issue, we intro-                          into the evidence set. This is expressed as:
+duce a filtering mechanism that leverages the BGE
+model (Xiao et al., 2023) to compute the similar-                                                   R(st ) = P (y|q, dt )                         (2)
+ity between the query and each candidate sentence.
+                                                                                where y represents the correct answer, and dt de-
+By retaining only the most semantically similar
+                                                                                notes the evidence set after adding the candidate
+sentences, we significantly reduce the candidate
+                                                                                sentence st . From these calculations, we select the
+set, thereby improving the overall efficiency and
+                                                                                top M sentences that are most likely to lead to the
+accuracy of the annotation process.
+                                                                                final correct answer as the expansion nodes.
+   During the search process, MCTS runs for mul-
+tiple simulations. This process terminates when                                 Simulation The simulation phase aims to deter-
+the maximum iteration number is reached or no                                   mine whether the current path can lead the reader
+paths can be expanded. For the i-th simulation, it                              to generate the final correct answer. To achieve
+                                                                             24118
+      Input query 𝒒                     Correct Solution   Incorrect Solution         Select         Backup
+  Where was the inventor                                                                                                    𝑉(𝑆!) <SEP>    𝑉(𝑆" ) <EOS>
+ of theory of relativity born?                 𝑞
+                                                                            0.6       0.8      1.0
+                Retrieve
+                                                                                                                            LLM 𝞹& , 𝑉'
+                                                                            0.5       0.7      0.9      1.0
+
+                                                                                                              𝑞       𝐷      𝑠!,# … 𝑠!,$ … 𝑠%,# … 𝑠%,$
+                                                                            0.1       0.2      0.3
+                                                                                                                  Input      Evidence 1    Evidence n
+
+      Long Article 𝑫                   MCTS Annotation                     Extracted Paths                                 Policy Model
+
+Figure 3: Overview of the proposed method: Given an input query, a long article is retrieved using a search engine
+and segmented into individual sentences, which serve as the initial candidate set. Then the MCTS algorithm
+constructs evidence trees for the input query from which correct and incorrect paths are extracted to train the policy
+and value models. During inference, the early terminating beam search minimizes the search space and terminates
+generation once the generated prefix uniquely identifies a sentence in the candidate set.
+
+
+this, for each node, we construct the evidence set                              then apply a multi-task loss function to jointly up-
+by concatenating the sentences from the root node                               date both models:
+to the current node. The reader then answers the
+question based on this evidence set. If the reader                                                                  T (x)
+                                                                                                                     X
+provides the correct answer, indicating that suffi-                               L = − log πθ (x+ |q) + β ·                ∥Vϕ (st ) − V (st )∥2       (4)
+cient evidence has been identified, the reward is set                                                                t=1
+
+to 1. Otherwise, the reward is defined as the like-
+                                                                            Here, the first term represents the negative log-
+lihood of the reader outputting the correct answer
+                                                                            likelihood loss for next-token prediction in correct
+based on the evidence set.
+                                                                            solutions, which guides the policy model to gener-
+Backpropagation At the end of the i-th simula-                              ate accurate predictions. The second term captures
+tion, each edge along the path from the leaf node                           the loss in value prediction for both correct and
+st to the root undergoes a backward pass update.                            incorrect solutions, ensuring the value model pro-
+The updates to their values and visiting counts are                         vides reliable estimates of expected rewards at each
+executed according to the following rule:                                   node. T (x) denotes the number of steps in the so-
+                                                                            lution path x, and β is a tunable hyperparameter
+         N (st ) ← N (st ) + 1                                              that controls the weight of the value loss term.
+                                   1                               (3)
+          V (st ) ← V (st ) +            (R(st ) − V (st ))
+                                 N (st )                                        3.4         Model Inference
+                                                                            After obtaining the trained policy model, it can
+where N (st ) represents the visiting count of node
+                                                                            be directly used to generate grounding evidence.
+st , and V (st ) denotes its value.
+                                                                            However, this iterative generation process has two
+3.3 Model Training                                                          limitations: it fails to fully explore the evidence
+                                                                            space, and the generation can be slow due to the
+In our framework, the policy model πθ is initial-
+                                                                            large input length. To address these issues, we pro-
+ized with a pre-trained LLM. We extend this model
+                                                                            pose an early terminating beam search mechanism,
+to derive the value model Vϕ by adding an auxil-
+                                                                            which efficiently explores the evidence space while
+iary linear layer with a Sigmoid activation func-
+                                                                            bypassing unnecessary decoding steps.
+tion. This layer operates alongside the traditional
+softmax layer responsible for token prediction, as                          Early Terminating Beam Search Specifically,
+illustrated in the rightmost panel of Figure 3. This                        given the input query and the long article, the pol-
+design ensures that the policy model and the value                          icy model is used to generate multiple candidate
+model share the majority of their parameters, pro-                          sentences. Since the generation target originates
+moting parameter efficiency and joint optimization.                         directly from the source text, once the generation
+   To construct the training signals for the policy                         prefix is determined, the generated prefix can be
+model and the value model, we sample solution                               used to locate the corresponding text in the source
+paths from the tree constructed through multiple                            article. This allows us to skip decoding intermedi-
+rounds of MCTS. These paths are denoted as x+                               ate tokens, significantly speeding up the process.
+(correct solutions) and x− (incorrect solutions). We                        The value model is then employed to evaluate the
+                                                                     24119
+                    2WikiMulti      HotpotQA         MusiQue        MultiField       Qasper           AVG
+       Model
+                    EM       F1     EM      F1     EM        F1    EM       F1     EM       F1     EM       F1
+                                           Qwen2.5-14B-Instruct-1M
+    BM25           32.00   30.08   39.50   38.32 13.50 12.09 25.33         39.90   16.00   16.30   25.27   27.34
+    BGE-base-en    37.50   37.01   40.50   38.45 19.50 19.98 27.33         44.07   21.50   23.74   29.27   32.65
+    LLM-Embedder   36.00   36.91   39.50   36.56 20.50 20.21 26.67         45.92   25.50   26.97   29.63   33.31
+    ChatGLM3-6B    32.50   30.90   30.00   31.59   14.00   15.03   16.00   33.61   21.50   23.14   22.80   26.85
+    Qwen2.5-7B     40.50   37.20   46.00   42.59   18.50   18.67   24.00   41.50   22.50   23.74   30.30   32.74
+    GLM-4-9B       37.50   37.25   43.50   44.28   25.00   24.85   28.67   42.05   19.00   18.94   30.73   33.47
+    Qwen2.5-14B    35.00   32.11   42.00   40.42   22.00   22.06   22.67   41.07   25.00   27.06   29.33   32.54
+    Qwen2.5-32B    42.50   36.39   43.00   41.81   18.50   19.01   19.33   32.66   15.00   15.38   27.67   29.05
+    Qwen2.5-72B    41.00   38.09   43.00   43.68   19.50   21.96   24.67   37.07   13.50   14.60   28.33   31.08
+    CFIC-7B        45.00   42.52   45.50   39.06   27.50   26.06   28.67   45.94   26.00   27.92   34.53   36.30
+    ETS-7B         58.00   56.23   51.00   51.26   39.50   39.85   29.33   48.38   27.00   29.02   40.97   44.95
+                                             Qwen2.5-72B-Instruct
+    BM25           31.00   28.59   42.00   40.45 12.00 14.62 23.33         39.96   16.50   20.52   24.97   28.83
+    BGE-base-en    41.00   40.83   43.50   42.98 19.50 19.79 28.67         46.02   24.50   27.23   31.43   35.37
+    LLM-Embedder   40.00   40.36   41.50   41.56 21.00 21.65 27.33         45.11   27.50   30.10   31.47   35.75
+    ChatGLM3-6B    41.50   33.19   39.50   35.39   15.00   15.32   13.33   32.13   18.50   22.08   25.57   27.62
+    Qwen2.5-7B     44.00   43.25   46.50   44.50   20.50   22.09   24.00   41.14   20.50   27.26   31.10   35.65
+    GLM-4-9B       43.50   38.55   48.00   44.10   25.50   27.13   28.67   45.95   21.00   24.93   33.33   36.13
+    Qwen2.5-14B    43.00   41.21   43.00   42.42   23.00   25.42   21.33   40.19   22.00   27.10   30.47   35.27
+    Qwen2.5-32B    52.00   41.37   47.00   44.23   21.50   22.90   18.00   35.68   17.50   23.31   31.20   33.50
+    Qwen2.5-72B    53.00   38.79   47.50   42.77   23.50   25.50   22.67   39.90   15.50   21.58   32.43   33.71
+    CFIC-7B        54.00   43.67   53.00   48.46   30.50   31.26   29.33   46.83   29.00   30.81   39.17   40.21
+    ETS-7B         60.50   54.82   60.50   57.72   40.00   40.84   30.00   47.87   31.00   34.91   44.40   47.23
+
+Table 1: Main experiment results on five QA datasets across two reader LLMs. The best results are in bold. The
+AVG column shows the average EM and F1 scores across all datasets.
+
+
+quality of the expanded sentences, retaining only          Retrieval-Based Methods Retrieval-based meth-
+the most valuable nodes. This process is iterated          ods typically segment lengthy documents into
+until the maximum depth is reached or no further           smaller passages and use retrieval techniques to
+paths can be expanded. Finally, the answer with            prioritize relevant passages. For a fair compari-
+the highest value is selected as the output.               son, we use sentences as the retrieval unit and em-
+                                                           ploy BM25 (Yang et al., 2017), BGE-base-en-v1.5
+4     Experiments                                          (Xiao et al., 2023), and LLM-Embedder (Zhang
+4.1 Datasets and Metrics                                   et al., 2023b) as retrieval models. The highest-
+                                                           ranking sentences are selected as input context for
+We conduct experiments on five datasets from               the reader to support QA tasks.
+LongBench (Bai et al., 2023), including 2Wiki-
+MultihopQA (Ho et al., 2020), HotpotQA (Yang
+et al., 2018), MuSiQue (Trivedi et al., 2022), Mul-        Extraction-Based Methods For extraction-
+tiFieldQA (Bai et al., 2023), and Qasper (Dasigi           based methods, we evaluate state-of-the-art long-
+et al., 2021). Following the LongBench benchmark,          context models, including ChatGLM3-6B-128K
+we use the EM score and F1-score as evaluation             (GLM et al., 2024), Qwen2.5-7B-Instruct-1M
+metrics. For further details on LongBench, please          (Team, 2025), GLM-4-9B-Chat-1M (GLM
+refer to Bai et al. (2023). The statistical information    et al., 2024), Qwen2.5-14B-Instruct-1M (Team,
+of all datasets is provided in Table 4.                    2025), Qwen2.5-32B-Instruct (Team, 2024), and
+                                                           Qwen2.5-72B-Instruct (Team, 2024).        These
+4.2 Baselines                                              models refine lengthy documents into concise text
+In this study, we benchmark our method against             evidence, which serves as context for the reader
+the following three categories of baselines:               LLM to support QA tasks.
+                                                     24120
+Learning-Based Methods Unlike the above
+methods, which use off-the-shelf models, learning-
+                                                                                         Latency
+                                                          EM
+based methods fine-tune models specifically for
+the task of evidence retrieval to improve perfor-
+mance. We implement the current state-of-the-art
+model, CIFC (Qian et al., 2024), following its open-            (a) Remove Beam Search             (b) Remove Early Termination
+
+sourced code and data.
+                                                          Figure 4: We conduct an ablation study by removing
+  To ensure fairness, all models provide a compa-         beam search and early termination. The latency is calcu-
+rable volume of textual evidence for the reader.          lated using the latency of our method as the basic unit.
+
+4.3 Implementation Details
+During the MCTS annotation process, the                      Third, the performance gap between Qwen2.5-
+Qwen2.5-7B-Instruct-1M model is utilized as the           14B-Instruct-1M and Qwen2.5-72B-Instruct is rel-
+reader. The maximum number of iterations is con-          atively small despite their substantial difference in
+figured to 20. Following Chen et al. (2024), the          parameter sizes. This underscores the effectiveness
+parameter w, β is set to 1.4 and 0.1, respectively.       of our policy model, which alleviates the reader’s
+For the training dataset, we sample 6,000 correct         burden by precisely identifying relevant evidence.
+paths and 6,000 incorrect paths. The policy model         As a result, users can choose smaller reader mod-
+is initialized using the Qwen2.5-7B-Instruct-1M.          els without sacrificing model performance. This
+Training involves fine-tuning the model for two           finding is particularly impactful, as it highlights
+epochs with a batch size of 1 and a learning rate of      the potential to substantially reduce inference costs
+1 × 10−6 , utilizing 8 NVIDIA A100 80GB GPUs.             while maintaining high-quality results.
+To evaluate the generalizability of our approach, we
+employ two additional reader models: Qwen2.5-             4.5   Discussion
+14B-Instruct-1M and Qwen2.5-72B-Instruct. We              Ablation Study During inference, we propose
+intend to open-source the code to facilitate the re-      early terminating beam search to accelerate the
+producibility of our methodology. For more imple-         process while ensuring comprehensive exploration
+mentation details, please refer to Appendix B.            of the sentence space. To evaluate its impact, we
+                                                          systematically remove beam search and early ter-
+4.4 Main Results
+                                                          mination, conducting experiments on the 2Wiki-
+In this section, we present the experimental re-          MultihopQA, HotpotQA, and MusiQue datasets.
+sults on five QA datasets using Qwen2.5-14B-              The results are shown in Figure 4.
+Instruct-1M and Qwen2.5-72B-Instruct as the read-            Removing beam search significantly degrades
+ers. Based on the results shown in Table 1, we can        performance, as the model fails to fully explore
+have the following observations:                          the sentence space, leading to suboptimal evidence
+   First, our method consistently outperforms base-       retrieval. In contrast, removing early termination
+lines across all datasets and readers, demonstrat-        substantially improves latency, as the model can
+ing its effectiveness. Notably, with Qwen2.5-14B-         uniquely identify the location of the original sen-
+Instruct-1M as the reader, our approach achieves          tence early in the decoding process, eliminating the
+a 22% relative average improvement over the best-         need to decode subsequent tokens. Additionally,
+performing baseline. By modeling evidence re-             as the input length increases across the datasets,
+trieval as a tree expansion process, we enable the        the inference latency grows significantly. How-
+policy model to thoroughly explore the sentence           ever, with early termination, the additional latency
+space, significantly enhancing performance.               caused by longer inputs is minimal, demonstrating
+   Second, among the baselines, smaller retrieval         its effectiveness in long-input scenarios. These re-
+models such as BGE-base-en exhibit strong per-            sults highlight the importance of both components
+formance compared to extraction-based methods,            in balancing performance and efficiency.
+aligning with findings from Qian et al. (2024). This
+is attributed to the retrieval method’s ability to pre-   Hyperparameter Study In our method, beam
+cisely compare query-sentence relevance, whereas          search is employed to efficiently explore the
+extraction-based methods may overlook specific            sentence space, with two key hyperparam-
+sentences, leading to information loss.                   eters—Expansion Size B1 and Beam Size
+                                                     24121
+         HotpotQA       2WikiMulti      MusiQue
+ Size
+         EM      F1     EM      F1     EM      F1
+                  Expansion Size B1
+   1    49.00   50.72 55.00 53.98     29.00   29.63
+   2    50.50   50.41 60.50 56.80     35.50   34.80
+   3    51.00   51.26 58.00 56.23     39.50   39.85
+   4    55.00   55.30 59.50 58.21     39.00   38.70           (a) Qwen2.5-14B-Instruct-1M (b) Qwen2.5-72B-Instruct
+   5    53.00   55.28 61.00 60.52     37.00   36.74
+                                                         Figure 5: Effect of input length. We vary the input
+                    Beam Size B2                         length and observe the performance change.
+   1    49.00   51.76 56.00 54.21     32.50   33.33
+   2    50.50   51.68 61.00 58.88     35.50   36.20
+   3    51.00   51.26 58.00 56.23     39.50   39.85
+                                                         mance decline as input length increases. However,
+   4    51.50   52.86 61.50 59.65     32.50   33.37
+   5    51.00   51.76 60.50 57.91     31.00   32.37
+                                                         our method consistently outperforms the full-article
+                                                         input approach. While the performance of the
+Table 2: Hyperparameter study. We tune the parameters    full-article method drops significantly, our method
+using Qwen2.5-14B-Instruct-1M as the reader.             shows only a slight decrease, demonstrating its
+                                                         robustness. This is because long-context models
+                                                         struggle to effectively capture the interaction be-
+B2 —playing a crucial role. To investigate their
+                                                         tween the query and the entire sentence set as input
+impact on model performance, we conduct experi-
+                                                         length grows. Our method addresses this challenge
+ments on the 2WikiMultihopQA, HotpotQA, and
+                                                         by modeling the process as node expansion, where
+MusiQue datasets, tuning these parameters within
+                                                         the policy model is guided to thoroughly explore
+the range of 1 to 5.
+                                                         the sentence space at each step, ensuring robust
+   Expansion size indicates the number of sen-
+                                                         performance even with longer inputs.
+tences expanded at each layer while beam size
+refers to the number of sentences retained at each       4.6     Case Study
+layer during the search process. The results reveal
+                                                         In this section, we compare the evidence retrieval
+a consistent pattern: performance peaks when the
+                                                         results of different methods using the MusiQue
+beam size or expansion size is set to approximately
+                                                         dataset. Based on the examples shown in Table 3,
+4. Values smaller or larger than this threshold lead
+                                                         several observations can be made:
+to a decline in performance. This is primarily be-
+                                                            First, both the retrieval-based method BGE-base-
+cause a larger beam size or expansion size offers
+                                                         en and the extraction-based method Qwen2.5-72B
+the model a broader scope to explore potential sen-
+                                                         fail to accurately locate the relevant grounding text,
+tences, increasing the likelihood of identifying the
+                                                         leading to the generation of irrelevant information
+most relevant and optimal candidates. However,
+                                                         for downstream tasks. Although CFIC-7B can iden-
+when these values exceed a certain threshold, the
+                                                         tify the location of the grounding text, it lacks the
+model encounters challenges in effectively ranking
+                                                         necessary background information, making it diffi-
+and selecting the best sentences from the expanded
+                                                         cult for the reader to deduce the correct answer. In
+pool. This inefficiency arises because the increased
+                                                         contrast, both GPT-4 and our method successfully
+search space introduces more noise and less rel-
+                                                         identify two critical entities: Adam Smith and the
+evant candidates, making it harder for the model
+                                                         University of Cambridge. However, our method
+to discern the best options. Additionally, increas-
+                                                         distinguishes itself by offering a more detailed and
+ing these values incurs higher computational costs,
+                                                         comprehensive grounding text. Specifically, our
+highlighting the need for a balanced configuration.
+                                                         approach provides a clearer explanation of the rela-
+Effect of Input Length In this section, we ana-          tionship between Adam Smith and the Lectures on
+lyze the effect of input length on model perfor-         Jurisprudence, which is crucial for understanding
+mance. Specifically, we vary the input length            the context. This enhanced clarity and depth of
+across {5000, 10000, 30000, 50000, 70000} and            information make it significantly easier for read-
+observe the resulting performance changes, com-          ers to deduce the correct answer, as the grounding
+paring our method with using the full article as         text not only identifies the relevant entities but also
+grounding evidence.                                      elaborates on their connections in a way that is both
+  As shown in 5, both models exhibit a perfor-           informative and accessible. Given the large param-
+                                                      24122
+    Query: Who gives out the prize named after the author of Lectures on Jurisprudence?
+    Answer: University of Cambridge
+ BGE-base-en: Lectures on Jurisprudence, also called Lectures on Justice, Police, Revenue and Arms (1763) is a collection of
+ Adam Smith’s lectures... The prize winner receives a monetary award and will complete a lecture tour within the UK.
+    Qwen2.5-72B: The prize - named after Scottish philosopher and economist Adam Smith - was originally established in 1891
+    and awarded triennially for the best submitted essay on a subject of the writer’s choice..
+    CFIC-7B: "A library of his scholarly works, notes, and correspondences is held by the University of Cambridge. The Nobel
+    Prize was not awarded between 1940 and 1942 due to the outbreak of World War II.
+    GPT-4: The Adam Smith Prizes are prizes currently awarded for the best overall examination performance and best dissertation
+    in Part IIB of the Economics Tripos ... at the University of Cambridge.
+    ETS-7B: Lectures on Jurisprudence, also called Lectures on Justice ... is a collection of Adam Smith’s lectures... The Adam
+    Smith Prizes are prizes currently awarded for the best overall examination ... at the University of Cambridge.
+
+Table 3: Examples of evidence retrieval on dataset MusiQue. The text colored with teal refers to the key information
+related to the user query.
+
+eter size gap between GPT-4 and our method, we                     5.2    Evidence Retrieval in RAG
+believe our approach demonstrates strong perfor-
+                                                                   While RAG has demonstrated strong performance,
+mance at a minimal computational cost.
+                                                                   it faces challenges when dealing with lengthy and
+                                                                   complex retrieved documents. To address this limi-
+5      Related Work                                                tation, techniques like chunking and retrieval have
+                                                                   been developed to improve passage relevance. For
+5.1 Retrieval-Augmented Generation                                 instance, Mao et al. (2021) introduced a chunking
+                                                                   and retrieval method to enhance evidence selec-
+Despite significant progress, Large Language Mod-                  tion, while Guu et al. (2020); Lin et al. (2023) pro-
+els (LLMs) still produce responses that contain                    posed jointly training the retriever and generator
+hallucinated facts and inaccuracies (Ji et al., 2023;              to improve knowledge utilization and contextual
+Shuster et al., 2021; Zhang et al., 2023a), undermin-              understanding.
+ing their overall reliability. To address this issue,
+                                                                       However, chunking can often be suboptimal, as
+Retrieval-Augmented Generation (RAG) has been
+                                                                   determining the appropriate granularity for chunk-
+introduced as a method to integrate external knowl-
+                                                                   ing is a challenging task. Improper chunking can
+edge and enhance the accuracy of model responses
+                                                                   disrupt the semantic coherence of the document,
+(Ram et al., 2023; Shi et al., 2023; Rashkin et al.,
+                                                                   leading to less accurate evidence selection. Other
+2021; Gao et al., 2022; Bohnet et al., 2022; Menick
+                                                                   approaches (Ratner et al., 2022; Xu et al., 2023)
+et al., 2022).
+                                                                   focus on adapting large language models to process
+   Among existing approaches, some studies pro-                    longer contexts by training them on extended text
+pose retrieving information only once at the begin-                lengths. For example, Chen et al. (2023) extended
+ning of the generation process (Shi et al., 2023;                  the context size of LLMs via parameter-efficient
+Wang et al., 2023b; Zhang et al., 2023c; Yu et al.,                fine-tuning. Qian et al. (2024) proposed a chunking-
+2023a,c). Other works (Qian et al., 2023; Yu                       free method to identify relevant evidence for user
+et al., 2023b) suggest retrieving information mul-                 queries. Similarly, FILCO (Wang et al., 2023b) fil-
+tiple times throughout the generation process, of-                 ters the input context with a context-filtering model.
+fering greater flexibility in determining when and                 Despite these advancements, these methods often
+what to retrieve. For example, Jiang et al. (2023) ad-             struggle to model the complex interactions between
+vocate for retrieval only when the generation model                sentences in long contexts and may fail to accu-
+produces low-confidence tokens, while Ram et al.                   rately pinpoint the grounding evidence.
+(2023) recommend refreshing retrieved documents
+every n tokens, a method shown to outperform sin-                  6     Conclusion
+gle retrieval approaches. Additionally, Wang et al.
+(2023a); Asai et al. (2023); Zhao et al. (2023b) pro-              In this paper, we propose ETS, a novel framework
+pose retrieving information only when the LLM                      that enhances evidence retrieval in RAG systems.
+determines it is necessary, further improving re-                  By modeling evidence retrieval as a tree expansion
+trieval efficiency.                                                process and leveraging MCTS and Early Terminat-
+                                                              24123
+ing Beam Search, ETS effectively addresses the                Aakanksha Chowdhery, Sharan Narang, Jacob Devlin,
+challenges of complex evidence interdependencies,               Maarten Bosma, Gaurav Mishra, Adam Roberts,
+                                                                Paul Barham, Hyung Won Chung, Charles Sutton,
+lack of supervision signals, and large search spaces.
+                                                                Sebastian Gehrmann, et al. 2022. Palm: Scaling
+Our extensive experiments demonstrate that ETS                  language modeling with pathways. arXiv preprint
+outperforms existing methods.                                   arXiv:2204.02311.
+
+Limitations                                                   Pradeep Dasigi, Kyle Lo, Iz Beltagy, Arman Cohan,
+                                                                Noah A. Smith, and Matt Gardner. 2021. A dataset of
+In this paper, we propose a tree expansion method               information-seeking questions and answers anchored
+for evidence retrieval. We acknowledge two limita-              in research papers. Preprint, arXiv:2105.03011.
+tions of our method. First, The MCTS annotation               Luyu Gao, Zhuyun Dai, Panupong Pasupat, Anthony
+requires multiple simulations, which can result in              Chen, Arun Tejasvi Chaganty, Yicheng Fan, Vin-
+additional labeling costs. Second, due to resource              cent Y Zhao, Ni Lao, Hongrae Lee, Da-Cheng Juan,
+constraints, we conduct experiments using only                  et al. 2022. Rarr: Researching and revising what
+                                                                language models say, using language models. arXiv
+Qwen2.5-7B-Instruct-1M as the model backbone.                   preprint arXiv:2210.08726.
+We leave experiments with larger model backbones
+for future work.                                              Team GLM, Aohan Zeng, Bin Xu, Bowen Wang, Chen-
+                                                                hui Zhang, Da Yin, Diego Rojas, Guanyu Feng, Han-
+Acknowledgement                                                 lin Zhao, Hanyu Lai, Hao Yu, Hongning Wang, Ji-
+                                                                adai Sun, Jiajie Zhang, Jiale Cheng, Jiayi Gui, Jie
+This work is supported in part by Ucap Cloud and                Tang, Jing Zhang, Juanzi Li, Lei Zhao, Lindong Wu,
+                                                                Lucen Zhong, Mingdao Liu, Minlie Huang, Peng
+the State Key Laboratory of General Artificial In-
+                                                                Zhang, Qinkai Zheng, Rui Lu, Shuaiqi Duan, Shu-
+telligence.                                                     dan Zhang, Shulin Cao, Shuxun Yang, Weng Lam
+                                                                Tam, Wenyi Zhao, Xiao Liu, Xiao Xia, Xiaohan
+Ethics Statement                                                Zhang, Xiaotao Gu, Xin Lv, Xinghan Liu, Xinyi Liu,
+                                                                Xinyue Yang, Xixuan Song, Xunkai Zhang, Yifan
+This work complies with the ACL Ethics Policy.                  An, Yifan Xu, Yilin Niu, Yuantao Yang, Yueyan Li,
+All datasets and LLMs used are publicly available.              Yushi Bai, Yuxiao Dong, Zehan Qi, Zhaoyu Wang,
+Our research focuses on evidence retrieval, and we              Zhen Yang, Zhengxiao Du, Zhenyu Hou, and Zihan
+do not anticipate any negative ethical impacts.                 Wang. 2024. Chatglm: A family of large language
+                                                                models from glm-130b to glm-4 all tools. Preprint,
+                                                                arXiv:2406.12793.
+References                                                    Kelvin Guu, Kenton Lee, Zora Tung, Panupong Pasu-
+                                                                pat, and Mingwei Chang. 2020. Retrieval augmented
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and
+                                                                language model pre-training. In International confer-
+  Hannaneh Hajishirzi. 2023. Self-rag: Learning to
+                                                                ence on machine learning, pages 3929–3938. PMLR.
+  retrieve, generate, and critique through self-reflection.
+  arXiv preprint arXiv:2310.11511.                            Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara,
+Yushi Bai, Xin Lv, Jiajie Zhang, Hongchang Lyu,                 and Akiko Aizawa. 2020. Constructing a multi-
+  Jiankai Tang, Zhidian Huang, Zhengxiao Du, Xiao               hop QA dataset for comprehensive evaluation of
+  Liu, Aohan Zeng, Lei Hou, Yuxiao Dong, Jie Tang,              reasoning steps. In Proceedings of the 28th Inter-
+  and Juanzi Li. 2023. Longbench: A bilingual, mul-             national Conference on Computational Linguistics,
+  titask benchmark for long context understanding.              pages 6609–6625, Barcelona, Spain (Online). Inter-
+  Preprint, arXiv:2308.14508.                                   national Committee on Computational Linguistics.
+
+Bernd Bohnet, Vinh Q Tran, Pat Verga, Roee Aharoni,           Shima Imani, Liang Du, and Harsh Shrivastava. 2023.
+  Daniel Andor, Livio Baldini Soares, Jacob Eisenstein,         Mathprompter: Mathematical reasoning using large
+  Kuzman Ganchev, Jonathan Herzig, Kai Hui, et al.              language models. arXiv preprint arXiv:2303.05398.
+  2022. Attributed question answering: Evaluation and
+  modeling for attributed large language models. arXiv        Ziwei Ji, Nayeon Lee, Rita Frieske, Tiezheng Yu, Dan
+  preprint arXiv:2212.08037.                                    Su, Yan Xu, Etsuko Ishii, Ye Jin Bang, Andrea
+                                                                Madotto, and Pascale Fung. 2023. Survey of halluci-
+Guoxin Chen, Minpeng Liao, Chengxi Li, and Kai Fan.             nation in natural language generation. ACM Comput-
+  2024. Alphamath almost zero: process supervision              ing Surveys, 55(12):1–38.
+  without process. arXiv preprint arXiv:2405.03553.
+                                                              Zhengbao Jiang, Frank F Xu, Luyu Gao, Zhiqing
+Yukang Chen, Shengju Qian, Haotian Tang, Xin Lai,               Sun, Qian Liu, Jane Dwivedi-Yu, Yiming Yang,
+  Zhijian Liu, Song Han, and Jiaya Jia. 2023. Longlora:         Jamie Callan, and Graham Neubig. 2023. Ac-
+  Efficient fine-tuning of long-context large language          tive retrieval augmented generation. arXiv preprint
+  models. arXiv preprint arXiv:2309.12307.                      arXiv:2305.06983.
+                                                         24124
+Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick      Weijia Shi, Sewon Min, Michihiro Yasunaga, Min-
+  Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and        joon Seo, Rich James, Mike Lewis, Luke Zettle-
+  Wen-tau Yih. 2020. Dense passage retrieval for open-    moyer, and Wen-tau Yih. 2023. Replug: Retrieval-
+  domain question answering. In Proceedings of the        augmented black-box language models. arXiv
+  2020 Conference on Empirical Methods in Natural         preprint arXiv:2301.12652.
+  Language Processing (EMNLP), pages 6769–6781,
+  Online. Association for Computational Linguistics.     Kurt Shuster, Spencer Poff, Moya Chen, Douwe Kiela,
+                                                           and Jason Weston. 2021. Retrieval augmentation
+Aitor Lewkowycz, Anders Andreassen, David Dohan,           reduces hallucination in conversation. arXiv preprint
+  Ethan Dyer, Henryk Michalewski, Vinay Ramasesh,          arXiv:2104.07567.
+  Ambrose Slone, Cem Anil, Imanol Schlag, Theo
+  Gutman-Solo, et al. 2022. Solving quantitative rea-    David Silver, Thomas Hubert, Julian Schrittwieser, Ioan-
+  soning problems with language models. Advances           nis Antonoglou, Matthew Lai, Arthur Guez, Marc
+  in Neural Information Processing Systems, 35:3843–       Lanctot, Laurent Sifre, Dharshan Kumaran, Thore
+  3857.                                                    Graepel, et al. 2017. Mastering chess and shogi by
+                                                           self-play with a general reinforcement learning algo-
+Xi Victoria Lin, Xilun Chen, Mingda Chen, Weijia Shi,      rithm. arXiv preprint arXiv:1712.01815.
+  Maria Lomeli, Rich James, Pedro Rodriguez, Jacob
+  Kahn, Gergely Szilvasy, Mike Lewis, et al. 2023.       Ross Taylor, Marcin Kardas, Guillem Cucurull, Thomas
+  Ra-dit: Retrieval-augmented dual instruction tuning.     Scialom, Anthony Hartshorn, Elvis Saravia, An-
+  arXiv preprint arXiv:2310.01352.                         drew Poulton, Viktor Kerkez, and Robert Stojnic.
+Yuning Mao, Pengcheng He, Xiaodong Liu, Yelong             2022. Galactica: A large language model for science.
+  Shen, Jianfeng Gao, Jiawei Han, and Weizhu Chen.         CoRR, abs/2211.09085.
+  2021. Rider: Reader-guided passage reranking for
+  open-domain question answering. arXiv preprint         Qwen Team. 2024. Qwen2.5: A party of foundation
+  arXiv:2101.00294.                                       models.
+
+Jacob Menick, Maja Trebacz, Vladimir Mikulik,            Qwen Team. 2025. Qwen2.5-1m: Deploy your own
+  John Aslanides, Francis Song, Martin Chadwick,          qwen with context length up to 1m tokens.
+   Mia Glaese, Susannah Young, Lucy Campbell-
+   Gillingham, Geoffrey Irving, et al. 2022. Teaching    Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot,
+   language models to support answers with verified        and Ashish Sabharwal. 2022. Musique: Multi-
+   quotes. arXiv preprint arXiv:2203.11147.                hop questions via single-hop question composition.
+                                                           Preprint, arXiv:2108.00573.
+Hongjin Qian, Zhicheng Dou, Jiejun Tan, Haonan Chen,
+  Haoqi Gu, Ruofei Lai, Xinyu Zhang, Zhao Cao, and       Yile Wang, Peng Li, Maosong Sun, and Yang Liu.
+  Ji-Rong Wen. 2023. Optimizing factual accuracy in        2023a. Self-knowledge guided retrieval augmen-
+  text generation through dynamic knowledge selection.     tation for large language models. arXiv preprint
+  arXiv preprint arXiv:2308.15711.                         arXiv:2310.05002.
+Hongjin Qian, Zheng Liu, Kelong Mao, Yujia Zhou,         Zhiruo Wang, Jun Araki, Zhengbao Jiang, Md Rizwan
+  and Zhicheng Dou. 2024. Grounding language               Parvez, and Graham Neubig. 2023b. Learning to fil-
+  model with chunking-free in-context retrieval. arXiv     ter context for retrieval-augmented generation. arXiv
+  preprint arXiv:2402.09760.                               preprint arXiv:2311.08377.
+Ori Ram, Yoav Levine, Itay Dalmedigos, Dor Muhlgay,      Shijie Xia, Xuefeng Li, Yixin Liu, Tongshuang Wu,
+  Amnon Shashua, Kevin Leyton-Brown, and Yoav              and Pengfei Liu. 2024. Evaluating mathemati-
+  Shoham. 2023. In-context retrieval-augmented lan-        cal reasoning beyond accuracy. arXiv preprint
+  guage models. arXiv preprint arXiv:2302.00083.           arXiv:2404.05692.
+Hannah Rashkin, Vitaly Nikolaev, Matthew Lamm,
+  Lora Aroyo, Michael Collins, Dipanjan Das, Slav        Shitao Xiao, Zheng Liu, Peitian Zhang, and Niklas
+  Petrov, Gaurav Singh Tomar, Iulia Turc, and David        Muennighoff. 2023. C-pack: Packaged resources
+  Reitter. 2021.    Measuring attribution in natu-         to advance general chinese embedding. Preprint,
+  ral language generation models. arXiv preprint           arXiv:2309.07597.
+  arXiv:2112.12870.
+                                                         Peng Xu, Wei Ping, Xianchao Wu, Lawrence McAfee,
+Nir Ratner, Yoav Levine, Yonatan Belinkov, Ori Ram,        Chen Zhu, Zihan Liu, Sandeep Subramanian, Evelina
+  Omri Abend, Ehud Karpas, Amnon Shashua, Kevin            Bakhturina, Mohammad Shoeybi, and Bryan Catan-
+  Leyton-Brown, and Yoav Shoham. 2022. Parallel            zaro. 2023. Retrieval meets long context large lan-
+  context windows improve in-context learning of large     guage models. arXiv preprint arXiv:2310.03025.
+  language models. arXiv preprint arXiv:2212.10947.
+                                                         Ryutaro Yamauchi, Sho Sonoda, Akiyoshi Sannai,
+Christopher D Rosin. 2011. Multi-armed bandits with        and Wataru Kumagai. 2023. Lpml: llm-prompting
+  episode context. Annals of Mathematics and Artifi-       markup language for mathematical reasoning. arXiv
+  cial Intelligence, 61(3):203–230.                        preprint arXiv:2309.13078.
+                                                    24125
+Peilin Yang, Hui Fang, and Jimmy Lin. 2017. Anserini:
+  Enabling the use of lucene for information retrieval
+  research. In Proceedings of the 40th international
+  ACM SIGIR conference on research and development
+  in information retrieval, pages 1253–1256.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+  gio, William W. Cohen, Ruslan Salakhutdinov, and
+  Christopher D. Manning. 2018. Hotpotqa: A dataset
+  for diverse, explainable multi-hop question answer-
+  ing. Preprint, arXiv:1809.09600.
+Wenhao Yu, Hongming Zhang, Xiaoman Pan, Kaixin
+ Ma, Hongwei Wang, and Dong Yu. 2023a. Chain-of-
+ note: Enhancing robustness in retrieval-augmented
+ language models. arXiv preprint arXiv:2311.09210.
+Wenhao Yu, Zhihan Zhang, Zhenwen Liang, Meng
+ Jiang, and Ashish Sabharwal. 2023b. Improving lan-
+ guage models via plug-and-play retrieval feedback.
+ arXiv preprint arXiv:2305.14002.
+Zichun Yu, Chenyan Xiong, Shi Yu, and Zhiyuan Liu.
+  2023c. Augmentation-adapted retriever improves
+  generalization of language models as generic plug-in.
+  arXiv preprint arXiv:2305.17331.
+Jiaxin Zhang, Zhuohang Li, Kamalika Das, Bradley Ma-
+   lin, and Sricharan Kumar. 2023a. Sac3: Reliable hal-
+   lucination detection in black-box language models
+   via semantic-aware cross-check consistency: Reli-
+   able hallucination detection in black-box language
+   models via semantic-aware cross-check consistency.
+   In Findings of the Association for Computational
+   Linguistics: EMNLP 2023, pages 15445–15458.
+
+Peitian Zhang, Shitao Xiao, Zheng Liu, Zhicheng
+  Dou, and Jian-Yun Nie. 2023b. Retrieve any-
+  thing to augment large language models. Preprint,
+  arXiv:2310.07554.
+
+Yunxiang Zhang, Muhammad Khalifa, Lajanugen
+  Logeswaran, Moontae Lee, Honglak Lee, and
+  Lu Wang. 2023c. Merging generated and retrieved
+  knowledge for open-domain qa. arXiv preprint
+  arXiv:2310.14393.
+
+Wayne Xin Zhao, Kun Zhou, Junyi Li, Tianyi Tang,
+ Xiaolei Wang, Yupeng Hou, Yingqian Min, Beichen
+ Zhang, Junjie Zhang, Zican Dong, et al. 2023a. A
+ survey of large language models. arXiv preprint
+ arXiv:2303.18223.
+Xinran Zhao, Hongming Zhang, Xiaoman Pan, Wenlin
+  Yao, Dong Yu, and Jianshu Chen. 2023b. Thrust:
+  Adaptively propels large language models with exter-
+  nal knowledge. arXiv preprint arXiv:2307.10442.
+
+
+
+
+                                                     24126
+A    Dataset Statistics
+
+ Settings          2WikiMultihopQA          HotpotQA                MuSiQue              MultiFieldQA              Qasper
+                    (Ho et al., 2020)    (Yang et al., 2018)   (Trivedi et al., 2022)   (Bai et al., 2023)   (Dasigi et al., 2021)
+ Task                 Multi-doc QA         Multi-doc QA           Multi-doc QA          Single-doc QA          Single-doc QA
+ Train Data              5,000                5,000                  5,000                     0                      0
+ Test Data                 200                  200                    200                   200                    200
+ Average Length         29,495               56,446                 69,269                  28,947                 23,640
+ Metrics                EM, F1               EM, F1                 EM, F1                 EM, F1                 EM, F1
+
+                       Table 4: Statistics and experimental settings of different tasks/datasets.
+
+B    Training Details
+Dataset Construction We sample 5000 queries from the training data of 2WikiMultihopQA, HotpotQA,
+and MuSiQue datasets and conduct the MCTS annotations. We then sample 6,000 correct paths and 6,000
+incorrect paths, and the correct paths are used to train the policy model, while both paths are used to train
+the value model.
+Training Process The policy model is initialized using the Qwen2.5-7B-Instruct-1M. Training involves
+fine-tuning the model for two epochs with a batch size of 1 and a learning rate of 1 × 10−6 , utilizing 8
+NVIDIA A100 80GB GPUs. During inference, the expansion size and the beam search size are set to 3.
+
+C    Model Sources
+    • BGE-base-en-v1.5: https://huggingface.co/BAAI/bge-base-en-v1.5
+
+    • LLM-Embedder: https://huggingface.co/BAAI/llm-embedder
+
+    • ChatGLM3-6B-128K: https://huggingface.co/THUDM/chatglm3-6b-128k
+
+    • Qwen2.5-7B-Instruct-1M: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M
+
+    • GLM-4-9B-Chat-1M: https://huggingface.co/THUDM/glm-4-9b-chat-1m
+
+    • Qwen2.5-14B-Instruct-1M: https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-1M
+
+    • Qwen2.5-32B-Instruct: https://huggingface.co/Qwen/Qwen2.5-32B-Instruct
+
+    • Qwen2.5-72B-Instruct: https://huggingface.co/Qwen/Qwen2.5-72B-Instruct
+
+D    Prompts
+
+ Extraction Prompt
+ Extract sentences from the following documents to answer the question. Do not alter the content of the sentences.
+ Documents: {background}
+ Question: {query}
+ Relevant Sentences:
+
+
+
+
+ Answering Prompt
+ Use only the information from the following documents to answer the question with one short phrase.
+ Documents: {background}
+ Question: {query}
+ Output:
+
+
+
+                                                           24127
+

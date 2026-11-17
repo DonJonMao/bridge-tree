@@ -1,0 +1,2345 @@
+{
+  "base_commit": "da64d56250733bc7a87942f6a5389b04a00176bd",
+  "base_deployment_sha256": "59f51db1086ae9fdf521fd8050bc130d081b931414c08b1e5eabe0c6d7192909",
+  "uploaded_archive_sha256": "2df03ca7dee8cde6f49eef2c450e2a9fa3459f30e3468e8d18e839fd504f5760",
+  "diagnosis": {
+    "no_network_calls": true,
+    "evaluation_labels_read": false,
+    "scores_summary_comparisons_read": false,
+    "source_hashes_exactly_equal": true,
+    "source_hash_count": 100,
+    "config_exactly_equal": true,
+    "question_ids_exactly_equal": true,
+    "server_manifest_sha256": "b98849ff764857c9667ba3bb7cbbc3ca1ebfc4706bca10bcbc8b1caa8fb38100",
+    "local_manifest_sha256": "6ff5e7f6e199072a112e77acb17cb2ca9e376ecd2c65a66c4f43c33ef49c3233",
+    "index_content_comparison": {
+      "identity": {
+        "same": true,
+        "value": "3ce2569a89e75445b89210b5b4913223e166ef0569297ced26d999bf1b9eadb7"
+      },
+      "corpus_sha256": {
+        "same": true,
+        "value": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60"
+      },
+      "document_ids_sha256": {
+        "same": true,
+        "value": "500fbf64013669eba422e275208ce5f9e50c8f3a1b28cd135a9175c0f87a163a"
+      },
+      "passages_sha256": {
+        "same": true,
+        "value": "29a3d3cd5ea3c09cf002eba485a5ccf45cecf95574ad5ea312ef7d97810b960c"
+      },
+      "dimensions": {
+        "same": true,
+        "value": 4096
+      },
+      "vectors_sha256": {
+        "same": true,
+        "value": "8d833166e96e0356cbc42e53826c09b8348cbba46d194af4406d63ed4254f9a2"
+      }
+    },
+    "index_manifest_caveat": "Whole manifests differ in machine paths, build time and ledger metadata; index identity and actual vectors hash match.",
+    "server": {
+      "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+      "result_sha256": "2ceec9a2f47971baaaa6eb0683b8e9f1a4337710234ab864b124cdd8e23ba9ba",
+      "event_file_sha256": "253675f5afd53dfc379d61ce4752ed46919a6afc13e49f258e15a72664361526",
+      "plan": {
+        "steps": [
+          {
+            "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+            "output_slot": "creative_interests",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          {
+            "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, time constraints)?",
+            "output_slot": "activity_preferences",
+            "answer_type": "record",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          {
+            "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+            "output_slot": "suggestion",
+            "answer_type": "text",
+            "inputs": [
+              "creative_interests",
+              "activity_preferences"
+            ],
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "suggestion",
+        "output_contract": {
+          "mode": "semantic",
+          "result_type": "text",
+          "entity_scope": "user",
+          "time_scope": "weekend",
+          "explanation": "semantic"
+        },
+        "program": {
+          "variables": {
+            "creative_interests": {
+              "type": "set",
+              "demand": "creative_interests",
+              "open": true
+            },
+            "activity_preferences": {
+              "type": "record",
+              "demand": "activity_preferences",
+              "open": true
+            },
+            "suggestion": {
+              "type": "text",
+              "demand": "suggestion",
+              "open": true
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "suggestion"
+          },
+          "rules_complete": false
+        }
+      },
+      "calls": [
+        {
+          "stage": [
+            "planner",
+            "1"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+          "request_file_sha256": "af6b763c899898a532ae478a3ce842fec7981fb8951dd569ad7e2b35ea273eb3",
+          "raw_response_sha256": "cbb240e4b9bbf3a5c7cdd9289ddbf1ebdbfe7c3b572519f155945fa8f27fd6e3",
+          "scopes": []
+        },
+        {
+          "stage": [
+            "joint_read",
+            "2"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+          "request_file_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+          "raw_response_sha256": "233dc900efcc4b313236682a671fa9b2f17d3e0add42568a4af8b3e4b3b88297",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "past"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read_repair",
+            "3"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/377fa624bafddd46ad37b25381a33c3474fc1e45814001a0e70ad6273791e44f.json",
+          "request_file_sha256": "9bb9680ab62e1b9fbf88621ee5ef3bc09479f6ddebd63f089e7ef37c6f00d49e",
+          "raw_response_sha256": "15808a72eecc18598a1af4bf06803580187c2b4ad57d9038a8ca1294dbb09c89",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "past"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read_repair",
+            "4"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/258d299de8185e129601b9f76b1c0dd4e5a85ac0dcec871e0d147f9385a8303b.json",
+          "request_file_sha256": "5503a3c37701002bb48f53059ae93c810dc5cda814de895efdb3403f8c15626e",
+          "raw_response_sha256": "8af73b833811a431b7e160ed55ac57b127b791e8455c5c5ea0bfaa1be6352767",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "past"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "5"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/14e020ab97bae3e66df0988cd4cce2e878e2553cfbede4dd0de4253c71c80148.json",
+          "request_file_sha256": "3eac62305f8b8c4ddaa13e3df4177c92457fe08532c1e79e4155707c793f7b16",
+          "raw_response_sha256": "da60704aa89a0396b173f572d49b1c6c1586719ecbcf1dc812065616e057ae34",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "6"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/97be1a4b96a89e4708cea90205f8e8c08d7896be14809d500c93f70f45b2b8dd.json",
+          "request_file_sha256": "4a31209fff16d7db1fb6893fdbd7da82270a64a605f2f03a6266bb3363143c97",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "7"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/db2b3cc48034aa58938f99ea92430fbf46584969fc31ad191d940cfa914d13c5.json",
+          "request_file_sha256": "e469cc6eaa20f36658a12ad7517f237f6dfa015b1e72a6ee84274679785999d8",
+          "raw_response_sha256": "0ef194958494d43c17aecd1ba1590dc5cb52e1240f0c28e8843eab18644f26ec",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "8"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00313c04f33fe493eeb49528239f14b6c12486644d82f3804a6bf93ce2b983d9.json",
+          "request_file_sha256": "697abe15e3773c345644ea54d361f0ccfd0bef5e9831b90e07adef8244ee3551",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "9"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/affe977e6ba6a2121fb88790a5673af74206472bc284f264ff9b3894c3b1e0ae.json",
+          "request_file_sha256": "70455164e8b1ec79a8d432e4cfa3002e220adfa70a8968d9ee50b1d6f7d327d0",
+          "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "10"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/128c9bdff321334642a1241383edf763e7cdcd5d514f6a1b7663cd4e31c15a41.json",
+          "request_file_sha256": "9d2593024b34dd964601d3741be5f23c8865a227e392b5b6b4695606330ca81e",
+          "raw_response_sha256": "e3be6166ac20aa193892e3bfbc88208775077072e448242a00bc9f6b8ed8b15d",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "11"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/b2599609ae476b5c62037c208c850703eb38ef557d14564b20b937fdf394a52e.json",
+          "request_file_sha256": "c60ebf8cf73c8613963909fcbeb40d22e1081a9bb114d2ee5089b440b1ef1bee",
+          "raw_response_sha256": "790b23bd211b6158321b5b738c901cb4ef1279246afb7f89a94583dc3ee620d4",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "12"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/5bcc6ce2a68a24d3d5f403cd9c7772072f91138a3e0a9ff32551f3047f745d3e.json",
+          "request_file_sha256": "0cd83cc6a3b3eddbbfc6166c14cbbf1c0203d8661e65ce1a882a592e9fb08442",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "13"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e38101cd8f901e9d487d82772808b7b63eb5c1711f2071fc0c3947423cf4e67d.json",
+          "request_file_sha256": "7eb89964947b36e9e815daab3c0329e49c1aefbd82fabaddb8c7bc12b25591ac",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "14"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/366c62e21cdf2d82291655383ee79890bdf13702ddeef60fb7d60f3c4b67d3f4.json",
+          "request_file_sha256": "82639972afbb15970193418f12fa0281ccf13ab60545f02fdac903bcd1990967",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "15"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/ab977c337491a88096c59fd8ad80e751d7c9f163e59c4a65ede682d4047271ac.json",
+          "request_file_sha256": "f66f6eacc8d5a473cb00e0c01058e8eeec379bd8798bb9a70530d8cbee274643",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "16"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/1f56d970e39e29b5b35b1d1e2ec5239a83f9d2c4446c08b96b88c2bb957fa328.json",
+          "request_file_sha256": "5c84f328946689ae011dca710d7ba75ea01a3f09176cede38050841f62b7dc3e",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "17"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/269998853f1330c3ad2b50654165e95e75a8a9e7305ced52291c93c2c8adfe4f.json",
+          "request_file_sha256": "b9764ed254d3604497a73838dc51efc8161c96aeb70aacb87ffd36aa17befc9a",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "18"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/2aa4eda55031491b12df21b6e41e0b35250c1a701462314fe68aaac88ffe2170.json",
+          "request_file_sha256": "3897608fe9e1b2430cd122c7052d4ad120bafc190b084dacf7214093e448392c",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "19"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/4f996e30df10b67b2e485fc6f3511010a6c96a2b24d0a351d281d99d7a5bbcc7.json",
+          "request_file_sha256": "62fbd3097bdc7146aa7d56891044f19389afca1bb0057624159897a75ce40080",
+          "raw_response_sha256": "f844d2fcc8a25f0e018407e24f4944cb63ac5f074cd74b0ab48a11d5a2df4378",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_fb7d41930e592d0956d97329",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "status": "budget_exhausted",
+      "completion_kind": "incomplete",
+      "ledger": {
+        "limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "used": {
+          "llm": 19,
+          "http_attempts": 55,
+          "ann": 36,
+          "embedding_http": 36,
+          "json_repairs": 2
+        },
+        "remaining": {
+          "ann": 0,
+          "set_score": 0,
+          "llm": 5,
+          "reader": 0,
+          "json_repairs": 4
+        }
+      },
+      "pending_variables": [
+        "creative_interests"
+      ],
+      "failed_obligations": [
+        [
+          "6353f3af2f0557bebd32a4f9decbaf3076c87c37e949aeb8fd310f8f20eb2551",
+          "570274948631e47733e7e59293b3d5f0cfed0421a54a74268ab7723c1a609277",
+          [
+            "creative_interests"
+          ]
+        ]
+      ],
+      "failed_read_states": 118,
+      "event_counts": {
+        "tokenization_count": 732,
+        "reasoning_request_started": 19,
+        "model_context_budget": 19,
+        "budget_reserved": 148,
+        "http_response": 55,
+        "tokenization_usage_validation": 19,
+        "reasoning_response": 19,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 1,
+        "navigation_query_view": 36,
+        "proxy_free_started": 1,
+        "bridge_step_completed": 36,
+        "joint_read_completed": 16,
+        "proxy_free_conditional_started": 35,
+        "proxy_free_conditional_completed": 35,
+        "terminal_published": 1
+      },
+      "bridge_node_counts": {
+        "creative_interests": 36
+      },
+      "timeline": [
+        {
+          "sequence": 18,
+          "elapsed_seconds": 12.736448287963867,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 1,
+          "local_candidates": 12,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 286,
+          "elapsed_seconds": 59.777536153793335,
+          "event": "joint_read_completed",
+          "source_count": 118,
+          "valid_rows": 0,
+          "complete": false,
+          "failed_slots": [
+            {
+              "variable": "creative_interests",
+              "id": "obs1",
+              "error": "Observation scope does not apply to this task"
+            }
+          ]
+        },
+        {
+          "sequence": 294,
+          "elapsed_seconds": 60.42440915107727,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 2,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 342,
+          "elapsed_seconds": 69.26303267478943,
+          "event": "joint_read_completed",
+          "source_count": 19,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 350,
+          "elapsed_seconds": 70.33312129974365,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 3,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 412,
+          "elapsed_seconds": 80.96423125267029,
+          "event": "joint_read_completed",
+          "source_count": 26,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 420,
+          "elapsed_seconds": 81.75739455223083,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 4,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 450,
+          "elapsed_seconds": 92.50528335571289,
+          "event": "joint_read_completed",
+          "source_count": 10,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 458,
+          "elapsed_seconds": 93.5391857624054,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 5,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 466,
+          "elapsed_seconds": 94.03737235069275,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 6,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 474,
+          "elapsed_seconds": 94.66914176940918,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 7,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 482,
+          "elapsed_seconds": 95.32266235351562,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 8,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 512,
+          "elapsed_seconds": 103.16347432136536,
+          "event": "joint_read_completed",
+          "source_count": 10,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 520,
+          "elapsed_seconds": 103.89598751068115,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 9,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 528,
+          "elapsed_seconds": 104.40616130828857,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 10,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 558,
+          "elapsed_seconds": 113.22725987434387,
+          "event": "joint_read_completed",
+          "source_count": 10,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 566,
+          "elapsed_seconds": 113.85586929321289,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 11,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 574,
+          "elapsed_seconds": 114.59104800224304,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 12,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 602,
+          "elapsed_seconds": 123.19636559486389,
+          "event": "joint_read_completed",
+          "source_count": 9,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 610,
+          "elapsed_seconds": 124.26401996612549,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 13,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 618,
+          "elapsed_seconds": 124.71596217155457,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 14,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 626,
+          "elapsed_seconds": 125.36117506027222,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 15,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 634,
+          "elapsed_seconds": 125.94909763336182,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 16,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 686,
+          "elapsed_seconds": 136.57941150665283,
+          "event": "joint_read_completed",
+          "source_count": 21,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 694,
+          "elapsed_seconds": 137.21657729148865,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 17,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 702,
+          "elapsed_seconds": 137.92159605026245,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 18,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 794,
+          "elapsed_seconds": 148.13990211486816,
+          "event": "joint_read_completed",
+          "source_count": 41,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 802,
+          "elapsed_seconds": 149.24587321281433,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 19,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 810,
+          "elapsed_seconds": 149.77705192565918,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 20,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 818,
+          "elapsed_seconds": 150.59221363067627,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 21,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 850,
+          "elapsed_seconds": 158.82667899131775,
+          "event": "joint_read_completed",
+          "source_count": 11,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 858,
+          "elapsed_seconds": 159.4909806251526,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 22,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 904,
+          "elapsed_seconds": 167.81866765022278,
+          "event": "joint_read_completed",
+          "source_count": 18,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 912,
+          "elapsed_seconds": 168.75079154968262,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 23,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 946,
+          "elapsed_seconds": 177.55959582328796,
+          "event": "joint_read_completed",
+          "source_count": 12,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 954,
+          "elapsed_seconds": 178.24913024902344,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 24,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 962,
+          "elapsed_seconds": 178.896821975708,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 25,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 970,
+          "elapsed_seconds": 179.8797926902771,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 26,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 978,
+          "elapsed_seconds": 181.2191207408905,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 27,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 986,
+          "elapsed_seconds": 183.5597152709961,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 28,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 994,
+          "elapsed_seconds": 186.16883277893066,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 29,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1028,
+          "elapsed_seconds": 194.28034019470215,
+          "event": "joint_read_completed",
+          "source_count": 12,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1036,
+          "elapsed_seconds": 197.17946434020996,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 30,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1044,
+          "elapsed_seconds": 202.0587718486786,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 31,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1078,
+          "elapsed_seconds": 210.39189910888672,
+          "event": "joint_read_completed",
+          "source_count": 12,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1086,
+          "elapsed_seconds": 216.321533203125,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 32,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1094,
+          "elapsed_seconds": 221.33857369422913,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 33,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1122,
+          "elapsed_seconds": 229.8787112236023,
+          "event": "joint_read_completed",
+          "source_count": 9,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1130,
+          "elapsed_seconds": 235.02724838256836,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 34,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1138,
+          "elapsed_seconds": 239.6867299079895,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 35,
+          "local_candidates": 4,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 1164,
+          "elapsed_seconds": 247.8501992225647,
+          "event": "joint_read_completed",
+          "source_count": 8,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1172,
+          "elapsed_seconds": 252.59298133850098,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 36,
+          "local_candidates": 4,
+          "search_status": "budget_exhausted"
+        }
+      ],
+      "all_chat_tokenization_matched": true,
+      "max_total_with_output_and_margins": 14744
+    },
+    "local_smoke06": {
+      "attempt": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001",
+      "result_sha256": "eb7d1b88f8d470a5dcfed68459596ae881f5bac455949a2af68116cac9820924",
+      "event_file_sha256": "b793f11fa4e4fa06235873cdede237e42f1748150f64d60081e7e54714732873",
+      "plan": {
+        "steps": [
+          {
+            "question": "What are the user's past creative hobbies or interests mentioned in their history?",
+            "output_slot": "creative_interests",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          {
+            "question": "What are the user's preferences for weekend activities (e.g., indoor/outdoor, solo/group, duration)?",
+            "output_slot": "activity_preferences",
+            "answer_type": "set",
+            "inputs": [],
+            "execution": "retrieval"
+          },
+          {
+            "question": "Based on the user's creative interests and activity preferences, what is a suitable creatively fulfilling weekend getaway suggestion?",
+            "output_slot": "suggestion",
+            "answer_type": "text",
+            "inputs": [
+              "creative_interests",
+              "activity_preferences"
+            ],
+            "execution": "compose"
+          }
+        ],
+        "final_node_id": "suggestion",
+        "output_contract": {
+          "mode": "semantic",
+          "result_type": "text",
+          "entity_scope": "user",
+          "time_scope": "weekend",
+          "explanation": "semantic"
+        },
+        "program": {
+          "variables": {
+            "creative_interests": {
+              "type": "set",
+              "demand": "creative_interests",
+              "open": true
+            },
+            "activity_preferences": {
+              "type": "set",
+              "demand": "activity_preferences",
+              "open": true
+            },
+            "suggestion": {
+              "type": "text",
+              "demand": "suggestion",
+              "open": true
+            }
+          },
+          "expression": {
+            "op": "var",
+            "id": "suggestion"
+          },
+          "rules_complete": false
+        }
+      },
+      "calls": [
+        {
+          "stage": [
+            "planner",
+            "1"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/628dbc602b3c6c15579d76ddb3cee1ba8895236b2bd6d607ee04ffe80c86b38d.json",
+          "request_file_sha256": "1167b9df8f4fe878e7c0e974ca5b1a8c2d73cdbfd49ddc994481ea9daa9662e8",
+          "raw_response_sha256": "ecbafa660645a9a96f47c38dbf4a3dcab07b2b276b08d984f4f13e4fb2ecfbf4",
+          "scopes": []
+        },
+        {
+          "stage": [
+            "joint_read",
+            "2"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/7ce165ed6eee30e8daf679c7baefe6da0e4078457119e0bf0f8fc7dc70fccc78.json",
+          "request_file_sha256": "2c3ab0ed55e43927e517dd605c4c8e0e9b17ba3acbd4d6e17b3d956befb50155",
+          "raw_response_sha256": "a8cbd649718b58dea8ee094148ab3bf0789ae892a39368c4e20785f8e9d6dbba",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "joint_read",
+            "3"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/cfa798f8502e2a98808c1578be789d277cb45e8476e9016ed6e81f9503e7e769.json",
+          "request_file_sha256": "2f6991c2833679e1f9238b83d3548bfbb24a5338bcccf739c276c415957d92f6",
+          "raw_response_sha256": "b03b16cb765d17db04a37c5b7873d4f80925d93c9ea39e04eaa444cb0fa79b9c",
+          "scopes": [
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "semantic_compose",
+            "4"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e5588014d39b4c51c2004751b06f74f59053ec0f522bb93a6bb02f87f909c508.json",
+          "request_file_sha256": "641b754e391a8a55cfd4cdf6c8db2c0d1a7b2836c36adaa262fd21cd477ec0ec",
+          "raw_response_sha256": "a2fc3c37869d673862109276b26a72910bd6e3051ecfe7a65ef976a1e420ce16",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_268b46b040d32f1ddec93821",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "fact_96d8050f46103c4c27ee46d6",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "suggestion",
+              "observations": [
+                {
+                  "id": "obs_suggestion_1",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "semantic_compose",
+            "5"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/df367bceba01e869b08ff12f4b8b604fdc8674393e12d8a4262f19a9feb54a10.json",
+          "request_file_sha256": "295471b25f99ec4b2d1dd03769a1d8f7fdf5b0c3986e0c5406b0d0b5f5309054",
+          "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_268b46b040d32f1ddec93821",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "fact_96d8050f46103c4c27ee46d6",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "suggestion",
+              "observations": [
+                {
+                  "id": "fact_25ad92c9c59e6c96ec762629",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "semantic_compose",
+            "6"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/e623225ae3bb9f65ed7db3a89b60fb35807a5f05de7e34c9f966a778c14c4624.json",
+          "request_file_sha256": "fabde50c93c1a52f9b3a88d35a7e76c812c46d155d0f93aba7a58d0c4f8a5d8d",
+          "raw_response_sha256": "7abe9d148aa65bf65112eac34724843fcd59c5bc06bde6c99e6cb8c4c9a31d3f",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_268b46b040d32f1ddec93821",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "fact_96d8050f46103c4c27ee46d6",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "suggestion",
+              "observations": [
+                {
+                  "id": "fact_25ad92c9c59e6c96ec762629",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "audit_joint",
+            "7"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/84b2cfc27b7c526c0e343268f9b4b08352fb736b27cb39b24283af501651c429.json",
+          "request_file_sha256": "101aeff5c21e5eb0ccde718a24f84ed5f8bedf6e17461ea2c98a7568c2c4609e",
+          "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_268b46b040d32f1ddec93821",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "fact_96d8050f46103c4c27ee46d6",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "suggestion",
+              "observations": [
+                {
+                  "id": "fact_25ad92c9c59e6c96ec762629",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stage": [
+            "audit_joint",
+            "8"
+          ],
+          "request_file": "/Users/mao/projects/dagv2_analysis/a48_v3_validation/live_smoke_06/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/00a71ac4b8b97a5914993d95e914b2ae68f2da41646b9f9d9c2ec85807a06c9b.json",
+          "request_file_sha256": "031a0a9aef8c55b4ce8d47cff162b0ad6e89c3b4ffaf2c89d4edbcd3190bbf53",
+          "raw_response_sha256": "960a184a14d6e25aa08ecce95abfe01ffd4edfd04711415ab075753593b81701",
+          "scopes": [
+            {
+              "variable": "creative_interests",
+              "observations": [
+                {
+                  "id": "fact_268b46b040d32f1ddec93821",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "activity_preferences",
+              "observations": [
+                {
+                  "id": "fact_96d8050f46103c4c27ee46d6",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            },
+            {
+              "variable": "suggestion",
+              "observations": [
+                {
+                  "id": "fact_25ad92c9c59e6c96ec762629",
+                  "stance": "support",
+                  "entity_scope": "user",
+                  "time_scope": "weekend"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "status": "ok",
+      "completion_kind": "semantic_assessment",
+      "ledger": {
+        "limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "used": {
+          "llm": 8,
+          "http_attempts": 10,
+          "ann": 2,
+          "embedding_http": 2
+        },
+        "remaining": {
+          "ann": 34,
+          "set_score": 0,
+          "llm": 16,
+          "reader": 0,
+          "json_repairs": 6
+        }
+      },
+      "pending_variables": [],
+      "failed_obligations": [],
+      "failed_read_states": 0,
+      "event_counts": {
+        "tokenization_count": 1102,
+        "reasoning_request_started": 8,
+        "model_context_budget": 8,
+        "budget_reserved": 22,
+        "http_response": 10,
+        "tokenization_usage_validation": 8,
+        "reasoning_response": 8,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 4,
+        "navigation_query_view": 2,
+        "proxy_free_started": 2,
+        "bridge_step_completed": 2,
+        "joint_read_completed": 7,
+        "terminal_published": 1
+      },
+      "bridge_node_counts": {
+        "creative_interests": 1,
+        "activity_preferences": 1
+      },
+      "timeline": [
+        {
+          "sequence": 18,
+          "elapsed_seconds": 11.910734176635742,
+          "event": "bridge_step_completed",
+          "node_id": "creative_interests",
+          "ann_completed": 1,
+          "local_candidates": 12,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 264,
+          "elapsed_seconds": 42.996082067489624,
+          "event": "joint_read_completed",
+          "source_count": 118,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 272,
+          "elapsed_seconds": 43.40612196922302,
+          "event": "bridge_step_completed",
+          "node_id": "activity_preferences",
+          "ann_completed": 1,
+          "local_candidates": 12,
+          "search_status": "batch_completed"
+        },
+        {
+          "sequence": 514,
+          "elapsed_seconds": 84.06639313697815,
+          "event": "joint_read_completed",
+          "source_count": 116,
+          "valid_rows": 1,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 681,
+          "elapsed_seconds": 145.31132102012634,
+          "event": "joint_read_completed",
+          "source_count": 78,
+          "valid_rows": 3,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 801,
+          "elapsed_seconds": 201.43493700027466,
+          "event": "joint_read_completed",
+          "source_count": 56,
+          "valid_rows": 3,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 855,
+          "elapsed_seconds": 250.83752703666687,
+          "event": "joint_read_completed",
+          "source_count": 23,
+          "valid_rows": 3,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1040,
+          "elapsed_seconds": 309.43246507644653,
+          "event": "joint_read_completed",
+          "source_count": 87,
+          "valid_rows": 3,
+          "complete": true,
+          "failed_slots": []
+        },
+        {
+          "sequence": 1184,
+          "elapsed_seconds": 368.9859631061554,
+          "event": "joint_read_completed",
+          "source_count": 68,
+          "valid_rows": 3,
+          "complete": true,
+          "failed_slots": []
+        }
+      ],
+      "all_chat_tokenization_matched": true,
+      "max_total_with_output_and_margins": 16199
+    },
+    "root_cause": "Global terminal user/weekend scope was applied to the intermediate task asking for past creative interests. Uploaded calls 2/3/4 preserved user/past and failed validation. Local smoke06 call 2 returned user/weekend and passed the same validator.",
+    "failure_amplification": "The first failed source-window obligation remains pending; its 118 aliases become invalid read_states and ordinary reads do not reopen them. Later 15 independently valid windows cannot erase a failed counter obligation. Controller restarts at first active DAG step, so creative_interests consumes all 36 ANN calls; other nodes never run.",
+    "bounded_fix": "Declare intermediate variable scope before retrieval and validate each observation against its own scope, while retaining terminal output scope. Do not clear failed counter obligations, relabel historical evidence as weekend, increase budgets or silently accept an incomplete answer.",
+    "limits": [
+      "This diagnosis does not evaluate answer correctness.",
+      "Scope declaration replay is an explicit counterfactual protocol check, not a claim the corrected planner produced that declaration live.",
+      "Scheduler behavior is documented separately; no scheduler change is part of this scope fix."
+    ]
+  },
+  "diagnosis_report_sha256": "11ab6ce45e4dd31f21227d1e80abb7380558c38048602d98fc013aa9815c2b61",
+  "exact_response_replay": {
+    "passed": true,
+    "checks": {
+      "all_118_visible_sources_match_unchanged_authoritative_corpus": true,
+      "archived_global_weekend_validator_rejects_exact_past_response": true,
+      "predeclared_user_past_accepts_exact_original_response_without_relabeling": true,
+      "original_observation_value_reason_and_sources_unchanged": true,
+      "terminal_contract_remains_user_weekend": true,
+      "payload_requests_local_scope_and_preserves_terminal_contract": true,
+      "wrong_user_observation_rejected": true,
+      "wrong_future_observation_rejected": true,
+      "terminal_declaration_scope_mismatch_rejected": true,
+      "corrected_predeclared_scope_plan_passes_real_planner_validator": true,
+      "planner_terminal_scope_mismatch_rejected": true,
+      "terminal_observation_scope_mismatch_rejected": true,
+      "wrong_scope_direct_state_integration_rejected_without_mutation": true,
+      "wrong_scope_restored_route_rejected_without_mutation": true,
+      "restored_predeclared_scope_change_rejected_without_mutation": true,
+      "valid_scoped_state_roundtrip_preserves_original_fact_and_contract": true,
+      "node_scope_metadata_preserves_past_instead_of_terminal_weekend": true,
+      "old_scope_and_revision_stale_routes_excluded_from_node_alternatives": true
+    },
+    "no_network_calls": true,
+    "blocked_network_attempts": 0,
+    "evaluation_labels_read": false,
+    "scores_summary_comparisons_read": false,
+    "original_request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+    "original_request_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+    "original_raw_response_sha256": "233dc900efcc4b313236682a671fa9b2f17d3e0add42568a4af8b3e4b3b88297",
+    "original_parsed_observation_sha256": "a2e5e0199cfefc53334377fa47d4f9bb9afaad1743f2f7bf7560b244cf7cb346",
+    "original_source_wire_sha256": "abeaa9d80660593295dfc91b751a03729d8199455bd10fbb1a06a59db13c2a07",
+    "authoritative_corpus_sha256": "12d418c27ff7e8c67c9424b6ed622baf7b148f6d179287ee9d4661f095db2b60",
+    "visible_source_count": 118,
+    "original_source_registry_sha256": "4468d5f51e0a343fe5b0661ec80f0cf358d4fe43bbf0c656f827725ed796a74c",
+    "archived_code_head": "da64d56250733bc7a87942f6a5389b04a00176bd",
+    "archived_joint_reading_sha256": "389e9b90e93a48e0a00ef7adc6c14c26b04ac23d6cbb00cd467789432f2f3aae",
+    "tested_source_hashes": {
+      "joint_reading.py": "77337892d94e0d0d6ef74da870ef01dc812ccd3912c59db73ff0faad48d5aabb",
+      "fact_state.py": "08bdc7b4c3cb79bf2503d71ce68d4adc350a902fc05a40cb5aa3ac7800e1b672",
+      "residual.py": "893b6cd0e2b50fa6ad013a5961785534283f7487ecf5750b62c198ba3269cada",
+      "residual_plan.py": "7094954b2083ad1ad74be0a931660983e82a0bc1463f1d0a16fdd3864aec4131",
+      "residual_control.py": "f60aabfc195c764962c0962964374c0c615871c522c20e362565a28de973ba8e"
+    },
+    "legacy_validation_error": "Observation scope does not apply to this task",
+    "negative_validation_errors": {
+      "wrong_user": "Observation scope does not apply to declared variable creative_interests",
+      "wrong_future": "Observation scope does not apply to declared variable creative_interests",
+      "terminal_declaration_mismatch": "Terminal variable scope must match the immutable output contract",
+      "planner_terminal_scope_mismatch": "Terminal variable scope must match the immutable output contract",
+      "terminal_observation_mismatch": "Observation scope does not apply to declared variable suggestion",
+      "direct_state_integration_mismatch": "Observation scope does not match its declared variable scope",
+      "restored_route_scope_mismatch": "Resumed observation scope differs from its declared variable scope",
+      "restored_variable_scope_mismatch": "Resume cannot change a predeclared variable identity or scope"
+    },
+    "scope_declaration_change": {
+      "creative_interests": {
+        "entity_scope": "user",
+        "time_scope": "past"
+      },
+      "suggestion": {
+        "entity_scope": "user",
+        "time_scope": "weekend"
+      }
+    },
+    "terminal_contract": {
+      "mode": "semantic",
+      "result_type": "text",
+      "entity_scope": "user",
+      "time_scope": "weekend",
+      "explanation": "semantic"
+    },
+    "scope": "Deterministic offline observation validator replay using exact uploaded first response and authoritative original sources; explicit predeclared scope counterfactual, not model-generated corrected planner or full-run accuracy.",
+    "semantic_limit": "Acceptance proves protocol/source-coordinate compatibility, not that every value is semantically correct or current. No calendar date is inferred from observation indices."
+  },
+  "pytest": {
+    "passed": 1093,
+    "skipped": 92,
+    "warnings": 69,
+    "seconds": 58.26,
+    "log_sha256": "d655feb3af80de38a1b46280a82c6aeeb9969820da82044f12c751bfab61a8d4"
+  },
+  "preceding_pytest_failure": {
+    "test": "tests/test_paired_runner.py::test_stop_foreground_relative_output_path",
+    "log_sha256": "b8bb1281bf09ee7012387a5650a518589b6628bddfa505c4a1ca37b5a7bea4b8",
+    "focused_rerun_log_sha256": "5beef0f5d302fb12666a7ce7ac1117654f854b8eed2924bb1a949e6a3bd31241",
+    "note": "Initial full run: 1 failed, 1092 passed, 92 skipped. Existing offline worker start/stop race timed out; fixture log showed joining a not-yet-started process. Single focused rerun passed without source changes. Final full-suite result is recorded separately."
+  },
+  "schema_supplement": {
+    "passed": 130,
+    "skipped": 0,
+    "log_sha256": "8afc0352e70cf213d9fc4ae664e0629e7c602d835e95452fcae34719d5f5f746",
+    "scope": "All 92 optional JSON Schema skips plus 38 overlapping checks run with the validator installed."
+  },
+  "original_integrity": {
+    "checked": 54,
+    "label_hash_checks_deferred_until_scoring": [
+      "data/2wikimultihopqa/evaluation_only.json",
+      "data/hotpotqa/evaluation_only.json",
+      "data/musique/evaluation_only.json"
+    ]
+  },
+  "source_hashes_match_live_validation": true,
+  "config_unchanged_from_uploaded_v3": true,
+  "unchanged_budgets": {
+    "context_tokens": 16384,
+    "llm_calls": 24,
+    "ann_calls": 36,
+    "reasoning_output_tokens": 4096,
+    "input_margin": 256,
+    "json_repairs": 6,
+    "max_repairs_per_request": 2
+  },
+  "real_service_smoke": {
+    "question_attempts": 1,
+    "status_counts": {
+      "original": {
+        "ok": 2
+      },
+      "dagbt_residual_memory_v1": {
+        "ok": 2
+      }
+    },
+    "rows": [
+      {
+        "arm": "original",
+        "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+        "status": "ok",
+        "seconds": 14.604746499913745,
+        "chat_records": 4,
+        "max_prompt_tokens": 8458,
+        "max_total_with_reserves": 9490,
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 4,
+          "cache_hits": 0,
+          "http_attempts": 4,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "successful_http_requests": 4,
+          "failed_counts": 0,
+          "observed_seconds": 0.45534308394417167,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 4,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 24362,
+          "completion_tokens": 255,
+          "total_tokens": 24617,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "arm": "original",
+        "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+        "status": "ok",
+        "seconds": 8.049499499960802,
+        "chat_records": 3,
+        "max_prompt_tokens": 9179,
+        "max_total_with_reserves": 10211,
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 3,
+          "cache_hits": 0,
+          "http_attempts": 3,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "successful_http_requests": 3,
+          "failed_counts": 0,
+          "observed_seconds": 0.33311962499283254,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 3,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 16999,
+          "completion_tokens": 116,
+          "total_tokens": 17115,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "arm": "dagbt_residual_memory_v1",
+        "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+        "status": "ok",
+        "seconds": 73.9689076669747,
+        "chat_records": 4,
+        "max_prompt_tokens": 10340,
+        "max_total_with_reserves": 14700,
+        "audit_complete": true,
+        "failed_obligations": 0,
+        "variable_scopes": {
+          "recent_events": {
+            "entity_scope": "event",
+            "time_scope": "recent"
+          },
+          "target_event": {
+            "entity_scope": "event",
+            "time_scope": "recent"
+          }
+        },
+        "terminal_scope": {
+          "entity_scope": "event",
+          "time_scope": "recent"
+        },
+        "ledger_used": {
+          "llm": 4,
+          "http_attempts": 5,
+          "ann": 1,
+          "embedding_http": 1
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 298,
+          "cache_hits": 47,
+          "http_attempts": 251,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "successful_http_requests": 251,
+          "failed_counts": 0,
+          "observed_seconds": 21.233058210811578,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 4,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 19988,
+          "completion_tokens": 1700,
+          "total_tokens": 21688,
+          "token_usage_complete": true
+        }
+      },
+      {
+        "arm": "dagbt_residual_memory_v1",
+        "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+        "status": "ok",
+        "seconds": 166.92171966691967,
+        "chat_records": 5,
+        "max_prompt_tokens": 10199,
+        "max_total_with_reserves": 14559,
+        "audit_complete": true,
+        "failed_obligations": 0,
+        "variable_scopes": {
+          "past_hobbies": {
+            "entity_scope": "user",
+            "time_scope": "past"
+          },
+          "current_preferences": {
+            "entity_scope": "user",
+            "time_scope": "present"
+          },
+          "suggestion": {
+            "entity_scope": "user",
+            "time_scope": "weekend"
+          }
+        },
+        "terminal_scope": {
+          "entity_scope": "user",
+          "time_scope": "weekend"
+        },
+        "ledger_used": {
+          "llm": 5,
+          "http_attempts": 7,
+          "ann": 2,
+          "embedding_http": 2
+        },
+        "tokenization_auxiliary_cost": {
+          "logical_calls": 806,
+          "cache_hits": 201,
+          "http_attempts": 605,
+          "http_retries": 0,
+          "failed_http_attempts": 0,
+          "successful_http_requests": 605,
+          "failed_counts": 0,
+          "observed_seconds": 54.884285164414905,
+          "malformed_event_lines": 0,
+          "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+        },
+        "api_cost_excluding_tokenization": {
+          "physical_llm_attempts": 5,
+          "physical_reader_attempts": 0,
+          "prompt_tokens": 41593,
+          "completion_tokens": 3368,
+          "total_tokens": 44961,
+          "token_usage_complete": true
+        }
+      }
+    ],
+    "labels_read": false,
+    "answer_accuracy_evaluated": false
+  },
+  "packaging_scaffold_verification": {
+    "passed": true,
+    "scope": "isolated offline fixture only",
+    "checks": [
+      "exact_base_reconstruction",
+      "active_writer_rejected",
+      "corrupted_payload_rejected",
+      "changed_base_rejected",
+      "partial_install_rollback",
+      "install_hashes_verified",
+      "idempotent_install",
+      "exact_archive_members_verified",
+      "unlisted_archive_file_rejected",
+      "stale_payload_removed",
+      "installer_templates_preserved",
+      "root_stray_file_excluded",
+      "duplicate_archive_member_rejected",
+      "symlink_archive_member_rejected",
+      "unsafe_and_symlink_paths_rejected"
+    ],
+    "production_release_built": false,
+    "network_calls": 0
+  },
+  "preceding_live_validation": {
+    "runs": [
+      {
+        "output": "live_smoke_01",
+        "counts": {
+          "execution_failed": 1,
+          "unresolved_or_exhausted": 2,
+          "ok": 1
+        },
+        "rows": [
+          {
+            "arm": "original",
+            "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+            "answer": {
+              "status": "execution_failed",
+              "prediction": "",
+              "error_type": "RuntimeError",
+              "error": "Question failed: {\"type\": \"task_error\", \"error_type\": \"TokenizationError\", \"error\": \"Deployment tokenization failed: connection_or_timeout\"}"
+            },
+            "errors": [],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 1,
+              "cache_hits": 0,
+              "http_attempts": 1,
+              "successful_http_requests": 0,
+              "failed_counts": 1,
+              "observed_seconds": 5.003976999898441,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "original",
+            "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+            "answer": {
+              "status": "ok",
+              "prediction": "(d)",
+              "error": null,
+              "finish_reason": "stop",
+              "response_usage": {
+                "prompt_tokens": 9075,
+                "total_tokens": 9078,
+                "completion_tokens": 3,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": null,
+                  "accepted_prediction_tokens": null,
+                  "rejected_prediction_tokens": null
+                }
+              },
+              "continued_after_length": false,
+              "response_refs": [
+                "043b59758bc34346d37b23d9df657507c6407b53dd8eda6da89870da7c5938b7"
+              ],
+              "first_stage": {
+                "status": "ok",
+                "prediction": "(d)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 9075,
+                  "total_tokens": 9078,
+                  "completion_tokens": 3,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 3,
+              "cache_hits": 0,
+              "http_attempts": 3,
+              "successful_http_requests": 3,
+              "failed_counts": 0,
+              "observed_seconds": 5.538037125021219,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "dagbt_residual_memory_v1",
+            "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+            "answer": {
+              "status": "unresolved_or_exhausted",
+              "prediction": null,
+              "semantic_answer": null,
+              "answer_source": "dag_terminal",
+              "final_node_id": "event",
+              "output_identity": "b5dcdc96cc5cac09a327cb9b029f19160b678518c56db71a1ef730f7ca419207",
+              "sources": null,
+              "dependency_versions": {
+                "event": 0
+              },
+              "completion_kind": "incomplete",
+              "certificate": null,
+              "program_revision": 0,
+              "terminal_input_doc_ids": [],
+              "certificate_source_ids": []
+            },
+            "errors": [
+              {
+                "node_id": "event",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              }
+            ],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 66,
+              "cache_hits": 7,
+              "http_attempts": 59,
+              "successful_http_requests": 58,
+              "failed_counts": 1,
+              "observed_seconds": 48.99369578890037,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "dagbt_residual_memory_v1",
+            "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+            "answer": {
+              "status": "unresolved_or_exhausted",
+              "prediction": null,
+              "semantic_answer": null,
+              "answer_source": "dag_terminal",
+              "final_node_id": "suggestion",
+              "output_identity": "12df8e2d34830d791d66c3c6a689ea76dd70c8a3cc55e0b3354908be9f9795a7",
+              "sources": null,
+              "dependency_versions": {
+                "past_hobbies": 0,
+                "current_preferences": 0,
+                "suggestion": 0
+              },
+              "completion_kind": "incomplete",
+              "certificate": null,
+              "program_revision": 0,
+              "terminal_input_doc_ids": [],
+              "certificate_source_ids": []
+            },
+            "errors": [
+              {
+                "node_id": "past_hobbies",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              },
+              {
+                "node_id": "current_preferences",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              }
+            ],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 135,
+              "cache_hits": 11,
+              "http_attempts": 124,
+              "successful_http_requests": 123,
+              "failed_counts": 2,
+              "observed_seconds": 117.13127583602909,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          }
+        ],
+        "same_scope_fix_source_and_config": true,
+        "tokenizer_transport_before_bounded_retries": true
+      },
+      {
+        "output": "live_smoke_02",
+        "counts": {
+          "ok": 2,
+          "unresolved_or_exhausted": 2
+        },
+        "rows": [
+          {
+            "arm": "original",
+            "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+            "answer": {
+              "status": "ok",
+              "prediction": "(b)",
+              "error": null,
+              "finish_reason": "stop",
+              "response_usage": {
+                "prompt_tokens": 8356,
+                "total_tokens": 8362,
+                "completion_tokens": 6,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": null,
+                  "accepted_prediction_tokens": null,
+                  "rejected_prediction_tokens": null
+                }
+              },
+              "continued_after_length": false,
+              "response_refs": [
+                "9a1c15437c9aae38cbff1140026eeecd964a3220973c675a49f60472435bbb6c"
+              ],
+              "first_stage": {
+                "status": "ok",
+                "prediction": "(b)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 8356,
+                  "total_tokens": 8362,
+                  "completion_tokens": 6,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 3,
+              "cache_hits": 0,
+              "http_attempts": 3,
+              "successful_http_requests": 3,
+              "failed_counts": 0,
+              "observed_seconds": 1.2070713761495426,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "original",
+            "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+            "answer": {
+              "status": "ok",
+              "prediction": "(d)",
+              "error": null,
+              "finish_reason": "stop",
+              "response_usage": {
+                "prompt_tokens": 9198,
+                "total_tokens": 9201,
+                "completion_tokens": 3,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": null,
+                  "accepted_prediction_tokens": null,
+                  "rejected_prediction_tokens": null
+                }
+              },
+              "continued_after_length": false,
+              "response_refs": [
+                "14ef7a5e2105a9ef10714689588f0497e97f097a9eed4f2dc1ad5a1351c32749"
+              ],
+              "first_stage": {
+                "status": "ok",
+                "prediction": "(d)",
+                "error": null,
+                "finish_reason": "stop",
+                "response_usage": {
+                  "prompt_tokens": 9198,
+                  "total_tokens": 9201,
+                  "completion_tokens": 3,
+                  "prompt_tokens_details": null,
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": null,
+                    "accepted_prediction_tokens": null,
+                    "rejected_prediction_tokens": null
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 3,
+              "cache_hits": 0,
+              "http_attempts": 3,
+              "successful_http_requests": 3,
+              "failed_counts": 0,
+              "observed_seconds": 7.576643417123705,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "dagbt_residual_memory_v1",
+            "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+            "answer": {
+              "status": "unresolved_or_exhausted",
+              "prediction": null,
+              "semantic_answer": null,
+              "answer_source": "dag_terminal",
+              "final_node_id": "target_event",
+              "output_identity": "67580fb5862e39061a1d529fb26819f8901c844669a9c6e5a71f8517fb4e8b44",
+              "sources": null,
+              "dependency_versions": {
+                "recent_events": 0,
+                "target_event": 0
+              },
+              "completion_kind": "incomplete",
+              "certificate": null,
+              "program_revision": 0,
+              "terminal_input_doc_ids": [],
+              "certificate_source_ids": []
+            },
+            "errors": [
+              {
+                "node_id": "recent_events",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              }
+            ],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 9,
+              "cache_hits": 1,
+              "http_attempts": 8,
+              "successful_http_requests": 7,
+              "failed_counts": 1,
+              "observed_seconds": 17.016035708831623,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          },
+          {
+            "arm": "dagbt_residual_memory_v1",
+            "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+            "answer": {
+              "status": "unresolved_or_exhausted",
+              "prediction": null,
+              "semantic_answer": null,
+              "answer_source": "dag_terminal",
+              "final_node_id": "suggestion",
+              "output_identity": "57e971ad8a3e2ab205089030b170bf2682462909a2370eed5251ddfe953131ea",
+              "sources": null,
+              "dependency_versions": {
+                "past_creative_hobbies": 0,
+                "current_preferences": 0,
+                "suggestion": 0
+              },
+              "completion_kind": "incomplete",
+              "certificate": null,
+              "program_revision": 0,
+              "terminal_input_doc_ids": [],
+              "certificate_source_ids": []
+            },
+            "errors": [
+              {
+                "node_id": "past_creative_hobbies",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              },
+              {
+                "node_id": "current_preferences",
+                "type": "TokenizationError",
+                "error": "Deployment tokenization failed: connection_or_timeout"
+              }
+            ],
+            "tokenization_auxiliary_cost": {
+              "logical_calls": 85,
+              "cache_hits": 7,
+              "http_attempts": 78,
+              "successful_http_requests": 76,
+              "failed_counts": 2,
+              "observed_seconds": 42.13087716663722,
+              "malformed_event_lines": 0,
+              "scope": "Auxiliary deployment tokenization only; excluded from generation/embedding token and call totals"
+            }
+          }
+        ],
+        "same_scope_fix_source_and_config": true,
+        "tokenizer_transport_before_bounded_retries": true
+      }
+    ],
+    "note": "Both kept as unsuccessful validation: tokenizer connection/read timeouts prevented residual evidence reading; one original task also failed in the first run.",
+    "bounded_readonly_probe": {
+      "generation_calls": 0,
+      "network_purpose": "readonly deployment tokenization only",
+      "maximum_authorized_calls": 3,
+      "planned_calls": 2,
+      "sequential": true,
+      "fresh_counter_per_call": true,
+      "retries": 0,
+      "evaluation_labels_read": false,
+      "config_path": "/Users/mao/projects/dagv2-personamem-a48/configs/residual-memory.personamem16k.json",
+      "config_sha256": "ec4a7ddf03ccd83e5b04d85d063efb70f18efde5e5b710ae816fa4a06f972377",
+      "counter_source_sha256": "cf2e78158e229fa567ef00b6f64624f44fca7a8e5b417fced53c0b86709535fa",
+      "timeout_seconds": 15,
+      "results": [
+        {
+          "input": "uploaded_original_source_chat",
+          "request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/original/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/aa69b664ae711a19ae497fafa8ffaa1127186fdb703d5acbcadc204e8d222ea3.json",
+          "request_sha256": "bd3903cb5bd2bbecefc55fdd31edfaed42365141324a13d08f439bd3957a555d",
+          "prior_provider_prompt_tokens": 7881,
+          "started_unix": 1791771968.9392629,
+          "status": "ok",
+          "count": 7881,
+          "count_matches_prior_usage": true,
+          "tokenization_request_sha256": "a666162048311d5f65e648be0c48ec9ca3779bd3dfc32ea52a7aa077d2b7efbf",
+          "elapsed_seconds": 0.16471662500407547,
+          "safe_event": {
+            "event": "tokenization_count",
+            "kind": "tokenization_http",
+            "cache_hit": false,
+            "http_attempts": 1,
+            "successful_http_requests": 1,
+            "status": "ok",
+            "token_estimator_id": "deployment_vllm_chat_v1",
+            "tokenization_request_sha256": "a666162048311d5f65e648be0c48ec9ca3779bd3dfc32ea52a7aa077d2b7efbf",
+            "http_status": 200,
+            "count": 7881,
+            "max_model_len": 120000,
+            "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+            "token_count_is_estimate": false,
+            "tokenizer_id": null,
+            "add_generation_prompt": true,
+            "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+            "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+            "tokenization_wire_sha256": "64fb07981388cf383c451b392721a6dca63ffffa2b3845d7469eaf7b5a4c96b3",
+            "seconds": 0.16465549997519702
+          }
+        },
+        {
+          "input": "uploaded_residual_first_read",
+          "request_path": "/Users/mao/projects/dagv2_analysis/a48_v3_server_failure/personamem_a48_v3_smoke/personamem/dagbt_residual_memory_v1/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/fb359b309ba13f01b3e4a0fcc86db44fcb338a8dce7c80581c099f485d07b27c.json",
+          "request_sha256": "d929264d3104d8f6f42f97b492bcbf975aaa1b113151b5719939d6c80a8b81cf",
+          "prior_provider_prompt_tokens": 10037,
+          "started_unix": 1791771969.1054358,
+          "status": "ok",
+          "count": 10037,
+          "count_matches_prior_usage": true,
+          "tokenization_request_sha256": "43bf185b1941f36bbab5a2fd1eba0601c091a22a22e0acbc60d0dc2f4af60b1c",
+          "elapsed_seconds": 0.20390583400148898,
+          "safe_event": {
+            "event": "tokenization_count",
+            "kind": "tokenization_http",
+            "cache_hit": false,
+            "http_attempts": 1,
+            "successful_http_requests": 1,
+            "status": "ok",
+            "token_estimator_id": "deployment_vllm_chat_v1",
+            "tokenization_request_sha256": "43bf185b1941f36bbab5a2fd1eba0601c091a22a22e0acbc60d0dc2f4af60b1c",
+            "http_status": 200,
+            "count": 10037,
+            "max_model_len": 120000,
+            "tokenization_endpoint_sha256": "0ed12ee94b55bfdbc62fb247243af2d71aa1d7ea503f5f191605ae295c5ad94a",
+            "token_count_is_estimate": false,
+            "tokenizer_id": null,
+            "add_generation_prompt": true,
+            "tokenization_scope": "adapted_plain_text_chat_default_server_template",
+            "token_accounting_note": "Deployment input count; model weights and tokenizer hash are not independently verified",
+            "tokenization_wire_sha256": "2351e00a659e1c078d26dc763d084b9499ad5cff654bcf9b6eec53bc9d08d0bc",
+            "seconds": 0.20378116599749774
+          }
+        }
+      ],
+      "http_attempts": 2,
+      "successful_counts": 2,
+      "failed_counts": 0,
+      "all_counts_match_prior_provider_usage": true,
+      "observed_seconds": 0.36862245900556445,
+      "caveat": "Two isolated health samples cannot establish sustained tokenizer availability or complete live-smoke validation."
+    },
+    "final_run_reason": "Second failure confirmed a repeated tokenizer transport issue. Final code adds bounded identical read-only connection/read retries using the existing request-attempt limit; failed physical attempts remain logged."
+  },
+  "limitations": [
+    "Two fixed questions validate execution and scope flow, not full-dataset accuracy or reliability.",
+    "Scope applicability is still a model semantic judgment; exact scope validation does not independently prove factual correctness.",
+    "No budget, backend, source evidence, failure obligation lifetime or retrieval scheduling change. Read-only tokenizer transport now uses the existing max_identical_attempts for bounded transient retries.",
+    "Auxiliary deployment-tokenizer traffic/latency remain separate from generation and embedding costs.",
+    "Legacy variables without explicit scope inherit the output contract; new planner prompts require explicit applicable variable scopes."
+  ],
+  "installer_verification": {
+    "checks": [
+      "exact_base_reconstruction",
+      "active_writer_rejected",
+      "corrupted_payload_rejected",
+      "changed_base_rejected",
+      "partial_install_rollback",
+      "install_hashes_verified",
+      "idempotent_install",
+      "exact_archive_members_verified",
+      "unlisted_archive_file_rejected"
+    ],
+    "passed": true,
+    "base_commit": "da64d56250733bc7a87942f6a5389b04a00176bd",
+    "target_commit": "a5b993a7d23cdd92c34b7ca45ebfb97b652a43e1",
+    "deployment_file_count": 257
+  }
+}

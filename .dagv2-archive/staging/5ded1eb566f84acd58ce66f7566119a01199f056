@@ -1,0 +1,52 @@
+{
+  "unit_id": "preflight_fusion_planner_protocol",
+  "url": "http://protocol.invalid/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "\"Which city hosts the science museum visited by the fictional traveler Mira?\""
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096,
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "stage": [
+    "planner",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498197.575665,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    },
+    {
+      "started_unix": 1790498197.5761259,
+      "retry_index": 2,
+      "kind": "llm",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    },
+    {
+      "started_unix": 1790498197.576585,
+      "retry_index": 3,
+      "kind": "llm",
+      "http_status": 503,
+      "retryable": true,
+      "error_type": "HTTPError"
+    }
+  ]
+}

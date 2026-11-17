@@ -1,0 +1,58 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who are the stars of The Newcomers?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:164\", \"source_id\": \"hotpotqa:164\"}]\nAnthony Rapp\nAnthony Deane Rapp (born October 26, 1971) is an American stage and film actor and singer best known for originating the role of Mark Cohen in the Broadway production of \"Rent\" in 1996 and later for reprising the role in the film version and the Broadway Tour of \"Rent\" in 2009. He also performed the role of Charlie Brown in the 1999 Broadway revival of \"You're a Good Man, Charlie Brown\" and originated the role of Lucas in the musical \"If/Then\" in 2014.\n\n[Passage {\"doc_id\": \"hotpotqa:170\", \"source_id\": \"hotpotqa:170\"}]\nRent (film)\nRent is a 2005 American musical drama film directed by Chris Columbus. It is an adaptation of the Broadway musical of the same name, in turn based on Giacomo Puccini's opera \"La bohème\". The film depicts the lives of several Bohemians and their struggles with sexuality, drugs, paying their rent, and life under the shadow of AIDS. It takes place in the East Village of New York City from 1989 to 1990. The film features six of the original Broadway cast members reprising their roles.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:7\", \"source_id\": \"hotpotqa:7\"}]\nThe Newcomers (film)\nThe Newcomers is a 2000 American family drama film directed by James Allen Bradley and starring Christopher McCoy, Kate Bosworth, Paul Dano and Chris Evans. Christopher McCoy plays Sam Docherty, a boy who moves to Vermont with his family, hoping to make a fresh start away from the city. It was filmed in Vermont, and released by Artist View Entertainment and MTI Home Video.\n\n[Passage {\"doc_id\": \"hotpotqa:164\", \"source_id\": \"hotpotqa:164\"}]\nAnthony Rapp\nAnthony Deane Rapp (born October 26, 1971) is an American stage and film actor and singer best known for originating the role of Mark Cohen in the Broadway production of \"Rent\" in 1996 and later for reprising the role in the film version and the Broadway Tour of \"Rent\" in 2009. He also performed the role of Charlie Brown in the 1999 Broadway revival of \"You're a Good Man, Charlie Brown\" and originated the role of Lucas in the musical \"If/Then\" in 2014.\n\n[Passage {\"doc_id\": \"hotpotqa:170\", \"source_id\": \"hotpotqa:170\"}]\nRent (film)\nRent is a 2005 American musical drama film directed by Chris Columbus. It is an adaptation of the Broadway musical of the same name, in turn based on Giacomo Puccini's opera \"La bohème\". The film depicts the lives of several Bohemians and their struggles with sexuality, drugs, paying their rent, and life under the shadow of AIDS. It takes place in the East Village of New York City from 1989 to 1990. The film features six of the original Broadway cast members reprising their roles.\n\n[Passage {\"doc_id\": \"hotpotqa:171\", \"source_id\": \"hotpotqa:171\"}]\nAdam Pascal\nAdam Pascal (born October 25, 1970) is an American actor, singer, and musician, known for his performance as Roger Davis in the original cast of Jonathan Larson's musical \"Rent\" on Broadway 1996, the 2005 movie version of the musical, and the Broadway Tour of \"Rent\" in 2009. He is also known for originating the role of Radames in Elton John and Tim Rice's \"Aida\", for playing the Emcee from the 1998 revival of \"Cabaret\", and for playing Huey Calhoun in the Broadway Company of \"Memphis\". Most recently, he played William Shakespeare in the Tony Award-winning musical \"Something Rotten!\""
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "d269a4e29c95b48c2eff2b12b130f024976a675b9087cd489460178f3a279dab",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "117",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791599119.83628,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791599121.566678
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.9814534382002796
+      },
+      {
+        "index": 1,
+        "relevance_score": 0.9711290930537122
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 2428,
+      "completion_tokens": 4,
+      "total_tokens": 2432
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

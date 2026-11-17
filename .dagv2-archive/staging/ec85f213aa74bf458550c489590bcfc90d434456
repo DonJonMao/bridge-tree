@@ -1,0 +1,232 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_ test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[False-False] _
+
+ancestor = False, same_task = False
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        state.integrate([decisive], reader.pending_variables())
+        certificate = controller.candidate()
+        expected_variables = {'a', 'p'} if ancestor else {'a'}
+        assert certificate['output'] is False
+        assert set(certificate['binding_dependencies']) == expected_variables
+        old_routes = deepcopy(state.routes)
+        old_issues = deepcopy(reader.evidence_obligations)
+        assert controller.audit(certificate)
+        assert len(calls.requests) == 1
+        data = calls.requests[0]['data']
+        assert set(data['requested_slots']) == expected_variables
+>       assert set(data['supported_parents']) == expected_variables
+E       AssertionError: assert {'a', 'b'} == {'a'}
+E         
+E         Extra items in the left set:
+E         'b'
+E         Use -v to get more diff
+
+tests/test_v4_audit_dependency_projection.py:86: AssertionError
+_ test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[False-True] _
+
+ancestor = True, same_task = False
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        state.integrate([decisive], reader.pending_variables())
+        certificate = controller.candidate()
+        expected_variables = {'a', 'p'} if ancestor else {'a'}
+        assert certificate['output'] is False
+        assert set(certificate['binding_dependencies']) == expected_variables
+        old_routes = deepcopy(state.routes)
+        old_issues = deepcopy(reader.evidence_obligations)
+        assert controller.audit(certificate)
+        assert len(calls.requests) == 1
+        data = calls.requests[0]['data']
+        assert set(data['requested_slots']) == expected_variables
+>       assert set(data['supported_parents']) == expected_variables
+E       AssertionError: assert {'a', 'b', 'p'} == {'a', 'p'}
+E         
+E         Extra items in the left set:
+E         'b'
+E         Use -v to get more diff
+
+tests/test_v4_audit_dependency_projection.py:86: AssertionError
+_ test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[True-False] _
+
+ancestor = False, same_task = True
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        state.integrate([decisive], reader.pending_variables())
+        certificate = controller.candidate()
+        expected_variables = {'a', 'p'} if ancestor else {'a'}
+        assert certificate['output'] is False
+        assert set(certificate['binding_dependencies']) == expected_variables
+        old_routes = deepcopy(state.routes)
+        old_issues = deepcopy(reader.evidence_obligations)
+        assert controller.audit(certificate)
+        assert len(calls.requests) == 1
+        data = calls.requests[0]['data']
+        assert set(data['requested_slots']) == expected_variables
+>       assert set(data['supported_parents']) == expected_variables
+E       AssertionError: assert {'a', 'b'} == {'a'}
+E         
+E         Extra items in the left set:
+E         'b'
+E         Use -v to get more diff
+
+tests/test_v4_audit_dependency_projection.py:86: AssertionError
+_ test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[True-True] _
+
+ancestor = True, same_task = True
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        state.integrate([decisive], reader.pending_variables())
+        certificate = controller.candidate()
+        expected_variables = {'a', 'p'} if ancestor else {'a'}
+        assert certificate['output'] is False
+        assert set(certificate['binding_dependencies']) == expected_variables
+        old_routes = deepcopy(state.routes)
+        old_issues = deepcopy(reader.evidence_obligations)
+        assert controller.audit(certificate)
+        assert len(calls.requests) == 1
+        data = calls.requests[0]['data']
+        assert set(data['requested_slots']) == expected_variables
+>       assert set(data['supported_parents']) == expected_variables
+E       AssertionError: assert {'a', 'b', 'p'} == {'a', 'p'}
+E         
+E         Extra items in the left set:
+E         'b'
+E         Use -v to get more diff
+
+tests/test_v4_audit_dependency_projection.py:86: AssertionError
+_ test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[False-False] _
+
+ancestor = False, same_task = False
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        checked = []
+        original_fits = reader._fits
+        def checked_fits(operation, data):
+            checked.append((operation, deepcopy(data)))
+            return original_fits(operation, data)
+        reader._fits = checked_fits
+        before = deepcopy((state.public_dict(), reader.obligation_snapshot()))
+        assert reader._handoff_failures([decisive], {('a', decisive['id'])}) == {}
+        assert (state.public_dict(), reader.obligation_snapshot()) == before
+        prospective = [data for operation, data in checked if operation == 'audit_joint']
+        assert len(prospective) == 1
+        state.integrate([decisive], reader.pending_variables())
+        assert controller.audit(controller.candidate())
+        actual = calls.requests[-1]['data']
+        for field in ('task', 'requested_slots', 'supported_parents', 'source_spans'):
+            assert prospective[0][field] == actual[field]
+>       assert 'b' not in actual['supported_parents']
+E       AssertionError: assert 'b' not in {'a': {'value': False, 'version': 1, 'source_ids': ['s1'], 'demand': 'necessary', ...}, 'b': {'value': True, 'version': 1, 'source_ids': ['s2'], 'demand': 'later', ...}}
+
+tests/test_v4_audit_dependency_projection.py:115: AssertionError
+_ test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[False-True] _
+
+ancestor = True, same_task = False
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        checked = []
+        original_fits = reader._fits
+        def checked_fits(operation, data):
+            checked.append((operation, deepcopy(data)))
+            return original_fits(operation, data)
+        reader._fits = checked_fits
+        before = deepcopy((state.public_dict(), reader.obligation_snapshot()))
+        assert reader._handoff_failures([decisive], {('a', decisive['id'])}) == {}
+        assert (state.public_dict(), reader.obligation_snapshot()) == before
+        prospective = [data for operation, data in checked if operation == 'audit_joint']
+        assert len(prospective) == 1
+        state.integrate([decisive], reader.pending_variables())
+        assert controller.audit(controller.candidate())
+        actual = calls.requests[-1]['data']
+        for field in ('task', 'requested_slots', 'supported_parents', 'source_spans'):
+            assert prospective[0][field] == actual[field]
+>       assert 'b' not in actual['supported_parents']
+E       AssertionError: assert 'b' not in {'p': {'value': True, 'version': 1, 'source_ids': ['s3'], 'demand': 'origin', ...}, 'a': {'value': False, 'version': 1..., 's3'], 'demand': 'necessary', ...}, 'b': {'value': True, 'version': 1, 'source_ids': ['s2'], 'demand': 'later', ...}}
+
+tests/test_v4_audit_dependency_projection.py:115: AssertionError
+_ test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[True-False] _
+
+ancestor = False, same_task = True
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        checked = []
+        original_fits = reader._fits
+        def checked_fits(operation, data):
+            checked.append((operation, deepcopy(data)))
+            return original_fits(operation, data)
+        reader._fits = checked_fits
+        before = deepcopy((state.public_dict(), reader.obligation_snapshot()))
+        assert reader._handoff_failures([decisive], {('a', decisive['id'])}) == {}
+        assert (state.public_dict(), reader.obligation_snapshot()) == before
+        prospective = [data for operation, data in checked if operation == 'audit_joint']
+        assert len(prospective) == 1
+        state.integrate([decisive], reader.pending_variables())
+        assert controller.audit(controller.candidate())
+        actual = calls.requests[-1]['data']
+        for field in ('task', 'requested_slots', 'supported_parents', 'source_spans'):
+            assert prospective[0][field] == actual[field]
+>       assert 'b' not in actual['supported_parents']
+E       AssertionError: assert 'b' not in {'a': {'value': False, 'version': 1, 'source_ids': ['s1'], 'demand': 'necessary', ...}, 'b': {'value': True, 'version': 1, 'source_ids': ['s2'], 'demand': 'necessary', ...}}
+
+tests/test_v4_audit_dependency_projection.py:115: AssertionError
+_ test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[True-True] _
+
+ancestor = True, same_task = True
+
+    @pytest.mark.parametrize('ancestor', [False, True])
+    @pytest.mark.parametrize('same_task', [False, True])
+    def test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope(ancestor, same_task):
+        controller, reader, engine, state, calls, decisive = setup_case(ancestor=ancestor, same_task=same_task)
+        checked = []
+        original_fits = reader._fits
+        def checked_fits(operation, data):
+            checked.append((operation, deepcopy(data)))
+            return original_fits(operation, data)
+        reader._fits = checked_fits
+        before = deepcopy((state.public_dict(), reader.obligation_snapshot()))
+        assert reader._handoff_failures([decisive], {('a', decisive['id'])}) == {}
+        assert (state.public_dict(), reader.obligation_snapshot()) == before
+        prospective = [data for operation, data in checked if operation == 'audit_joint']
+        assert len(prospective) == 1
+        state.integrate([decisive], reader.pending_variables())
+        assert controller.audit(controller.candidate())
+        actual = calls.requests[-1]['data']
+        for field in ('task', 'requested_slots', 'supported_parents', 'source_spans'):
+            assert prospective[0][field] == actual[field]
+>       assert 'b' not in actual['supported_parents']
+E       AssertionError: assert 'b' not in {'p': {'value': True, 'version': 1, 'source_ids': ['s3'], 'demand': 'origin', ...}, 'a': {'value': False, 'version': 1...demand': 'necessary', ...}, 'b': {'value': True, 'version': 1, 'source_ids': ['s2', 's3'], 'demand': 'necessary', ...}}
+
+tests/test_v4_audit_dependency_projection.py:115: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v4_audit_dependency_projection.py::test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[False-False]
+FAILED tests/test_v4_audit_dependency_projection.py::test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[False-True]
+FAILED tests/test_v4_audit_dependency_projection.py::test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[True-False]
+FAILED tests/test_v4_audit_dependency_projection.py::test_actual_audit_uses_selected_dependencies_and_preserves_eliminated_obligation[True-True]
+FAILED tests/test_v4_audit_dependency_projection.py::test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[False-False]
+FAILED tests/test_v4_audit_dependency_projection.py::test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[False-True]
+FAILED tests/test_v4_audit_dependency_projection.py::test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[True-False]
+FAILED tests/test_v4_audit_dependency_projection.py::test_prospective_handoff_and_actual_audit_have_the_same_dependency_scope[True-True]
+8 failed in 0.27s

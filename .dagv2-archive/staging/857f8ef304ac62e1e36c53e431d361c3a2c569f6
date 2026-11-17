@@ -1,0 +1,944 @@
+{
+  "audit_utc": "2026-10-16T16:13:06.545264+00:00",
+  "root": "/Users/mao/projects/dagv2_deploy/20261016_dual_benchmark_v4/real_smoke_v2",
+  "scope": "generation telemetry only; no answers scored",
+  "official_references_or_evaluation_read": false,
+  "generation_or_scoring_called": false,
+  "generation_progress": {
+    "progress.json": {
+      "state": "complete",
+      "current": null
+    },
+    "webwalkerqa/progress.json": {
+      "state": "complete",
+      "completed": 4,
+      "total": 4,
+      "failed_tasks": 2
+    },
+    "browsecomp_plus/progress.json": {
+      "state": "complete",
+      "completed": 4,
+      "total": 4,
+      "failed_tasks": 4
+    }
+  },
+  "summary": {
+    "expected_tasks": 8,
+    "discovered_tasks": 8,
+    "terminal_tasks": 8,
+    "not_yet_discovered_tasks": 0,
+    "generation_complete": true,
+    "terminal_status_counts": {
+      "budget_exhausted": 3,
+      "ok": 2,
+      "failed": 3
+    },
+    "error_findings": 0,
+    "warning_findings": 0,
+    "assessment": "complete_no_program_or_accounting_errors"
+  },
+  "interpretation": [
+    "budget_exhausted/unresolved/partial and failed_tasks counts are algorithm outcomes, not program crashes.",
+    "Repair invocations and repair reservations differ legitimately; they are reported separately.",
+    "HTTP attempt charges include failures; successful token totals omit cache replays and do not invent failed-attempt usage.",
+    "Active files are a partial snapshot; strict ledger and cross-journal comparisons apply only to terminal tasks.",
+    "Only typed exceptions and explicit accounting/worker invariants are findings; arbitrary error words are not."
+  ],
+  "tasks": [
+    {
+      "dataset": "webwalkerqa",
+      "question_id": "wwqa-0000",
+      "arm": "dagbt_joint_memory_v1",
+      "terminal": true,
+      "answer_status": "budget_exhausted",
+      "outcome_category": "controlled_budget_terminal",
+      "completion_kind": "incomplete",
+      "failure_type": null,
+      "diagnostic_error_types": {
+        "BudgetExceeded": 1
+      },
+      "classified_errors": {
+        "controlled_budget_or_input_guard": {
+          "BudgetExceeded": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 23,
+          "http_attempts": 21,
+          "web_actions": 4,
+          "json_repairs": 6,
+          "cache_hits": 2
+        },
+        "published_used": {
+          "llm": 23,
+          "http_attempts": 21,
+          "web_actions": 4,
+          "json_repairs": 6,
+          "cache_hits": 2
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6,
+          "web_actions": 36
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 23,
+        "logical_operations": {
+          "planner": 1,
+          "joint_read": 7,
+          "web_navigate": 2,
+          "web_grounding_review": 8,
+          "joint_read_repair": 5
+        },
+        "published_repair_calls": 5,
+        "repair_reservations": 6,
+        "call_journal_starts": 23,
+        "cache_hit_starts": 2,
+        "cached_attempt_charges": 2,
+        "physical_model_http_attempts": 21,
+        "successful_model_http_responses": 21,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 4,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 21,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 139370,
+          "completion_tokens": 8246
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 23
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 76,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 978318,
+          "parsed_events": 377,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 4642,
+          "parsed_events": 23,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 138180,
+          "parsed_events": 137,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "webwalkerqa",
+      "question_id": "wwqa-0000",
+      "arm": "dagbt_residual_memory_v2",
+      "terminal": true,
+      "answer_status": "budget_exhausted",
+      "outcome_category": "controlled_budget_terminal",
+      "completion_kind": "incomplete",
+      "failure_type": null,
+      "diagnostic_error_types": {
+        "BudgetExceeded": 1
+      },
+      "classified_errors": {
+        "controlled_budget_or_input_guard": {
+          "BudgetExceeded": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 12
+        },
+        "published_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "web_actions": 12
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6,
+          "web_actions": 36
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 23,
+        "logical_operations": {
+          "planner": 1,
+          "joint_read": 13,
+          "web_navigate": 9
+        },
+        "published_repair_calls": 0,
+        "repair_reservations": 0,
+        "call_journal_starts": 23,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 23,
+        "successful_model_http_responses": 23,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 11,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 23,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 196165,
+          "completion_tokens": 3278
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 23
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 206,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 1308653,
+          "parsed_events": 601,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 4544,
+          "parsed_events": 23,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 276574,
+          "parsed_events": 266,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "webwalkerqa",
+      "question_id": "wwqa-0001",
+      "arm": "dagbt_joint_memory_v1",
+      "terminal": true,
+      "answer_status": "ok",
+      "outcome_category": "execution_success",
+      "completion_kind": "certified_symbolic",
+      "failure_type": null,
+      "diagnostic_error_types": {},
+      "classified_errors": {},
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 11,
+          "http_attempts": 11,
+          "web_actions": 4,
+          "json_repairs": 1
+        },
+        "published_used": {
+          "llm": 11,
+          "http_attempts": 11,
+          "web_actions": 4,
+          "json_repairs": 1
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6,
+          "web_actions": 36
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 11,
+        "logical_operations": {
+          "planner": 1,
+          "joint_read": 4,
+          "web_navigate": 4,
+          "web_grounding_review": 1,
+          "audit_joint": 1
+        },
+        "published_repair_calls": 1,
+        "repair_reservations": 1,
+        "call_journal_starts": 11,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 11,
+        "successful_model_http_responses": 11,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 0,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 11,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 75188,
+          "completion_tokens": 1793
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 11
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 42,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 424754,
+          "parsed_events": 194,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 2175,
+          "parsed_events": 11,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 67352,
+          "parsed_events": 66,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "webwalkerqa",
+      "question_id": "wwqa-0001",
+      "arm": "dagbt_residual_memory_v2",
+      "terminal": true,
+      "answer_status": "ok",
+      "outcome_category": "execution_success",
+      "completion_kind": "certified_symbolic",
+      "failure_type": null,
+      "diagnostic_error_types": {},
+      "classified_errors": {},
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 10,
+          "http_attempts": 10,
+          "web_actions": 5
+        },
+        "published_used": {
+          "llm": 10,
+          "http_attempts": 10,
+          "web_actions": 5
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6,
+          "web_actions": 36
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 10,
+        "logical_operations": {
+          "planner": 1,
+          "joint_read": 4,
+          "web_navigate": 3,
+          "web_grounding_review": 1,
+          "audit_joint": 1
+        },
+        "published_repair_calls": 0,
+        "repair_reservations": 0,
+        "call_journal_starts": 10,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 10,
+        "successful_model_http_responses": 10,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 5,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 10,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 63284,
+          "completion_tokens": 1704
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 10
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 41,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 384818,
+          "parsed_events": 191,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 1978,
+          "parsed_events": 10,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 64414,
+          "parsed_events": 63,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "browsecomp_plus",
+      "question_id": "769",
+      "arm": "dagbt_joint_memory_v1",
+      "terminal": true,
+      "answer_status": "failed",
+      "outcome_category": "worker_or_service_failure",
+      "completion_kind": null,
+      "failure_type": "ProtocolError",
+      "diagnostic_error_types": {
+        "ProtocolError": 1
+      },
+      "classified_errors": {
+        "model_protocol_or_content": {
+          "ProtocolError": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 3,
+        "logical_operations": {
+          "planner": 3
+        },
+        "published_repair_calls": null,
+        "repair_reservations": 2,
+        "call_journal_starts": 3,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 3,
+        "successful_model_http_responses": 3,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 0,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 3,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 13464,
+          "completion_tokens": 2056
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 3
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 3,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 94774,
+          "parsed_events": 37,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 581,
+          "parsed_events": 3,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 7864,
+          "parsed_events": 8,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "browsecomp_plus",
+      "question_id": "769",
+      "arm": "dagbt_residual_memory_v2",
+      "terminal": true,
+      "answer_status": "budget_exhausted",
+      "outcome_category": "controlled_budget_terminal",
+      "completion_kind": "incomplete",
+      "failure_type": null,
+      "diagnostic_error_types": {
+        "BudgetExceeded": 1
+      },
+      "classified_errors": {
+        "controlled_budget_or_input_guard": {
+          "BudgetExceeded": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "search_actions": 8
+        },
+        "published_used": {
+          "llm": 23,
+          "http_attempts": 23,
+          "search_actions": 8
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6,
+          "search_actions": 36
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 23,
+        "logical_operations": {
+          "planner": 1,
+          "corpus_search": 8,
+          "joint_read": 14
+        },
+        "published_repair_calls": 0,
+        "repair_reservations": 0,
+        "call_journal_starts": 23,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 23,
+        "successful_model_http_responses": 23,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 0,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 23,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 154328,
+          "completion_tokens": 1750
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 23
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 475,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 1422847,
+          "parsed_events": 793,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 4546,
+          "parsed_events": 23,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 558236,
+          "parsed_events": 528,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "browsecomp_plus",
+      "question_id": "770",
+      "arm": "dagbt_joint_memory_v1",
+      "terminal": true,
+      "answer_status": "failed",
+      "outcome_category": "worker_or_service_failure",
+      "completion_kind": null,
+      "failure_type": "ProtocolError",
+      "diagnostic_error_types": {
+        "ProtocolError": 1
+      },
+      "classified_errors": {
+        "model_protocol_or_content": {
+          "ProtocolError": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 3,
+        "logical_operations": {
+          "planner": 3
+        },
+        "published_repair_calls": null,
+        "repair_reservations": 2,
+        "call_journal_starts": 3,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 3,
+        "successful_model_http_responses": 3,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 0,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 3,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 13525,
+          "completion_tokens": 2362
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 3
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 3,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 94217,
+          "parsed_events": 37,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 580,
+          "parsed_events": 3,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 7864,
+          "parsed_events": 8,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    },
+    {
+      "dataset": "browsecomp_plus",
+      "question_id": "770",
+      "arm": "dagbt_residual_memory_v2",
+      "terminal": true,
+      "answer_status": "failed",
+      "outcome_category": "worker_or_service_failure",
+      "completion_kind": null,
+      "failure_type": "ProtocolError",
+      "diagnostic_error_types": {
+        "ProtocolError": 1
+      },
+      "classified_errors": {
+        "model_protocol_or_content": {
+          "ProtocolError": 1
+        }
+      },
+      "worker_log": {
+        "exists": true,
+        "traceback_count": 0,
+        "fatal_signatures": []
+      },
+      "budget": {
+        "journal_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_used": {
+          "llm": 3,
+          "http_attempts": 3,
+          "json_repairs": 2
+        },
+        "published_limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "protocol_caps": {
+          "llm": 24,
+          "json_repairs": 6,
+          "web_actions": 36,
+          "search_actions": 36,
+          "set_score": 0,
+          "reader": 0
+        },
+        "violations": []
+      },
+      "calls": {
+        "logical_reasoning_requests": 3,
+        "logical_operations": {
+          "planner": 3
+        },
+        "published_repair_calls": null,
+        "repair_reservations": 2,
+        "call_journal_starts": 3,
+        "cache_hit_starts": 0,
+        "cached_attempt_charges": 0,
+        "physical_model_http_attempts": 3,
+        "successful_model_http_responses": 3,
+        "attempts_without_success_response": 0,
+        "physical_charge_balance": 0,
+        "web_http_attempt_events": 0,
+        "browser_network_request_events": 0
+      },
+      "tokens": {
+        "successful_llm_responses": 3,
+        "successful_response_usage_totals": {
+          "prompt_tokens": 13520,
+          "completion_tokens": 2355
+        },
+        "successful_responses_missing_usage": 0,
+        "usage_totals_exclude_cache_replay": true,
+        "failed_or_inflight_attempt_tokens_are_unknown": false,
+        "exact_usage_validation_counts": {
+          "matched": 3
+        },
+        "missing_validation_at_snapshot": {},
+        "tokenizer_http_attempts": 3,
+        "tokenizer_errors": {},
+        "context_guard_rejections": 0
+      },
+      "cost_log_integrity": "reconciled",
+      "journal_snapshots": {
+        "fusion_events.jsonl": {
+          "exists": true,
+          "bytes": 94162,
+          "parsed_events": 37,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "call_events.jsonl": {
+          "exists": true,
+          "bytes": 580,
+          "parsed_events": 3,
+          "malformed_lines": [],
+          "partial_last_line": false
+        },
+        "tokenization_events.jsonl": {
+          "exists": true,
+          "bytes": 7867,
+          "parsed_events": 8,
+          "malformed_lines": [],
+          "partial_last_line": false
+        }
+      },
+      "findings": []
+    }
+  ]
+}
