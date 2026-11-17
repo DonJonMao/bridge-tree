@@ -1,0 +1,4543 @@
+{
+  "run": "v4_validation_r20",
+  "source_commit": "6c046374008ce2e45f817d6bc9876b3ab927ab18",
+  "scope": "Read-only saved published rows, requests, events and source. No labels, scores, services, tokenizer calls or run/source mutations.",
+  "cases": {
+    "2": {
+      "unit_id": "f546a74f-54de-40d0-9d88-8b0e30467d7b",
+      "status": "unresolved_or_exhausted",
+      "audit_complete": false,
+      "versions": {
+        "creative_history": 1,
+        "getaway_constraints": 1,
+        "creative_preferences": 0,
+        "context_summary": 0,
+        "response": 0
+      },
+      "pending_variables": [
+        "creative_preferences",
+        "getaway_constraints"
+      ],
+      "ledger": {
+        "limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "used": {
+          "llm": 10,
+          "http_attempts": 13,
+          "json_repairs": 5,
+          "ann": 3,
+          "embedding_http": 3
+        },
+        "remaining": {
+          "ann": 33,
+          "set_score": 0,
+          "llm": 14,
+          "reader": 0,
+          "json_repairs": 1
+        }
+      },
+      "errors": [
+        {
+          "node_id": "getaway_constraints",
+          "type": "InputOverflow",
+          "error": "Local sources/parents/counters exceed real wire capacity"
+        },
+        {
+          "node_id": "creative_preferences",
+          "type": "InputOverflow",
+          "error": "Local sources/parents/counters exceed real wire capacity"
+        }
+      ],
+      "plan": [
+        {
+          "task": "creative_history",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "ac7e40c4fd311dfc8fec412fef3b59dfd3e1d6ad0b7abd7d0d67622f404253c5"
+        },
+        {
+          "task": "getaway_constraints",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "9e6b356cb43bea5a23f1c66be77b49dae67b9bddf47e448664be94f14a90744a"
+        },
+        {
+          "task": "creative_preferences",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "6f49e1d01837b7dec1dc754291a6c0951830b194e82efd64beb1b87dd325665d"
+        },
+        {
+          "task": "context_summary",
+          "inputs": [
+            "creative_history",
+            "getaway_constraints",
+            "creative_preferences"
+          ],
+          "execution": "compose",
+          "question_hash": "4493d18b2033bd1e021db2834ec3a3ce153ff4584b0bedeb420a1c485b03db69"
+        },
+        {
+          "task": "response",
+          "inputs": [
+            "context_summary"
+          ],
+          "execution": "compose",
+          "question_hash": "4e44f97760b37f0989285bf1f00157c29c2ce29eb8d4fe0c91ccd6307f4de2a4"
+        }
+      ],
+      "requests": [
+        {
+          "call": 3,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/417953647817a541e44848a57b916a8faa2ac5280fba04e5fc1b13d8af507bfd.json",
+          "file_sha256": "c989048d72b3419055d2617bc4d7f0285eb61d98e22be732da9ddbc138332d7f",
+          "task": "creative_history",
+          "sources": 48,
+          "source_ids": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48"
+          ],
+          "input_tokens": 7373,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "creative_history"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "creative_history",
+              "observations": [
+                {
+                  "id": "obs_creative_history_1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s11",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s23",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s35",
+                    "s36",
+                    "s42",
+                    "s43"
+                  ],
+                  "value_hash": "6df99522bace036adf6636644b4845c392ee6aad51dfaea8239bc10e762aa016",
+                  "row_hash": "1ac0e504a063496983d4782751d959bf796ab40eaf35f64cc066f8b36a39230c",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 4,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/3183f8cf6126908859327b0daedd86734f696652f6ab133458b74e791bf3b5c2.json",
+          "file_sha256": "6dc1fc72e8e434549be9c49f6623004774d3895a2fe861467b7b8b2aad367255",
+          "task": "getaway_constraints",
+          "sources": 49,
+          "source_ids": [
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s57",
+            "s58",
+            "s59",
+            "s60",
+            "s61",
+            "s62",
+            "s63",
+            "s64",
+            "s65",
+            "s66",
+            "s67",
+            "s68",
+            "s69",
+            "s70",
+            "s71",
+            "s72",
+            "s73",
+            "s74",
+            "s75",
+            "s76",
+            "s77",
+            "s86",
+            "s87",
+            "s88",
+            "s89",
+            "s90",
+            "s91",
+            "s92"
+          ],
+          "input_tokens": 7391,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "getaway_constraints"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "getaway_constraints",
+              "observations": [
+                {
+                  "id": "obs_getaway_1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s23",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s59",
+                    "s60",
+                    "s61",
+                    "s62",
+                    "s69",
+                    "s70",
+                    "s71",
+                    "s72",
+                    "s88",
+                    "s89",
+                    "s90"
+                  ],
+                  "value_hash": "db90c0c8810d89ad77634a781e506521350857852e14528be0e09fceab9d678e",
+                  "row_hash": "7b35489b512bcb310575bc9214f874f1415e65ed3ed4022887cd7256f11bc541",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 1,
+              "unresolved_hashes": [
+                "38607e2f6e1c91ca3ad5a3d4b97b1f837788009a41beb6ad35d62787b178a32a"
+              ],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 5,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/ed7350a8cf281743d8eaadd6991c5ccd0cee9fa8d0a0976278d185cc16ca9de2.json",
+          "file_sha256": "18e5d5c7a0ed5ffc972668a8e2c696cf2faef1fbcc47f45d419d09fa59b150d8",
+          "task": "getaway_constraints",
+          "sources": 74,
+          "source_ids": [
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s57",
+            "s58",
+            "s59",
+            "s60",
+            "s61",
+            "s62",
+            "s63",
+            "s64",
+            "s65",
+            "s66",
+            "s67",
+            "s68",
+            "s69",
+            "s70",
+            "s71",
+            "s72",
+            "s73",
+            "s74",
+            "s75",
+            "s76",
+            "s77",
+            "s86",
+            "s87",
+            "s88",
+            "s89",
+            "s90",
+            "s91",
+            "s92",
+            "s93",
+            "s94",
+            "s95",
+            "s96",
+            "s97",
+            "s98",
+            "s99",
+            "s100",
+            "s101",
+            "s102",
+            "s103",
+            "s104",
+            "s117",
+            "s118",
+            "s119",
+            "s120",
+            "s121",
+            "s122",
+            "s123",
+            "s124",
+            "s125",
+            "s126",
+            "s127",
+            "s128",
+            "s129"
+          ],
+          "input_tokens": 9993,
+          "output_cap": 658,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "required": [
+                            "summary_revision"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "retract_ids": {
+                              "maxItems": 0
+                            },
+                            "stance": {
+                              "const": "support"
+                            },
+                            "summary_revision": {
+                              "properties": {
+                                "previous_version": {
+                                  "const": 1
+                                },
+                                "supersedes_route_ids": {
+                                  "items": {
+                                    "enum": [
+                                      "fact_d3ab85d6737f70788f02c0ea"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_d3ab85d6737f70788f02c0ea"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_5edf1094a83fac4bf4752e86"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "getaway_constraints"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "getaway_constraints",
+              "observations": [
+                {
+                  "id": "fact_d3ab85d6737f70788f02c0ea",
+                  "stance": "support",
+                  "source_ids": [
+                    "s24",
+                    "s69",
+                    "s90",
+                    "s62",
+                    "s72",
+                    "s70",
+                    "s60",
+                    "s88",
+                    "s61",
+                    "s25",
+                    "s71",
+                    "s59",
+                    "s27",
+                    "s23",
+                    "s89",
+                    "s26"
+                  ],
+                  "value_hash": "db90c0c8810d89ad77634a781e506521350857852e14528be0e09fceab9d678e",
+                  "row_hash": "7b04270de277cecb0220ec2fa5e858ff76bb3cd3f28de2b65965e1ca41c2381d",
+                  "parent_versions": {},
+                  "summary_revision": true
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_5edf1094a83fac4bf4752e86"
+              ],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_5edf1094a83fac4bf4752e86",
+              "variable": "getaway_constraints",
+              "source_count": 49,
+              "covered_count": 16,
+              "missing_count": 33
+            }
+          ]
+        },
+        {
+          "call": 6,
+          "operation": "joint_read_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/47d79b86fb52a22757cc0fae83c9baa2bad533af51615351056123b9370fb520.json",
+          "file_sha256": "94a5142b6bb73f975626f493812b99293664ef52c27c8faf18b5d2f13a34504c",
+          "task": "getaway_constraints",
+          "sources": 74,
+          "source_ids": [
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s57",
+            "s58",
+            "s59",
+            "s60",
+            "s61",
+            "s62",
+            "s63",
+            "s64",
+            "s65",
+            "s66",
+            "s67",
+            "s68",
+            "s69",
+            "s70",
+            "s71",
+            "s72",
+            "s73",
+            "s74",
+            "s75",
+            "s76",
+            "s77",
+            "s86",
+            "s87",
+            "s88",
+            "s89",
+            "s90",
+            "s91",
+            "s92",
+            "s93",
+            "s94",
+            "s95",
+            "s96",
+            "s97",
+            "s98",
+            "s99",
+            "s100",
+            "s101",
+            "s102",
+            "s103",
+            "s104",
+            "s117",
+            "s118",
+            "s119",
+            "s120",
+            "s121",
+            "s122",
+            "s123",
+            "s124",
+            "s125",
+            "s126",
+            "s127",
+            "s128",
+            "s129"
+          ],
+          "input_tokens": 11188,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": false,
+          "schema_errors": [
+            {
+              "path": [
+                "slots",
+                0
+              ],
+              "validator": "oneOf"
+            }
+          ],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "required": [
+                            "summary_revision"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "retract_ids": {
+                              "maxItems": 0
+                            },
+                            "stance": {
+                              "const": "support"
+                            },
+                            "summary_revision": {
+                              "properties": {
+                                "previous_version": {
+                                  "const": 1
+                                },
+                                "supersedes_route_ids": {
+                                  "items": {
+                                    "enum": [
+                                      "fact_d3ab85d6737f70788f02c0ea"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "id": {
+                        "not": {
+                          "enum": [
+                            "fact_d3ab85d6737f70788f02c0ea"
+                          ]
+                        }
+                      },
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_d3ab85d6737f70788f02c0ea"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_5edf1094a83fac4bf4752e86"
+                    ]
+                  }
+                },
+                "reviewed_observation_ids": {
+                  "items": {
+                    "enum": [
+                      "fact_d3ab85d6737f70788f02c0ea"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "getaway_constraints"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {
+            "getaway_constraints": [
+              "fact_d3ab85d6737f70788f02c0ea"
+            ]
+          },
+          "repair_scope_keys": [
+            "failed",
+            "attempt",
+            "previous_response_identity"
+          ],
+          "response_slots": [
+            {
+              "variable": "getaway_constraints",
+              "observations": [
+                {
+                  "id": "fact_d3ab85d6737f70788f02c0ea",
+                  "stance": "support",
+                  "source_ids": [
+                    "s24",
+                    "s69",
+                    "s90",
+                    "s62",
+                    "s72",
+                    "s70",
+                    "s60",
+                    "s88",
+                    "s61",
+                    "s25",
+                    "s71",
+                    "s59",
+                    "s27",
+                    "s23",
+                    "s89",
+                    "s26"
+                  ],
+                  "value_hash": "db90c0c8810d89ad77634a781e506521350857852e14528be0e09fceab9d678e",
+                  "row_hash": "7b04270de277cecb0220ec2fa5e858ff76bb3cd3f28de2b65965e1ca41c2381d",
+                  "parent_versions": {},
+                  "summary_revision": true
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_5edf1094a83fac4bf4752e86"
+              ],
+              "reviewed_observation_ids": [
+                "fact_d3ab85d6737f70788f02c0ea"
+              ],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_5edf1094a83fac4bf4752e86",
+              "variable": "getaway_constraints",
+              "source_count": 49,
+              "covered_count": 16,
+              "missing_count": 33
+            }
+          ]
+        },
+        {
+          "call": 7,
+          "operation": "joint_read_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/d09123964c4d252ae41035010105590021e15535942a691b5645e97baab84dc9.json",
+          "file_sha256": "b22a8aeb076017c710e488e9ca09f7fa526084be62971e73f92b5e6a0685a15f",
+          "task": "getaway_constraints",
+          "sources": 74,
+          "source_ids": [
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s57",
+            "s58",
+            "s59",
+            "s60",
+            "s61",
+            "s62",
+            "s63",
+            "s64",
+            "s65",
+            "s66",
+            "s67",
+            "s68",
+            "s69",
+            "s70",
+            "s71",
+            "s72",
+            "s73",
+            "s74",
+            "s75",
+            "s76",
+            "s77",
+            "s86",
+            "s87",
+            "s88",
+            "s89",
+            "s90",
+            "s91",
+            "s92",
+            "s93",
+            "s94",
+            "s95",
+            "s96",
+            "s97",
+            "s98",
+            "s99",
+            "s100",
+            "s101",
+            "s102",
+            "s103",
+            "s104",
+            "s117",
+            "s118",
+            "s119",
+            "s120",
+            "s121",
+            "s122",
+            "s123",
+            "s124",
+            "s125",
+            "s126",
+            "s127",
+            "s128",
+            "s129"
+          ],
+          "input_tokens": 10871,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": false,
+          "schema_errors": [
+            {
+              "path": [
+                "slots",
+                0
+              ],
+              "validator": "oneOf"
+            }
+          ],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "required": [
+                            "summary_revision"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "retract_ids": {
+                              "maxItems": 0
+                            },
+                            "stance": {
+                              "const": "support"
+                            },
+                            "summary_revision": {
+                              "properties": {
+                                "previous_version": {
+                                  "const": 1
+                                },
+                                "supersedes_route_ids": {
+                                  "items": {
+                                    "enum": [
+                                      "fact_d3ab85d6737f70788f02c0ea"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "id": {
+                        "not": {
+                          "enum": [
+                            "fact_d3ab85d6737f70788f02c0ea"
+                          ]
+                        }
+                      },
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_d3ab85d6737f70788f02c0ea"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_5edf1094a83fac4bf4752e86"
+                    ]
+                  }
+                },
+                "reviewed_observation_ids": {
+                  "items": {
+                    "enum": [
+                      "fact_d3ab85d6737f70788f02c0ea"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "getaway_constraints"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {
+            "getaway_constraints": [
+              "fact_d3ab85d6737f70788f02c0ea"
+            ]
+          },
+          "repair_scope_keys": [
+            "failed",
+            "attempt",
+            "previous_response_identity"
+          ],
+          "response_slots": [
+            {
+              "variable": "getaway_constraints",
+              "observations": [
+                {
+                  "id": "fact_d3ab85d6737f70788f02c0ea",
+                  "stance": "support",
+                  "source_ids": [
+                    "s24",
+                    "s69",
+                    "s90",
+                    "s62",
+                    "s72",
+                    "s70",
+                    "s60",
+                    "s88",
+                    "s61",
+                    "s25",
+                    "s71",
+                    "s59",
+                    "s27",
+                    "s23",
+                    "s89",
+                    "s26"
+                  ],
+                  "value_hash": "db90c0c8810d89ad77634a781e506521350857852e14528be0e09fceab9d678e",
+                  "row_hash": "7b04270de277cecb0220ec2fa5e858ff76bb3cd3f28de2b65965e1ca41c2381d",
+                  "parent_versions": {},
+                  "summary_revision": true
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_5edf1094a83fac4bf4752e86"
+              ],
+              "reviewed_observation_ids": [
+                "fact_d3ab85d6737f70788f02c0ea"
+              ],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_5edf1094a83fac4bf4752e86",
+              "variable": "getaway_constraints",
+              "source_count": 49,
+              "covered_count": 16,
+              "missing_count": 33
+            }
+          ]
+        },
+        {
+          "call": 8,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/0a9026e78568f3834e9925a29f1967f56e7af22b1c65b3fe781cb65336b86ffc.json",
+          "file_sha256": "c56284609a386d261aa222d3fb2648a4c981dd9dc3a10667177319f62bbf29c9",
+          "task": "creative_preferences",
+          "sources": 47,
+          "source_ids": [
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s49",
+            "s50",
+            "s51",
+            "s52",
+            "s53",
+            "s54",
+            "s55"
+          ],
+          "input_tokens": 7349,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "creative_preferences"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "creative_preferences",
+              "observations": [
+                {
+                  "id": "cp1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s11",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s23",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s35",
+                    "s36",
+                    "s42",
+                    "s43",
+                    "s51",
+                    "s52"
+                  ],
+                  "value_hash": "d72bdec8b1bf19c429d0f36be4db043f886cbb8000c330a9812169d00fe6b498",
+                  "row_hash": "1efe62b2816155403b00fa602873bd19adb56e3261680bf877578328c65d2a73",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 9,
+          "operation": "joint_read_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/7930629f359adac85b656d807fa3602ede64d415d2be41d580b67643b7deb6cf.json",
+          "file_sha256": "1a47318e4780d061b885b7a4f3fb5e2f2c57d650af4dd25f7b32ef2a063a6199",
+          "task": "creative_preferences",
+          "sources": 47,
+          "source_ids": [
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s49",
+            "s50",
+            "s51",
+            "s52",
+            "s53",
+            "s54",
+            "s55"
+          ],
+          "input_tokens": 7769,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "creative_preferences"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {
+            "creative_preferences": []
+          },
+          "repair_scope_keys": [
+            "failed",
+            "attempt",
+            "previous_response_identity"
+          ],
+          "response_slots": [
+            {
+              "variable": "creative_preferences",
+              "observations": [
+                {
+                  "id": "cp1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s11",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s23",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s35",
+                    "s36",
+                    "s42",
+                    "s43",
+                    "s51",
+                    "s52"
+                  ],
+                  "value_hash": "d72bdec8b1bf19c429d0f36be4db043f886cbb8000c330a9812169d00fe6b498",
+                  "row_hash": "1efe62b2816155403b00fa602873bd19adb56e3261680bf877578328c65d2a73",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 10,
+          "operation": "joint_read_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/cf59a2b5d0378ef6c5a52ee1e11c651648b6855d5d9b19bfcc38be5548c063ba.json",
+          "file_sha256": "d3b0b25d801e0ea8e59448f904faa3c6470b814bdc617be403726ff99428daa0",
+          "task": "creative_preferences",
+          "sources": 99,
+          "source_ids": [
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48",
+            "s49",
+            "s50",
+            "s51",
+            "s52",
+            "s53",
+            "s54",
+            "s55",
+            "s56",
+            "s86",
+            "s87",
+            "s88",
+            "s89",
+            "s90",
+            "s91",
+            "s92",
+            "s93",
+            "s94",
+            "s95",
+            "s96",
+            "s97",
+            "s98",
+            "s99",
+            "s100",
+            "s101",
+            "s102",
+            "s103",
+            "s104",
+            "s143",
+            "s144",
+            "s145",
+            "s146",
+            "s147",
+            "s148",
+            "s149",
+            "s150",
+            "s151",
+            "s152",
+            "s153",
+            "s154",
+            "s155",
+            "s156",
+            "s157",
+            "s158",
+            "s159",
+            "s160",
+            "s161",
+            "s162",
+            "s163",
+            "s164",
+            "s175",
+            "s176",
+            "s177",
+            "s178",
+            "s179",
+            "s180",
+            "s181",
+            "s182",
+            "s183",
+            "s184"
+          ],
+          "input_tokens": 11856,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_failed_batch_ids": {
+                  "items": {
+                    "enum": [
+                      "failed_batch_1d98f291ca860357591e57e3"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "creative_preferences"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "creative_preferences",
+              "observations": [
+                {
+                  "id": "cp1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s11",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s23",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s35",
+                    "s36",
+                    "s42",
+                    "s43",
+                    "s51",
+                    "s52"
+                  ],
+                  "value_hash": "d72bdec8b1bf19c429d0f36be4db043f886cbb8000c330a9812169d00fe6b498",
+                  "row_hash": "1efe62b2816155403b00fa602873bd19adb56e3261680bf877578328c65d2a73",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": [
+                "failed_batch_1d98f291ca860357591e57e3"
+              ]
+            }
+          ],
+          "obligation_coverage": []
+        }
+      ],
+      "selected_events": [
+        {
+          "sequence": 337,
+          "event": "residual_action_incomplete",
+          "node_id": "getaway_constraints",
+          "type": "InputOverflow"
+        },
+        {
+          "sequence": 401,
+          "event": "joint_support_capacity_rejected",
+          "next_node_id": "context_summary",
+          "next_operation": "joint_read",
+          "source_spans": 85,
+          "context_tokens": 16384
+        },
+        {
+          "sequence": 415,
+          "event": "joint_support_capacity_rejected",
+          "next_node_id": "context_summary",
+          "next_operation": "joint_read",
+          "source_spans": 85,
+          "context_tokens": 16384
+        },
+        {
+          "sequence": 416,
+          "event": "joint_repair_unchanged",
+          "node_id": "creative_preferences",
+          "operation": "joint_read_repair",
+          "repair_attempt": 2
+        },
+        {
+          "sequence": 444,
+          "event": "joint_support_capacity_rejected",
+          "next_node_id": "context_summary",
+          "next_operation": "joint_read",
+          "source_spans": 85,
+          "context_tokens": 16384
+        },
+        {
+          "sequence": 446,
+          "event": "joint_repair_input_unavailable",
+          "node_id": "creative_preferences",
+          "operation": "joint_read_repair",
+          "repair_attempt": 1,
+          "input_tokens": 12284,
+          "output_token_reserve": 4096,
+          "input_margin": 256,
+          "context_tokens": 16384
+        },
+        {
+          "sequence": 492,
+          "event": "residual_action_incomplete",
+          "node_id": "creative_preferences",
+          "type": "InputOverflow"
+        }
+      ],
+      "event_counts": {
+        "tokenization_count": 378,
+        "reasoning_request_started": 10,
+        "model_context_budget": 10,
+        "budget_reserved": 34,
+        "http_response": 13,
+        "tokenization_usage_validation": 10,
+        "reasoning_response": 10,
+        "protocol_error": 1,
+        "reasoning_repair_prepared": 1,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 2,
+        "navigation_query_view": 3,
+        "proxy_free_started": 3,
+        "bridge_step_completed": 3,
+        "joint_read_completed": 5,
+        "joint_fresh_output_cap_selected": 1,
+        "residual_action_incomplete": 2,
+        "joint_support_capacity_rejected": 3,
+        "joint_repair_unchanged": 1,
+        "joint_repair_input_unavailable": 1,
+        "terminal_published": 1
+      },
+      "final_evidence_obligations": [
+        {
+          "id": "obligation_5edf1094a83fac4bf4752e86",
+          "variable": "getaway_constraints",
+          "sources": 49
+        }
+      ],
+      "final_failed_reviews": [
+        {
+          "id": "failed_batch_1d98f291ca860357591e57e3",
+          "variable": "creative_preferences",
+          "sources": 99
+        },
+        {
+          "id": "failed_batch_b4dca690aee782ac27669ed9",
+          "variable": "getaway_constraints",
+          "sources": 74
+        }
+      ],
+      "hard_unread_by_variable": {
+        "getaway_constraints": 74,
+        "creative_preferences": 99
+      },
+      "hard_unread_count": 173,
+      "set_relations": {
+        "getaway_retained": 74,
+        "history_cited": 16,
+        "preferences_cited": 16,
+        "getaway_union_history": 83,
+        "getaway_union_history_union_preferences": 85,
+        "preferences_new_beyond_retained_and_history": [
+          "s51",
+          "s52"
+        ],
+        "getaway_observation_5_6_7_identical": true,
+        "preference_observation_8_9_10_identical": true
+      }
+    },
+    "4": {
+      "unit_id": "5370f186-0028-41f4-b436-c48575899fca",
+      "status": "unresolved_or_exhausted",
+      "audit_complete": false,
+      "versions": {
+        "past_interests": 1,
+        "emotional_needs": 1,
+        "constraints": 1,
+        "life_changes": 1,
+        "response": 1
+      },
+      "pending_variables": [
+        "response"
+      ],
+      "ledger": {
+        "limits": {
+          "ann": 36,
+          "set_score": 0,
+          "llm": 24,
+          "reader": 0,
+          "json_repairs": 6
+        },
+        "used": {
+          "llm": 11,
+          "http_attempts": 15,
+          "json_repairs": 4,
+          "ann": 4,
+          "embedding_http": 4
+        },
+        "remaining": {
+          "ann": 32,
+          "set_score": 0,
+          "llm": 13,
+          "reader": 0,
+          "json_repairs": 2
+        }
+      },
+      "errors": [],
+      "plan": [
+        {
+          "task": "past_interests",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "ee32fff50c8b1f4cd91009c5c4aeab0f48a9c7e87cc30290319c77661cc96ea7"
+        },
+        {
+          "task": "emotional_needs",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "eba57b551d712020f9ccf989a6865c3616b5a5223c88f4b118f6522be301668d"
+        },
+        {
+          "task": "constraints",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "b3c0274a6f079369b679251987e56efc9ade15939085cd54ff894772ab607e6c"
+        },
+        {
+          "task": "life_changes",
+          "inputs": [],
+          "execution": "retrieval",
+          "question_hash": "440159a8dabde8b696fbd9a155965ca5066db00a3da11eca5fb992a7cc840ef7"
+        },
+        {
+          "task": "response",
+          "inputs": [
+            "past_interests",
+            "emotional_needs",
+            "constraints",
+            "life_changes"
+          ],
+          "execution": "compose",
+          "question_hash": "6cb3315f8a863adfce200e09071c50e43453955108531f807495b58e8c744cf6"
+        }
+      ],
+      "requests": [
+        {
+          "call": 3,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/66e9ad0dd1b65a315ce77e1b1efa273fd01fc1954810a784674f8fe3a3db145c.json",
+          "file_sha256": "4263f407106b413617cd0dc4db75b84e60b699f0a1bc80872d7538cb670d2495",
+          "task": "past_interests",
+          "sources": 48,
+          "source_ids": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48"
+          ],
+          "input_tokens": 7315,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "past_interests"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "past_interests",
+              "observations": [
+                {
+                  "id": "obs_past_interests_1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s6",
+                    "s7",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s16",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s34",
+                    "s35",
+                    "s36",
+                    "s43",
+                    "s44"
+                  ],
+                  "value_hash": "3223de5718ff0d87cf040ce0809eac7fe4d5839e43013d9ad2782eedeec6445b",
+                  "row_hash": "9098367adb8b4656654e085eb862ec65fd9b543e12e85bb1ca29e2946d420ceb",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 4,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/451f08efbb06761b2aafcedfec9e89992cdb29ec1942c73219c203d643dee88d.json",
+          "file_sha256": "5933526e634eda21f1650fc428a33efaa912af5d820be50b17c450feda73cac0",
+          "task": "emotional_needs",
+          "sources": 48,
+          "source_ids": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48"
+          ],
+          "input_tokens": 7314,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "emotional_needs"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "emotional_needs",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s16",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s34",
+                    "s35",
+                    "s36",
+                    "s43",
+                    "s44"
+                  ],
+                  "value_hash": "2c806d184474686a000106e47b06f783810f4a037832e2e48d3eed077c0bb076",
+                  "row_hash": "df8af056799a95a63617c9e434feace9fe59294a33aead9a9926b834048103f6",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 5,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/30a090d76c08c8e57eab432cc6e9d627279f3edcd47bcc29e61bd68ba7482d78.json",
+          "file_sha256": "57b3809487207eb1f59242db529d84a1088d08a40ecc7dfdf73e4c87a7ea9097",
+          "task": "constraints",
+          "sources": 48,
+          "source_ids": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48"
+          ],
+          "input_tokens": 7330,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "constraints"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "constraints",
+              "observations": [
+                {
+                  "id": "obs1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s16",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s34",
+                    "s35",
+                    "s36",
+                    "s43",
+                    "s44"
+                  ],
+                  "value_hash": "e97ccc350ce67954f0613daee97f3631c1beeb6e6a8caab3b20de39369c892e2",
+                  "row_hash": "74b507645cfb6780f0e0dc9396152ac719b77f036233824c99eaf0f1ea5f69c1",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 6,
+          "operation": "joint_read",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/c5d6b460efdbbd85ee00b1d35a96f38dc71f078648df96a4a72702fb8ae3984a.json",
+          "file_sha256": "40ea7d729f8688985ebc0b56f477c7d17b0bc5b1a128ca274fbcba1bd0dc634f",
+          "task": "life_changes",
+          "sources": 48,
+          "source_ids": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+            "s11",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s17",
+            "s18",
+            "s19",
+            "s20",
+            "s21",
+            "s22",
+            "s23",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s28",
+            "s29",
+            "s30",
+            "s31",
+            "s32",
+            "s33",
+            "s34",
+            "s35",
+            "s36",
+            "s37",
+            "s38",
+            "s39",
+            "s40",
+            "s41",
+            "s42",
+            "s43",
+            "s44",
+            "s45",
+            "s46",
+            "s47",
+            "s48"
+          ],
+          "input_tokens": 7321,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": false,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "life_changes"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "life_changes",
+              "observations": [
+                {
+                  "id": "lc_obs_1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s43",
+                    "s44",
+                    "s12",
+                    "s13",
+                    "s14",
+                    "s15",
+                    "s16",
+                    "s24",
+                    "s25",
+                    "s26",
+                    "s27",
+                    "s34",
+                    "s35",
+                    "s36"
+                  ],
+                  "value_hash": "4785354c59b69d20365b7819142a2610d01a1f59d8b3981bdf95473a9057665e",
+                  "row_hash": "ee956ca341e9f4a2bd9e9109732b3fbd26865d25159fb7998b4ccde8cb8f30e6",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 7,
+          "operation": "semantic_compose",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/4013afbf97281bfd6cda35dc9c2f2da6bfd14fd5d94648bd4654c5ad94483b4e.json",
+          "file_sha256": "4e221d6526ac6bae92669d77cf0b5ae9f0a22849f1c50b71e76c207962f69843",
+          "task": "response",
+          "sources": 18,
+          "source_ids": [
+            "s3",
+            "s4",
+            "s6",
+            "s7",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s34",
+            "s35",
+            "s36",
+            "s43",
+            "s44"
+          ],
+          "input_tokens": 8631,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": true,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_f283b035df7adda667efb5d3"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "past_interests"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_f3b046e1c90d8a5c7b70e39d"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "emotional_needs"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_eb4fe98dfc39041ad5088eb6"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "constraints"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_7c18148302060e618f401d0e"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "life_changes"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "maxItems": 0
+                      },
+                      "stance": {
+                        "enum": [
+                          "support",
+                          "partial",
+                          "unknown",
+                          "irrelevant"
+                        ]
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "parent_versions": {
+                          "properties": {
+                            "constraints": {
+                              "const": 1
+                            },
+                            "emotional_needs": {
+                              "const": 1
+                            },
+                            "life_changes": {
+                              "const": 1
+                            },
+                            "past_interests": {
+                              "const": 1
+                            }
+                          },
+                          "required": [
+                            "past_interests",
+                            "emotional_needs",
+                            "constraints",
+                            "life_changes"
+                          ]
+                        },
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "variable": {
+                  "const": "response"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "past_interests",
+              "observations": [
+                {
+                  "id": "fact_f283b035df7adda667efb5d3",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s7",
+                    "s43",
+                    "s6",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "3223de5718ff0d87cf040ce0809eac7fe4d5839e43013d9ad2782eedeec6445b",
+                  "row_hash": "1eeea45fb76a82ee040139c564cb5610ac274d5f8bf191980fee893b173277a7",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "emotional_needs",
+              "observations": [
+                {
+                  "id": "fact_f3b046e1c90d8a5c7b70e39d",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "2c806d184474686a000106e47b06f783810f4a037832e2e48d3eed077c0bb076",
+                  "row_hash": "7b40c375a913d04d68560ae1cebd0736dc65c13690666249c95c1a0f87fbe58a",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "constraints",
+              "observations": [
+                {
+                  "id": "fact_eb4fe98dfc39041ad5088eb6",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "e97ccc350ce67954f0613daee97f3631c1beeb6e6a8caab3b20de39369c892e2",
+                  "row_hash": "8f7fbcd3b527aeefd7e0ff42c5903e204584064b2709befbf5125de607256bbc",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "life_changes",
+              "observations": [
+                {
+                  "id": "fact_7c18148302060e618f401d0e",
+                  "stance": "support",
+                  "source_ids": [
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "4785354c59b69d20365b7819142a2610d01a1f59d8b3981bdf95473a9057665e",
+                  "row_hash": "ec32c000e078bbf97cac65f7474adc481dfb51ad7c123da057a62da9254cbb53",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "response",
+              "observations": [
+                {
+                  "id": "obs_response_1",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "938ddff393de2a223b29fc11387967e9b8d42688fa3c66f559c86c8c4e425bd9",
+                  "row_hash": "0c581e0f9de67500a2c84658885ce9bc990662c40da730f16d5f1ea5367c4eb6",
+                  "parent_versions": {
+                    "past_interests": 1,
+                    "emotional_needs": 1,
+                    "constraints": 1,
+                    "life_changes": 1
+                  },
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 1,
+              "unresolved_hashes": [
+                "cc0eb9c30bea9a1d8bd6967954722d6590959774bdfdefef75e661e6b377905f"
+              ],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": []
+        },
+        {
+          "call": 8,
+          "operation": "semantic_compose_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/99af0a77e766fca416ca2614f9cd4811b9a4988f0c9ed4d0705aac903889005c.json",
+          "file_sha256": "a93ab9036ac6e3e9ae6dd47449e20fb75f0af79870cee420df70f8f49f6bacc8",
+          "task": "response",
+          "sources": 18,
+          "source_ids": [
+            "s3",
+            "s4",
+            "s6",
+            "s7",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s34",
+            "s35",
+            "s36",
+            "s43",
+            "s44"
+          ],
+          "input_tokens": 7135,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": true,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [],
+          "obligation_coverage": []
+        },
+        {
+          "call": 9,
+          "operation": "semantic_compose",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/a7baf1808a30e10739a696ce70a3adee680488edf876d58c568b7d62e6146f39.json",
+          "file_sha256": "305f3077809d6145ffd67a858b088b7a6a8a1c4076eba3863addebca52cc3bff",
+          "task": "response",
+          "sources": 18,
+          "source_ids": [
+            "s3",
+            "s4",
+            "s6",
+            "s7",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s34",
+            "s35",
+            "s36",
+            "s43",
+            "s44"
+          ],
+          "input_tokens": 9552,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": true,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_f283b035df7adda667efb5d3"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "maxItems": 0
+                },
+                "variable": {
+                  "const": "past_interests"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_f3b046e1c90d8a5c7b70e39d"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "maxItems": 0
+                },
+                "variable": {
+                  "const": "emotional_needs"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_eb4fe98dfc39041ad5088eb6"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "maxItems": 0
+                },
+                "variable": {
+                  "const": "constraints"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "past"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_7c18148302060e618f401d0e"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "maxItems": 0
+                },
+                "variable": {
+                  "const": "life_changes"
+                }
+              }
+            },
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_b2ecfede7b5ab349c5ba5a37"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "parent_versions": {
+                          "properties": {
+                            "constraints": {
+                              "const": 1
+                            },
+                            "emotional_needs": {
+                              "const": 1
+                            },
+                            "life_changes": {
+                              "const": 1
+                            },
+                            "past_interests": {
+                              "const": 1
+                            }
+                          },
+                          "required": [
+                            "past_interests",
+                            "emotional_needs",
+                            "constraints",
+                            "life_changes"
+                          ]
+                        },
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_415de29a45320452abdbfe07"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "response"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {},
+          "repair_scope_keys": [],
+          "response_slots": [
+            {
+              "variable": "past_interests",
+              "observations": [
+                {
+                  "id": "fact_f283b035df7adda667efb5d3",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s7",
+                    "s43",
+                    "s6",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "3223de5718ff0d87cf040ce0809eac7fe4d5839e43013d9ad2782eedeec6445b",
+                  "row_hash": "1eeea45fb76a82ee040139c564cb5610ac274d5f8bf191980fee893b173277a7",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "emotional_needs",
+              "observations": [
+                {
+                  "id": "fact_f3b046e1c90d8a5c7b70e39d",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "2c806d184474686a000106e47b06f783810f4a037832e2e48d3eed077c0bb076",
+                  "row_hash": "7b40c375a913d04d68560ae1cebd0736dc65c13690666249c95c1a0f87fbe58a",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "constraints",
+              "observations": [
+                {
+                  "id": "fact_eb4fe98dfc39041ad5088eb6",
+                  "stance": "support",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "e97ccc350ce67954f0613daee97f3631c1beeb6e6a8caab3b20de39369c892e2",
+                  "row_hash": "8f7fbcd3b527aeefd7e0ff42c5903e204584064b2709befbf5125de607256bbc",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "life_changes",
+              "observations": [
+                {
+                  "id": "fact_7c18148302060e618f401d0e",
+                  "stance": "support",
+                  "source_ids": [
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "4785354c59b69d20365b7819142a2610d01a1f59d8b3981bdf95473a9057665e",
+                  "row_hash": "ec32c000e078bbf97cac65f7474adc481dfb51ad7c123da057a62da9254cbb53",
+                  "parent_versions": {},
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            },
+            {
+              "variable": "response",
+              "observations": [
+                {
+                  "id": "fact_b2ecfede7b5ab349c5ba5a37",
+                  "stance": "unknown",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                  "row_hash": "fb3d4a9bc4d669545a6739b7137761c351de447c6a5d934b5dbc6834525d450c",
+                  "parent_versions": {
+                    "past_interests": 1,
+                    "emotional_needs": 1,
+                    "constraints": 1,
+                    "life_changes": 1
+                  },
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_415de29a45320452abdbfe07"
+              ],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_415de29a45320452abdbfe07",
+              "variable": "response",
+              "source_count": 18,
+              "covered_count": 16,
+              "missing_count": 2
+            }
+          ]
+        },
+        {
+          "call": 10,
+          "operation": "semantic_compose_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/a0091696df841e8365c29d66e8bc63f4c800b9265821f5eb78a281836cfaf225.json",
+          "file_sha256": "03e5a862504ac90e541f0a450d1bd58cbd0f322cdb9a0f9329b08dc4446ebbef",
+          "task": "response",
+          "sources": 18,
+          "source_ids": [
+            "s3",
+            "s4",
+            "s6",
+            "s7",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s34",
+            "s35",
+            "s36",
+            "s43",
+            "s44"
+          ],
+          "input_tokens": 7934,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": true,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_b2ecfede7b5ab349c5ba5a37"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "parent_versions": {
+                          "properties": {
+                            "constraints": {
+                              "const": 1
+                            },
+                            "emotional_needs": {
+                              "const": 1
+                            },
+                            "life_changes": {
+                              "const": 1
+                            },
+                            "past_interests": {
+                              "const": 1
+                            }
+                          },
+                          "required": [
+                            "past_interests",
+                            "emotional_needs",
+                            "constraints",
+                            "life_changes"
+                          ]
+                        },
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_415de29a45320452abdbfe07",
+                      "obligation_82a448d811ca6e33e5023759"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "response"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {
+            "response": []
+          },
+          "repair_scope_keys": [
+            "failed",
+            "attempt",
+            "previous_response_identity"
+          ],
+          "response_slots": [
+            {
+              "variable": "response",
+              "observations": [
+                {
+                  "id": "fact_b2ecfede7b5ab349c5ba5a37",
+                  "stance": "unknown",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                  "row_hash": "fb3d4a9bc4d669545a6739b7137761c351de447c6a5d934b5dbc6834525d450c",
+                  "parent_versions": {
+                    "past_interests": 1,
+                    "emotional_needs": 1,
+                    "constraints": 1,
+                    "life_changes": 1
+                  },
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_415de29a45320452abdbfe07",
+                "obligation_82a448d811ca6e33e5023759"
+              ],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_415de29a45320452abdbfe07",
+              "variable": "response",
+              "source_count": 18,
+              "covered_count": 16,
+              "missing_count": 2
+            },
+            {
+              "id": "obligation_82a448d811ca6e33e5023759",
+              "variable": "response",
+              "source_count": 16,
+              "covered_count": 16,
+              "missing_count": 0
+            }
+          ]
+        },
+        {
+          "call": 11,
+          "operation": "semantic_compose_repair",
+          "file": "personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/f48c47ea333ac0846b1ffc00eda9eb5da3f672d5620796b1c85dfcd3d1a785ed.json",
+          "file_sha256": "573e90d678fa2ee19dc29b43edb6950d3db9174ab69adfdd07cf4ba2e89cda9f",
+          "task": "response",
+          "sources": 18,
+          "source_ids": [
+            "s3",
+            "s4",
+            "s6",
+            "s7",
+            "s12",
+            "s13",
+            "s14",
+            "s15",
+            "s16",
+            "s24",
+            "s25",
+            "s26",
+            "s27",
+            "s34",
+            "s35",
+            "s36",
+            "s43",
+            "s44"
+          ],
+          "input_tokens": 7962,
+          "output_cap": 4096,
+          "usage_matched": true,
+          "finish_reason": "stop",
+          "shared_history_texts": true,
+          "shared_review_texts": false,
+          "schema_valid": true,
+          "schema_errors": [],
+          "schema_branches": [
+            {
+              "properties": {
+                "observations": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "stance": {
+                              "enum": [
+                                "support",
+                                "contradiction"
+                              ]
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "entity_scope": {
+                              "const": "user"
+                            },
+                            "time_scope": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "if": {
+                      "properties": {
+                        "stance": {
+                          "const": "support"
+                        }
+                      }
+                    },
+                    "properties": {
+                      "retract_ids": {
+                        "items": {
+                          "enum": [
+                            "fact_b2ecfede7b5ab349c5ba5a37"
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "parent_versions": {
+                          "properties": {
+                            "constraints": {
+                              "const": 1
+                            },
+                            "emotional_needs": {
+                              "const": 1
+                            },
+                            "life_changes": {
+                              "const": 1
+                            },
+                            "past_interests": {
+                              "const": 1
+                            }
+                          },
+                          "required": [
+                            "past_interests",
+                            "emotional_needs",
+                            "constraints",
+                            "life_changes"
+                          ]
+                        },
+                        "value": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resolved_obligation_ids": {
+                  "items": {
+                    "enum": [
+                      "obligation_415de29a45320452abdbfe07",
+                      "obligation_82a448d811ca6e33e5023759"
+                    ]
+                  }
+                },
+                "variable": {
+                  "const": "response"
+                }
+              }
+            }
+          ],
+          "frozen_offered_ids": {
+            "response": []
+          },
+          "repair_scope_keys": [
+            "failed",
+            "attempt",
+            "previous_response_identity"
+          ],
+          "response_slots": [
+            {
+              "variable": "response",
+              "observations": [
+                {
+                  "id": "fact_b2ecfede7b5ab349c5ba5a37",
+                  "stance": "unknown",
+                  "source_ids": [
+                    "s3",
+                    "s4",
+                    "s43",
+                    "s36",
+                    "s15",
+                    "s27",
+                    "s25",
+                    "s34",
+                    "s16",
+                    "s26",
+                    "s24",
+                    "s44",
+                    "s12",
+                    "s35",
+                    "s14",
+                    "s13"
+                  ],
+                  "value_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                  "row_hash": "fb3d4a9bc4d669545a6739b7137761c351de447c6a5d934b5dbc6834525d450c",
+                  "parent_versions": {
+                    "past_interests": 1,
+                    "emotional_needs": 1,
+                    "constraints": 1,
+                    "life_changes": 1
+                  },
+                  "summary_revision": false
+                }
+              ],
+              "unresolved_count": 0,
+              "unresolved_hashes": [],
+              "resolved_obligation_ids": [
+                "obligation_415de29a45320452abdbfe07",
+                "obligation_82a448d811ca6e33e5023759"
+              ],
+              "reviewed_observation_ids": [],
+              "resolved_failed_batch_ids": []
+            }
+          ],
+          "obligation_coverage": [
+            {
+              "id": "obligation_415de29a45320452abdbfe07",
+              "variable": "response",
+              "source_count": 18,
+              "covered_count": 16,
+              "missing_count": 2
+            },
+            {
+              "id": "obligation_82a448d811ca6e33e5023759",
+              "variable": "response",
+              "source_count": 16,
+              "covered_count": 16,
+              "missing_count": 0
+            }
+          ]
+        }
+      ],
+      "selected_events": [],
+      "event_counts": {
+        "tokenization_count": 202,
+        "reasoning_request_started": 11,
+        "model_context_budget": 11,
+        "budget_reserved": 38,
+        "http_response": 15,
+        "tokenization_usage_validation": 11,
+        "reasoning_response": 11,
+        "protocol_error": 1,
+        "reasoning_repair_prepared": 1,
+        "plan_frozen": 1,
+        "typed_dag_initialized": 1,
+        "residual_state": 5,
+        "navigation_query_view": 4,
+        "proxy_free_started": 4,
+        "bridge_step_completed": 4,
+        "joint_read_completed": 6,
+        "terminal_published": 1
+      },
+      "final_evidence_obligations": [
+        {
+          "id": "obligation_415de29a45320452abdbfe07",
+          "variable": "response",
+          "sources": 18
+        },
+        {
+          "id": "obligation_82a448d811ca6e33e5023759",
+          "variable": "response",
+          "sources": 16
+        }
+      ],
+      "final_failed_reviews": [
+        {
+          "id": "failed_batch_0298d8848f669b6b171232b3",
+          "variable": "response",
+          "sources": 18
+        }
+      ],
+      "hard_unread_by_variable": {},
+      "hard_unread_count": 0,
+      "terminal_relationships": {
+        "call7_support_value_equals_public_option": true,
+        "call7_semantic_answer_equals_supported_value": false,
+        "call7_prediction_is_null": true,
+        "call8_slots_empty": true,
+        "call8_semantic_answer_equals_supported_value": true,
+        "call8_prediction_is_legal": true,
+        "unknown_observation_9_10_11_identical": true,
+        "call9_is_new_batch_so_old_route_id_not_initially_frozen": true,
+        "call10_11_unknown_frozen_id_not_in_settled_offers": true
+      }
+    }
+  },
+  "comparison_reports_sha256": {
+    "r20_case01_reader_failure_review.json": "3d018bfd92579436c90c0f7c8382a14c83b6db965533237434a471f2e2a3b1a9",
+    "r20_case01_obligation_scope_review.json": "f61825281f7f90189d2c9f6bce2e5b31947f96428274d1a95ea21070a3f445be",
+    "r20_case04_reader_failure_review.json": "48ba295106c73168bd0ebfcf370e34fb9e39c5dfbadfa68121dcc5fde727f8ad",
+    "r20_case04_terminal_consistency.json": "25436261100f9da476bafdf7ac1064a5f3bc9ba5698b3b5036fc1fdd0c047677"
+  },
+  "files_sha256": {
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/rows/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0.json": "71e3713bab61be3723fcd5cc1406054bdb1248f1d830f3647c0f42959fbc6615",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/fusion_events.jsonl": "a4cd3d61c4f5367e1714fae59f15cc6e286708b5b55f7659ff37465b2f4af3fe",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/07541574fecdfc6bf3027aeee1ad7f14d2da5e9f7f640dd32e1c85882249b3d3.json": "7f6f06212d449dcd1860e637bbdfa2260560ce35114463dfc0bb84dafe854226",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/0a9026e78568f3834e9925a29f1967f56e7af22b1c65b3fe781cb65336b86ffc.json": "c56284609a386d261aa222d3fb2648a4c981dd9dc3a10667177319f62bbf29c9",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/3183f8cf6126908859327b0daedd86734f696652f6ab133458b74e791bf3b5c2.json": "6dc1fc72e8e434549be9c49f6623004774d3895a2fe861467b7b8b2aad367255",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/417953647817a541e44848a57b916a8faa2ac5280fba04e5fc1b13d8af507bfd.json": "c989048d72b3419055d2617bc4d7f0285eb61d98e22be732da9ddbc138332d7f",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/47d79b86fb52a22757cc0fae83c9baa2bad533af51615351056123b9370fb520.json": "94a5142b6bb73f975626f493812b99293664ef52c27c8faf18b5d2f13a34504c",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/5af9e5a49c5abfc749d6c3f6b93ab53125c32befbfa6dc679c643026a23d45c0.json": "95fc369f20bb35eabd863878565a606cb14004236011533ea758f2753bc93974",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/5b71cf56df71d52b49e7084683cd57508172f14802ee66df67629ec7c6151f25.json": "4c0e2e9bb686ef3011ef169f9d2aadde2c35fb0e2386645a429f6c5d5be549f3",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/7930629f359adac85b656d807fa3602ede64d415d2be41d580b67643b7deb6cf.json": "1a47318e4780d061b885b7a4f3fb5e2f2c57d650af4dd25f7b32ef2a063a6199",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/9aa3b84169d5c1212498835e4848ab9457be173849ec88f8dfeb042f470c07f3.json": "36370124d8328cc54aa5f5a831c82df1e2fa1d8726c68b6daeaf63be637a8422",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/b85d2d3772d5b4bae59ffe1ef604710cf4cd4c3370b3175357a2e15b5c602ecc.json": "9728ee3cbe37025f71354cac90c832fa5e222f7b05f46e9cb63f1f18c50beefb",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/cf59a2b5d0378ef6c5a52ee1e11c651648b6855d5d9b19bfcc38be5548c063ba.json": "d3b0b25d801e0ea8e59448f904faa3c6470b814bdc617be403726ff99428daa0",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/d09123964c4d252ae41035010105590021e15535942a691b5645e97baab84dc9.json": "b22a8aeb076017c710e488e9ca09f7fa526084be62971e73f92b5e6a0685a15f",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/2c5c6d1692f65784bc11ccbd23c1fc1e991fc85b13c187b33b9c1398bb6d63f0/attempt-001/requests/ed7350a8cf281743d8eaadd6991c5ccd0cee9fa8d0a0976278d185cc16ca9de2.json": "18e5d5c7a0ed5ffc972668a8e2c696cf2faef1fbcc47f45d419d09fa59b150d8",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/rows/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f.json": "f01092726dfbd8c77fea641e77751ee5303cb9a56efe3cdfa997273992848169",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/fusion_events.jsonl": "bd6c7f1f8cf61012cefa8fdb4ee13dc487a711fd78da1b9af1601a5b7e213d2a",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/02290e428a751ede74bd83f01a53d9587d6bf6bcbff6fff28c82148228e55649.json": "db0bdea98fd00a25bb121cb250f10817fdf2914335e34e35ddeba17eb272d8de",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/08ebd87599fc9feca502a78eaae72f11794a556a6ff1d42b5d9dfafe5b06e54e.json": "bf8dd17d7d5863b81cedd017c0d3f5a39f685472c7e2f96081019ef2084de1a4",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/30a090d76c08c8e57eab432cc6e9d627279f3edcd47bcc29e61bd68ba7482d78.json": "57b3809487207eb1f59242db529d84a1088d08a40ecc7dfdf73e4c87a7ea9097",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/4013afbf97281bfd6cda35dc9c2f2da6bfd14fd5d94648bd4654c5ad94483b4e.json": "4e221d6526ac6bae92669d77cf0b5ae9f0a22849f1c50b71e76c207962f69843",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/43862fec4167fc5a4d32fe8550fb02281a1831f07b7d382fc513cc492c8f40fd.json": "f56471f3137578bd3aba1e12e3b03c2a874707f4a24432f3ab1f8d15cc625043",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/451f08efbb06761b2aafcedfec9e89992cdb29ec1942c73219c203d643dee88d.json": "5933526e634eda21f1650fc428a33efaa912af5d820be50b17c450feda73cac0",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/4671534ce59fe8849fac98527b8c6f1b47fb38ec2e97f785b81e2e103bf89b32.json": "d89a2fbf983f19e488ef63e6dc691ac6c2fadf859383f0ae84ed54e589c8d519",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/66e9ad0dd1b65a315ce77e1b1efa273fd01fc1954810a784674f8fe3a3db145c.json": "4263f407106b413617cd0dc4db75b84e60b699f0a1bc80872d7538cb670d2495",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/8521af4ca174d4ff1b1a6f75db25f25419c320162fc7c5134725cd213f39d65b.json": "c01b8230cc9385e334e2f12723df81dbd90793ecc43075a26cedb05718fce766",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/99af0a77e766fca416ca2614f9cd4811b9a4988f0c9ed4d0705aac903889005c.json": "a93ab9036ac6e3e9ae6dd47449e20fb75f0af79870cee420df70f8f49f6bacc8",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/a0091696df841e8365c29d66e8bc63f4c800b9265821f5eb78a281836cfaf225.json": "03e5a862504ac90e541f0a450d1bd58cbd0f322cdb9a0f9329b08dc4446ebbef",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/a7baf1808a30e10739a696ce70a3adee680488edf876d58c568b7d62e6146f39.json": "305f3077809d6145ffd67a858b088b7a6a8a1c4076eba3863addebca52cc3bff",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/c5d6b460efdbbd85ee00b1d35a96f38dc71f078648df96a4a72702fb8ae3984a.json": "40ea7d729f8688985ebc0b56f477c7d17b0bc5b1a128ca274fbcba1bd0dc634f",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/d1804f3363fa1b06e2f740801d376a2c37679d7a43380979ae29108d6dc5226d.json": "3a9a44769b77470d49543d26ccce061c2acdf62f0b671992d247e497e7248050",
+    "/Users/mao/projects/dagv2-personamem-v4/outputs/v4_validation_r20/personamem/dagbt_residual_memory_v2/attempts/bfde6b00668a05e31ba730b0a046c42f56ee8840e8ea72e37f5b175270b19b4f/attempt-001/requests/f48c47ea333ac0846b1ffc00eda9eb5da3f672d5620796b1c85dfcd3d1a785ed.json": "573e90d678fa2ee19dc29b43edb6950d3db9174ab69adfdd07cf4ba2e89cda9f",
+    "/Users/mao/projects/dagv2-personamem-v4/dagbt/joint_reading.py": "47290d56d15a7e2b5998254ccb89f08e0eca53f784ae1c0a5b6d65e11c5c07a4",
+    "/Users/mao/projects/dagv2-personamem-v4/dagbt/residual_control.py": "b22de008c594fe8b5c50fc0a63c9001aa83178cc92cd2b2119f79ea0431d7211",
+    "/Users/mao/projects/dagv2-personamem-v4/dagbt/personal_task.py": "7af9cc43b08364ea824c23c4aa2072395720ff945fb1499f62956bd4d889a9a3",
+    "/Users/mao/projects/dagv2-personamem-v4/dagbt/review_wire.py": "d7d9174ea9f0b319f6fc994adce866d2ad494f83b5316382511d52dcfd8e75fb",
+    "/Users/mao/projects/dagv2-personamem-v4/dagbt/reasoning.py": "52e1d03bc8848f66be4fb3d20928765e0df34e5317f695d1d8b3bec18b4895da",
+    "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/r20_case01_reader_failure_review.json": "3d018bfd92579436c90c0f7c8382a14c83b6db965533237434a471f2e2a3b1a9",
+    "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/r20_case01_obligation_scope_review.json": "f61825281f7f90189d2c9f6bce2e5b31947f96428274d1a95ea21070a3f445be",
+    "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/r20_case04_reader_failure_review.json": "48ba295106c73168bd0ebfcf370e34fb9e39c5dfbadfa68121dcc5fde727f8ad",
+    "/Users/mao/projects/dagv2_analysis/personamem_v4_validation/r20_case04_terminal_consistency.json": "25436261100f9da476bafdf7ac1064a5f3bc9ba5698b3b5036fc1fdd0c047677"
+  },
+  "read_set_unchanged_after_analysis": true,
+  "design": {
+    "field": "repair_scope.frozen_observation_ids",
+    "type": "object mapping each currently requested failed variable to sorted current-batch frozen observation IDs",
+    "schema_forbids": "ordinary observations.id in F_v; output schema shape otherwise unchanged",
+    "schema_allows_reference": "reviewed_observation_ids only in R_v from current explicit settled offers; R_v subset of F_v",
+    "construction_time": "after summary revision, whole-value and handoff rejection thawing, before next repair preparation/count/selection",
+    "never_import_ids_from": [
+      "known_observations",
+      "durable failed records",
+      "other variables",
+      "previous batches"
+    ],
+    "unknown_partial_review_authority_added": false,
+    "runtime_guard_changed": false
+  }
+}

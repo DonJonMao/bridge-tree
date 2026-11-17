@@ -1,0 +1,78 @@
+{
+  "unit_id": "b3588797-acdf-40d3-bcc5-951f81896f95",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "How can I find a more fulfilling way to express my love for music?"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 2048
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": "planner",
+  "attempts": [
+    {
+      "started_unix": 1791917400.216026,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791917404.039619
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-82414b51df4a9d6f",
+    "object": "chat.completion",
+    "created": 1791917400,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What are some ways to express love for music?\",\n      \"output_slot\": \"expression_ways\",\n      \"answer_type\": \"list\",\n      \"inputs\": []\n    },\n    {\n      \"question\": \"Among {expression_ways}, which are considered more fulfilling?\",\n      \"output_slot\": \"fulfilling_ways\",\n      \"answer_type\": \"list\",\n      \"inputs\": [\"expression_ways\"]\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 282,
+      "total_tokens": 388,
+      "completion_tokens": 106,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 282,
+    "observed_prompt_tokens": 282,
+    "tokenization_request_sha256": "3740e5c46d5debc2699d39e6ff8a9484833a2d228d22bc1691e0e4e7a2ba1b20"
+  }
+}
