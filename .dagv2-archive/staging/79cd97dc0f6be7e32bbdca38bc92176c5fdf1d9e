@@ -1,0 +1,47 @@
+{
+  "unit_id": "5abe953b5542993f32c2a170",
+  "url": "http://127.0.0.1:52338/rerank",
+  "payload": {
+    "query": "what is one of the stars of  The Newcomers known for",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1003\", \"source_id\": \"hotpotqa:1003\"}]\nPaavo Nurmi Marathon (Turku)\nThe Paavo Nurmi Marathon is an annual marathon road running race held during summer in Turku, Finland, the birth city of Paavo Nurmi. Although various marathons have been held in Turku since 1910, the Paavo Nurmi Marathon was established in 1992. It is arranged along with Paavo Nurmi Games, a part of Paavo Nurmi happening week. The route goes through Turku city and Ruissalo park. The marathon attracts yearly 500 to 1000 participants.",
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:1\", \"source_id\": \"hotpotqa:1\"}]\nChris Evans (actor)\nChristopher Robert Evans (born June 13, 1981) is an American actor and filmmaker. Evans is known for his superhero roles as the Marvel Comics characters Steve Rogers / Captain America in the Marvel Cinematic Universe and Johnny Storm / Human Torch in \"Fantastic Four\" and .\n\n[Passage {\"doc_id\": \"hotpotqa:1003\", \"source_id\": \"hotpotqa:1003\"}]\nPaavo Nurmi Marathon (Turku)\nThe Paavo Nurmi Marathon is an annual marathon road running race held during summer in Turku, Finland, the birth city of Paavo Nurmi. Although various marathons have been held in Turku since 1910, the Paavo Nurmi Marathon was established in 1992. It is arranged along with Paavo Nurmi Games, a part of Paavo Nurmi happening week. The route goes through Turku city and Ruissalo park. The marathon attracts yearly 500 to 1000 participants."
+    ],
+    "top_n": 2,
+    "return_documents": false
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "33",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790498104.6606772,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790498104.661222
+    }
+  ],
+  "response": {
+    "model": "Qwen3-Reranker-8B",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 0.22
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.16
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 11,
+      "completion_tokens": 7,
+      "total_tokens": 18
+    }
+  }
+}

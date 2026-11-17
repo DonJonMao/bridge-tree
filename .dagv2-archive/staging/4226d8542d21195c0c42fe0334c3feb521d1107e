@@ -1,0 +1,78 @@
+{
+  "unit_id": "acd74206-37dc-4756-94a8-b99a395d9a21",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Decompose a multi-hop question into an executable dependency DAG of 1 to 6 retrieval tasks.\nUse ONLY the question. Do not answer it, guess intermediate entities, or use outside knowledge.\nEach step has question, output_slot, answer_type, inputs. Output slots are unique simple identifiers.\nList steps in dependency order. inputs names only earlier output slots; refer to them in question as {slot}.\nIndependent branches have empty inputs. Include a final step that resolves the requested relation or comparison.\nKeep entity names and constraints from the question. Do not include explanations or extra fields.\n\nOutput only a JSON value matching this schema, without Markdown fences:\n{\"additionalProperties\": false, \"properties\": {\"steps\": {\"items\": {\"additionalProperties\": false, \"properties\": {\"answer_type\": {\"type\": \"string\"}, \"inputs\": {\"items\": {\"type\": \"string\"}, \"type\": \"array\"}, \"output_slot\": {\"type\": \"string\"}, \"question\": {\"type\": \"string\"}}, \"required\": [\"question\", \"output_slot\", \"answer_type\", \"inputs\"], \"type\": \"object\"}, \"maxItems\": 6, \"minItems\": 1, \"type\": \"array\"}}, \"required\": [\"steps\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "I recently attended an event where there was a unique blend of modern beats with Pacific sounds."
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 2048
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": "planner",
+  "attempts": [
+    {
+      "started_unix": 1791923089.381686,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1791923091.666673
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-81183db04bb33be1",
+    "object": "chat.completion",
+    "created": 1791923089,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"steps\": [\n    {\n      \"question\": \"What event did I recently attend that had a unique blend of modern beats with Pacific sounds?\",\n      \"output_slot\": \"event\",\n      \"answer_type\": \"event\",\n      \"inputs\": []\n    }\n  ]\n}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 285,
+      "total_tokens": 345,
+      "completion_tokens": 60,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 285,
+    "observed_prompt_tokens": 285,
+    "tokenization_request_sha256": "e62e3c30a00401f9b52bb051307936d09505901593972cbb2ffbf2dcd33cbdd8"
+  }
+}

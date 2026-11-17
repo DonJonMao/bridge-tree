@@ -1,0 +1,81 @@
+{
+  "unit_id": "webwalker-preflight",
+  "url": "http://111.19.156.30:8006/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return {\"ready\":true}.\n\nReturn one complete JSON object matching this schema:\n{\"additionalProperties\": false, \"properties\": {\"ready\": {\"const\": true}}, \"required\": [\"ready\"], \"type\": \"object\"}"
+      },
+      {
+        "role": "user",
+        "content": "{}"
+      }
+    ],
+    "temperature": 0.0,
+    "max_tokens": 4096
+  },
+  "algorithm_version": "dagbt_residual_memory_v2",
+  "stage": [
+    "audit_web_preflight",
+    "1"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1792139739.503089,
+      "retry_index": 1,
+      "kind": "llm",
+      "http_status": 200,
+      "finished_unix": 1792139740.567219
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-8edb829048d76b78",
+    "object": "chat.completion",
+    "created": 1792139739,
+    "model": "deepseek-v4-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"ready\":true}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": null,
+    "usage": {
+      "prompt_tokens": 49,
+      "total_tokens": 55,
+      "completion_tokens": 6,
+      "prompt_tokens_details": null,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": null,
+        "accepted_prediction_tokens": null,
+        "rejected_prediction_tokens": null
+      }
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "kv_transfer_params": null
+  },
+  "tokenization_validation": {
+    "status": "matched",
+    "expected_prompt_tokens": 49,
+    "observed_prompt_tokens": 49,
+    "tokenization_request_sha256": "39106dc93c0c0a6e820f5ac4337539de5003bbb37d5e3e141e49b639ec67d75f"
+  }
+}
