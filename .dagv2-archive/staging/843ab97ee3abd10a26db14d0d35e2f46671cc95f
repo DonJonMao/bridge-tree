@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "When was Clement Attlee prime minister?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:29\", \"source_id\": \"hotpotqa:29\"}]\nIndustry Act 1975\nThe Industry Act 1975 (c. 68) was an Act of the Parliament of the United Kingdom passed by Harold Wilson's Labour government.\n\n[Passage {\"doc_id\": \"hotpotqa:7290\", \"source_id\": \"hotpotqa:7290\"}]\nDivision of Bland\nThe Division of Bland was an Australian Electoral Division in New South Wales. The division was created in 1900 and was one of the original 75 divisions contested at the first federal election. It was abolished in 1906. It was named for Dr William Bland, a New South Wales colonial politician. Based in rural southern New South Wales, it included the towns of Narrandera, Young, Wagga Wagga and West Wyalong. Bland was held by Chris Watson, the first Leader of the federal parliamentary Labor Party and Australia's first Labor Prime Minister. When Bland was abolished in 1906, Watson transferred to South Sydney."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "f09fe26e56ede3aad9d854ddae2cc06264548d59498064ac1dcb78bde5751867",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "165",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600550.9390368,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600552.7434208
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 1.2076721192109868e-05
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 664,
+      "completion_tokens": 2,
+      "total_tokens": 666
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}

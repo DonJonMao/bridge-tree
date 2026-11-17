@@ -1,0 +1,37 @@
+{
+  "unit_id": "fixture-question",
+  "url": "http://127.0.0.1:58371/rerank",
+  "payload": {
+    "query": "Which country contains the city?",
+    "documents": [
+      "Personal memories: [No personal memories supplied.]"
+    ],
+    "top_n": 1,
+    "return_documents": false,
+    "model": "fixture-pointwise"
+  },
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "1",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1790170655.093806,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1790170655.096308
+    }
+  ],
+  "response": {
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.08
+      }
+    ]
+  }
+}
