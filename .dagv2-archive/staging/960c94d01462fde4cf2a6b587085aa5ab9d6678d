@@ -1,0 +1,53 @@
+{
+  "unit_id": "5abc030e554299642a094bdc",
+  "url": "http://111.19.156.74:8002/rerank",
+  "payload": {
+    "query": "Who passed the Distribution of Industry act?",
+    "documents": [
+      "Factual evidence passages:\n[Passage {\"doc_id\": \"hotpotqa:21\", \"source_id\": \"hotpotqa:21\"}]\nHonours (Prevention of Abuses) Act 1925\nThe Honours (Prevention of Abuses) Act 1925 is an Act of the Parliament of the United Kingdom, that makes the sale of peerages or any other honours illegal. It was brought in after the Coalition government of David Lloyd George was severely embarrassed by the sale of honours, for the personal financial gain of the Prime Minister. The practice was legal and dated back several decades, Lloyd George made the practice more systematic and more brazen, charging £10,000 for a knighthood, £30,000 for baronetcy, and £50,000 upwards for a peerage. Prime Minister Lloyd George in mid-1922 was fast losing his political support, and his sales were denounced in the House of Lords as an abuse of the Prime Minister's powers of patronage.\n\n[Passage {\"doc_id\": \"hotpotqa:1702\", \"source_id\": \"hotpotqa:1702\"}]\nRobert Gascoyne-Cecil, 3rd Marquess of Salisbury\nRobert Arthur Talbot Gascoyne-Cecil, 3rd Marquess of Salisbury, {'1': \", '2': \", '3': \", '4': \"} (3 February 183022 August 1903), styled Lord Robert Cecil before 1865 and Viscount Cranborne from June 1865 until April 1868, was a British Conservative statesman, serving as prime minister three times for a total of over 13 years. He was the last prime minister to head his full administration from the House of Lords."
+    ],
+    "top_n": 1,
+    "return_documents": false
+  },
+  "algorithm_version": "dagbt_local_terminal_v1",
+  "scoring_context_id": "09efdca6460274e6e41d424c1e00d8245584af964c0ba89dc21acd0723b19840",
+  "stage": [
+    "dagbt",
+    "set_reranker",
+    "16",
+    "batch",
+    "0"
+  ],
+  "attempts": [
+    {
+      "started_unix": 1791600194.934676,
+      "retry_index": 1,
+      "kind": "rerank_http",
+      "http_status": 200,
+      "finished_unix": 1791600195.975623
+    }
+  ],
+  "response": {
+    "model": "qwen3-reranker-8b",
+    "results": [
+      {
+        "index": 0,
+        "relevance_score": 0.0007493485940350588
+      }
+    ],
+    "usage": {
+      "upstream_requests": 2,
+      "prompt_tokens": 956,
+      "completion_tokens": 2,
+      "total_tokens": 958
+    },
+    "scoring_metadata": {
+      "contract": "canonical_yes_no_raw_logprobs_v1",
+      "label_token_ids": {
+        "yes": 9693,
+        "no": 2152
+      },
+      "upstream_requests": 2
+    }
+  }
+}
